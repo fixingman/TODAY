@@ -4,33 +4,63 @@ window._startAssistant = (function() {
   return function() {
     if (started) return; started = true;
 
-    // ── Closure state ──
     let _aiAnalyzeTimeout = null;
     let _aiAnalyzeSeq = 0;
     let _aiPendingSuggestion = null;
     let _aiCurrentSuggestion = null;
+    let _aiAnalysis = null;
     const _aiSuggestionExposureMs = 10000;
 
-// Post-add inline suggestion controller.
+function _aiFinishAnalysis(request = _aiAnalysis) {
+  if (!request || request !== _aiAnalysis) return;
+  _aiAnalysis = null;
+  clearTimeout(_aiAnalyzeTimeout);
+  _aiAnalyzeTimeout = null;
+  request.controller?.abort();
+}
+
+function _aiAnalysisCurrent(request) {
+  const task = request && manualTasks.find(t => t.id === request.taskId);
+  return request === _aiAnalysis && request?.seq === _aiAnalyzeSeq
+    && Date.now() <= request.expires && task?.text === request.taskText && !doneIds.has(request.taskId)
+    && request.provider === Today.use('connections')._aiGetProvider()
+    && request.key === Today.use('connections')._aiGetKey();
+}
+
+function _aiResumeAnalysis() {
+  const request = _aiAnalysis;
+  if (request && !request.running && Date.now() >= request.readyAt) {
+    _aiDoAnalyze(request.taskId, request.taskText, request.seq);
+  }
+}
+window.addEventListener('online', _aiResumeAnalysis);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) _aiResumeAnalysis();
+});
+
 function _aiAnalyzeTask(taskId, taskText) {
+  _aiFinishAnalysis();
   _aiCancelPendingSuggestion();
   const analyzeSeq = ++_aiAnalyzeSeq;
   clearTimeout(_aiAnalyzeTimeout);
   _aiAnalyzeTimeout = null;
 
-  // Don't analyze if AI not configured
   if (!Today.use('connections')._aiIsConfigured()) return;
   
-  // Don't analyze very short tasks
   if (taskText.length < 10) return;
+
+  _aiAnalysis = { taskId, taskText, seq: analyzeSeq, attempts: 0, running: false,
+    provider: Today.use('connections')._aiGetProvider(), key: Today.use('connections')._aiGetKey(),
+    expires: Date.now() + 120000, readyAt: Date.now() + 2000, controller: null };
   
-  // Debounce — wait 2s after last task add
   _aiAnalyzeTimeout = setTimeout(() => _aiDoAnalyze(taskId, taskText, analyzeSeq), 2000);
 }
 
 async function _aiDoAnalyze(taskId, taskText, analyzeSeq) {
+  const request = _aiAnalysis;
   if (analyzeSeq !== _aiAnalyzeSeq) return;
-  // Dismiss any existing suggestion first
+  if (!_aiAnalysisCurrent(request)) { _aiFinishAnalysis(request); return; }
+  if (request.running) return;
   _aiDismissSuggestion();
   _suggestionReconcileOutcomes();
 
@@ -45,12 +75,17 @@ async function _aiDoAnalyze(taskId, taskText, analyzeSeq) {
         message: 'Have to — or choosing to?',
       });
     }
+    _aiFinishAnalysis(request);
     return;
   }
 
-  // The post-add decision is about this task alone. Nearby task titles and
-  // lifetime behavior can make a speculative split sound more convincing, but
-  // cannot supply actions the person did not write.
+  if (!navigator.onLine || document.hidden) return;
+  request.running = true;
+  request.attempts++;
+  request.controller = new AbortController();
+  let retry = false, timedOut = false, received = false, deadline;
+
+  // Only the new task supplies actions; other tasks/history cannot justify a split.
   const prompt = `Task just added: ${JSON.stringify(taskText)}
 
 Reply ONLY with raw JSON:
@@ -63,8 +98,9 @@ Reply ONLY with raw JSON:
 }`;
 
   try {
-    const res = await fetch('/.netlify/functions/ai-assist', {
+    const result = await Promise.race([fetch('/.netlify/functions/ai-assist', {
       method: 'POST',
+      signal: request.controller.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         provider: Today.use('connections')._aiGetProvider(),
@@ -76,11 +112,21 @@ Suggest a split only when the person explicitly wrote 2 or 3 separate actions, e
 
 For a genuine split use type break_down and reason multiple_actions. Use clarify only when the task lacks a discernible action or object; otherwise leave it alone. With no suggestion return suggest:false, type:none, reason:other_complexity, message:"", subtasks:[]. For a split, use 2 or 3 verb-led action phrases copied from the task with no added details. Keep any message under 10 words. Return JSON only.`,
       }),
-    });
+    }).then(async res => ({ res, data: res.ok ? await res.json() : null })),
+    new Promise((_, reject) => {
+      request.controller.signal.addEventListener('abort', () => reject(new DOMException('Analysis stopped', 'AbortError')), { once: true });
+      deadline = setTimeout(() => { timedOut = true; request.controller.abort(); }, 12000);
+    })]);
     
-    if (!res.ok) return; // fail silently
+    received = true;
+    if (!_aiAnalysisCurrent(request)) return;
+    if (!result.res.ok) {
+      retry = result.res.status === 408 || result.res.status === 429 || result.res.status >= 500;
+      return;
+    }
     
-    const data = await res.json();
+    const data = result.data;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return;
     if (analyzeSeq !== _aiAnalyzeSeq) return;
     if (data.error || data.suggest !== true) return;
     if (data.type !== 'break_down' && data.type !== 'clarify') return;
@@ -95,7 +141,18 @@ For a genuine split use type break_down and reason multiple_actions. Use clarify
     _aiQueueSuggestion(taskId, taskText, data);
     
   } catch(e) {
-    // Fail silently — this is enhancement, not critical
+    retry = !received && (timedOut || e?.name === 'TypeError' || e?.name === 'NetworkError');
+  } finally {
+    clearTimeout(deadline);
+    request.controller?.abort();
+    request.controller = null;
+    request.running = false;
+    if (retry && request.attempts < 2 && _aiAnalysisCurrent(request)) {
+      request.readyAt = Date.now() + 5000;
+      _aiAnalyzeTimeout = setTimeout(() => {
+        if (request === _aiAnalysis) _aiResumeAnalysis();
+      }, 5000);
+    } else _aiFinishAnalysis(request);
   }
 }
 
@@ -217,7 +274,6 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   row.appendChild(msg);
   row.appendChild(chips);
   
-  // Insert after the task
   taskEl.insertAdjacentElement('afterend', row);
   
   const task = manualTasks.find(item => item.id === taskId);
@@ -236,10 +292,7 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   _aiStartSuggestionExposure(_aiCurrentSuggestion);
 }
 
-// The suggestion is a sibling rather than part of the task row so it can span
-// the full list width. Reorders move only `.task` elements, and Today.use('connections').renderManual()
-// replaces those elements wholesale; always restore the sibling relationship
-// from the stable task ID after either operation.
+// Re-anchor the full-width sibling by task ID after reorder or render.
 function _aiReanchorSuggestion() {
   const current = _aiCurrentSuggestion;
   if (!current?.element) return false;
@@ -331,31 +384,26 @@ function _aiDismissSuggestion(source) {
 }
 
 function _aiApplyBreakdown(originalTaskId, subtasks) {
-  // Find and remove original task
   const idx = manualTasks.findIndex(t => t.id === originalTaskId);
   if (idx === -1) return;
 
-  // Capture tag prefix ("tag: ") from original so split tasks inherit it
+  // Split tasks inherit the original tag.
   const _origText = manualTasks[idx].text;
   const _tagPrefixMatch = _origText.match(/^([a-z0-9]{1,12}):\s+/i);
   const _tagPrefix = _tagPrefixMatch ? _tagPrefixMatch[0] : '';
 
-  // Remove from DOM
   const oldEl = document.querySelector(`.task[data-taskid="${CSS.escape(originalTaskId)}"]`);
   if (oldEl) {
     oldEl.classList.add('removing');
     oldEl.addEventListener('animationend', () => oldEl.remove(), { once: true });
   }
 
-  // Remove from data
   manualTasks.splice(idx, 1);
 
-  // Track deletion for sync
   const deleted = safeJSON('today_deleted_ids', []);
   deleted.push({ id: originalTaskId, at: new Date().toISOString() });
   localStorage.setItem('today_deleted_ids', JSON.stringify(deleted));
 
-  // Add subtasks
   const list = $.manualList;
   const resultTaskIds = [];
   subtasks.forEach((text, i) => {
@@ -364,7 +412,6 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
     manualTasks.push(task);
     resultTaskIds.push(task.id);
     
-    // Add to DOM
     if (list) {
       const div = document.createElement('div');
       div.innerHTML = Today.use('connections').taskHTML(task, 'manual');
@@ -375,12 +422,10 @@ function _aiApplyBreakdown(originalTaskId, subtasks) {
     }
   });
   
-  // Save
   _saveManual();
   _setLastLocalChange();
   dropboxAutoSave();
   
-  // Update UI
   $.manualCount.textContent = manualTasks.length;
   if (appMemory?.patterns?.inlineSuggestions) {
     appMemory.patterns.inlineSuggestions.applied++;

@@ -46,6 +46,10 @@ not change stored keys or focus timing behavior.
 
 ---
 
+**Native controls and task context (v2.99.0 local):** Space keeps native control behavior instead of toggling the timer (including activating focused buttons); the background Space shortcut remains. Web/Trello context has optional exact-card not useful, Undo and later show context in its existing action row. Hidden cards expose no source CTA, arrow or timer shortcut; Gmail Draft reply keeps its existing higher priority. This is local card control, not learned style or a task-completion signal. Focus exit synchronously invalidates the enrichment view even if its valid task-level lookup later caches a result. Unchanged list/storage refresh retains the live card and immediate Undo label; renderManual restores the focused timer control after reattachment. Data/expiry/rollback live in AI.md → Web/Trello task enrichment.
+
+**Gmail ownership (v2.99.1 local):** Focus exit calls the Gmail component’s synchronous `closeFocus` before teardown. Focus-origin lookups and drafts cancel; stale task/text/grant/key/cache/visit replies, labels and Mail/Copy actions cannot affect another view. A valid capture-origin lookup may still cache for its unchanged task. Unchanged background refresh retains current context/draft controls; normal access-token refresh preserves the sign-in grant. Existing booking/no-draft and shortcut priority remain. Full provenance/expiry rules: AI.md → Gmail ownership.
+
 ## Session Tracking
 
 ```javascript

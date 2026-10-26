@@ -7,16 +7,83 @@
     if (started) return;
     started = true;
 
-    // ── Constants ─────────────────────────────────────────────────────────────
+    // Constants.
     const GMAIL_AUTH_URL  = 'https://accounts.google.com/o/oauth2/v2/auth';
     const GMAIL_API_BASE  = 'https://gmail.googleapis.com/gmail/v1/users/me';
     const GMAIL_SCOPE     = 'https://www.googleapis.com/auth/gmail.readonly';
     const GMAIL_DIAGNOSTICS_KEY = 'gmail_diagnostics_v1';
     const GMAIL_OPERATOR_RE = /\b(?:from:|to:|subject:|label:|in:|after:|before:|newer:|older:|is:|has:|filename:)/;
-    // Calendar-generated notifications are not correspondence. Use the actual
-    // sender, not a subject word or an .ics attachment (both can be useful mail).
+    // Exclude calendar notifications by actual sender.
     const CALENDAR_NOTIFICATION_SENDER = 'calendar-notification@google.com';
     const GMAIL_MATCH_POLICY = 'minisearch-v1';
+    const OWNER_POLICY = 'owner-v2';
+    const _lookups = new Map();
+    let _focusView = null, _authEpoch = 0, _connectionEpoch = -1, _connectionToken = '', _connectionKey = '', _connectionPromise;
+    const _task = id => manualTasks.find(t => t.id === id);
+    const _owner = id => _task(id) || soonTasks.find(t => t.id === id) || pastTasks.find(t => t.id === id);
+    const _aiSource = () => JSON.stringify([Today.use('connections')._aiGetProvider(), Today.use('connections')._aiGetKey()]);
+    const _source = () => _connectionKey && _gmailIsConnected() && _connectionToken === _refreshToken()
+      ? JSON.stringify([_connectionKey, _connectionToken, _authEpoch]) : '';
+    async function _ensureConnection() {
+      if (!_gmailIsConnected()) return '';
+      const token = _refreshToken(), epoch = _authEpoch;
+      if (_connectionToken !== token || _connectionEpoch !== epoch) {
+        _connectionEpoch = epoch;
+        _connectionToken = token; _connectionKey = '';
+        _connectionPromise = crypto.subtle.digest('SHA-256', new TextEncoder().encode(location.origin + '\0' + token))
+          .then(bytes => {
+            if (epoch !== _authEpoch || !_gmailIsConnected() || token !== _refreshToken()) return '';
+            return _connectionKey = Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
+          }).catch(() => '');
+      }
+      return _connectionKey || await _connectionPromise || '';
+    }
+    function _current(request) {
+      return _lookups.get(request.id) === request && !request.controller.signal.aborted
+        && _task(request.id)?.text === request.text && !doneIds.has(request.id)
+        && (!request.view || request.view === _focusView) && request.source === _source() && request.ai === _aiSource()
+        && request.cache === localStorage.getItem('gmail_enrichment_' + request.id)
+        && request.classify === localStorage.getItem('gmail_classify_' + request.id);
+    }
+    async function _bounded(controller, work) {
+      let timer, stop;
+      try {
+        return await Promise.race([work(), new Promise(resolve => {
+          stop = () => resolve(null);
+          controller.signal.addEventListener('abort', stop, { once:true });
+          timer = setTimeout(() => controller.abort(), 26000);
+        })]);
+      } finally { clearTimeout(timer); controller.signal.removeEventListener('abort', stop); }
+    }
+    function _closeFocus() {
+      _focusView?.draft?.abort();
+      const pending = _focusView && _lookups.get(_focusView.id);
+      if (pending?.view === _focusView) pending.controller.abort();
+      _focusView = null;
+      const block = document.getElementById('focusGmailBlock');
+      if (block) { block.hidden = true; block.innerHTML = ''; delete block.dataset.focusTaskId; }
+      const ask = document.querySelector('.focus-ai-timer-btn');
+      if (ask && /draft reply/i.test(ask.textContent)) ask.textContent = '✦︎ ask';
+    }
+    function _viewCurrent(view) {
+      return !!view && view === _focusView && (!view.expires || Date.now() < view.expires) && _task(view.id)?.text === view.text && !doneIds.has(view.id)
+        && view.source === _source() && view.cache === localStorage.getItem('gmail_enrichment_' + view.id);
+    }
+    function _cleanup(prune = true) {
+      for (const key of Object.keys(localStorage)) {
+        if (!/^gmail_(?:enrichment|classify)_/.test(key)) continue;
+        const id = key.replace(/^gmail_(?:enrichment|classify)_/, ''), owner = _owner(id);
+        try {
+          const entry = JSON.parse(localStorage.getItem(key));
+          if (!_gmailIsConnected() || entry.ownerPolicy !== OWNER_POLICY
+              || (_connectionKey && entry.connectionKey !== _connectionKey)
+              || (prune && (!owner || entry.taskText !== owner.text))) localStorage.removeItem(key);
+        } catch (_) { localStorage.removeItem(key); }
+      }
+      _gmailRestoreAllIndicators(prune);
+      for (const request of _lookups.values()) if (!_current(request)) request.controller.abort();
+      if (_focusView && !_viewCurrent(_focusView)) _closeFocus();
+    }
     let _miniSearchPromise;
     function _gmailSender(from) {
       const value = String(from || '').trim();
@@ -26,8 +93,7 @@
       return _gmailSender(from) === CALENDAR_NOTIFICATION_SENDER;
     }
 
-    // Only a transient candidate index: no mailbox ingestion or stored vectors.
-    // Vendored, lazy and precached; never contact a CDN from the task app.
+    // Transient, lazy local index; no mailbox ingestion or vectors.
     async function _gmailRankCandidates(taskText, candidates) {
       const tokenize = text => String(text || '').normalize('NFKD').replace(/\p{M}/gu, '')
         .toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -37,8 +103,7 @@
         + 'next new another last today tomorrow yesterday week month year morning afternoon evening').split(' '));
       let content = String(taskText || '').replace(new RegExp('^\\s*' + (booking ? BOOKING_RE.source : CONTACT_RE.source), 'i'), '');
       if (booking) content = content.replace(new RegExp(BOOKING_RE.source, 'gi'), ' ');
-      // Strip the leading action, not topic words: "email Gaia for reservation"
-      // must require reservation evidence, not merely a message from Gaia.
+      // Strip actions, retaining all named person/topic evidence.
       const terms = [...new Set(tokenize(content).filter(t => !ignored.has(t) && !/^\d+$/.test(t)).map(processTerm))];
       if (!terms.length) return { result: null, status: 'weak-match' };
       const provider = booking && String(taskText).match(/\b(?:at|with)\s+(.+)$/i);
@@ -47,8 +112,7 @@
         if (_isCalendarNotification(c.from)) return false;
         if (!booking) return true;
         if (!/\b(?:confirmation|confirmed|booked|reserved|booking|appointment|reservation)\b/i.test(c.subject + ' ' + c.snippet)) return false;
-        // An explicitly named provider must be supported by the correspondent,
-        // not a passing mention in somebody else's message.
+        // Named booking providers must match the correspondent.
         const senderTerms = tokenize(c.from).map(processTerm);
         return providerTerms.every(t => senderTerms.includes(t));
       }).slice(0, 50);
@@ -68,8 +132,7 @@
       if (!hits.length) return { result: null, status: 'weak-match' };
       hits.sort((a, b) => b.score - a.score || (Date.parse(eligible[b.id].date) || 0) - (Date.parse(eligible[a.id].date) || 0));
       const first = eligible[hits[0].id];
-      // A retrieval score is not a probability or a learned business preference.
-      // For unnamed bookings, do not guess between distinct correspondents.
+      // Abstain on ambiguous correspondents; scores are not preferences.
       if (booking && !providerTerms.length && hits.some(h => _gmailSender(eligible[h.id].from) !== _gmailSender(first.from)))
         return { result: null, status: 'ambiguous-match' };
       const rival = hits.find(h => eligible[h.id].threadId !== first.threadId && _gmailSender(eligible[h.id].from) !== _gmailSender(first.from));
@@ -77,8 +140,7 @@
       return { result: { ...first, matchPolicy: GMAIL_MATCH_POLICY }, status: 'found' };
     }
 
-    // Local, bounded and deliberately content-free: a deleted task can still be
-    // diagnosed without retaining its text, Gmail query, message or credentials.
+    // Keep only twenty local content-free diagnostic records.
     function _gmailNote(taskId, status, source, attempts, reason) {
       try {
         const previous = JSON.parse(localStorage.getItem(GMAIL_DIAGNOSTICS_KEY) || '[]');
@@ -97,7 +159,7 @@
       return { schema: 1, capturedAt: new Date().toISOString(), entries };
     }
 
-    // ── Stored values ─────────────────────────────────────────────────────────
+    // Stored values.
     let _cachedClientId = null;
     async function _getClientId() {
       if (_cachedClientId) return _cachedClientId;
@@ -119,7 +181,7 @@
       return !!_accessToken() && !!_refreshToken();
     }
 
-    // ── PKCE helpers ───────────────────────────────────────────────────────────
+    // PKCE helpers.
     function _mkVerifier() {
       const arr = new Uint8Array(48);
       crypto.getRandomValues(arr);
@@ -130,8 +192,9 @@
       return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     }
 
-    // ── Auth ───────────────────────────────────────────────────────────────────
+    // Auth.
     async function _gmailDoAuth() {
+      ++_authEpoch; _closeFocus();
       const clientId = await _getClientId();
       if (!clientId) { showStatus('Gmail not configured — set GMAIL_CLIENT_ID in Netlify env vars.', 'error'); return; }
 
@@ -188,6 +251,7 @@
     }
 
     async function _gmailExchangeCode(code) {
+      const epoch = ++_authEpoch, previousToken = _refreshToken();
       const verifier    = sessionStorage.getItem('gml_verifier');
       const redirectUri = sessionStorage.getItem('gml_redirect_uri');
       sessionStorage.removeItem('gml_verifier');
@@ -202,24 +266,29 @@
           body:    JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectUri }),
         });
         const data = await res.json();
+        if (epoch !== _authEpoch || previousToken !== _refreshToken()) return;
         if (!res.ok || data.error) {
           showStatus('Connection failed: ' + (data.error_description || data.error || res.status), 'error');
           return;
         }
+        if (!data.access_token || !data.refresh_token) { showStatus('Connection incomplete — reconnect Gmail.', 'error'); return; }
+        _closeFocus();
+        Object.keys(localStorage).filter(k => /^gmail_(?:enrichment|classify)_/.test(k)).forEach(k => localStorage.removeItem(k));
         localStorage.setItem('gmail_access_token', data.access_token);
         if (data.refresh_token) localStorage.setItem('gmail_refresh_token', data.refresh_token);
         localStorage.setItem('gmail_token_expiry', String(Date.now() + (data.expires_in - 60) * 1000));
         localStorage.removeItem('gmail_token_expired');
         Today.use('connections').renderConnections();
         showStatus('Gmail connected', 'success');
+        _connectionToken = ''; await _ensureConnection();
         _gmailRestoreAllIndicators();
       } catch(e) {
-        showStatus('Can\'t reach Google — check your connection.', 'error');
+        if (epoch === _authEpoch && previousToken === _refreshToken()) showStatus('Can\'t reach Google — check your connection.', 'error');
       }
     }
 
     async function _gmailRefreshTokens() {
-      const rt = _refreshToken();
+      const rt = _refreshToken(), epoch = _authEpoch;
       if (!rt) return false;
       try {
         const res = await fetch('/.netlify/functions/gmail-token', {
@@ -228,9 +297,10 @@
           body:    JSON.stringify({ refresh_token: rt }),
         });
         const data = await res.json().catch(() => ({}));
+        if (epoch !== _authEpoch || rt !== _refreshToken() || !_gmailIsConnected()) return false;
+        if (!data.access_token && !data.error) return false;
         if (!res.ok || data.error) {
-          // BUG-115: Google no longer accepts the saved sign-in. Retrying every task only
-          // repeats the 400, so stop, say so once, and offer Reconnect in Connections.
+          // BUG-115: stop repeated invalid-grant calls; offer Reconnect.
           if (data.error === 'invalid_grant' || data.error === 'unauthorized_client') _gmailMarkExpired();
           return false;
         }
@@ -249,6 +319,9 @@
     }
 
     function gmailDisconnect() {
+      ++_authEpoch; _connectionToken = ''; _connectionKey = ''; _connectionPromise = null;
+      for (const request of _lookups.values()) request.controller.abort();
+      _closeFocus();
       _cachedClientId = null;
       ['gmail_access_token','gmail_refresh_token','gmail_token_expiry','gmail_client_id','gmail_token_expired']
         .forEach(k => localStorage.removeItem(k));
@@ -261,30 +334,31 @@
       showStatus('Gmail disconnected.', 'success');
     }
 
-    // ── Gmail API ──────────────────────────────────────────────────────────────
-    async function _gmailFetch(url, retry) {
+    // Gmail API.
+    async function _gmailFetch(url, retry, request) {
       if (retry === undefined) retry = true;
+      if (request && !_current(request)) return { data:null, status:'stale' };
       if (_gmailIsExpired()) return { data: null, status: 'auth-expired' };
       if (_isExpired()) {
         const ok = await _gmailRefreshTokens();
         if (!ok) return { data: null, status: 'auth-refresh-failed' };
       }
+      if (request && !_current(request)) return { data:null, status:'stale' };
       let res;
-      try { res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + _accessToken() } }); }
+      try { res = await fetch(url, { signal:request?.controller.signal, headers: { 'Authorization': 'Bearer ' + _accessToken() } }); }
       catch(e) { return { data: null, status: 'network-error' }; }
+      if (request && !_current(request)) return { data:null, status:'stale' };
       if (res.status === 401 && retry) {
         const ok = await _gmailRefreshTokens();
         if (!ok) return { data: null, status: 'auth-refresh-failed' };
-        return _gmailFetch(url, false);
+        return _gmailFetch(url, false, request);
       }
       if (!res.ok) return { data: null, status: 'http-' + res.status };
-      try { return { data: await res.json(), status: 'ok' }; }
+      try { const data = await res.json(); return request && !_current(request) ? { data:null, status:'stale' } : { data, status:'ok' }; }
       catch(e) { return { data: null, status: 'invalid-json' }; }
     }
 
-    // Booking a service (haircut, table, appointment) is the same realm as writing to
-    // someone: the useful thread is the last booking confirmation. It is looked up on
-    // this device like any thread; no email content leaves it.
+    // Booking context is a prior confirmation, without a reply action.
     const BOOKING_RE = /\b(?:re-?book|book|booking|reserve|reservation|appointment|schedule)\b/i;
     const CONTACT_RE = /\b(reply|email|answer|call|contact|follow[\s-]?up|message|write to|respond|ping|reach out|get back to|answer to|send)\b/i;
     function _isBookingTask(taskText) {
@@ -306,9 +380,7 @@
         return service ? (kinds + ' ' + quote(service)) : '';
       }
 
-      // "Follow up on/about …" names a subject, not a correspondent. Keep the
-      // useful noun phrase and, when the task refers to something we sent, search
-      // Sent rather than inventing a person from the remaining words (BUG-091).
+      // Topic follow-ups search subject/Sent, never an invented person (BUG-091).
       const topicMatch = text.match(/\b(?:follow[\s-]?up|check\s+in)\s+(?:on|about)\s+(.+)$/i);
       if (topicMatch) {
         const sent = /\b(?:i|we)\s+(?:sent|shared)\b|\bour\b/i.test(topicMatch[1]);
@@ -319,9 +391,7 @@
         if (topic) return sent ? (quote(topic) + ' in:sent') : ('subject:' + quote(topic));
       }
 
-      // Explicit addressee forms are safe to express as from:/to:. "For …"
-      // introduces a topic after an explicit "to"/"with" recipient; without
-      // that cue it can be part of an organisation's name ("Center for …").
+      // Only explicit recipient cues split person/topic; preserve organization names.
       const personMatch = text.match(/\b(?:email|reply|respond|answer|write|get\s+back|call|contact|message|ping)\s+to\s+(.+?)(?=\s+for\b)/i)
         || text.match(/\bfollow[\s-]?up\s+with\s+(.+?)(?=\s+for\b)/i)
         || text.match(/\b(?:reply|respond|answer|write|get\s+back)\s+to\s+(.+?)(?=\s+(?:about|regarding|on)\b|$)/i)
@@ -337,8 +407,7 @@
         return 'from:' + q + ' OR to:' + q;
       }
 
-      // A communication verb without a trustworthy addressee is still better as
-      // a subject query than as from:"the whole task".
+      // Without a trustworthy addressee, use a subject query.
       const topic = text
         .replace(/\b(reply|email|answer|call|contact|follow[\s-]?up|message|write\s+to|respond|ping|reach\s+out|get\s+back\s+to|answer\s+to|send)\b/gi, '')
         .replace(/^\s*(to|with|for|about|on)\s+/i, '')
@@ -347,10 +416,7 @@
     }
 
     // AI-backed classification — returns { isComm, searchQuery }.
-    // Fast verb pre-filter avoids the AI call for clearly non-comm tasks.
-    // Falls back to the conservative query when AI is unavailable or invalid;
-    // _gmailFindThread records the outcome without retaining email content.
-    async function _classifyTask(taskId, taskText) {
+    async function _classifyTask(taskId, taskText, request) {
       const hasVerb = CONTACT_RE.test(taskText) || BOOKING_RE.test(taskText);
       if (!hasVerb) return { isComm: false, searchQuery: '', source: 'pre-filter' };
 
@@ -358,19 +424,17 @@
         const raw = localStorage.getItem('gmail_classify_' + taskId);
         if (raw) {
           const hit = JSON.parse(raw);
-          // Invalidate old-format cache entries (plain name, no from:/to: operators)
-          // so existing wrong matches get re-queried with the correct Gmail operators.
+          // Require operators and current owner/grant/policy.
           const hasOp = !hit.searchQuery || GMAIL_OPERATOR_RE.test(hit.searchQuery);
-          // Before v2.90.52 the classifier never reached the AI (stale global guard) and
-          // cached its regex fallback; only AI-sourced entries are trusted.
-          if (typeof hit.isComm === 'boolean' && hasOp && hit.source === 'ai') {
-            // Old AI false negatives must not suppress an explicit email task
-            // forever; reclassify under the clarified prompt below.
+          // Only validated AI classifications persist; fallbacks retry.
+          if (hit.ownerPolicy === OWNER_POLICY && hit.connectionKey === _connectionKey && hit.taskText === taskText
+              && typeof hit.isComm === 'boolean' && hasOp && hit.source === 'ai') {
+            // Reclassify explicit-email false negatives.
             if (hit.isComm || !/^\s*(?:email|reply|respond|write\s+to)\b/i.test(taskText)) return hit;
           }
           // Old format or explicit-email false negative — retry classification.
           try { localStorage.removeItem('gmail_classify_' + taskId); } catch(e) {}
-          try { localStorage.removeItem('gmail_enrichment_' + taskId); } catch(e) {}
+          request.classify = localStorage.getItem('gmail_classify_' + taskId);
         }
       } catch(e) {}
 
@@ -380,7 +444,7 @@
         const provider = connections._aiGetProvider();
         const apiKey   = connections._aiGetKey();
         const res = await fetch('/.netlify/functions/ai-assist', {
-          method:  'POST',
+          method:  'POST', signal:request.controller.signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             provider,
@@ -391,18 +455,19 @@
         });
         if (res.ok) {
           const data = await res.json();
+          if (!_current(request)) return { isComm:false };
           if (typeof data.isComm === 'boolean' && typeof data.searchQuery === 'string') {
             const fallback = _buildQueryFallback(taskText);
-            // An explicit email task should not silently vanish because the AI
-            // declined it or supplied a blank query.
+            // Explicit email intent retains its conservative fallback.
             if ((!data.isComm || !data.searchQuery.trim()) && /^\s*(?:email|reply|respond|write\s+to)\b/i.test(taskText) && fallback) {
               return { isComm: true, searchQuery: fallback, source: 'fallback', failure: 'ai-declined-email' };
             }
             if (data.isComm && !GMAIL_OPERATOR_RE.test(data.searchQuery)) {
               return { isComm: true, searchQuery: fallback, source: 'fallback', failure: 'ai-invalid-query' };
             }
-            const hit = { isComm: data.isComm, searchQuery: data.searchQuery, source: 'ai' };
-            try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(hit)); } catch(e) {}
+            const hit = { isComm: data.isComm, searchQuery: data.searchQuery, source: 'ai', taskText,
+              ownerPolicy:OWNER_POLICY, connectionKey:_connectionKey };
+            try { localStorage.setItem('gmail_classify_' + taskId, JSON.stringify(hit)); request.classify = localStorage.getItem('gmail_classify_' + taskId); } catch(e) {}
             return hit;
           }
           failure = 'ai-invalid-response';
@@ -415,12 +480,12 @@
       return { isComm: true, searchQuery: _buildQueryFallback(taskText), source: 'fallback', failure };
     }
 
-    async function _gmailSearch(searchQuery, taskText) {
+    async function _gmailSearch(searchQuery, taskText, request) {
       if (!searchQuery || searchQuery.length < 2) return { result: null, status: 'no-query' };
 
       const list = await _gmailFetch(
         // Group the original query so the exclusion applies to every OR branch.
-        GMAIL_API_BASE + '/threads?q=' + encodeURIComponent('(' + searchQuery + ') -from:' + CALENDAR_NOTIFICATION_SENDER) + '&maxResults=5'
+        GMAIL_API_BASE + '/threads?q=' + encodeURIComponent('(' + searchQuery + ') -from:' + CALENDAR_NOTIFICATION_SENDER) + '&maxResults=5', true, request
       );
       if (!list.data) return { result: null, status: list.status };
       if (!list.data.threads || !list.data.threads.length) return { result: null, status: 'no-thread' };
@@ -431,12 +496,11 @@
         const threadId = candidate.id;
         const thread = await _gmailFetch(
           GMAIL_API_BASE + '/threads/' + threadId
-          + '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date&metadataHeaders=Message-ID'
+          + '?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date&metadataHeaders=Message-ID', true, request
         );
         if (!thread.data) return { result: null, status: thread.status };
         const messages = (thread.data.messages || []).slice(-10);
-        // threads.get returns the whole conversation, including notifications
-        // that did not match the filtered query. Never display one accidentally.
+        // Filter notifications again inside each returned conversation.
         for (let i = messages.length - 1; i >= 0; i--) {
           const message = messages[i];
           const headers = (message.payload && message.payload.headers) || [];
@@ -457,23 +521,29 @@
       return _gmailRankCandidates(taskText, candidates);
     }
 
-    // ── Enrichment ─────────────────────────────────────────────────────────────
-    function _getEnrichment(taskId, taskText) {
+    // Enrichment.
+    function _getEnrichment(taskId, taskText, prune = true) {
+      if (_gmailIsConnected() && (!_connectionKey || _connectionToken !== _refreshToken())) return null;
       try {
         const raw = localStorage.getItem('gmail_enrichment_' + taskId);
         const cached = raw ? JSON.parse(raw) : null;
-        if (cached && (_isCalendarNotification(cached.from)
+        const owner = _owner(taskId);
+        if (cached && ((owner && cached.taskText !== owner.text) || !_gmailIsConnected()
+            || cached.ownerPolicy !== OWNER_POLICY || cached.connectionKey !== _connectionKey
+            || !Number.isFinite(cached.fetchedAt) || Date.now() - cached.fetchedAt > 86400000
+            || cached.fetchedAt > Date.now() + 60000 || _isCalendarNotification(cached.from)
             || cached.matchPolicy !== GMAIL_MATCH_POLICY
             || (taskText && cached.taskText !== taskText))) {
-          localStorage.removeItem('gmail_enrichment_' + taskId);
+          if (prune) localStorage.removeItem('gmail_enrichment_' + taskId);
           return null;
         }
-        return cached;
+        return owner ? cached : null;
       } catch(e) { return null; }
     }
 
-    async function _gmailFindThread(taskId, taskText) {
-      const classification = await _classifyTask(taskId, taskText);
+    async function _gmailFindThread(taskId, taskText, request) {
+      const classification = await _classifyTask(taskId, taskText, request);
+      if (!_current(request)) return null;
       if (!classification.isComm) {
         if (classification.source !== 'pre-filter') _gmailNote(taskId, 'not-communication', classification.source, []);
         return null;
@@ -481,50 +551,63 @@
 
       const attempts = [];
       let searchQuery = classification.searchQuery;
-      let searched = await _gmailSearch(searchQuery, taskText);
+      let searched = await _gmailSearch(searchQuery, taskText, request);
       attempts.push({ path: classification.source === 'fallback' ? 'fallback' : 'ai', status: searched.status });
 
-      // A syntactically valid AI query can still be too narrow. Only retry a
-      // genuine no-match, never an auth/network/API failure; the fallback keeps
-      // the named person and topic rather than broadening to an unrelated thread.
+      // Retry only genuine no-match with a grounded fallback, never transport/auth errors.
       if (!searched.result && (searched.status === 'no-thread' || searched.status === 'no-query') && classification.source === 'ai') {
         const fallback = _buildQueryFallback(taskText);
         if (fallback && fallback !== searchQuery) {
           searchQuery = fallback;
-          searched = await _gmailSearch(searchQuery, taskText);
+          searched = await _gmailSearch(searchQuery, taskText, request);
           attempts.push({ path: 'fallback', status: searched.status });
         }
       }
 
+      if (!_current(request)) return null;
       _gmailNote(taskId, searched.result ? 'found' : searched.status, classification.source, attempts, classification.failure);
       return searched.result ? { result: searched.result, searchQuery } : null;
     }
 
-    async function _gmailEnrichTask(taskId, taskText) {
+    async function _gmailEnrichTask(taskId, taskText, view) {
+      if (_task(taskId)?.text !== taskText || doneIds.has(taskId)) return null;
       if (!_gmailIsConnected()) {
-        if (/\b(?:email|reply|respond|follow[\s-]?up|write\s+to|message)\b/i.test(taskText))
-          _gmailNote(taskId, 'gmail-disconnected', null, []);
-        return;
+        if (CONTACT_RE.test(taskText)) _gmailNote(taskId, 'gmail-disconnected', null, []);
+        return null;
       }
-
+      const token = _refreshToken(), epoch = _authEpoch;
+      if (!await _ensureConnection() || token !== _refreshToken() || epoch !== _authEpoch || _task(taskId)?.text !== taskText || doneIds.has(taskId)) return null;
+      if (view && view !== _focusView) return null;
+      if (view) view.source = _source();
       const cached = _getEnrichment(taskId, taskText);
-      if (cached && (Date.now() - cached.fetchedAt) < 86400000) return;
-
-      const found = await _gmailFindThread(taskId, taskText);
-      if (!found || !_gmailIsConnected()) return;
-
-      localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify({
-        ...found.result, taskText, searchQuery: found.searchQuery, fetchedAt: Date.now(),
-      }));
-      _gmailUpdateIndicator(taskId, true);
+      if (cached) return cached;
+      const prior = _lookups.get(taskId);
+      if (prior && _current(prior)) return prior.promise;
+      prior?.controller.abort();
+      const request = { id:taskId, text:taskText, view, source:_source(), ai:_aiSource(), controller:new AbortController(),
+        cache:localStorage.getItem('gmail_enrichment_' + taskId), classify:localStorage.getItem('gmail_classify_' + taskId) };
+      _lookups.set(taskId, request);
+      request.promise = _bounded(request.controller, async () => {
+        const found = await _gmailFindThread(taskId, taskText, request);
+        if (!found || !_current(request)) return null;
+        const data = { ...found.result, taskText, searchQuery:found.searchQuery, fetchedAt:Date.now(),
+          ownerPolicy:OWNER_POLICY, connectionKey:_connectionKey };
+        try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch (_) { return null; }
+        _gmailUpdateIndicator(taskId, true);
+        return data;
+      }).catch(() => null).finally(() => {
+        if (_lookups.get(taskId) === request) _lookups.delete(taskId);
+      });
+      return request.promise;
     }
 
-    // ── Task row indicator ─────────────────────────────────────────────────────
-    function _gmailUpdateIndicator(taskId, fresh) {
+    // Task row indicator.
+    function _gmailUpdateIndicator(taskId, fresh, prune = true) {
       const taskEl = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
       if (!taskEl) return;
       taskEl.querySelector('.gmail-indicator')?.remove();
-      if (!_getEnrichment(taskId) || !_gmailIsConnected()) return;
+      const enrichment = _getEnrichment(taskId, undefined, prune);
+      if (!_task(taskId) || doneIds.has(taskId) || !enrichment || !_gmailIsConnected()) return;
 
       const span = document.createElement('span');
       span.className = 'gmail-indicator';
@@ -537,24 +620,24 @@
       if (fresh) _playEnrichmentArrival(span);
     }
 
-    function _gmailRestoreAllIndicators() {
+    function _gmailRestoreAllIndicators(prune = true) {
+      document.querySelectorAll('.gmail-indicator').forEach(el => el.remove());
       Object.keys(localStorage)
         .filter(k => k.startsWith('gmail_enrichment_'))
-        .forEach(k => _gmailUpdateIndicator(k.replace('gmail_enrichment_', '')));
+        .forEach(k => _gmailUpdateIndicator(k.replace('gmail_enrichment_', ''), false, prune));
     }
 
-    // ── Focus block ─────────────────────────────────────────────────────────────
-    // A Mac with a pointer, not an iPad presenting as MacIntel.
+    // Focus block.
     function _isDesktopMac() {
       return /Mac/.test(navigator.platform) && !(navigator.maxTouchPoints > 1);
     }
-    // message://%3C<id>%3E — the angle brackets percent-encoded, the id itself encoded so a
-    // stray '#', '?' or space cannot break the URL.
+    // Encode message IDs safely inside message:// angle brackets.
     function _appleMailHref(messageId) {
       return 'message://%3C' + encodeURIComponent(messageId) + '%3E';
     }
 
     function _doRenderBlock(block, taskText, enrichment) {
+      const view = _focusView; view.expires = enrichment.fetchedAt + 86400000;
       const booking  = _isBookingTask(taskText || enrichment.taskText || '');
       const fromRaw  = enrichment.from || '';
       const fromName = fromRaw.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
@@ -573,9 +656,7 @@
         .slice(0, 200);
       const searchQ  = encodeURIComponent(enrichment.searchQuery || _buildQueryFallback(taskText || enrichment.taskText || ''));
       const gmailUrl = 'https://mail.google.com/mail/u/0/#search/' + searchQ;
-      // Desktop Mac: open the selected message in Apple Mail (message://<Message-ID>),
-      // never the browser (Can, 2026-10-06). Everywhere else, and for lookups cached before
-      // the Message-ID was fetched, the Gmail web link stays.
+      // Desktop Mac uses Apple Mail; other platforms/missing IDs use Gmail.
       const appleMail = _isDesktopMac() && enrichment.messageId;
       const openLink = appleMail
         ? '<a class="focus-gmail-open focus-gmail-applemail" href="' + esc(_appleMailHref(enrichment.messageId)) + '" data-today-click="gmail.open-mail">Open in Mail ↗</a>'
@@ -595,49 +676,46 @@
           '<div class="focus-gmail-draft" hidden></div>' +
         '</div>';
 
+      block.querySelector('.focus-gmail-open').addEventListener('click', ev => {
+        if (!_viewCurrent(view)) { ev.preventDefault(); _closeFocus(); }
+      });
       block.hidden = false;
       if (window._focusExpandTimer) _focusExpandTimer();
       const _aiBtn = document.querySelector('.focus-ai-timer-btn');
-      // A booking confirmation is context to rebook from, not a message to answer: Ask
-      // stays Ask (undo a label left by an earlier reply thread).
+      // Booking keeps Ask; correspondence can offer Draft reply.
       if (booking) {
         if (_aiBtn && /draft reply/.test(_aiBtn.textContent)) _aiBtn.textContent = '\u2726\ufe0e ask';
         return;
       }
       if (_aiBtn) _aiBtn.textContent = '✦︎ draft reply';
-      block.querySelector('.focus-gmail-draft-btn').addEventListener('click', function() {
-        _fetchDraft(taskText || enrichment.taskText || '', snippet, block);
+      const button = block.querySelector('.focus-gmail-draft-btn');
+      button.addEventListener('click', function requestDraft() {
+        button.removeEventListener('click', requestDraft);
+        _fetchDraft(taskText || enrichment.taskText || '', snippet, block, view).then(ok => {
+          if (!ok && _viewCurrent(view)) button.addEventListener('click', requestDraft);
+        });
       });
     }
 
     function _gmailRenderFocusBlock(taskId, taskText) {
       const block = document.getElementById('focusGmailBlock');
-      if (!block || !_gmailIsConnected()) return;
-      // Stamp cached visits too, so an older lookup cannot overwrite this task.
-      block.dataset.focusTaskId = taskId;
-
-      const enrichment = _getEnrichment(taskId, taskText);
-      if (enrichment) { _doRenderBlock(block, taskText, enrichment); return; }
-
-      // No cache yet — classify then fetch on demand.
-      // Clear stale content immediately; stamp the block so async renders can
-      // bail if the user has already switched to a different task's focus session.
-      if (!taskText) return;
-      block.hidden = true;
-      block.innerHTML = '';
-      const requestTaskId = taskId;
-      _gmailFindThread(taskId, taskText).then(function(found) {
-        if (!found || !_gmailIsConnected()) return;
-        const data = Object.assign({}, found.result, { taskText, searchQuery: found.searchQuery, fetchedAt: Date.now() });
-        try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch(e) {}
-        _gmailUpdateIndicator(taskId, true);
-        const b = document.getElementById('focusGmailBlock');
-        // Guard: abort if user switched to a different task while we were fetching
-        if (b && b.dataset.focusTaskId === requestTaskId) _doRenderBlock(b, taskText, data);
+      if (_focusView?.id === taskId && _focusView.text === taskText && _viewCurrent(_focusView) && (!block?.hidden || _lookups.has(taskId))) return;
+      _closeFocus();
+      if (!block || !_gmailIsConnected() || _task(taskId)?.text !== taskText || doneIds.has(taskId)) return;
+      const view = { id:taskId, text:taskText, source:_source(), cache:localStorage.getItem('gmail_enrichment_' + taskId) };
+      _focusView = view; block.dataset.focusTaskId = taskId;
+      const cached = _connectionKey && _getEnrichment(taskId, taskText);
+      view.cache = localStorage.getItem('gmail_enrichment_' + taskId);
+      if (cached && _viewCurrent(view)) { _doRenderBlock(block, taskText, cached); return; }
+      _gmailEnrichTask(taskId, taskText, view).then(data => {
+        if (!data || view !== _focusView || _task(taskId)?.text !== taskText || doneIds.has(taskId)) return;
+        view.source = view.source || _source();
+        view.cache = JSON.stringify(data);
+        if (_viewCurrent(view)) _doRenderBlock(block, taskText, data);
       });
     }
 
-    function _setBtnLabel(btn, text) {
+    function _setBtnLabel(btn, text, view) {
       const label = btn.querySelector('.focus-gmail-draft-label');
       if (!label) { btn.textContent = text; return; }
       if (!btn.dataset.minWidthLocked) {
@@ -645,20 +723,25 @@
         btn.dataset.minWidthLocked = '1';
       }
       label.classList.add('changing');
-      setTimeout(() => { label.textContent = text; label.classList.remove('changing'); }, 150);
+      setTimeout(() => { if (btn.isConnected && (!view || _viewCurrent(view))) { label.textContent = text; label.classList.remove('changing'); } }, 150);
     }
 
-    async function _fetchDraft(taskText, snippet, block) {
+    async function _fetchDraft(taskText, snippet, block, view) {
       const btn     = block.querySelector('.focus-gmail-draft-btn');
       const draftEl = block.querySelector('.focus-gmail-draft');
-      if (!btn || !draftEl) return;
+      if (!btn || !draftEl || !_viewCurrent(view)) return false;
+      view.draft?.abort();
+      const controller = view.draft = new AbortController(), ai = _aiSource();
+      const current = () => _viewCurrent(view) && view.draft === controller && !controller.signal.aborted
+        && ai === _aiSource() && block.querySelector('.focus-gmail-draft-btn') === btn;
 
-      _setBtnLabel(btn, 'drafting…');
+      _setBtnLabel(btn, 'drafting…', view);
       btn.disabled    = true;
 
       try {
-        const res = await fetch('/.netlify/functions/ai-assist', {
-          method:  'POST',
+        const result = await _bounded(controller, async () => {
+          const res = await fetch('/.netlify/functions/ai-assist', {
+          method:  'POST', signal:controller.signal,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             provider:     Today.use('connections')._aiGetProvider(),
@@ -667,25 +750,27 @@
             systemPrompt: 'Draft a brief, natural reply. Under 3 sentences. Use first name only if greeting. No subject line. No sign-off.',
           }),
         });
-        if (!res.ok) {
-          res.json().then(e => console.warn('[draft reply]', res.status, e?.error)).catch(() => {});
-          _setBtnLabel(btn, 'Draft reply'); btn.disabled = false; return;
-        }
-        const data  = await res.json();
-        const draft = (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '');
-        if (!draft)  { _setBtnLabel(btn, 'Draft reply'); btn.disabled = false; return; }
+          if (!res.ok) return null;
+          return await res.json();
+        });
+        if (!current()) return false;
+        const data = result || {};
+        const raw = data.content || data.message;
+        const draft = typeof raw === 'string' ? raw.trim().replace(/^["']+|["']+$/g, '') : '';
+        if (!draft) return false;
 
         draftEl.textContent = draft;
         draftEl.hidden      = false;
         if (window._focusExpandTimer) _focusExpandTimer();
-        _setBtnLabel(btn, 'Copy');
+        _setBtnLabel(btn, 'Copy', view);
         btn.disabled        = false;
         btn.addEventListener('click', function copyOnce() {
+          if (!current()) return;
           navigator.clipboard?.writeText(draft).then(() => {
-            _setBtnLabel(btn, 'Copied ✓');
-            setTimeout(() => { _setBtnLabel(btn, 'Copy'); }, 2000);
-          });
-          btn.removeEventListener('click', copyOnce);
+            if (!current()) return;
+            _setBtnLabel(btn, 'Copied ✓', view);
+            setTimeout(() => { _setBtnLabel(btn, 'Copy', view); }, 2000);
+          }).catch(() => {});
         });
 
         const _toEmail   = block.dataset.fromEmail || '';
@@ -693,42 +778,35 @@
         const _subject   = _rawSubj ? 'Re: ' + _rawSubj : '';
         const _actionsEl = block.querySelector('.focus-gmail-actions');
         if (_actionsEl && _toEmail && !_actionsEl.querySelector('.focus-gmail-mailto')) {
-          // Address goes in the mailto path, where '@' is legal and expected. Running the
-          // whole address through encodeURIComponent produced 'notifications%40kry.se';
-          // most clients decode it, but it is not the correct form and not all do.
-          // Address form, 2 KB cap and grapheme-safe trimming → _mailtoDraftHref in
-          // util.js, where it is unit-tested (scripts/mailto-test.mjs).
+          // util owns mailto address escaping and the 2KB/grapheme limits.
           const _mLink = document.createElement('a');
           _mLink.className   = 'focus-gmail-mailto focus-gmail-open';
           _mLink.textContent = 'Open in Mail ↗';
           _mLink.href        = _mailtoDraftHref(_toEmail, _subject, draft);
-          // Deliberately no target="_blank" (BUG-089, v2.77.6). That asks for a new
-          // browsing context, so the browser opens first and only then hands the
-          // scheme to Mail — the two-step hop Can observed. A same-context navigation
-          // is intercepted by the OS protocol handler before any page load, so no
-          // browser is needed. The href stays on the anchor so long-press and
-          // right-click → copy address still work.
+          // Same-context Mail navigation avoids a browser detour (BUG-089).
           _mLink.addEventListener('click', function(ev) {
             ev.preventDefault();
-            window.location.href = _mLink.href;
+            if (current()) window.location.href = _mLink.href;
           });
           _actionsEl.appendChild(_mLink);
           if (window._focusExpandTimer) _focusExpandTimer();
         }
-      } catch(e) {
-        btn.textContent = 'Draft reply';
-        btn.disabled    = false;
+        return true;
+      } catch(e) { return false; }
+      finally {
+        if (view === _focusView && view.draft === controller && !draftEl.textContent) {
+          btn.disabled = false; _setBtnLabel(btn, 'Draft reply', view);
+        }
       }
     }
 
-    // Same-context navigation (like "Open in Mail" for drafts, BUG-089): the OS hands the
-    // message:// scheme to Mail without opening a browser window first.
+    // Message links also use same-context Mail navigation.
     if (window.Today) Today.ui.register('click', 'gmail.open-mail', (ev, link) => {
       ev.preventDefault();
-      window.location.href = link.href;
+      if (_viewCurrent(_focusView)) window.location.href = link.href;
     });
 
-    // ── Exports ────────────────────────────────────────────────────────────────
+    // Exports.
     window.gmailAuth                    = _gmailDoAuth;
     window.gmailDisconnect              = gmailDisconnect;
     window._gmailIsConnected            = _gmailIsConnected;
@@ -737,6 +815,16 @@
     window._gmailRestoreAllIndicators   = _gmailRestoreAllIndicators;
     window._gmailUpdateIndicator        = _gmailUpdateIndicator;
     window._gmailBuildQueryFallback     = _buildQueryFallback;
-    Today.define('gmail', { observationAudit: _gmailObservationAudit, rankCandidates: _gmailRankCandidates });
+    Today.define('gmail', { observationAudit:_gmailObservationAudit, rankCandidates:_gmailRankCandidates,
+      closeFocus:_closeFocus, cleanup:_cleanup });
+    window.addEventListener('storage', event => {
+      if (event.key === null || /^gmail_(?:access_token|refresh_token)$/.test(event.key || '')) {
+        if (!_gmailIsConnected() || _connectionToken !== _refreshToken()) {
+          _closeFocus(); for (const request of _lookups.values()) request.controller.abort();
+          _ensureConnection().then(() => _cleanup(false));
+        }
+      } else if (/^gmail_(?:enrichment|classify)_/.test(event.key || '')) { _cleanup(false); }
+    });
+    _ensureConnection().then(_gmailRestoreAllIndicators);
   };
 })();

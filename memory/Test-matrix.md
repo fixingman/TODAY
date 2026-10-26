@@ -63,6 +63,8 @@ URL and retains its JSON for 30 days. Run
   every app-version bump.
 - `--payload-only` checks deterministic byte/font/script ceilings without launching Chrome; CI runs it before browser suites, and the full performance gate still repeats those checks.
 - Original runs retain bounded long-animation-frame script/layout attribution (first 128 frames per page), explicit browser support and source URLs without query/fragment values. These accompany the measured cold/warm/input evidence; a faster later replay cannot replace them. No observer is installed in normal app sessions.
+- Reflection freshness fixtures wait for actual reading/request states, with an intentionally delayed first cryptographic digest; consent, deletion, source and overlap assertions stay unchanged.
+- Diagnostic reads drain pending PerformanceObserver records before snapshotting. A real-browser regression queues callback delivery and still requires the original blocking attribution and unchanged timing failure; observer scheduling cannot turn that into a missing diagnostic.
 - Add/focus response timing starts at actual keydown/pointerdown and ends on the next frame after the expected state appears. Window capture runs before document audio warmup, so its synchronous cost stays in the measurement. Automation wait is separate. `performance-harness-test` deliberately blocks startup/pointerdown and delays automation to verify attribution, unchanged ceilings and unsupported-API fallback using fictional browser fixtures.
 - `--trace-on-failure DIR` keeps the original verdict and, only after a budget failure, launches a fresh Chrome process for a separate cold/warm-load/focus replay. It saves DevTools traces without screenshots and separate replay metrics. Tracing never changes the original five-run evidence or its worst-run budgets; replay need not reproduce an intermittent stall.
 - Nightly checks out `dev`, requires the deployed version to match, and warms Chrome on a blank
@@ -271,7 +273,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 4.6 | **SYNC: Check/uncheck rapid toggle** | Final state correct |
 | 4.7 | **BUG-055: Second-device first-open** — tasks checked on device A today, device B opens for first time | Done tasks stay in TODAY, not moved to PAST (fix v2.30.1 — `today_checked_ids` timestamps distinguish today vs yesterday) |
 
-### 5. Stats & Memory (17 tests)
+### 5. Stats & Memory (18 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -292,6 +294,7 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 5.15 | Memory completion rate has five valid days plus one restored day with `tasksAdded: 31` | Invalid day is excluded; rate and evidence totals use only the five plausible days |
 | 5.16 | Inline suggestion generation finishes while its task is off-screen, then the list re-renders and the task enters view | No row/offer/exposure before entry; pending delivery re-anchors by task ID; entry mounts and measures it; replacement/removal cancels; reason outcomes still learn and sync |
 | 5.17 | Manual task has more completed pomodoros on one device; sync an older copy, including a concurrent Today/Soon/Past move (BUG-124) | Higher count/newest activity survive independently of the winning zone; incoming higher progress updates storage and badge; stale remote is healed; converged copies stay quiet. Full/partial focus queues backup without another edit. `dropbox-test` and `focus-test` automate fictional coverage; installed two-device acceptance remains open. |
+| 5.18 | Post-add split has a transient request/body failure, or capture happens offline/just before hiding (BUG-129) | Actual Add/proxy/fake-upstream and reconnect/foreground tests (post-add fixture responses/counts exclude unrelated writers sharing the proxy): latest unchanged task can recover within two minutes, twelve-second deadline, one retry after five seconds. Edit/delete/check/move/key/new capture/expiry fences; permanent/invalid/abstained/suppressed output stays terminal; failures never become ignored votes. Installed delivery acceptance remains open. |
 
 ### 6. Trello (9 tests)
 
@@ -387,7 +390,21 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 12.2 | Click ↩ soon | Task moves to SOON with same ID; `zoneChangedAt` refreshed; `revived` counter increments |
 | 12.3 | Done task in PAST — hover | No ↩ soon button (done stays — PAST is acknowledgment) |
 
-### 13. About — Sunday Layer and Monday Silence (5 tests)
+### 12A. Task enrichment ownership and exact-card control (v2.99.0 local)
+
+| # | Scenario | Expected |
+|---|---|---|
+| 12A.1 | Current task text/source board/query policy differs from a cached web/Trello card, or owner is removed | Stale entry/arrow/view and hide influence are removed; old-policy caches refresh only at a next eligible use |
+| 12A.2 | Hold response body while task is renamed/deleted, board/key changes or another cache is adopted | No stale cache/indicator/view write; replacement request remains independently owned after old completion |
+| 12A.3 | Keyboard Enter/Space on not useful, Undo and later show context | Exact card hides/restores without a call; source link/shortcut/arrow withheld while hidden; focus transfers to replacement control; native Space does not toggle the timer. Interleaved list/storage refresh retains the same Undo node/focus/label; state:hidden works without a redundant timestamp; real move APIs preserve hiding across their intermediate saves |
+| 12A.4 | Close/switch Focus while context is pending | Valid task-level cache may finish; the old focus view cannot reopen/repaint or change another owner’s shortcut |
+| 12A.5 | Reopen hidden card, expire it or exceed retention limits | Hidden state persists across visits and unchanged Today/Soon/Past moves/return; true owner deletion clears it, while per-card show context clears only the hide. Max 30 days, 60 entries / 200,000 UTF-8 bytes; previous-client success-only renderer also withholds state:hidden |
+| 12A.6 | Network/provider/exhausted/malformed server result versus explicit no-result | Failure is retryable 502; only a valid explicit no-result caches. Client abort is bounded at 26s without automatic retry |
+| 12A.7 | Populated existing component at 320px, max-length unbroken headline/body, reduced motion and keyboard focus | Actions/text wrap without horizontal overflow; named native targets and visible focus; no new animation or panel. Desktop-only Focus eligibility stays unchanged |
+
+Automated owner: `scripts/task-enrich-test.mjs`; `scripts/gmail-test.mjs` separately covers local BUG-128 ownership: held classification/list/thread/draft bodies, edits/deletion/moves/checks/key/grant/cache adoption, actual Escape, real sync, cross-tab sign-in changes, access refresh versus Forget, 26s deadlines and Copy without regeneration. Manual installed-account/VoiceOver and W3 usefulness checks remain distinct from browser fixtures.
+
+### 13. About — Sunday Layer and Monday Silence
 
 | # | Scenario | Expected |
 |---|----------|----------|
@@ -396,6 +413,9 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 13.3 | Open About on Sunday — no AI key / offline | Sunday block hidden; no generic counter-summary fallback and no false negative-cache stamp |
 | 13.4 | Open About Tuesday–Saturday | No Sunday reflection block shown |
 | 13.5 | Flat week, identity/causal response, or old unmarked cache | Flat week abstains; overclaim rejected; old copy removed and cannot restore from Dropbox without current policy |
+| 13.6 | Sunday fallback eligibility/feedback | Existing gate enforces weekly cooldown, extra week after a miss and permanent retirement; stale unvoted policy may replace, explicit old votes remain authoritative; audit reports the actual fallback/rejection |
+| 13.7 | Sunday seven-date evidence and prose | Today plus six preceding dates across DST; strict majority before a more/most claim, all three actions before mixed wording, two-way ties abstain; actual semantic guard rejects unrelated/wrong-direction prose |
+| 13.8 | Held Sunday responses and two browser stores | Source/vote/clear/day/key/adopted-cache/readiness changes fence late success/error; irrelevant Focus/reordered source rows stay valid. Real merge carries retirement; only current-policy cache is adopted. No initial generation before readiness |
 
 ---
 

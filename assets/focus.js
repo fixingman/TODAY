@@ -4,7 +4,7 @@ window._startFocus = (function() {
   return function() {
     if (started) return; started = true;
 
-  // ── Desktop-only guard ───────────────────────────────────────────────────
+  // Desktop-only guard
   // matchMedia hover:hover = device has a true pointer (mouse/trackpad).
   // Touch-primary devices (mobile) return false — bail entirely.
   if (!window.matchMedia('(hover: hover)').matches) return;
@@ -18,7 +18,7 @@ window._startFocus = (function() {
     return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
   }
 
-  // ── Checkbox intercept hook ───────────────────────────────────────────────
+  // Checkbox intercept hook
   // Called before toggleDone. Returns true if focus mode handled the check
   // (stops normal toggleDone from firing). Registers partial session,
   // collapses focus UI, then lets the task complete normally.
@@ -129,7 +129,7 @@ window._startFocus = (function() {
     }
   };
 
-  // ── Per-task pause state (in-memory, session-scoped) ─────────────────────
+  // Per-task pause state (in-memory, session-scoped)
   // Stores { rem, running } keyed by taskId.
   // Survives UI dismiss. Cleared when a new task starts.
   // NOT persisted to localStorage — resets on page reload intentionally.
@@ -141,7 +141,7 @@ window._startFocus = (function() {
   }
   function clearState(taskId) { delete taskStates[taskId]; _focusPriorReplies.delete(taskId); }
 
-  // ── DOM: kbd hint + timer block ───────────────────────────────────────────
+  // DOM: kbd hint + timer block
   const kbdHint = document.createElement('div');
   kbdHint.className = 'focus-kbd-hint';
   kbdHint.setAttribute('role', 'listitem');
@@ -559,12 +559,11 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     copyButton.classList.remove('copied');
   }
 
-  // ── Open UI on a task ─────────────────────────────────────────────────────
+  // Open UI on a task
   function openUI(taskEl, taskId) {
     // If showing a different task's UI, close it first (no state change)
     if (uiTaskEl && uiTaskEl !== taskEl) closeUI(false);
-    // Bump AFTER that close so its pending 200ms teardown sees a newer generation
-    // and leaves this session's timer chrome alone. (BUG-065)
+    // Supersede the prior close callback before reusing the timer (BUG-065).
     focusGen++;
 
     uiTaskEl = taskEl;
@@ -578,20 +577,15 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     _breatheRun(fillEl, false);
     timeEl.classList.remove('complete');
     timerEl.classList.remove('complete');
-    // If the previous session completed (rem=0), clear state so syncDisplay shows fresh 25:00.
-    // Without this, re-opening a completed task shows a frozen 00:00 until the timer bar is clicked. (BUG-025 sibling)
+    // Reopening a completed session starts fresh (BUG-025).
     const _priorSt = getState(taskId);
     if (_priorSt.rem === 0 && !_priorSt.running) clearState(taskId);
 
-    // Capture scroll and task top BEFORE focus-locked removes the header from flow.
-    // focus-locked makes the header position:fixed (out of flow), shifting all content
-    // up by ~headerHeight. Measuring after that gives an originalTaskTop too small by
-    // that amount, causing the exit drift-correction to over-scroll on every exit.
+    // Measure before the fixed header leaves flow, or exit drift is overcorrected.
     const originalScrollY = window.scrollY;
     const originalTaskTop = taskEl.getBoundingClientRect().top;
 
-    // Compute nudge delta with the header still sticky (normal pre-focus layout).
-    // _targetScrollY is captured in the rAF closure below.
+    // Compute the scroll nudge while the header is still sticky.
     const rect = taskEl.getBoundingClientRect();
     const viewportH = window.innerHeight;
     const timerHeight = 260;
@@ -606,12 +600,10 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     }
     const _targetScrollY = Math.max(0, originalScrollY + _enterDelta);
 
-    // Stage row delays while every item is still in its normal geometry. Nearby
-    // commitments recede first; farther ones follow within one --dur-fast beat.
+    // Stage the receding wave before focus changes geometry.
     _stageFocusWave(taskEl);
 
-    // Start the header fade before any setup work so the logo dims at the same
-    // frame the tap registers — not after _setFocusInert loops over every task.
+    // Begin the header fade before expensive focus setup.
     const _hdr = document.getElementById('sticky-header');
     if (_hdr) _hdr.style.transition = ''; // clear splash's inline transition
     document.body.classList.add('focus-locked');
@@ -637,8 +629,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
       timerEl.classList.add('open');
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
       if (_enterDelta !== 0 && document.body.style.position === 'fixed') {
-        // Animate body.top to target — concurrent with the blur-in, matching exit character.
-        // Delta already accounts for timerHeight so overflow correction is not needed here.
+        // Animate the precomputed nudge with blur-in.
         document.body.style.transition = 'top 200ms cubic-bezier(0.16, 1, 0.3, 1)';
         document.body.style.top = `-${_targetScrollY}px`;
         setTimeout(() => { document.body.style.transition = ''; }, 210);
@@ -667,17 +658,13 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     document.body.style.right = '0';
     document.body.dataset.scrollY     = originalScrollY;
     document.body.dataset.focusTaskTop = originalTaskTop;
-    // Pin the header for the lock (BUG-098). Sticky has nothing to stick to inside a
-    // fixed body and rode the top nudge off-screen for tasks near the bottom. The CSS
-    // makes it position:fixed under body.focus-locked; padding the body by its height
-    // keeps everything below exactly where it was when it leaves the flow.
-    // (_hdr captured above, focus-locked applied above.)
+    // Fixed header plus matching body padding prevents nudge drift (BUG-098).
     if (_hdr) {
       document.body.style.paddingTop = _hdr.getBoundingClientRect().height + 'px';
     }
   }
 
-  // ── Track actual focus time spent (not just completed sessions) ────────────
+  // Track actual focus time spent (not just completed sessions)
   function _trackFocusTime(taskId) {
     if (!taskId) return;
     const st = taskStates[taskId];
@@ -715,7 +702,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     updateStats();
   }
 
-  // ── Close UI — preserves task state unless clearState=true ───────────────
+  // Close UI — preserves task state unless clearState=true
   function closeUI(doResetState) {
     clearTimeout(tickHandle);
     _resetCopyFeedback(uiTaskEl);
@@ -727,31 +714,18 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     _updateBreatheOverlay(false); // Clear breathe overlay
     _breatheRun(fillEl, false);
     const _gmailBlock = document.getElementById('focusGmailBlock');
-    if (_gmailBlock) { _gmailBlock.hidden = true; _gmailBlock.innerHTML = ''; }
+    if (_gmailBlock) Today.use('gmail').closeFocus();
     const _agentBlock = document.getElementById('focusAgentBlock');
-    if (_agentBlock) { _agentBlock.hidden = true; _agentBlock.innerHTML = ''; }
+    if (_agentBlock) Today.use('task-enrich').closeFocus();
 
-    // Close PiP widget if open
     if (window._pipClose) window._pipClose();
 
-    // Task-check path: remove .focusing immediately so the done-opacity transition
-    // in _applyDoneStyles fires correctly. While .focusing is active, the CSS rule
-    // `.focusing .task.focused { opacity: 1 !important }` overrides any inline
-    // opacity change — so the task snaps from 1 to 0.25 at 200ms (when .focusing
-    // is normally removed) rather than fading. Removing it here lets the transition
-    // work from t=0, and also unblurs background tasks concurrent with scroll-back
-    // (filter 200ms matches the scroll duration exactly — everything settles together).
-    // The timer stays in the DOM and collapses via its existing CSS transition
-    // (--dur-fast, 150ms) rather than being yanked out instantly, eliminating the
-    // layout-shift jump that made bottom-of-list checks feel abrupt.
     if (doResetState) {
       appEl.classList.remove('focusing');
       _clearFocusWave();
     }
 
-    // Unlock scroll — stay at the nudge-adjusted position (lockY) rather than
-    // animating back to the original scrollY. This eliminates the reverse-scroll
-    // motion on exit: the task stays visually where it was during focus.
+    // Unlock at the focus-adjusted Y; compensate list-reorder drift below.
     const scrollY      = parseInt(document.body.dataset.scrollY || '0');
     const lockY        = Math.abs(parseInt(document.body.style.top || '0'));
     const _driftAnchor = uiTaskEl; // capture before uiTaskEl is cleared below
@@ -765,47 +739,30 @@ Stay with the task's own action, object or constraint. No mood or motivation che
       document.body.style.right = '';
       document.body.style.paddingTop = '';
       document.body.classList.remove('focus-locked'); // header back to sticky, in flow
-      // Stay at lockY (the effective scroll during focus). Going back to scrollY
-      // would animate the page toward the pre-focus position — that's the hijack.
       window.scrollTo(0, lockY);
-      // Drift correction: if renderManual reordered tasks during focus, adjust.
-      // Expected viewport Y at lockY = savedTaskTop offset by the nudge delta.
       if (_savedTaskTop >= 0 && _driftAnchor) {
         const _expectedY = _savedTaskTop - (lockY - scrollY);
         const _drift = _driftAnchor.getBoundingClientRect().top - _expectedY;
         if (Math.abs(_drift) > 2) window.scrollTo(0, lockY + _drift);
       }
-      // Prevent _forceRepaint (dropbox wake handler) from reading savedScrollY and
-      // cementing it — the flag expires after the last timer pass we care about (1500ms).
       window._focusJustExited = true;
       setTimeout(() => { window._focusJustExited = false; }, 2000);
     }
 
     _doUnfix();
 
+    // End every session before delayed DOM cleanup (BUG-044/065).
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
     
-    // Track focus time before clearing state — always, not just on full completion.
-    // _trackFocusTime guards against double-counting (st.tracked) and sub-minute sessions.
     if (closingTaskId) {
       const _st      = getState(closingTaskId);
       const _hadTime = _st.rem < TOTAL; // any focus time was spent
       _trackFocusTime(closingTaskId);
-      // Stop the session so no "zombie" survives. closeUI tears the timer down
-      // (tickHandle cleared, PiP closed) but left st.running=true here; the
-      // visibilitychange correction would later "complete" that zombie with a
-      // chime even though no focus UI is active. Click-outside stopped it
-      // manually; Escape / task-switch / other closeUI(false) paths did not. (BUG-044)
       _st.running   = false;
       _st.paused    = false;
       _st.wallStart = null;
-      // BUG-043: partial focus on an aged card never called _logSession, so the
-      // activity signal stayed unset and the card stayed dimmed. Fix for both
-      // Trello and manual tasks — whichever completes _logSession already set
-      // the signal; the guard skips those to avoid double-work.
       if (_hadTime && closingTaskId.startsWith('trello_')) {
-        // Trello: today_trello_focus map is the activity signal (no lastActive field)
         const _fm = _getTrelloFocus();
         if (!_fm[closingTaskId]) {
           _fm[closingTaskId] = 1;
@@ -814,8 +771,6 @@ Stay with the task's own action, object or constraint. No mood or motivation che
         }
         _markTrelloActive(closingTaskId); // persistent un-age (BUG-064)
       } else if (_hadTime && closingTaskId.startsWith('manual_')) {
-        // Manual: lastActive is the activity signal — always safe to refresh;
-        // _logSession already set it for completed sessions, overwriting is harmless.
         const _mIdx = manualTasks.findIndex(t => t.id === closingTaskId);
         if (_mIdx !== -1) {
           manualTasks[_mIdx].lastActive = Date.now();
@@ -829,34 +784,21 @@ Stay with the task's own action, object or constraint. No mood or motivation che
       }
     }
 
-    // The persisted session means "a focus session is in flight". ANY close ends it —
-    // this used to be gated behind doResetState, but every user-facing exit (Escape,
-    // click-outside, task switch, PiP close) passes false, so the key survived and the
-    // next render restored it. Cleared synchronously: the 200ms window below is exactly
-    // when a render can fire. (BUG-065)
     localStorage.removeItem('today_focus_session');
 
-    // Let CSS transition play (200ms) then clean up DOM classes
     const myGen = ++focusGen;
     setTimeout(() => {
-      // Release the task we closed — but never strip .focused off whatever is active
-      // now (A -> B -> A inside 200ms would otherwise unstyle the live task).
       if (closingTask && closingTask !== uiTaskEl) {
         closingTask.classList.remove('focused');
         if (doResetState) closingTask.style.removeProperty('--progress');
       }
-      // Superseded by a newer open/close? The shared timer chrome now belongs to that
-      // session — leave it alone rather than reparenting it to <body>. (BUG-065)
+      // A superseded close must not reparent the active timer (BUG-065).
       if (myGen !== focusGen) return;
 
-      // ESC/click-outside: remove .focusing now (check path removed it immediately above).
       if (!doResetState) {
         appEl.classList.remove('focusing');
         _clearFocusWave();
       }
-      // Move timer to body for all close paths. On check path, the timer has already
-      // collapsed via CSS (150ms) by the time we reach here (200ms), so this is a
-      // quiet cleanup with no visible layout shift.
       document.body.appendChild(timerEl);
       timerEl.hidden = true;
       timerEl.setAttribute('aria-hidden', 'true');
@@ -879,7 +821,6 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     window._focusUIActive = false;
     if (closingTaskId && window._a11yAnnounce) _a11yAnnounce('Focus ended.');
 
-    // Timer was paused before closeUI — nothing to continue
   }
 
   window._focusExpandTimer = function() {
@@ -904,7 +845,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     }
   };
 
-  // ── Start fresh session on a task ─────────────────────────────────────────
+  // Start fresh session on a task
   function start(taskEl) {
     const taskId = taskEl.dataset.taskid || taskEl.dataset.habitId;
 
@@ -931,7 +872,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     tickFor(taskId);
   }
 
-  // ── Pause the active task ─────────────────────────────────────────────────
+  // Pause the active task
   function pause() {
     if (!uiTaskId) return;
     const st = getState(uiTaskId);
@@ -946,7 +887,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     if (window._a11yAnnounce) _a11yAnnounce('Focus paused.');
   }
 
-  // ── Resume the active task ────────────────────────────────────────────────
+  // Resume the active task
   function resume() {
     if (!uiTaskId) return;
     const st = getState(uiTaskId);
@@ -971,7 +912,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     if (overlay) overlay.classList.toggle('active', paused);
   }
 
-  // ── Session persistence — survive iOS PWA reload when backgrounded ─────────
+  // Session persistence — survive iOS PWA reload when backgrounded
   // Saved to localStorage on every tick and on pause, cleared on complete/close.
   // On reload, _tryRestoreFocusSession re-opens the timer or silently records.
   function _saveSession(taskId, st) {
@@ -999,7 +940,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     updateStats();
   }
 
-  // ── Tick for a specific taskId ────────────────────────────────────────────
+  // Tick for a specific taskId
   function tickFor(taskId) {
     const st = getState(taskId);
     if (!st.running) return;
@@ -1025,14 +966,14 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     tickHandle = setTimeout(() => tickFor(taskId), 1000);
   }
 
-  // ── Continue ticking for a background task (UI dismissed, not user-paused) ──
+  // Continue ticking for a background task (UI dismissed, not user-paused)
   function continueTicking(taskId) {
     const st = getState(taskId);
     if (!st.running || st.paused || st.rem <= 0) return;
     tickHandle = setTimeout(() => tickFor(taskId), 1000);
   }
 
-  // ── Complete ──────────────────────────────────────────────────────────────
+  // Complete
   function completeFor(taskId) {
     const st = getState(taskId);
     // Guard against double-call (can happen if PiP RAF and tickFor both hit zero)
@@ -1071,7 +1012,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     // Stays in complete state — click on timer bar restarts the session
   }
 
-  // ── Persist a session for habit or task ───────────────────────────────────
+  // Persist a session for habit or task
   function _logSession(taskId) {
     // Habit
     const habitIdx = habitsList.findIndex(h => h.id === taskId);
@@ -1109,7 +1050,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     if (badge) { badge.textContent = totalMap[taskId] + ' 🍅'; badge.classList.add('has-sessions'); }
   }
 
-  // ── Tab visibility correction ─────────────────────────────────────────────
+  // Tab visibility correction
   // On returning to tab: compute wall-clock elapsed, jump rem forward.
   document.addEventListener('visibilitychange', function() {
     if (document.hidden) return;
@@ -1142,7 +1083,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     }
   });
 
-  // ── Click handler ─────────────────────────────────────────────────────────
+  // Click handler
   document.addEventListener('click', function(e) {
     // Header and recording buttons: button's own onclick already fires the panel toggle
     // (bubbling order: element onclick first, document listener second). We just need to
@@ -1248,7 +1189,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     start(focusEl);
   }, false);
 
-  // ── Tapping the add bar exits focus mode ─────────────────────────────────
+  // Tapping the add bar exits focus mode
   const _addInput = document.getElementById('newTask');
   if (_addInput) {
     _addInput.addEventListener('focus', function() {
@@ -1256,7 +1197,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     });
   }
 
-  // ── Keyboard — guarded against accidental input-field triggers ────────────
+  // Keyboard — guarded against accidental input-field triggers
   document.addEventListener('keydown', function(e) {
     // Allow native OS shortcuts (Cmd+H to hide, Cmd+Q to quit, etc.)
     if (e.metaKey || e.ctrlKey) return;
@@ -1265,15 +1206,16 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     const active  = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
     const onRow = active?.matches?.('.task[data-taskid],.habit[data-habit-id]');
-    if (e.code === 'Space' && !inInput && !onRow) { e.preventDefault(); toggle(); }
+    const onControl = active?.closest?.('button,a,[role="button"]');
+    if (e.code === 'Space' && !inInput && !onRow && !onControl) { e.preventDefault(); toggle(); }
     if (e.code === 'Escape') { closeUI(false); }
   });
 
-  // ══════════════════════════════════════════════════════════════════════════
+  //
   // Picture-in-Picture Focus Widget
   // Always-on-top floating timer using Document PiP API (Chrome 116+, FF 148+)
   // Auto-opens when leaving tab during focus, persists until focus ends
-  // ══════════════════════════════════════════════════════════════════════════
+  //
   (function initPiP() {
     // Feature detection — bail if not supported
     if (!('documentPictureInPicture' in window)) return;

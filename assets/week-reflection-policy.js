@@ -19,18 +19,8 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function() {
   'use strict';
 
-  // The four statistical week kinds (focus-leverage, habit-alignment, recurring-day,
-  // bursts) were retired 2026-09-07. Their subject was completions per day — a
-  // productivity stat, which the north star rules out in its first paragraph. The
-  // pool is now outcome kinds only: relationship and lifecycle observations about the
-  // person's commitments. When none is sayable, Sunday holds space.
-
-  // ── 12c: candidates derived from appMemory.taskOutcomes ─────────────────────
-  // Every kind here is a *windowed relationship*, which is why Phase 0 records dated
-  // events rather than counters. Base scores are hand-assigned editorial judgment
-  // about which kinds matter, not tuning — statistical significance is not
-  // comparable across kinds with different null distributions, and is blind to
-  // semantics. See memory/research/ObservationSelection.md.
+  // Outcome relationships only; statistical week kinds remain retired.
+  // Editorial ranking rationale: memory/research/ObservationSelection.md.
   const _LETGO_LABELS = {
     not_relevant: 'not relevant any more',
     no_energy: 'no energy',
@@ -52,7 +42,7 @@
     const base = todayISO ? new Date(todayISO) : new Date();
     if (isNaN(base.getTime())) return [];
     const floor = new Date(base);
-    floor.setDate(floor.getDate() - dayCount);
+    floor.setUTCDate(floor.getUTCDate() - dayCount);
     return outcomes.filter(e => {
       if (!e || !e.date) return false;
       const d = new Date(e.date);
@@ -145,21 +135,8 @@
       });
     }
 
-    // What gets released, and what comes back — linked, not counted side by side.
-    // A let-go and a revive of the same task share an id (a hash of the text, so it
-    // matches across devices), which is what lets the log prove the relation without
-    // storing any text. Backfilled rows carry synthetic ids and cannot link — an
-    // unknown stays unknown. The release may precede the window, so it is looked up
-    // across the whole log; only the return has to fall inside 45 days, and it has to
-    // come after its release.
-    //
-    // 45 days, not 30: revive is a slow signal — a deliberate act, maybe once a month —
-    // and slow signals earn a longer window rather than a lower floor. Cooldown is 30
-    // so one window yields one firing. No release-volume floor: linking replaced it.
-    //
-    // Naming: the log has no text, but the caller may pass `taskTexts` ({ id: text })
-    // hashed from the live lists. A revived task is usually still on one, so the loop
-    // is named while it is on the list and falls back to counts once it is gone.
+    // Link a release to its later return by privacy-safe text key across 45 days.
+    // Synthetic backfill ids cannot prove linkage. taskTexts only names currently live work.
     const log = Array.isArray(outcomes) ? outcomes.filter(e => e && e.id && e.date) : [];
     const releasedBefore = (id, date) =>
       log.some(e => e.outcome === 'letgo' && e.id === id && e.date <= date);
@@ -202,15 +179,8 @@
       }
     }
 
-    // What comes back, and whether it gets finished — the completion side of the loop
-    // above, and the more useful one: it is evidence on whether letting go is safe.
-    // Same linking (release → return), then a `done` for the same key on or after the
-    // return. Done rows are keyed by the live task id, so from v2.84.0 every row also
-    // carries `key` (the text hash) to link across that boundary; older done rows have
-    // no key and simply do not link — the 45-day window heals it, no migration.
-    // Threshold is 3 distinct tasks, stricter than letgo-return: two is a coincidence.
-    // Replaces the same-day Noticed line "Brought back, and finished — …": a fact about
-    // a task the user completed hours earlier, with no second side.
+    // Link release → return → done by key. Older rows without keys cannot link.
+    // Three distinct returned tasks qualify; zero later completions stays silent.
     const keyOf = e => e.key || e.id;
     const returnedKeys = [...new Set(returned.map(keyOf))];
     if (returnedKeys.length >= 3) {
@@ -252,18 +222,21 @@
   }
 
   function _buildWeekShapeFallback(outcomes, todayISO) {
-    const w = _outcomesWithin(outcomes, 7, todayISO);
+    const w = _outcomesWithin(outcomes, 6, todayISO);
     const d = w.filter(e => e.outcome === 'done').length;
     const l = w.filter(e => e.outcome === 'letgo').length;
     const p = w.filter(e => e.outcome === 'soon_pull').length;
     const m = d + l + p;
     if (m < 3) return null;
-    return { kind: 'week-shape', score: -1,
+    const shape = d > m / 2 ? 'done' : l > m / 2 ? 'letgo'
+      : p > m / 2 ? 'soon' : d && l && p ? 'mixed' : null;
+    if (!shape) return null;
+    return { kind: 'week-shape', score: -1, signal: { shape },
       evidence: d + ' done, ' + l + ' let go, ' + p + ' from Soon (7d).',
-      insight: d / m >= 0.55 ? 'Most movement this week was things reaching done.'
-        : l / m >= 0.45 ? 'More things were let go this week than done or returned.'
-        : p / m >= 0.45 ? 'More things returned from Soon than got done or released this week.'
-        : 'The week moved across all three: done, let go, and returned.',
+      insight: shape === 'done' ? 'Most movement this week was things reaching done.'
+        : shape === 'letgo' ? 'More commitments were let go than finished or brought back from Soon.'
+        : shape === 'soon' ? 'More commitments came back from Soon than were finished or let go.'
+        : 'You finished commitments, let go of others, and brought some back from Soon.',
     };
   }
 
@@ -276,6 +249,7 @@
   // eliminates candidates deterministically, rather than prompt text asking the model to
   // police itself.
   const _KIND_COOLDOWN_DAYS = {
+    'week-shape': 7,
     // Month-window observations. Saying one twice inside its own window is repetition,
     // not accumulation.
     'focus-vs-obligation': 21,
@@ -309,11 +283,7 @@
     return s || null;
   }
 
-  // A different surface may revisit a kind inside its long cooldown only after a
-  // full week and only when the underlying evidence has genuinely accumulated.
-  // Reconstruct the earlier candidate from the retained outcome log instead of
-  // storing another snapshot in spokenLines. taskOutcomes lasts 90 days; the longest
-  // cooldown is 30, so every comparison needed here remains reconstructible.
+  // Reconstruct prior signals from retained outcomes; a new surface needs a week plus material evidence.
   function _observationMateriallyChanged(candidate, outcomes, priorISO) {
     if (!candidate || !candidate.kind || !candidate.signal || !Array.isArray(outcomes)) return false;
     const prior = _buildOutcomeCandidates(outcomes, priorISO)
@@ -449,10 +419,7 @@
       .sort((a, b) => b.score - a.score);
   }
 
-  // Local-only diagnostic for an unexpectedly quiet observation surface. It mirrors
-  // the pool's evidence windows and gates, but deliberately returns aggregates and
-  // kind names only: no task text, task ids, candidate prose, or model payload. This
-  // makes a saved audit useful without turning it into another memory store.
+  // Local diagnostic: aggregates/kinds only, never task ids/text, candidate prose or model payload.
   function _observationPoolAudit(input, surface, knowledge, ctx) {
     const inp = input || {};
     const date = inp.todayISO || new Date().toISOString().slice(0, 10);
@@ -564,6 +531,17 @@
           && _surfaceGroup(latestPrior.line.surface) !== _surfaceGroup(surface || 'sunday')),
       };
     });
+    if (!candidateRows.some(row => row.survivesGate) && (surface || 'sunday') === 'sunday') {
+      const fallback = _buildWeekShapeFallback(outcomes, date);
+      if (fallback) {
+        const sameDay = (Array.isArray(k.spokenLines) ? k.spokenLines : []).some(line =>
+          line && line.date === date && _surfaceGroup(line.surface) === 'sunday');
+        const gateReason = sameDay ? 'already said today on Sunday reflection' : _observationGateExplain(fallback, k);
+        candidateRows.push({ kind:fallback.kind, score:fallback.score, fallback:true,
+          eligible:true, gateReason, survivesGate:gateReason === null,
+          selected:false, reopenedByMaterialChange:false });
+      }
+    }
     const selected = candidateRows.find(row => row.survivesGate);
     if (selected) selected.selected = true;
     const recentSpoken = _outcomesWithin(k.spokenLines, 45, date).map(line => ({
@@ -656,6 +634,18 @@
         return has(/\b(?:let go|letting go|release|released)\b/i)
           && has(/\b(?:back|return|returned|returns|returning|brought)\b/i)
           && has(/\b(?:finish|finished|done|complete|completed)\b/i);
+      case 'week-shape': {
+        const shape = candidate.signal && candidate.signal.shape;
+        const claim = shape === 'mixed' ? s : s.split(/\bthan\b/i)[0];
+        const done = /\b(?:finish(?:ed|ing)?|done|complet(?:e|ed|ing))\b/i.test(claim);
+        const released = /\b(?:let go|letting go|release|released)\b/i.test(claim);
+        const pulled = /\bSoon\b/.test(claim) && /\b(?:back|return|returned|returns|returning|brought|came)\b/i.test(claim);
+        const majority = has(/\b(?:most|more|mostly|majority)\b/i);
+        if (shape === 'done') return done && majority;
+        if (shape === 'letgo') return released && majority;
+        if (shape === 'soon') return pulled && majority;
+        return shape === 'mixed' && done && released && pulled && !majority;
+      }
       default:
         return true;
     }

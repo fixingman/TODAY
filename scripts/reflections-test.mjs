@@ -879,8 +879,27 @@ try {
     });
     const result = await page.evaluate(async () => {
       const api = Today.use('reflections');
+      const digest = crypto.subtle.digest.bind(crypto.subtle);
+      let delayDigest = true;
+      crypto.subtle.digest = async (...args) => {
+        if (delayDigest) { delayDigest = false; await new Promise(resolve => setTimeout(resolve, 80)); }
+        return digest(...args);
+      };
       const sleep = () => new Promise(resolve => setTimeout(resolve, 30));
       const requests = [];
+      const waitFor = async predicate => {
+        const deadline = performance.now() + 5000;
+        while (!predicate()) {
+          if (performance.now() > deadline) throw new Error('Reflection fixture did not reach the expected state');
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      };
+      const readingReady = () => !!document.querySelector('.reflection-reading');
+      const nextRequest = async action => {
+        const count = requests.length; action();
+        await waitFor(() => requests.length > count);
+        return requests.at(-1);
+      };
       let held = false;
       const line = relationship => `On evenings you reflected, ${relationship.feeling} appeared more often ${relationship.more_context} than ${relationship.less_context}.`;
       window.fetch = async (_url, options) => {
@@ -903,7 +922,7 @@ try {
       localStorage.setItem('today_reflections', JSON.stringify(list));
       appMemory.taskOutcomes = outcomes('revive');
       Today.use('memory').toggle();
-      await sleep();
+      await waitFor(readingReady);
       const text = () => document.getElementById('reflectionMemoryBlock')?.textContent || '';
       const initial = text().includes('brought a task back from Past') &&
         !/evenings —|sensitive record/.test(text());
@@ -919,13 +938,13 @@ try {
       appMemory.taskOutcomes = outcomes('letgo');
       api._reflectionMergeRemote({});
       const oldRemovedImmediately = !text().includes('brought a task back from Past');
-      await sleep();
+      await waitFor(readingReady);
       const changedOutcomes = text().includes('you let a task go') && requests.length === calls + 1;
 
       // A real sync merge changes the reflected feeling, rather than just the UI.
       const remote = list.slice(0, 4).map(r => ({ ...r, feeling: 'content', updatedAt: new Date(now.getTime() + 1000).toISOString() }));
       api._reflectionMergeRemote({ reflections: remote });
-      await sleep();
+      await waitFor(readingReady);
       const changedReflections = text().includes('content appeared more often') && !text().includes('calm appeared');
       localStorage.setItem('today_reflections', JSON.stringify(list.slice(4)));
       api._reflectionMergeRemote({});
@@ -934,18 +953,18 @@ try {
       // In-flight A must neither replace B nor clear B's loading state.
       held = true;
       localStorage.setItem('today_reflections', JSON.stringify(list));
-      appMemory.taskOutcomes = outcomes('revive'); api._reflectionMergeRemote({}); await sleep();
-      const requestA = requests.at(-1);
-      appMemory.taskOutcomes = outcomes('letgo'); api._reflectionMergeRemote({}); await sleep();
-      const requestB = requests.at(-1);
+      appMemory.taskOutcomes = outcomes('revive');
+      const requestA = await nextRequest(() => api._reflectionMergeRemote({}));
+      appMemory.taskOutcomes = outcomes('letgo');
+      const requestB = await nextRequest(() => api._reflectionMergeRemote({}));
       requestA.release(); await sleep();
       const pendingB = text().includes('reflecting…') && !text().includes('brought a task back');
-      requestB.release(); await sleep();
+      requestB.release(); await waitFor(readingReady);
       const currentB = text().includes('you let a task go');
 
       // Delete while generating, opt back in, then deliver the old response.
-      appMemory.taskOutcomes = outcomes('revive'); api._reflectionMergeRemote({}); await sleep();
-      const deletedRequest = requests.at(-1);
+      appMemory.taskOutcomes = outcomes('revive');
+      const deletedRequest = await nextRequest(() => api._reflectionMergeRemote({}));
       api._reflectionClearFromAllMemory(); api.reflectionRememberAgain();
       deletedRequest.release(); await sleep();
       const deletedLateResponse = !document.getElementById('reflectionMemoryBlock') &&
@@ -954,8 +973,7 @@ try {
       // Remote consent withdrawal also fences a pending response without deletion.
       localStorage.removeItem('today_reflections_cleared_at');
       localStorage.setItem('today_reflections', JSON.stringify(list));
-      api._reflectionMergeRemote({}); await sleep();
-      const consentRequest = requests.at(-1);
+      const consentRequest = await nextRequest(() => api._reflectionMergeRemote({}));
       api._reflectionMergeRemote({ reflection_policy: { choice: 'not_for_me', updatedAt: new Date(now.getTime() + 5000).toISOString() } });
       consentRequest.release(); await sleep();
       const consentWithdrawn = text().includes('TODAY doesn’t keep reflections.') && !text().includes('appeared more often');
@@ -965,7 +983,8 @@ try {
       localStorage.setItem('today_reflection_policy', JSON.stringify({ choice: 'remember', updatedAt: now.toISOString() }));
       list = fixture(26);
       localStorage.setItem('today_reflections', JSON.stringify(list));
-      appMemory.taskOutcomes = outcomes('revive'); api._reflectionMergeRemote({}); await sleep();
+      appMemory.taskOutcomes = outcomes('revive'); api._reflectionMergeRemote({});
+      await waitFor(readingReady);
       const beforeRollover = text().includes('brought a task back from Past');
       const RealDate = window.Date;
       window.Date = class extends RealDate {
@@ -974,7 +993,7 @@ try {
       };
       document.dispatchEvent(new Event('today:reflection-evidence-change'));
       const rollover = !document.getElementById('reflectionMemoryBlock');
-      window.Date = RealDate;
+      window.Date = RealDate; crypto.subtle.digest = digest;
       return { initial, stable, oldRemovedImmediately, changedOutcomes, changedReflections, withdrawn,
         pendingB, currentB, deletedLateResponse, consentWithdrawn, beforeRollover, rollover,
         clearWording: line(requestA.relationship).split(/\s+/).length > 24 && line(requestA.relationship).split(/\s+/).length <= 40,

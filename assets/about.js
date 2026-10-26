@@ -5,13 +5,18 @@
   // Bumps when the evidence contract for the Sunday sentence changes. The dated
   // companion key prevents a previously cached, less-grounded line from surviving
   // a policy change or being restored by an older Dropbox backup.
-  const WEEK_REFLECTION_POLICY = 'earned-v4';
+  const WEEK_REFLECTION_POLICY = 'earned-v5';
   window._weekReflectionPolicy = WEEK_REFLECTION_POLICY;
   let started = false;
   window._startAbout = function() {
     if (started) return;
     started = true;
     // Reads the existing app globals; startup stays in index.html.
+    let sundayReady = !localStorage.getItem('dropbox_token');
+    document.addEventListener('today:memory-ready', event => {
+      sundayReady = !!event.detail?.ready;
+      if (sundayReady && $.infoPanel?.classList.contains('open')) renderInfoStats();
+    });
 
     function _parseAIText(data) {
       if (data.error) return null;
@@ -392,7 +397,9 @@
               '<div class="week-summary loading">reflecting…</div>';
             localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
             _pruneLS('week_policy_', _weekPolicyKey);
+            const clear = appMemory.clearedAt;
             _fetchWeekReflection({ ..._reflectionStats, insight: _weekInsight }).then(text => {
+              if (_today !== _localISO() || clear !== appMemory.clearedAt) return;
               if (text) {
                 _aiSurfaceSet('week_reflection', text);
                 const el = _sundayBlock.querySelector('.week-summary');
@@ -402,7 +409,7 @@
                   if (react) { el.classList.add('reactable'); el.insertAdjacentHTML('afterend', react); }
                 }
               } else {
-                _sundayBlock.style.display = 'none';
+                if (!_aiSurfaceGet('week_reflection')) _sundayBlock.style.display = 'none';
               }
             });
           }
@@ -508,7 +515,7 @@
       const report = _observationPoolAudit(
         { outcomes: appMemory.taskOutcomes, todayISO: date },
         'sunday',
-        { spokenLines: appMemory.spokenLines, kindVerdicts: appMemory.kindVerdicts, todayISO: date }
+        { spokenLines: _sundaySpokenLines(date), kindVerdicts: appMemory.kindVerdicts, todayISO: date }
       );
       report.capturedAt = new Date().toISOString();
       report.runtime = {
@@ -541,6 +548,12 @@
       return report;
     }
 
+    function _sundaySpokenLines(todayISO) {
+      return (appMemory.spokenLines || []).filter(line =>
+        !(line && line.surface === 'Sunday reflection' && line.date === todayISO
+          && line.policy !== WEEK_REFLECTION_POLICY && !line.reaction));
+    }
+
     function _pickSundayInsight(stats) {
       if (typeof _buildObservationCandidates !== 'function'
        || typeof _observationEligibleFor !== 'function'
@@ -558,32 +571,42 @@
           taskTexts: (typeof _memoryTaskTexts === 'function') ? _memoryTaskTexts() : {},
         });
         const eligible = _observationEligibleFor(ranked, 'sunday');
-        // Only current-policy same-day lines block replacement; earlier days still count for cooldown.
-        const spokenLines = (appMemory.spokenLines || []).filter(line =>
-          !(line && line.surface === 'Sunday reflection' && line.date === todayISO
-            && line.policy !== WEEK_REFLECTION_POLICY));
-        const poolResult = _observationNoveltyGate(eligible, {
+        // Current-policy or explicitly voted same-day lines block replacement; prior days still count for cooldown.
+        const spokenLines = _sundaySpokenLines(todayISO);
+        const knowledge = {
           spokenLines,
           kindVerdicts: appMemory.kindVerdicts,
           outcomes: appMemory.taskOutcomes,
           surface: 'sunday',
           todayISO,
-        })[0] || null;
+        };
+        const poolResult = _observationNoveltyGate(eligible, knowledge)[0] || null;
         if (poolResult) return poolResult;
-        const hasSameDaySunday = (appMemory.spokenLines || []).some(
+        const hasSameDaySunday = spokenLines.some(
           l => l && l.date === todayISO && l.surface === 'Sunday reflection');
         if (hasSameDaySunday) return null;
-        return (typeof _buildWeekShapeFallback === 'function')
+        const fallback = (typeof _buildWeekShapeFallback === 'function')
           ? _buildWeekShapeFallback(appMemory.taskOutcomes, todayISO)
           : null;
+        return fallback ? _observationNoveltyGate([fallback], knowledge)[0] || null : null;
       } catch (e) {
         console.warn('[sunday pool]', e && e.message);
         return null;
       }
     }
 
+    function _sundaySourceKey() {
+      return JSON.stringify([_localISO(), sundayReady, appMemory.clearedAt,
+        (appMemory.taskOutcomes || []).map(row => JSON.stringify(row)).sort(),
+        (appMemory.spokenLines || []).filter(row => row?.kind)
+          .map(row => JSON.stringify([row.date,row.surface,row.kind,row.policy,row.reaction,row.reactedAt])).sort(),
+        Object.entries(appMemory.kindVerdicts || {}).sort()]);
+    }
+
     async function _fetchWeekReflection(stats) {
+      let current = () => true;
       try {
+        if (!sundayReady) return null;
         const key = Today.use('connections')._aiGetKey();
         if (!key) {
           _setSundayAuditGeneration('blocked-no-ai-key');
@@ -598,6 +621,12 @@
           _setSundayAuditGeneration('blocked-no-insight');
           return null;
         }
+        const source = _sundaySourceKey(), provider = Today.use('connections')._aiGetProvider();
+        const cache = _aiSurfaceGet('week_reflection');
+        current = () => sundayReady && source === _sundaySourceKey()
+          && cache === _aiSurfaceGet('week_reflection')
+          && key === Today.use('connections')._aiGetKey()
+          && provider === Today.use('connections')._aiGetProvider();
         _setSundayAuditGeneration('requesting', { kind: insight.kind });
         const userContent =
           'Verified observation type: ' + insight.kind + '\n' +
@@ -615,11 +644,13 @@
             systemPrompt: 'One or two short sentences. No quotes. Under 24 words total. Second person — address the user as "you". Clear everyday language. Express the supported insight, not totals, ratios, percentages, sample sizes, or time windows. Preserve literal app actions such as "let go". Warmth, rhythm, dry wit, or one light metaphor are welcome only when they make the insight clearer. Confident voice, conservative claim. Never infer identity or personality and never claim causation beyond the supplied insight. If the insight cannot be made immediately understandable, reply exactly: none.',
           }),
         });
+        if (!current()) return null;
         if (!res.ok) {
           _setSundayAuditGeneration('http-error', { kind: insight.kind, httpStatus: res.status });
           return null;
         }
         const text = _parseAIText(await res.json());
+        if (!current()) return null;
         if (!text) {
           _setSundayAuditGeneration('empty-response', { kind: insight.kind });
           return null;
@@ -635,7 +666,7 @@
         _setSundayAuditGeneration('accepted', { kind: insight.kind });
         return text;
       } catch (e) {
-        _setSundayAuditGeneration('exception', { errorName: e && e.name ? e.name : 'Error' });
+        if (current()) _setSundayAuditGeneration('exception', { errorName: e && e.name ? e.name : 'Error' });
         return null;
       }
     }

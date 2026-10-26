@@ -152,10 +152,10 @@ exports.handler = async function(event) {
       break;
     }
   } catch(e) {
-    // Network or timeout — return null card, not cached by client
+    // Failure is retryable; only an explicit valid no-result may be cached.
   }
 
-  return _nullCard(CORS_HEADERS);
+  return _unavailable(CORS_HEADERS);
 };
 
 async function _searchTrello(query, token, boardId) {
@@ -191,15 +191,21 @@ function _nullCard(headers) {
   };
 }
 
+function _unavailable(headers) {
+  return { statusCode: 502, headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ error: 'Enrichment unavailable' }) };
+}
+
 function _parseCard(text, headers) {
   try {
     const clean = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
     const parsed = JSON.parse(clean);
 
-    if (!parsed || parsed.card === null) return _nullCard(headers);
+    if (parsed && parsed.card === null) return _nullCard(headers);
+    if (!parsed || typeof parsed !== 'object') return _unavailable(headers);
 
     const headline = typeof parsed.headline === 'string' ? parsed.headline.slice(0, 40) : '';
-    if (!headline) return _nullCard(headers);
+    if (!headline) return _unavailable(headers);
 
     const icon = typeof parsed.icon === 'string' ? parsed.icon.slice(0, 8) : '↗';
     const body = typeof parsed.body === 'string' ? parsed.body.slice(0, 80) : '';
@@ -218,6 +224,6 @@ function _parseCard(text, headers) {
       body: JSON.stringify({ card: { icon, headline, body, cta } }),
     };
   } catch(e) {
-    return _nullCard(headers);
+    return _unavailable(headers);
   }
 }

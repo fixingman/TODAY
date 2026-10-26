@@ -126,9 +126,13 @@ async function installObservers(page) {
   await page.evaluateOnNewDocument(() => {
     window.__todayPerformance = { lcp: 0, cls: 0, longTasks: [], longAnimationFrames: [],
       supportsLongAnimationFrames: PerformanceObserver.supportedEntryTypes.includes('long-animation-frame') };
+    const observers = [];
+    window.__todayPerformance.flush = () => observers.forEach(([observer, callback]) => callback(observer.takeRecords()));
     const observe = (type, callback) => {
       try {
-        new PerformanceObserver(list => callback(list.getEntries())).observe({ type, buffered: true });
+        const observer = new PerformanceObserver(list => callback(list.getEntries()));
+        observer.observe({ type, buffered:true });
+        observers.push([observer, callback]);
       } catch (_) { /* unsupported metrics remain zero */ }
     };
     observe('largest-contentful-paint', entries => {
@@ -180,6 +184,7 @@ async function readPageMetrics(page) {
     const navigation = performance.getEntriesByType('navigation')[0];
     const paint = Object.fromEntries(performance.getEntriesByType('paint').map(entry => [entry.name, entry.startTime]));
     const value = name => performance.getEntriesByName(name, 'mark')[0]?.startTime || 0;
+    window.__todayPerformance?.flush?.();
     const observed = window.__todayPerformance || { lcp: 0, cls: 0, longTasks: [] };
     const tbt = observed.longTasks.reduce((sum, task) => sum + Math.max(0, task.duration - 50), 0);
     const resources = performance.getEntriesByType('resource');

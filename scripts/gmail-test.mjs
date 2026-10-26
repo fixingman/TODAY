@@ -126,6 +126,17 @@ try {
       && fallback.empty === '',
     'person fallback separates addressee from about/for topic and handles empty input', fallback);
 
+  await page.evaluate(async () => {
+    const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(location.origin + '\0' + localStorage.getItem('gmail_refresh_token')));
+    window.__binding = taskText => ({ taskText, ownerPolicy:'owner-v2', connectionKey:Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('') });
+    window.__mailOwner = (id, text) => {
+      const task = manualTasks.find(t => t.id === id);
+      if (task) task.text = text; else manualTasks.push({ id, text });
+    };
+    window.__enrich = (id, text) => { __mailOwner(id, text); return _gmailEnrichTask(id, text); };
+    window.__mailFocus = (id, text) => { __mailOwner(id, text); Today.use('gmail').closeFocus(); _gmailRenderFocusBlock(id, text); };
+  });
+
   const classified = await page.evaluate(async () => {
     const calls = [];
     window.fetch = async (url, options = {}) => {
@@ -139,7 +150,7 @@ try {
       }
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
     };
-    await _gmailEnrichTask('gmail_topic_ai', 'Follow up on the three proposals we sent last week');
+    await __enrich('gmail_topic_ai', 'Follow up on the three proposals we sent last week');
     const ai = calls.find(c => c.url.includes('/ai-assist'));
     const gmail = calls.find(c => c.url.includes('gmail.googleapis.com'));
     return { prompt: JSON.parse(ai.body).systemPrompt, provider: JSON.parse(ai.body).provider, gmailUrl: gmail.url,
@@ -160,7 +171,7 @@ try {
       if (String(url).includes('/ai-assist')) return { ok: false, status: 503, json: async () => ({}) };
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
     };
-    await _gmailEnrichTask('gmail_topic_fallback', 'Follow up on the three proposals we sent last week');
+    await __enrich('gmail_topic_fallback', 'Follow up on the three proposals we sent last week');
     const gmail = calls.find(url => url.includes('gmail.googleapis.com'));
     return {
       query: new URL(gmail).searchParams.get('q'),
@@ -185,7 +196,7 @@ try {
         { name: 'Subject', value: 'Reservation' }, { name: 'From', value: 'Gaia <gaia@example.com>' },
       ] }, snippet: 'Reservation confirmed' }] }) };
     };
-    await _gmailEnrichTask('gmail_gaia_ai_retry', 'email to gaia for reservation');
+    await __enrich('gmail_gaia_ai_retry', 'email to gaia for reservation');
     return {
       queries,
       enrichment: JSON.parse(localStorage.getItem('gmail_enrichment_gmail_gaia_ai_retry')),
@@ -210,7 +221,7 @@ try {
       if (request.includes('/threads?q=')) queries.push(new URL(request).searchParams.get('q'));
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
     };
-    await _gmailEnrichTask('gmail_gaia_declined', 'email to gaia for reservation');
+    await __enrich('gmail_gaia_declined', 'email to gaia for reservation');
     return { queries, cached: localStorage.getItem('gmail_classify_gmail_gaia_declined'),
       diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
   });
@@ -227,7 +238,7 @@ try {
       if (request.includes('/threads?q=')) queries.push(new URL(request).searchParams.get('q'));
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
     };
-    await _gmailEnrichTask('gmail_gaia_invalid_query', 'email to gaia for reservation');
+    await __enrich('gmail_gaia_invalid_query', 'email to gaia for reservation');
     return { queries, cached: localStorage.getItem('gmail_classify_gmail_gaia_invalid_query'),
       reason: Today.use('gmail').observationAudit().entries.at(-1)?.reason };
   });
@@ -245,7 +256,7 @@ try {
       }
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
     };
-    await _gmailEnrichTask('gmail_gaia_old_decline', 'email to gaia for reservation');
+    await __enrich('gmail_gaia_old_decline', 'email to gaia for reservation');
     return { aiCalls, cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_gaia_old_decline')) };
   });
   assert(cachedDecline.aiCalls === 1 && cachedDecline.cached?.isComm === true,
@@ -259,7 +270,7 @@ try {
       gmailCalls++;
       return { ok: false, status: 403 };
     };
-    await _gmailEnrichTask('gmail_gaia_403', 'email to gaia for reservation');
+    await __enrich('gmail_gaia_403', 'email to gaia for reservation');
     return { gmailCalls, diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
   });
   assert(gmailError.gmailCalls === 1 && gmailError.diagnostic?.status === 'http-403'
@@ -279,7 +290,7 @@ try {
         { name: 'Subject', value: 'Reservation' }, { name: 'From', value: 'Gaia <gaia@example.com>' },
       ] }, snippet: 'Reservation confirmed' }] }) };
     };
-    _gmailRenderFocusBlock('gmail_gaia_focus', 'email to gaia for reservation');
+    __mailFocus('gmail_gaia_focus', 'email to gaia for reservation');
     return !!document.getElementById('focusGmailBlock');
   });
   assert(focusRetry, 'focus Gmail block exists for an on-demand no-match retry');
@@ -292,13 +303,13 @@ try {
     'focus on-demand enrichment uses the same safe retry path', focusResult);
 
   const cache = await page.evaluate(async () => {
-    localStorage.setItem('gmail_classify_gmail_cached', JSON.stringify({ isComm: true, searchQuery: '"renewal" in:sent', source: 'ai' }));
+    localStorage.setItem('gmail_classify_gmail_cached', JSON.stringify({ ...__binding('Follow up on renewal'), isComm: true, searchQuery: '"renewal" in:sent', source: 'ai' }));
     const calls = [];
     window.fetch = async (url) => {
       calls.push(String(url));
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
     };
-    await _gmailEnrichTask('gmail_cached', 'Follow up on renewal');
+    await __enrich('gmail_cached', 'Follow up on renewal');
     return calls;
   });
   assert(cache.length === 2 && cache.every(url => url.includes('gmail.googleapis.com'))
@@ -314,7 +325,7 @@ try {
       if (String(url).includes('/ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:maria@example.com' }) };
       return { ok: true, status: 200, json: async () => ({ threads: [] }) };
     };
-    await _gmailEnrichTask('gmail_legacy', 'Reply to Maria');
+    await __enrich('gmail_legacy', 'Reply to Maria');
     return { reclassified: calls.some(u => u.includes('/ai-assist')), cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_legacy')) };
   });
   assert(legacy.reclassified && legacy.cached.source === 'ai' && legacy.cached.searchQuery === 'from:maria@example.com',
@@ -323,7 +334,7 @@ try {
   const nonCommCalls = await page.evaluate(async () => {
     let calls = 0;
     window.fetch = async () => { calls++; return { ok: false, status: 500 }; };
-    await _gmailEnrichTask('gmail_plain', 'Buy milk');
+    await __enrich('gmail_plain', 'Buy milk');
     return calls;
   });
   assert(nonCommCalls === 0, 'non-communication tasks make no AI or Gmail request', nonCommCalls);
@@ -333,7 +344,8 @@ try {
     row.className = 'task'; row.dataset.taskid = 'gmail_indicator';
     row.innerHTML = '<span class="task-text"><span class="task-tail"></span></span>';
     document.body.appendChild(row);
-    localStorage.setItem('gmail_enrichment_gmail_indicator', JSON.stringify({ fetchedAt: Date.now(), subject: 'Test', matchPolicy: 'minisearch-v1' }));
+    __mailOwner('gmail_indicator', 'Reply to Test');
+    localStorage.setItem('gmail_enrichment_gmail_indicator', JSON.stringify({ ...__binding('Reply to Test'), fetchedAt: Date.now(), subject: 'Test', matchPolicy: 'minisearch-v1' }));
     _gmailUpdateIndicator('gmail_indicator', true);
     const el = row.querySelector('.gmail-indicator');
     return el && { label: el.getAttribute('aria-label'), beforeTail: el.nextElementSibling?.classList.contains('task-tail') };
@@ -356,11 +368,11 @@ try {
       if (String(url).includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:salon' }) };
       return { ok: true, status: 200, json: async () => ({}) };
     };
-    await _gmailEnrichTask('gmail_mail_1', 'Reply to the salon about the haircut');
+    await __enrich('gmail_mail_1', 'Reply to the salon about the haircut');
     const cached = JSON.parse(localStorage.getItem('gmail_enrichment_gmail_mail_1') || '{}');
     const askedForId = seenUrls.some(u => u.includes('metadataHeaders=Message-ID'));
     const block = document.getElementById('focusGmailBlock');
-    const linkFor = () => { _gmailRenderFocusBlock('gmail_mail_1', 'Reply to the salon about the haircut'); return block.querySelector('.focus-gmail-open'); };
+    const linkFor = () => { __mailFocus('gmail_mail_1', 'Reply to the salon about the haircut'); return block.querySelector('.focus-gmail-open'); };
     setPlatform('MacIntel');
     const mac = linkFor();
     const macOut = { text: mac?.textContent, href: mac?.getAttribute('href'), target: mac?.getAttribute('target') };
@@ -405,8 +417,8 @@ try {
       if (String(url).includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:sam' }) };
       return { ok: true, status: 200, json: async () => ({}) };
     };
-    await _gmailEnrichTask('gmail_expired_1', 'Reply to Sam');
-    await _gmailEnrichTask('gmail_expired_2', 'Reply to Robin');
+    await __enrich('gmail_expired_1', 'Reply to Sam');
+    await __enrich('gmail_expired_2', 'Reply to Robin');
     const pulseBeforeOpen = document.getElementById('trelloBtn').classList.contains('btn-icon-attention');
     const panel = document.getElementById('configPanel');
     if (!panel.classList.contains('open')) Today.use('connections').toggleConfig(); // renders Connections
@@ -451,14 +463,14 @@ try {
         payload: { headers: [{ name: 'Subject', value: 'Booking confirmed — haircut' }, { name: 'From', value: 'Salon <hi@salon.se>' },
           { name: 'Date', value: 'Tue, 1 Sep 2026 09:00:00 +0200' }] } }] }) };
     };
-    await _gmailEnrichTask('gmail_booking_1', 'Book haircut');
+    await __enrich('gmail_booking_1', 'Book haircut');
     const ai = calls.find(c => c.url.includes('ai-assist'));
     out.reachedClassifier = !!ai;
     out.promptCoversBooking = !!ai && /book, reserve, or schedule a service/.test(JSON.parse(ai.body).systemPrompt);
     out.searched = calls.some(c => c.url.includes('/threads?q='));
     out.cached = !!localStorage.getItem('gmail_enrichment_gmail_booking_1');
     const block = document.getElementById('focusGmailBlock');
-    _gmailRenderFocusBlock('gmail_booking_1', 'Book haircut');
+    __mailFocus('gmail_booking_1', 'Book haircut');
     out.threadShown = !block.hidden && block.textContent.includes('haircut is booked');
     out.noDraftButton = !block.querySelector('.focus-gmail-draft-btn');
     out.openLinkShown = !!block.querySelector('.focus-gmail-open');
@@ -466,7 +478,7 @@ try {
     localStorage.removeItem('gmail_enrichment_gmail_booking_1');
     block.hidden = true; block.innerHTML = '';
     calls.length = 0;
-    await _gmailEnrichTask('gmail_plain_1', 'Water the plants');
+    await __enrich('gmail_plain_1', 'Water the plants');
     out.unrelatedStillSkipped = !calls.some(c => c.url.includes('ai-assist'));
     return out;
   });
@@ -493,7 +505,7 @@ try {
       ] },
     });
     async function run(id, text, threads) {
-      localStorage.setItem('gmail_classify_' + id, JSON.stringify({ isComm: true, searchQuery: 'from:salon OR to:salon', source: 'ai' }));
+      localStorage.setItem('gmail_classify_' + id, JSON.stringify({ ...__binding(text), isComm: true, searchQuery: 'from:salon OR to:salon', source: 'ai' }));
       const requests = [];
       window.fetch = async (url) => {
         const u = new URL(String(url), location.href);
@@ -501,7 +513,7 @@ try {
         if (u.pathname.endsWith('/threads')) return { ok: true, json: async () => ({ threads: Object.keys(threads).map(id => ({ id })) }) };
         return { ok: true, json: async () => ({ messages: threads[u.pathname.split('/').at(-1)] }) };
       };
-      await _gmailEnrichTask(id, text);
+      await __enrich(id, text);
       return { requests, cached: JSON.parse(localStorage.getItem('gmail_enrichment_' + id) || 'null'),
         status: Today.use('gmail').observationAudit().entries.at(-1)?.status };
     }
@@ -559,11 +571,11 @@ try {
     window.fetch = async () => { searches++; return { ok: true, json: async () => ({ threads: [] }) }; };
     _gmailUpdateIndicator(id);
     const removed = !row.querySelector('.gmail-indicator') && localStorage.getItem('gmail_enrichment_' + id) === null;
-    _gmailRenderFocusBlock(id, 'Book haircut');
+    __mailFocus(id, 'Book haircut');
     await new Promise(resolve => setTimeout(resolve, 0));
     const block = document.getElementById('focusGmailBlock');
     const hidden = block.hidden && !block.textContent.includes('Old private calendar reminder');
-    await _gmailEnrichTask(id, 'Book haircut');
+    await __enrich(id, 'Book haircut');
     row.remove();
     return { removed, hidden, searches };
   });
@@ -572,7 +584,7 @@ try {
 
   const rankedSearch = await page.evaluate(async () => {
     const id = 'ranked_search';
-    localStorage.setItem('gmail_classify_' + id, JSON.stringify({ isComm: true, searchQuery: 'subject:appointment', source: 'ai' }));
+    localStorage.setItem('gmail_classify_' + id, JSON.stringify({ ...__binding('Book haircut'), isComm: true, searchQuery: 'subject:appointment', source: 'ai' }));
     localStorage.setItem('gmail_enrichment_' + id, JSON.stringify({ taskText: 'Book haircut',
       subject: 'Dentist appointment', from: 'Dentist <hi@dentist.se>', fetchedAt: Date.now() }));
     const requests = [];
@@ -587,25 +599,25 @@ try {
         : [msg('Haircut booking confirmed', 'Salon <hi@salon.se>', 'Your haircut appointment is confirmed', 'haircut@example.com'),
           msg('Invoice', 'Salon <hi@salon.se>', 'Payment processed', 'invoice@example.com')] }) };
     };
-    await _gmailEnrichTask(id, 'Book haircut');
+    await __enrich(id, 'Book haircut');
     const cached = JSON.parse(localStorage.getItem('gmail_enrichment_' + id));
     // A later edit must not reuse the haircut card for a different commitment.
-    await _gmailEnrichTask(id, 'Book dentist');
+    await __enrich(id, 'Book dentist');
     const edited = JSON.parse(localStorage.getItem('gmail_enrichment_' + id));
     return { cached, edited, requests, diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
   });
   assert(rankedSearch.cached?.threadId === 'salon' && rankedSearch.cached.messageId === 'haircut@example.com'
       && rankedSearch.cached.matchPolicy === 'minisearch-v1'
       && rankedSearch.edited?.threadId === 'dentist' && rankedSearch.edited.taskText === 'Book dentist'
-      && rankedSearch.requests.length === 6,
+      && rankedSearch.requests.filter(path => !path.includes('ai-assist')).length === 6,
     'real enrichment ranks multiple threads/messages, replaces unvalidated caches and rechecks a task edit', rankedSearch);
 
   const focusRace = await page.evaluate(async () => {
     let release;
     let ready;
     const pending = new Promise(resolve => { ready = resolve; });
-    localStorage.setItem('gmail_classify_race_a', JSON.stringify({ isComm: true, searchQuery: 'subject:contract', source: 'ai' }));
-    localStorage.setItem('gmail_enrichment_race_b', JSON.stringify({ taskText: 'Reply about invoice', matchPolicy: 'minisearch-v1',
+    localStorage.setItem('gmail_classify_race_a', JSON.stringify({ ...__binding('Reply about contract'), isComm: true, searchQuery: 'subject:contract', source: 'ai' }));
+    localStorage.setItem('gmail_enrichment_race_b', JSON.stringify({ ...__binding('Reply about invoice'), matchPolicy: 'minisearch-v1',
       from: 'Pat <pat@example.com>', subject: 'Invoice', snippet: 'Invoice context must stay', fetchedAt: Date.now() }));
     window.fetch = async url => {
       if (String(url).includes('/threads?')) return { ok: true, json: async () => ({ threads: [{ id: 'race-a' }] }) };
@@ -616,9 +628,9 @@ try {
         ready();
       });
     };
-    _gmailRenderFocusBlock('race_a', 'Reply about contract');
+    __mailFocus('race_a', 'Reply about contract');
     await pending;
-    _gmailRenderFocusBlock('race_b', 'Reply about invoice');
+    __mailFocus('race_b', 'Reply about invoice');
     release();
     await new Promise(resolve => setTimeout(resolve, 10));
     const block = document.getElementById('focusGmailBlock');
@@ -627,6 +639,166 @@ try {
   assert(focusRace.id === 'race_b' && focusRace.text.includes('Invoice context must stay')
       && !focusRace.text.includes('Old contract context'),
     'a slower ranked lookup cannot overwrite the cached context of a newly focused task', focusRace);
+
+  // BUG-128: exercise actual ownership through classification, search, view and draft bodies.
+  const ownership = await page.evaluate(async () => {
+    const cases = [], turn = () => new Promise(resolve => setTimeout(resolve, 0));
+    const wait = async predicate => { for (let i=0;i<100&&!predicate();i++) await turn(); if(!predicate()) throw new Error('Held response not reached'); };
+    const msg = { messages:[{ snippet:'The contract is ready', payload:{ headers:[
+      { name:'Subject', value:'Contract' }, { name:'From', value:'Sam <sam@example.com>' },
+    ] } }] };
+    const seed = (id, text='Reply about contract') => {
+      __mailOwner(id,text); doneIds.delete(id);
+      localStorage.setItem('gmail_classify_'+id,JSON.stringify({ ...__binding(text), isComm:true,searchQuery:'subject:contract',source:'ai' }));
+      localStorage.removeItem('gmail_enrichment_'+id);
+    };
+    const mutate = (kind,id) => {
+      if (kind==='rename') manualTasks.find(t=>t.id===id).text='Reply about invoice';
+      if (kind==='delete'||kind==='move') { const task=manualTasks.find(t=>t.id===id); manualTasks=manualTasks.filter(t=>t.id!==id); if(kind==='move')soonTasks.push(task); }
+      if (kind==='complete') doneIds.add(id);
+      if (kind==='ai-key') localStorage.setItem('today_ai_key_claude','changed-fictional-key');
+      if (kind==='adopt') localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({ ...__binding('Reply about contract'),matchPolicy:'minisearch-v1',threadId:'adopted',snippet:'New accepted context',fetchedAt:Date.now() }));
+      if (kind==='classification-adopt') localStorage.setItem('gmail_classify_'+id,JSON.stringify({ ...__binding('Reply about contract'),isComm:true,searchQuery:'subject:newer',source:'ai' }));
+      if (kind==='account') localStorage.setItem('gmail_refresh_token','different-fictional-grant');
+    };
+    for (const stage of ['classify','list','thread']) for (const kind of ['rename','delete','move','complete','ai-key','adopt','classification-adopt','account']) {
+      const id='owner_'+stage+'_'+kind; seed(id);
+      if(stage==='classify')localStorage.removeItem('gmail_classify_'+id);
+      let release;
+      window.fetch=async url=>{
+        const u=String(url), response=u.includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:u.includes('/threads?')?{threads:[{id:'contract'}]}:msg;
+        const hold=stage==='classify'?u.includes('ai-assist'):stage==='list'?u.includes('/threads?'):!u.includes('ai-assist')&&!u.includes('/threads?');
+        return {ok:true,status:200,json:()=>hold?new Promise(resolve=>{release=()=>resolve(response);}):Promise.resolve(response)};
+      };
+      const pending=_gmailEnrichTask(id,'Reply about contract'); await wait(()=>!!release); mutate(kind,id);
+      const adopted=localStorage.getItem('gmail_enrichment_'+id), classified=localStorage.getItem('gmail_classify_'+id);
+      release();await pending;
+      cases.push({stage,kind,noOverwrite:localStorage.getItem('gmail_enrichment_'+id)===adopted,
+        noClassificationOverwrite:stage!=='classify'||localStorage.getItem('gmail_classify_'+id)===classified});
+      localStorage.setItem('gmail_refresh_token','refresh-test');localStorage.setItem('today_ai_key_claude','claude-test-key');
+    }
+    // Renamed cached classifications and indicators must use the live owner even without supplied text.
+    seed('owner_cache');localStorage.setItem('gmail_enrichment_owner_cache',JSON.stringify({ ...__binding('Reply about invoice'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'Wrong invoice' }));
+    const row=document.createElement('div');row.className='task';row.dataset.taskid='owner_cache';row.innerHTML='<span class="task-text"><span class="task-tail"></span></span>';document.body.append(row);
+    _gmailUpdateIndicator('owner_cache'); const wrongArrow=!row.querySelector('.gmail-indicator')&&!localStorage.getItem('gmail_enrichment_owner_cache');row.remove();
+    for(const kind of ['exit','switch','revisit']) {
+      const id='owner_focus_'+kind;seed(id);let release;
+      window.fetch=async url=>({ok:true,status:200,json:()=>String(url).includes('/threads?')?Promise.resolve({threads:[{id:'contract'}]}):new Promise(resolve=>{release=()=>resolve(msg);})});
+      _gmailRenderFocusBlock(id,'Reply about contract');await wait(()=>!!release);
+      Today.use('gmail').closeFocus();
+      if(kind==='switch') {seed('other_focus');localStorage.setItem('gmail_enrichment_other_focus',JSON.stringify({...__binding('Reply about contract'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'New accepted context'}));_gmailRenderFocusBlock('other_focus','Reply about contract');}
+      if(kind==='revisit') {localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({...__binding('Reply about contract'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'New accepted context'}));_gmailRenderFocusBlock(id,'Reply about contract');}
+      const before=localStorage.getItem('gmail_enrichment_'+id);release();await turn();await turn();
+      const block=document.getElementById('focusGmailBlock');cases.push({stage:'focus',kind,noOverwrite:localStorage.getItem('gmail_enrichment_'+id)===before,noClassificationOverwrite:kind==='exit'?block.hidden:block.textContent.includes('New accepted context')});
+    }
+    // Access-token renewal belongs to the same grant and must not invalidate the lookup.
+    seed('owner_refresh');localStorage.setItem('gmail_token_expiry','1');let refreshes=0;
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('gmail-token')?(refreshes++,{access_token:'renewed-fictional-access',expires_in:3600}):String(url).includes('/threads?')?{threads:[{id:'contract'}]}:msg});
+    await _gmailEnrichTask('owner_refresh','Reply about contract');
+    const refreshSurvives=refreshes===1&&JSON.parse(localStorage.getItem('gmail_enrichment_owner_refresh')||'null')?.threadId==='contract';
+    // A refresh begun before Forget must not resurrect a credential or expired flag.
+    seed('owner_forget');localStorage.setItem('gmail_token_expiry','1');let finishRefresh;
+    window.fetch=async()=>({ok:true,status:200,json:()=>new Promise(resolve=>{finishRefresh=()=>resolve({access_token:'must-not-return',expires_in:3600});})});
+    const forgotten=_gmailEnrichTask('owner_forget','Reply about contract');await wait(()=>!!finishRefresh);gmailDisconnect();finishRefresh();await forgotten;
+    const forgottenStaysGone=!localStorage.getItem('gmail_access_token')&&!localStorage.getItem('gmail_token_expired')&&!localStorage.getItem('gmail_enrichment_owner_forget');
+    localStorage.setItem('gmail_access_token','access-test');localStorage.setItem('gmail_refresh_token','refresh-test');localStorage.setItem('gmail_token_expiry',String(Date.now()+3600000));
+    return {cases,wrongArrow,refreshSurvives,forgottenStaysGone};
+  });
+  assert(ownership.cases.every(c=>c.noOverwrite&&c.noClassificationOverwrite)&&ownership.wrongArrow,
+    'BUG-128: classification/list/body races fence edits, deletion, moves, completion, key/account changes and adopted caches; closed/switched/revisited views stay current',ownership);
+  assert(ownership.refreshSurvives&&ownership.forgottenStaysGone,
+    'normal access-token refresh preserves ownership; a late refresh after Forget cannot restore credentials',ownership);
+
+  const draftOwnership = await page.evaluate(async () => {
+    const turn=()=>new Promise(resolve=>setTimeout(resolve,0)),results=[];
+    for(const kind of ['rename','delete','exit','switch','ai-key','account','adopt','control']) {
+      const id='draft_owner_'+kind;__mailOwner(id,'Reply about contract');
+      // Populate through the real lookup to bind the renewed connection.
+      window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+      await _gmailEnrichTask(id,'Reply about contract');_gmailRenderFocusBlock(id,'Reply about contract');
+      let release,calls=0;
+      window.fetch=async()=>{calls++;return{ok:true,status:200,json:()=>new Promise(resolve=>{release=()=>resolve({content:'Thanks, I will review the contract.'});})};};
+      const button=document.querySelector('#focusGmailBlock .focus-gmail-draft-btn');button.click();
+      for(let i=0;i<100&&!release;i++)await turn();if(!release)throw new Error('Draft body not held');
+      if(kind==='rename')manualTasks.find(t=>t.id===id).text='Reply about invoice';
+      if(kind==='delete')manualTasks=manualTasks.filter(t=>t.id!==id);
+      if(kind==='exit'||kind==='switch')Today.use('gmail').closeFocus();
+      if(kind==='switch') {__mailOwner('draft_next','Reply about invoice');_gmailRenderFocusBlock('draft_next','Reply about invoice');}
+      if(kind==='ai-key')localStorage.setItem('today_ai_key_claude','new-fictional-key');
+      if(kind==='account')localStorage.setItem('gmail_refresh_token','another-fictional-grant');
+      if(kind==='adopt')localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({...__binding('Reply about contract'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'New cache'}));
+      release();await turn();await turn();
+      const block=document.getElementById('focusGmailBlock');
+      results.push({kind,correct:kind==='control'?block.textContent.includes('Thanks, I will review'):!block.textContent.includes('Thanks, I will review')});
+      if(kind==='control'){
+        let copied=0;Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{copied++;}}});
+        button.click();await turn();button.click();await turn();results.push({kind:'copy-without-regeneration',correct:copied===2&&calls===1});
+        manualTasks.find(t=>t.id===id).text='Reply about invoice';button.click();await turn();results.push({kind:'stale-copy-blocked',correct:copied===2});
+      }
+      Today.use('gmail').closeFocus();localStorage.setItem('today_ai_key_claude','claude-test-key');localStorage.setItem('gmail_refresh_token','refresh-test');
+    }
+    return results;
+  });
+  assert(draftOwnership.every(c=>c.correct),'draft responses and Copy belong to their current task, visit, connection, cache and AI configuration',draftOwnership);
+
+  const lifecycle = await page.evaluate(async () => {
+    const turn=()=>new Promise(resolve=>setTimeout(resolve,0));
+    __mailOwner('mail_lifecycle','Reply about contract');
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+    await _gmailEnrichTask('mail_lifecycle','Reply about contract');
+    const original=localStorage.getItem('gmail_enrichment_mail_lifecycle');
+    _gmailRenderFocusBlock('mail_lifecycle','Reply about contract');
+    const nativeNow=Date.now;Date.now=()=>nativeNow()+86400001;
+    _gmailRenderFocusBlock('mail_lifecycle','Reply about contract');
+    const viewExpires=document.getElementById('focusGmailBlock').hidden;Date.now=nativeNow;Today.use('gmail').closeFocus();
+    await _gmailEnrichTask('mail_lifecycle','Reply about contract');
+    const retainedCache=localStorage.getItem('gmail_enrichment_mail_lifecycle');
+    const task=manualTasks.find(t=>t.id==='mail_lifecycle');manualTasks=manualTasks.filter(t=>t.id!==task.id);_saveManual();soonTasks.push(task);_saveSoon();await turn();
+    const retained=localStorage.getItem('gmail_enrichment_mail_lifecycle')===retainedCache;
+    // Real sync merge changes the live owner's text; indicator/cache restoration must validate it.
+    soonTasks=soonTasks.filter(t=>t.id!==task.id);manualTasks.push(task);_saveSoon();_saveManual();await turn();
+    mergeRemoteData({manual_tasks:[{...task,text:'Reply about invoice',updatedAt:new Date(Date.now()+1000).toISOString()}],soon_tasks:[],past_tasks:[],deleted_ids:[],local_change_at:new Date(Date.now()+1000).toISOString()});
+    await turn();Today.use('gmail').cleanup();
+    const syncInvalidates=!localStorage.getItem('gmail_enrichment_mail_lifecycle')&&!localStorage.getItem('gmail_classify_mail_lifecycle');
+    // Test the real deadline without spending 26 seconds; a late classifier cannot write after it.
+    const native=window.setTimeout;let expire,release;
+    window.setTimeout=(fn,ms,...args)=>ms===26000?(expire=fn,987654):native(fn,ms,...args);
+    __mailOwner('mail_deadline','Reply about contract');
+    window.fetch=async()=>({ok:true,status:200,json:()=>new Promise(resolve=>{release=()=>resolve({isComm:true,searchQuery:'subject:contract'});})});
+    const pending=_gmailEnrichTask('mail_deadline','Reply about contract');
+    for(let i=0;i<100&&(!release||!expire);i++)await turn();
+    expire();await pending;release();await turn();window.setTimeout=native;
+    const deadline=!localStorage.getItem('gmail_classify_mail_deadline')&&!localStorage.getItem('gmail_enrichment_mail_deadline');
+    // Restore the selected task for an actual native focus-exit test below.
+    const tokensNotDuplicated=Object.keys(localStorage).filter(k=>/^gmail_(?:enrichment|classify)_/.test(k)).every(k=>!localStorage.getItem(k).includes('refresh-test')&&!localStorage.getItem(k).includes('claude-test-key'));
+    return {retained,syncInvalidates,deadline,tokensNotDuplicated,viewExpires};
+  });
+  assert(Object.values(lifecycle).every(Boolean),'zone persistence retains unchanged context; real sync edits invalidate it; deadlines fence late writes and caches contain no credentials',lifecycle);
+
+  await page.evaluate(() => {
+    Today.use('gmail').closeFocus();manualTasks=[{id:'mail_native_exit',text:'Reply about contract'}];doneIds.clear();
+    localStorage.setItem('splash_shown_at',String(Date.now()));
+    Today.use('connections').renderManual();
+    window.__nativeRelease=null;
+    window.fetch=async url=>({ok:true,status:200,json:()=>String(url).includes('ai-assist')?Promise.resolve({isComm:true,searchQuery:'subject:contract'}):String(url).includes('/threads?')?Promise.resolve({threads:[{id:'contract'}]}):new Promise(resolve=>{window.__nativeRelease=()=>resolve({messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]});})});
+  });
+  await page.waitForFunction(()=>!document.getElementById('splash')||!document.getElementById('splash').classList.contains('show'));
+  await page.evaluate(()=>document.querySelector('.task[data-taskid="mail_native_exit"] .task-text').click());
+  await page.waitForFunction(()=>!!window.__nativeRelease);
+  await page.keyboard.press('Escape');
+  const nativeExit=await page.evaluate(async()=>{__nativeRelease();await new Promise(resolve=>setTimeout(resolve,0));return !localStorage.getItem('gmail_enrichment_mail_native_exit')&&document.getElementById('focusGmailBlock').hidden;});
+  assert(nativeExit,'actual Focus Escape invalidates the Gmail visit synchronously before its held body returns');
+
+  const staleLink=await page.evaluate(async()=>{
+    __mailOwner('mail_stale_link','Reply about contract');
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'},{name:'Message-ID',value:'<fixture@example.com>'}]}}]}});
+    await _gmailEnrichTask('mail_stale_link','Reply about contract');_gmailRenderFocusBlock('mail_stale_link','Reply about contract');
+    const link=document.querySelector('#focusGmailBlock .focus-gmail-open');link.href='#must-not-navigate';
+    manualTasks.find(t=>t.id==='mail_stale_link').text='Reply about invoice';
+    const click=new MouseEvent('click',{bubbles:true,cancelable:true});link.dispatchEvent(click);
+    return click.defaultPrevented&&location.hash!=='#must-not-navigate';
+  });
+  assert(staleLink,'an already-rendered Mail/Gmail link cannot navigate after its task changes');
 
   // Isolate this from the first page's HTTP/module/SW caches: a cached library
   // correctly remains usable when the network is blocked.
@@ -645,9 +817,42 @@ try {
     'an unavailable ranking library abstains instead of reverting to an unchecked first hit', unavailable);
   await unavailableContext.close();
 
+  const peer=await browser.newPage();
+  await peer.goto(URL_BASE,{waitUntil:'domcontentloaded'});
+  await peer.waitForFunction(()=>window.Today?.use('gmail'));
+  await peer.evaluate(()=>{window.__sawMailCache=false;window.addEventListener('storage',event=>{if(event.key==='gmail_enrichment_mail_peer')window.__sawMailCache=true;});});
+  await page.evaluate(async()=>{
+    __mailOwner('mail_peer','Reply about contract');
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+    await _gmailEnrichTask('mail_peer','Reply about contract');_gmailRenderFocusBlock('mail_peer','Reply about contract');
+  });
+  await peer.waitForFunction(()=>window.__sawMailCache);
+  assert(await page.evaluate(()=>!!localStorage.getItem('gmail_enrichment_mail_peer')&&!document.getElementById('focusGmailBlock').hidden),'a tab with an older task snapshot must not delete another tab’s newly accepted mail cache');
+  await peer.evaluate(()=>localStorage.setItem('gmail_refresh_token','peer-fictional-sign-in'));
+  await page.waitForFunction(()=>document.getElementById('focusGmailBlock').hidden&&!localStorage.getItem('gmail_enrichment_mail_peer'));
+  assert(await page.evaluate(()=>!localStorage.getItem('gmail_classify_mail_peer')),'real cross-tab connection changes remove old-sign-in cards/classifications and close the old focus view');
+  await peer.evaluate(()=>{localStorage.setItem('gmail_refresh_token','refresh-test');localStorage.setItem('gmail_access_token','access-test');localStorage.setItem('gmail_token_expiry',String(Date.now()+3600000));});
+  await peer.close();
+
+  const draftDeadline=await page.evaluate(async()=>{
+    const turn=()=>new Promise(resolve=>setTimeout(resolve,0));
+    __mailOwner('mail_draft_deadline','Reply about contract');
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+    await _gmailEnrichTask('mail_draft_deadline','Reply about contract');_gmailRenderFocusBlock('mail_draft_deadline','Reply about contract');
+    let expire,release;const native=setTimeout;
+    window.setTimeout=(fn,ms,...args)=>ms===26000?(expire=fn,987654):native(fn,ms,...args);
+    window.fetch=async()=>({ok:true,status:200,json:()=>new Promise(resolve=>{release=()=>resolve({content:'Too late'});})});
+    const button=document.querySelector('#focusGmailBlock .focus-gmail-draft-btn');button.click();
+    for(let i=0;i<100&&(!release||!expire);i++)await turn();expire();await turn();await turn();
+    release();await turn();window.setTimeout=native;
+    const result=!button.disabled&&!document.getElementById('focusGmailBlock').textContent.includes('Too late');
+    Today.use('gmail').closeFocus();return result;
+  });
+  assert(draftDeadline,'a stalled draft body reaches its deadline, resets the native button and cannot paint late prose');
+
   const diagnostics = await page.evaluate(async () => {
     window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) });
-    for (let i = 0; i < 22; i++) await _gmailEnrichTask('gmail_diagnostic_' + i, 'Call aunt');
+    for (let i = 0; i < 22; i++) await __enrich('gmail_diagnostic_' + i, 'Call aunt');
     const before = Today.use('gmail').observationAudit();
     gmailDisconnect();
     return { schema: before.schema, count: before.entries.length,

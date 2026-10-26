@@ -499,7 +499,8 @@
       const empty = $.manualEmpty || document.getElementById('manualEmpty');
       if (!list || !empty) return;
 
-      // Full render — only called on init/page load
+      const timerControl = list.contains(document.activeElement)
+        && document.activeElement.closest('.focus-timer') ? document.activeElement : null;
       list.innerHTML = manualTasks.map(t => taskHTML(t, 'manual')).join('');
       list.querySelectorAll('.task.done').forEach(el => _applyDoneStyles(el, true));
       const countEl = $.manualCount || document.getElementById('manualCount');
@@ -513,6 +514,11 @@
       if (window._gmailRestoreAllIndicators) _gmailRestoreAllIndicators();
       if (window._agentRestoreAllIndicators) _agentRestoreAllIndicators();
       Today.use('assistant')._aiReanchorSuggestion();
+      if (timerControl) {
+        const target = timerControl.isConnected ? timerControl
+          : list.querySelector(timerControl.matches('.focus-agent-feedback') ? '.focus-agent-feedback' : '.focus-ai-timer-btn');
+        target?.focus({ preventScroll:true });
+      }
     }
 
     // Wire hover/scroll shimmer on .task-tag elements in the manual list.

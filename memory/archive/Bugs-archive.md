@@ -586,6 +586,8 @@ Two adjacent defects fixed in the same place:
 
 **Fix (v2.71.13):** `reviveFromPast()` in `zones.js` runs an inline `#main-app` display-toggle IIFE after the renders. Equivalent to `_forceRepaint()` in `dropbox.js`, but inlined since that function is scoped inside `_onWake` and not exported. Diagnostic logging was retained through verification.
 
+**Later cleanup (local v2.99.0):** after the September 4 accepted verification, remove temporary `_reviveDiag` / `_reviveDiagAsync` console snapshots and their 250ms probe timer. Preserve the compositor/focus guards and actual render-error reporting.
+
 **Regression (confirmed v2.77.10):** The display-toggle fix itself causes a new stuck state when focus mode is active during the revive. `display:none` on `#main-app` tears down the focus UI while leaving `.focusing` on the element — result: all tasks dimmed/blurred, focus panel gone, clicks in the zone-list area blocked by the existing `.zone-list` early-return guard so the user can't escape. Only clicking the add bar (outside `.zone-list`) triggers `closeUI(false)` and restores the DOM.
 
 **Fix (v2.77.10):** Added `if (el.classList.contains('focusing')) return;` guard to the display-toggle IIFE. When the compositor is already engaged for focus mode, the `soonSection` flash risk is negligible; skipping the toggle prevents the regression.

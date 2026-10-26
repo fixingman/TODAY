@@ -10,11 +10,15 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json',
   '.png':'image/png', '.woff2':'font/woff2', '.css':'text/css' };
+let upstreamFixture = null;
+const proxy = { exports:{}, process:{ env:{} }, fetch:(...args) => upstreamFixture(...args) };
+runInNewContext(await readFile(join(ROOT, 'netlify/functions/ai-assist.js'), 'utf8'), proxy);
 
 let puppeteer;
 try { puppeteer = (await import('puppeteer-core')).default; }
@@ -22,6 +26,17 @@ catch { console.error('✗ puppeteer-core not installed — run: cd scripts && n
 
 const server = createServer(async (req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (path === '/.netlify/functions/ai-assist') {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const body = Buffer.concat(chunks).toString();
+    if (!upstreamFixture || !JSON.parse(body).systemPrompt?.includes('one newly captured task')) {
+      res.writeHead(400, { 'Content-Type':'application/json' });
+      res.end('{"error":"No fictional fixture for this request"}'); return;
+    }
+    const result = await proxy.exports.handler({ httpMethod:'POST', body });
+    res.writeHead(result.statusCode, result.headers); res.end(result.body); return;
+  }
   if (path === '/') path = '/index.html';
   try {
     const body = await readFile(join(ROOT, path));
@@ -88,6 +103,54 @@ async function openPage(extraSeed) {
   return { page, errors };
 }
 
+const recoveryText = 'Ask Rowan about garden care and collect the parcel';
+const recoveryReply = { suggest:true, type:'break_down', reason:'multiple_actions',
+  message:'Two separate actions', subtasks:['Ask Rowan about garden care', 'Collect the parcel'] };
+
+async function recoveryPage() {
+  const result = await openPage();
+  await result.page.evaluate(() => {
+    localStorage.setItem('today_ai_provider', 'claude');
+    localStorage.setItem('today_ai_key_claude', 'fictional-test-key');
+    // Other startup writers share the proxy; post-add fixtures must not count or answer them.
+    const realFetch = window.fetch.bind(window);
+    window.__setAssistantFetch = handler => {
+      window.fetch = (url, options) => {
+        const body = options?.body && JSON.parse(options.body);
+        return url === '/.netlify/functions/ai-assist' && body?.systemPrompt?.includes('one newly captured task')
+          ? handler(url, options) : realFetch(url, options);
+      };
+    };
+    const set = window.setTimeout, clear = window.clearTimeout, now = Date.now;
+    let offset = 0, id = 1000000;
+    const timers = new Map();
+    Date.now = () => now() + offset;
+    window.setTimeout = (callback, ms, ...args) => {
+      if (![2000, 5000, 12000].includes(ms) || !new Error().stack.includes('/assets/assistant.js:')) return set(callback, ms, ...args);
+      const handle = ++id; timers.set(handle, { callback:() => callback(...args), ms }); return handle;
+    };
+    window.clearTimeout = handle => { if (!timers.delete(handle)) clear(handle); };
+    window.__assistantTimers = () => [...timers.values()].map(t => t.ms);
+    window.__assistantCallback = ms => [...timers.values()].find(t => t.ms === ms)?.callback;
+    window.__advanceAssistant = ms => {
+      offset += ms;
+      const ready = [...timers].filter(([, timer]) => timer.ms === ms);
+      for (const [handle, timer] of ready) { timers.delete(handle); timer.callback(); }
+    };
+    window.__elapseAssistant = ms => { offset += ms; };
+  });
+  return result;
+}
+
+async function captureRecoveryTask(page) {
+  await page.focus('#newTask'); await page.type('#newTask', recoveryText); await page.keyboard.press('Enter');
+  await page.evaluate(text => {
+    window.__recoveryTaskId = manualTasks.findLast(t => t.text === text).id;
+    document.querySelector(`[data-taskid="${CSS.escape(window.__recoveryTaskId)}"]`)?.scrollIntoView({ block:'center' });
+    window.__advanceAssistant(2000);
+  }, recoveryText);
+}
+
 try {
   // 1. Post-add suggestion waits for viewport delivery, follows its task
   // through reordering/re-rendering, then measures exposure and dismissal.
@@ -105,7 +168,7 @@ try {
           disconnect() { this.disconnected = true; }
         };
         window.setTimeout = (callback, ms, ...args) => {
-          if (ms >= 9999) { exposureTimersArmed++; return 987654; }
+          if (ms >= 9999 && ms <= 10000) { exposureTimersArmed++; return 987654; }
           return realSetTimeout(callback, ms, ...args);
         };
         window.fetch = async () => ({
@@ -338,6 +401,207 @@ try {
       await page.close();
     }
 
+    // Real Add -> real proxy -> fictional provider. A transient failure recovers once.
+    {
+      const { page, errors } = await recoveryPage();
+      let calls = 0;
+      upstreamFixture = async () => {
+        calls++;
+        return calls === 1
+          ? { ok:false, status:503, text:async () => '{"error":{"message":"Temporary fixture failure"}}' }
+          : { ok:true, text:async () => JSON.stringify({ content:[{ type:'text', text:JSON.stringify(recoveryReply) }] }) };
+      };
+      await captureRecoveryTask(page);
+      await page.waitForFunction(() => window.__assistantTimers().includes(5000));
+      const noPrematureOffer = await page.evaluate(() => !document.querySelector('.task-suggestion') && appMemory.suggestionOutcomes.length === 0);
+      await page.evaluate(() => window.__advanceAssistant(5000));
+      await page.waitForSelector('.task-suggestion:not(.removing)');
+      await page.evaluate(() => { window.dispatchEvent(new Event('online')); document.dispatchEvent(new Event('visibilitychange')); });
+      const result = await page.evaluate(() => ({
+        exactlyOneOffer:appMemory.suggestionOutcomes.length === 1,
+        originalPreserved:manualTasks.some(t => t.id === window.__recoveryTaskId),
+        hasSplit:document.querySelector('.task-suggestion-chip:not(.dismiss)')?.textContent === 'Split into 2',
+        noRetryAfterSuccess:!window.__assistantTimers().includes(5000),
+      }));
+      await expectAll('real capture/proxy transient recovery', { ...result, noPrematureOffer, twoCalls:calls === 2, noErrors:!errors.length });
+      ok('actual capture + actual proxy: one 503 recovers once, one visible offer, no phantom outcome or reconnect replay');
+      await page.close(); upstreamFixture = null;
+    }
+
+    {
+      const { page, errors } = await recoveryPage();
+      let calls = 0;
+      upstreamFixture = async () => { calls++; return { ok:true, text:async () => JSON.stringify({ content:[{ type:'text', text:JSON.stringify(recoveryReply) }] }) }; };
+      await page.setOfflineMode(true);
+      await captureRecoveryTask(page);
+      const noOfflineAttempt = calls === 0 && await page.evaluate(() => !window.__assistantTimers().includes(12000));
+      await page.setOfflineMode(false);
+      await page.evaluate(() => window.dispatchEvent(new Event('online')));
+      await page.waitForSelector('.task-suggestion:not(.removing)');
+      await expectAll('offline capture recovery', { noOfflineAttempt, oneCall:calls === 1, noErrors:!errors.length });
+      ok('offline capture: no provider attempt consumed; reconnect delivers the still-current recent task');
+      await page.close(); upstreamFixture = null;
+    }
+
+    {
+      const { page, errors } = await recoveryPage();
+      let calls = 0;
+      upstreamFixture = async () => { calls++; return { ok:true, text:async () => JSON.stringify({ content:[{ type:'text', text:JSON.stringify(recoveryReply) }] }) }; };
+      await page.focus('#newTask'); await page.type('#newTask', recoveryText); await page.keyboard.press('Enter');
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'hidden', { configurable:true, value:true });
+        Object.defineProperty(document, 'visibilityState', { configurable:true, value:'hidden' });
+        window.__advanceAssistant(2000);
+        window.dispatchEvent(new Event('online'));
+      });
+      const noHiddenAttempt = calls === 0 && await page.evaluate(() => !window.__assistantTimers().includes(12000));
+      await page.evaluate(() => {
+        delete document.hidden; delete document.visibilityState;
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await page.waitForSelector('.task-suggestion:not(.removing)');
+      await expectAll('hidden capture recovery', { noHiddenAttempt, oneCall:calls === 1, noErrors:!errors.length });
+      ok('switching away before debounce defers the request; foreground resumes the same recent capture once');
+      await page.close(); upstreamFixture = null;
+    }
+
+    // A stalled body obeys the request deadline; its late content cannot make another offer.
+    {
+      const { page, errors } = await recoveryPage();
+      await page.evaluate(reply => {
+        window.__recoveryCalls = 0;
+        window.__setAssistantFetch(async () => {
+          window.__recoveryCalls++;
+          if (window.__recoveryCalls === 1) return { ok:true, json:() => new Promise(resolve => { window.__lateSplitBody = () => resolve(reply); }) };
+          return { ok:true, json:async () => reply };
+        });
+      }, recoveryReply);
+      const unrelatedStatus = await page.evaluate(async () => {
+        const response = await fetch('/.netlify/functions/ai-assist', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ systemPrompt:'Fictional unrelated writer' }) });
+        return response.status;
+      });
+      await expectAll('shared proxy fixture isolation', { unrelatedRejected:unrelatedStatus === 400, noSplitAttempt:await page.evaluate(() => window.__recoveryCalls === 0) });
+      await captureRecoveryTask(page);
+      await page.waitForFunction(() => typeof window.__lateSplitBody === 'function');
+      await page.evaluate(() => window.__advanceAssistant(12000));
+      await page.waitForFunction(() => window.__assistantTimers().includes(5000));
+      await page.evaluate(() => window.__advanceAssistant(5000));
+      await page.waitForSelector('.task-suggestion:not(.removing)');
+      await page.evaluate(async () => { window.__lateSplitBody(); await Promise.resolve(); window.dispatchEvent(new Event('online')); });
+      const result = await page.evaluate(() => ({
+        boundedCalls:window.__recoveryCalls === 2, oneOffer:appMemory.suggestionOutcomes.length === 1,
+        noRetry:!window.__assistantTimers().includes(5000),
+      }));
+      await expectAll('post-add body deadline', { ...result, noErrors:!errors.length });
+      ok('request/body deadline recovers once; late old content cannot duplicate or replay the offer');
+      await page.close();
+    }
+
+    {
+      const { page, errors } = await recoveryPage();
+      for (const kind of ['network', 408, 429, 502]) {
+        await page.evaluate(({ kind, reply }) => {
+          window.__recoveryCalls = 0; appMemory.suggestionOutcomes = [];
+          window.__setAssistantFetch(async () => {
+            window.__recoveryCalls++;
+            if (window.__recoveryCalls === 1) {
+              if (kind === 'network') throw new TypeError('Failed to fetch');
+              return { ok:false, status:kind };
+            }
+            return { ok:true, json:async () => reply };
+          });
+        }, { kind, reply:recoveryReply });
+        await captureRecoveryTask(page);
+        await page.waitForFunction(() => window.__assistantTimers().includes(5000));
+        await page.evaluate(() => window.__advanceAssistant(5000));
+        await page.waitForSelector('.task-suggestion:not(.removing)');
+        await expectAll('transient recovery: ' + kind, await page.evaluate(() => ({
+          twoCalls:window.__recoveryCalls === 2, oneOffer:appMemory.suggestionOutcomes.length === 1,
+        })));
+        await page.evaluate(() => Today.use('assistant')._aiDismissSuggestion('user'));
+      }
+      await expectAll('transient recovery page', { noErrors:!errors.length });
+      ok('network, 408, 429 and 5xx recover once without changing offer eligibility');
+      await page.close();
+    }
+
+    // Invalid/declined/suppressed results are terminal. Failures do not become negative votes.
+    {
+      const { page, errors } = await recoveryPage();
+      for (const kind of ['401', '404', 'invalid-json', 'null', 'abstain', 'ungrounded', 'suppressed', 'repeated-503']) {
+        await page.evaluate(({ kind, reply }) => {
+          window.__recoveryCalls = 0;
+          appMemory.suggestionOutcomes = [];
+          if (kind === 'suppressed') {
+            appMemory.suggestionOutcomes = Array.from({ length:4 }, (_, i) => ({ id:String(i), reason:'multiple_actions', ignoredAt:'2026-10-01T00:00:00Z' }));
+            window._suggestionShouldOffer = () => false;
+          } else window._suggestionShouldOffer = (reason, id) => Today.use('suggestion-policy').shouldOffer(appMemory.suggestionOutcomes, reason, id);
+          window.__setAssistantFetch(async () => {
+            window.__recoveryCalls++;
+            if (['401', '404', 'repeated-503'].includes(kind)) return { ok:false, status:kind === 'repeated-503' ? 503 : Number(kind) };
+            return { ok:true, json:async () => {
+              if (kind === 'invalid-json') throw new SyntaxError('Fictional malformed JSON');
+              if (kind === 'null') return null;
+              if (kind === 'abstain') return { suggest:false, type:'none' };
+              if (kind === 'ungrounded') return { ...reply, subtasks:['Buy new supplies', 'Collect the parcel'] };
+              return reply;
+            } };
+          });
+        }, { kind, reply:recoveryReply });
+        await captureRecoveryTask(page);
+        await page.waitForFunction(() => window.__recoveryCalls === 1 && !window.__assistantTimers().includes(12000));
+        if (kind === 'repeated-503') {
+          await page.waitForFunction(() => window.__assistantTimers().includes(5000));
+          await page.evaluate(() => window.__advanceAssistant(5000));
+          await page.waitForFunction(() => window.__recoveryCalls === 2 && !window.__assistantTimers().includes(12000));
+        }
+        await page.evaluate(() => { window.dispatchEvent(new Event('online')); document.dispatchEvent(new Event('visibilitychange')); });
+        const result = await page.evaluate(expected => ({
+          calls:window.__recoveryCalls === expected,
+          noRetry:!window.__assistantTimers().includes(5000),
+          noOffer:!document.querySelector('.task-suggestion:not(.removing)'),
+          noNewNegativeEvidence:appMemory.suggestionOutcomes.length === (appMemory.suggestionOutcomes[0]?.ignoredAt ? 4 : 0),
+        }), kind === 'repeated-503' ? 2 : 1);
+        await expectAll('terminal post-add result: ' + kind, { ...result, noErrors:!errors.length });
+      }
+      ok('401/404, invalid/empty/declined/ungrounded/suppressed results stay terminal; transient attempts stop at two');
+      await page.close();
+    }
+
+    for (const change of ['rename', 'delete', 'complete', 'move', 'credentials', 'expiry', 'new-task']) {
+      const { page, errors } = await recoveryPage();
+      await page.evaluate(() => {
+        window.__recoveryCalls = 0;
+        window.__setAssistantFetch(async () => { window.__recoveryCalls++; return { ok:false, status:503 }; });
+      });
+      await captureRecoveryTask(page);
+      await page.waitForFunction(() => window.__assistantTimers().includes(5000));
+      await page.evaluate(change => {
+        const id = window.__recoveryTaskId, task = manualTasks.find(t => t.id === id);
+        const staleRetry = window.__assistantCallback(5000);
+        if (change === 'rename') task.text = 'Different fictional commitment';
+        if (change === 'delete' || change === 'move') manualTasks = manualTasks.filter(t => t.id !== id);
+        if (change === 'move') soonTasks.push(task);
+        if (change === 'complete') doneIds.add(id);
+        if (change === 'credentials') localStorage.setItem('today_ai_key_claude', 'another-fictional-key');
+        if (change === 'expiry') window.__elapseAssistant(120001);
+        if (change === 'new-task') {
+          const next = { id:'fictional_new_capture', text:'Read the new draft' };
+          manualTasks.push(next); Today.use('assistant')._aiAnalyzeTask(next.id, next.text);
+          staleRetry(); // Even an already queued old callback cannot start the new capture early.
+        } else window.__advanceAssistant(5000);
+      }, change);
+      const result = await page.evaluate(change => ({
+        noRequest:window.__recoveryCalls === 1,
+        noOffer:!document.querySelector('.task-suggestion:not(.removing)'),
+        noStaleRetry:!window.__assistantTimers().includes(5000),
+        newDebouncePreserved:change !== 'new-task' || window.__assistantTimers().includes(2000),
+      }), change);
+      await expectAll('stale post-add retry: ' + change, { ...result, noErrors:!errors.length });
+      await page.close();
+    }
+    ok('retry owner fences: edit/delete/check/move/key/expiry/new capture prevent old requests and stale callback side effects');
+
     // 4. Static wiring: live API remains; the unreachable sheet is fully absent.
     {
       const indexSrc  = await readFile(join(ROOT, 'index.html'), 'utf8');
@@ -360,7 +624,7 @@ try {
       ok('assistant module: reachable suggestion API remains; sheet code, state, CSS, and DOM are absent');
     }
 
-  console.log('\nAssistant tests passed (3 behavior groups + wiring).');
+  console.log('\nAssistant tests passed (capture, delivery, recovery, owner fences and wiring).');
 } finally {
   if (browser) await browser.close();
   server.close();

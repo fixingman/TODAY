@@ -102,6 +102,26 @@ try {
   assert.equal(wired.diagnostics.supportsLongAnimationFrames,true,'the real interaction entry point installs its observers');
   assert.ok(wired.diagnostics.longAnimationFrames.flatMap(frame=>frame.scripts)
     .some(script=>script.sourceFunctionName==='coldAudioWarmup'),'the measured input path retains its own blocking attribution');
+  // Queue diagnostic delivery deliberately: timing ends before observer callbacks run.
+  const queuedBrowser={createBrowserContext:async()=>{
+    const context=await browser.createBrowserContext(),newPage=context.newPage.bind(context);
+    context.newPage=async()=>{
+      const page=await newPage();
+      await page.evaluateOnNewDocument(()=>{
+        const NativeObserver=PerformanceObserver;
+        window.PerformanceObserver=class extends NativeObserver {
+          constructor() { super(list=>this.pending.push(...list.getEntries())); this.pending=[]; }
+          takeRecords() { return [...this.pending.splice(0),...super.takeRecords()]; }
+        };
+      });
+      return page;
+    };
+    return context;
+  }};
+  const queued=await interactionRun(queuedBrowser,'http://127.0.0.1:'+server.address().port+'/fixture.html','queued');
+  assert.ok(queued.enterFocus>budgets.timing['interactions.enterFocus'],'queued diagnostic delivery cannot hide real input blocking');
+  assert.ok(queued.diagnostics.longAnimationFrames.flatMap(frame=>frame.scripts)
+    .some(script=>script.sourceFunctionName==='coldAudioWarmup'),'pending diagnostic records are drained before their snapshot');
   console.log('  ✓ actual input starts timing; pre-input automation delay is separate; pointerdown blocking still fails the existing ceiling');
   console.log('  ✓ original startup/input callbacks are attributed; unsupported attribution preserves timing guards; source queries are excluded');
 } finally {

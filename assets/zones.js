@@ -10,9 +10,17 @@
     // remain as inline globals (wholesale-reassigned by merge layer; mutated directly
     // in assets/triage.js). All functions reference those globals by name.
 
-    function _saveSoon()   { localStorage.setItem('today_soon',   JSON.stringify(soonTasks)); }
-    function _savePast()   { localStorage.setItem('today_past',   JSON.stringify(pastTasks)); }
-    function _saveManual() { localStorage.setItem('today_manual', JSON.stringify(manualTasks)); }
+    let _cacheCleanupQueued = false;
+    function _saveZone(key, tasks) {
+      localStorage.setItem(key, JSON.stringify(tasks));
+      if (_cacheCleanupQueued) return;
+      _cacheCleanupQueued = true;
+      // Zone moves save the emptied source before filling the destination.
+      queueMicrotask(() => { _cacheCleanupQueued = false; window._agentCleanupCache?.(); Today.use('gmail').cleanup(); });
+    }
+    function _saveSoon() { _saveZone('today_soon', soonTasks); }
+    function _savePast() { _saveZone('today_past', pastTasks); }
+    function _saveManual() { _saveZone('today_manual', manualTasks); }
     function _saveDone()   { localStorage.setItem('today_done',   JSON.stringify([...doneIds])); }
 
     function _ageSoon() {
@@ -255,51 +263,6 @@
       card.querySelector('.task-body').appendChild(row);
     }
 
-    function _reviveDiag(label) {
-      // BUG-083 black screen diagnostic — remove after root cause confirmed
-      const tov = document.getElementById('triageOverlay');
-      const mov = document.getElementById('meetingOverlay');
-      const mai = document.getElementById('main-app');
-      const atb = document.getElementById('addTaskBar');
-      console.log('[REVIVE-DIAG]', label, {
-        triageOverlayClasses: tov ? [...tov.classList].join(' ') : 'missing',
-        triageOverlayHidden: tov ? tov.hidden : 'missing',
-        meetingOverlayClasses: mov ? [...mov.classList].join(' ') : 'missing',
-        meetingOverlayHidden: mov ? mov.hidden : 'missing',
-        mainAppInert: mai ? mai.inert : 'missing',
-        mainAppOpacity: mai ? mai.style.opacity : 'missing',
-        addTaskBarInert: atb ? atb.inert : 'missing',
-        triageActive: typeof _triageActive !== 'undefined' ? _triageActive : 'n/a',
-        soonLen: soonTasks.length,
-        pastLen: pastTasks.length,
-      });
-    }
-
-    function _reviveDiagAsync() {
-      // Fires 250ms after revive to catch any async-triggered state change (dropbox cb, timers)
-      setTimeout(() => {
-        const tov = document.getElementById('triageOverlay');
-        const mov = document.getElementById('meetingOverlay');
-        const mai = document.getElementById('main-app');
-        const atb = document.getElementById('addTaskBar');
-        const tovHidden = tov ? (tov.classList.contains('hidden') && tov.hidden) : true;
-        const movHidden = mov ? (mov.classList.contains('hidden') && mov.hidden) : true;
-        const inertOk   = mai ? !mai.inert : true;
-        if (!tovHidden || !movHidden || !inertOk) {
-          console.warn('[REVIVE-DIAG] ASYNC 250ms — unexpected state:', {
-            triageOverlayClasses: tov ? [...tov.classList].join(' ') : 'missing',
-            triageOverlayHidden: tov ? tov.hidden : 'missing',
-            meetingOverlayClasses: mov ? [...mov.classList].join(' ') : 'missing',
-            meetingOverlayHidden: mov ? mov.hidden : 'missing',
-            mainAppInert: mai ? mai.inert : 'missing',
-            addTaskBarInert: atb ? atb.inert : 'missing',
-          });
-        } else {
-          console.log('[REVIVE-DIAG] ASYNC 250ms — state OK');
-        }
-      }, 250);
-    }
-
     function reviveFromPast(id, reason = '') {
       const task = pastTasks.find(t => t.id === id);
       if (!task || task.status === 'done') return;
@@ -309,8 +272,6 @@
       // but we're past selection and need the post-revive rebuild to run.
       const reasonRow = document.querySelector('#pastList .past-revive-reasons');
       if (reasonRow) reasonRow.remove();
-
-      _reviveDiag('before');
 
       pastTasks = pastTasks.filter(t => t.id !== id);
       _savePast();
@@ -325,8 +286,8 @@
       soonTasks.unshift(task);
       _saveSoon();
 
-      try { renderPast(); } catch(e) { console.error('[REVIVE-DIAG] renderPast threw:', e); }
-      try { renderSoon(); } catch(e) { console.error('[REVIVE-DIAG] renderSoon threw:', e); }
+      try { renderPast(); } catch(e) { console.error('[zones] renderPast failed:', e); }
+      try { renderSoon(); } catch(e) { console.error('[zones] renderSoon failed:', e); }
 
       // BUG-083: soonSection going display:none→block triggers a GPU compositor glitch
       // (same family as BUG-004/056/071). Force repaint by toggling #main-app display.
@@ -347,9 +308,6 @@
       updateStats();
       _haptic('light');
       if (typeof _memoryOnRevive === 'function') _memoryOnRevive(task.text, reason);
-
-      _reviveDiag('after');
-      _reviveDiagAsync();
 
       const token = localStorage.getItem('dropbox_token');
       if (token) dropboxBackup(true);

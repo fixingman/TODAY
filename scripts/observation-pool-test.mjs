@@ -708,6 +708,7 @@ test('audit marks only the highest-ranked survivor as selected', () => {
 test('audit distinguishes evidence from a cooldown-suppressed candidate', () => {
   const audit = _observationPoolAudit({ outcomes: focusSplit, todayISO: TODAY }, 'sunday', {
     spokenLines: [{ date: TODAY, surface: 'Morning nudge', kind: 'focus-vs-obligation' }],
+    kindVerdicts: { 'week-shape': { retired: TODAY, missed: 2 } },
     todayISO: TODAY,
   });
   const candidate = audit.candidates.find(row => row.kind === 'focus-vs-obligation');
@@ -835,16 +836,78 @@ test('outcome events outside 7-day window are excluded from tally', () => {
   return r !== null && r.kind === 'week-shape' && r.insight.includes('done');
 });
 
-test('fallback insight strings pass _weekReflectionTextIsGrounded validator (kind=week-shape)', () => {
-  const insightStrings = [
-    "Most of this week's movement was things reaching done.",
-    'More things were let go this week than finished or returned.',
-    'More things returned from Soon this week than finished or were let go.',
-    'This week the list moved across all three: things finished, were let go, and returned.',
-  ];
-  // week-shape uses default validator path — check that static insight strings
-  // would survive (grounding is candidate-aware; no kind-specific checks for week-shape).
-  return insightStrings.every(s => typeof s === 'string' && s.length > 0 && s.split(/\s+/).length <= 24);
+// Independent cases for false comparisons, boundary dates and actual feedback gates.
+const weekRows = (done, released, pulled, date = ago(1)) =>
+  [['done',done],['letgo',released],['soon_pull',pulled]].flatMap(([outcome,n]) =>
+    Array.from({length:n},(_,i) => out({id:outcome+i,date,outcome,obligation:null})));
+const weekShape = _buildWeekShapeFallback(weekRows(3,0,0),TODAY);
+
+test('a minority is not called more than the other outcomes combined', () => {
+  const c = _buildWeekShapeFallback(weekRows(4,5,2),TODAY);
+  return c?.signal.shape === 'mixed' && !/more|most/.test(c.insight);
+});
+
+test('two-way ties cannot claim a majority or three observed actions', () =>
+  [[2,2,0],[0,2,2],[2,0,2]].every(counts =>
+    _buildWeekShapeFallback(weekRows(...counts),TODAY) === null));
+
+test('fallback includes today through six days ago, not the preceding Sunday or future', () => {
+  const inside = weekRows(2,0,0).concat(weekRows(1,0,0,ago(6)));
+  const outside = weekRows(2,0,0).concat(weekRows(1,0,0,ago(7)),weekRows(1,0,0,ago(-1)));
+  return !!_buildWeekShapeFallback(inside,TODAY) && _buildWeekShapeFallback(outside,TODAY) === null;
+});
+
+test('seven calendar dates are independent of host timezone across DST', () => {
+  const previous = process.env.TZ;
+  try {
+    return ['UTC','America/New_York','Europe/Berlin','Pacific/Kiritimati'].every(zone => {
+      process.env.TZ=zone;
+      return ['2026-03-11','2026-11-04'].every(today => {
+        const d=new Date(today); d.setUTCDate(d.getUTCDate()-6);
+        const oldest=d.toISOString().slice(0,10);
+        return !!_buildWeekShapeFallback(weekRows(2,0,0,today).concat(weekRows(1,0,0,oldest)),today);
+      });
+    });
+  } finally { if(previous === undefined) delete process.env.TZ; else process.env.TZ=previous; }
+});
+
+test('all four fallback insights pass the real semantic validator', () =>
+  [[5,1,1],[1,5,1],[1,1,5],[1,1,1]].every(counts => {
+    const c=_buildWeekShapeFallback(weekRows(...counts),TODAY);
+    return c && _weekReflectionTextIsGrounded(c.insight,c);
+  }));
+
+test('fallback rejects unrelated prose and the wrong dominant action', () =>
+  !_weekReflectionTextIsGrounded('You should trust your instincts.',weekShape)
+  && !_weekReflectionTextIsGrounded('You let go of more commitments than you finished.',weekShape));
+
+test('mixed fallback requires all observed actions and cannot invent a majority', () => {
+  const c=_buildWeekShapeFallback(weekRows(1,1,1),TODAY);
+  return !_weekReflectionTextIsGrounded('You finished things and let some go.',c)
+    && !_weekReflectionTextIsGrounded('You mostly finished commitments, let some go, and brought others back from Soon.',c);
+});
+
+test('fallback follows weekly cooldown and an extra week after a miss', () => {
+  const prior={date:ago(7),surface:'Sunday reflection',kind:'week-shape'};
+  const k={todayISO:TODAY,surface:'sunday',spokenLines:[prior]};
+  return _observationGateExplain(weekShape,k) === null
+    && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,date:ago(6)}]}) !== null
+    && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,reaction:'missed'}]}) !== null
+    && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,date:ago(14),reaction:'missed'}]}) === null;
+});
+
+test('fallback respects retirement even when its voted lines have expired', () =>
+  /retired/.test(_observationGateExplain(weekShape,{todayISO:TODAY,
+    kindVerdicts:{'week-shape':{retired:ago(35),missed:2}},spokenLines:[]})));
+
+test('Sunday audit reports actual fallback selection and its rejection', () => {
+  const input={outcomes:weekRows(3,0,0),todayISO:TODAY};
+  const ready=_observationPoolAudit(input,'sunday',{});
+  const retired=_observationPoolAudit(input,'sunday',{kindVerdicts:{'week-shape':{retired:TODAY,missed:2}}});
+  const today=_observationPoolAudit(input,'sunday',{spokenLines:[{date:TODAY,surface:'Sunday reflection',kind:'other'}]});
+  return ready.selectedKind === 'week-shape' && ready.candidates[0]?.fallback === true
+    && ready.result === 'candidate-ready' && retired.selectedKind === null
+    && /retired/.test(retired.candidates[0].gateReason) && today.selectedKind === null;
 });
 
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');

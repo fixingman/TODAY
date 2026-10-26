@@ -15,6 +15,8 @@
 
 ---
 
+**Enrichment boundary (v2.99.0 local):** web/Trello `agent_enrichment_*` cards and optional exact-card withholding remain device-local. They are absent from backup/merge/restore; no schema bump, LWW map, clear watermark or old-client replay is introduced. True task deletion/text/source changes invalidate the card; unchanged Today/Soon/Past moves retain its hide; Undo/show context clears only that device’s hide. This is explicitly not cross-device feedback or cross-task learning. Gmail keeps its separate existing mail cache/draft domain. Local v2.99.1 binds both existing Gmail caches to exact retained task text and sensitive local refresh-grant provenance, with current-owner/source/cache/visit fences for pending work. Normal sync edits/deletion invalidate them; source tokens/digests, email data and drafts remain excluded from backup. Zone cleanup waits until a complete move, preserving unchanged owners. No backup-schema change.
+
 ## Dropbox Integration
 
 ### Files

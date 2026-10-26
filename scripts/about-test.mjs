@@ -67,8 +67,8 @@ const DAY_MS   = 24 * 60 * 60 * 1000;
 const TODAY    = localISO(new Date());
 const YESTERDAY = localISO(new Date(Date.now() - DAY_MS));
 
-async function openPage() {
-  const page = await browser.newPage();
+async function openPage(context = browser) {
+  const page = await context.newPage();
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -707,7 +707,7 @@ try {
       // Retire soon-pullback so the pool has no survivors.
       appMemory.taskOutcomes = [
         ...Array.from({ length: 5 }, (_, i) => ({ id: 'sp' + i, date: iso(now - (i + 1) * D), outcome: 'soon_pull' })),
-        ...Array.from({ length: 5 }, (_, i) => ({ id: 'dn' + i, date: iso(now - (i + 1) * D), outcome: 'done', obligation: false })),
+        ...Array.from({ length: 2 }, (_, i) => ({ id: 'dn' + i, date: iso(now - (i + 1) * D), outcome: 'done', obligation: false })),
       ];
       appMemory.spokenLines = [];
       if (!appMemory.kindVerdicts) appMemory.kindVerdicts = {};
@@ -724,6 +724,117 @@ try {
     await expectAll('Sunday week-shape fallback', { ...result, noErrors: errors.length === 0 });
     ok('Sunday reflection: week-shape fallback fires when pool is all-gated and 7-day outcome data exists');
     await page.close();
+  }
+
+  // Phase 3: fallback selection, audit and existing feedback have one meaning.
+  {
+    const {page,errors}=await openPage();
+    const result=await page.evaluate(()=>{
+      const today=_localISO(), about=Today.use('about');
+      appMemory.taskOutcomes=Array.from({length:3},(_,i)=>({id:'fictional-'+i,date:today,outcome:'done',obligation:null}));
+      appMemory.spokenLines=[];appMemory.kindVerdicts={};
+      const selected=about._pickSundayInsight({});
+      const audit=about._debugSundayAudit(today);
+      appMemory.kindVerdicts['week-shape']={retired:today,missed:2};
+      const retired=about._pickSundayInsight({}) === null;
+      const retiredAudit=about._debugSundayAudit(today);
+      appMemory.kindVerdicts={};
+      appMemory.spokenLines=[{surface:'Sunday reflection',date:today,kind:'week-shape',policy:'earned-v4',reaction:'missed'}];
+      const votedOldPolicy=about._pickSundayInsight({}) === null;
+      appMemory.spokenLines[0].reaction=null;
+      const unvotedOldPolicy=about._pickSundayInsight({})?.kind === 'week-shape';
+      appMemory.spokenLines[0].policy=window._weekReflectionPolicy;
+      const sameDay=about._pickSundayInsight({}) === null;
+      return {selected:selected?.kind === 'week-shape',audit: audit?.selectedKind === 'week-shape',
+        retired,retiredAudit:retiredAudit.selectedKind === null,votedOldPolicy,unvotedOldPolicy,sameDay};
+    });
+    await expectAll('Sunday fallback feedback and policy migration',{...result,noErrors:errors.length===0});
+    ok('Sunday fallback respects retirement/voted old wording; audit agrees with the actual selection');
+    await page.close();
+  }
+
+  // Hold the actual response body; changes during the request cannot create a stale spoken line.
+  {
+    const {page,errors}=await openPage();
+    const result=await page.evaluate(async()=>{
+      const RealDate=Date, originalKey=localStorage.getItem('today_ai_key_claude');
+      const about=Today.use('about'), realFetch=window.fetch, base=JSON.parse(JSON.stringify(appMemory));
+      const answer='Most movement this week was things reaching done.';
+      const results={};
+      try {
+        for(const change of ['outcomes','retirement','clear','day','key','synced-cache','not-ready','body-error','reorder','unrelated-focus']) {
+          window.Date=RealDate; appMemory=JSON.parse(JSON.stringify(base));
+          localStorage.setItem('today_ai_key_claude',originalKey);
+          const today=_localISO(); localStorage.removeItem('week_reflection_'+today);
+          checkDayNudge._setMemoryReady(true);
+          appMemory.taskOutcomes=Array.from({length:3},(_,i)=>({id:'held-'+i,date:today,outcome:'done',obligation:null}));
+          appMemory.spokenLines=[];appMemory.kindVerdicts={};
+          const insight=about._pickSundayInsight({});
+          let finish,fail;
+          const body=new Promise((resolve,reject)=>{finish=resolve;fail=reject;});
+          window.fetch=async()=>({ok:true,json:()=>body});
+          const pending=about._fetchWeekReflection({insight});
+          await new Promise(resolve=>setTimeout(resolve,0));
+          if(change==='outcomes')appMemory.taskOutcomes=[];
+          if(change==='retirement')appMemory.kindVerdicts['week-shape']={retired:today,missed:2};
+          if(change==='clear'||change==='body-error')appMemory.clearedAt=new RealDate().toISOString();
+          if(change==='day') { const future=RealDate.now()+86400000;
+            window.Date=class extends RealDate{constructor(...args){super(...(args.length?args:[future]));}static now(){return future;}}; }
+          if(change==='key')localStorage.setItem('today_ai_key_claude','another-fictional-key');
+          if(change==='synced-cache')localStorage.setItem('week_reflection_'+today,'A synced accepted line.');
+          if(change==='not-ready')checkDayNudge._setMemoryReady(false);
+          if(change==='reorder')appMemory.taskOutcomes.reverse();
+          if(change==='unrelated-focus')appMemory.spokenLines.push({date:today,surface:'focus question',text:'Other help'});
+          if(change==='body-error')fail(new Error('Fictional late failure'));else finish({content:answer});
+          const text=await pending;
+          const recorded=appMemory.spokenLines.some(row=>row.surface==='Sunday reflection');
+          const accepted=change==='reorder'||change==='unrelated-focus';
+          results[change]=accepted ? text===answer&&recorded : text===null&&!recorded;
+        }
+        window.Date=RealDate;appMemory=JSON.parse(JSON.stringify(base));
+        localStorage.setItem('today_ai_key_claude',originalKey);
+        checkDayNudge._setMemoryReady(false);
+        let calls=0;window.fetch=async()=>{calls++;return{ok:true,json:async()=>({content:answer})};};
+        const text=await about._fetchWeekReflection({insight:{kind:'week-shape',insight:answer}});
+        results.initialSync=text===null&&calls===0;
+      } finally {
+        window.Date=RealDate;window.fetch=realFetch;localStorage.setItem('today_ai_key_claude',originalKey);
+        checkDayNudge._setMemoryReady(true);
+      }
+      return results;
+    });
+    await expectAll('Sunday held-response fences',{...result,noErrors:errors.length===0});
+    ok('Sunday guards late bodies after source/vote/clear/day/key/cache/readiness changes; irrelevant changes stay valid');
+    await page.close();
+  }
+
+  // Actual sync into an isolated second browser store carries feedback and enforces policy compatibility.
+  {
+    const contextA=await browser.createBrowserContext(),contextB=await browser.createBrowserContext();
+    try {
+      const {page:a,errors:errorsA}=await openPage(contextA);
+      const {page:b,errors:errorsB}=await openPage(contextB);
+      const snapshot=await a.evaluate(()=>{
+        const today=_localISO();
+        appMemory.taskOutcomes=Array.from({length:3},(_,i)=>({id:'sync-'+i,date:today,outcome:'done',obligation:null}));
+        appMemory.spokenLines=[];appMemory.kindVerdicts={'week-shape':{retired:today,missed:2,landed:0,updated:new Date().toISOString()}};
+        return {memory:JSON.parse(JSON.stringify(appMemory))};
+      });
+      const result=await b.evaluate(data=>{
+        mergeRemoteData(data);
+        const about=Today.use('about'),today=_localISO(),cache='week_reflection_'+today;
+        const retired=about._pickSundayInsight({})===null;
+        const audit=about._debugSundayAudit(today);
+        localStorage.removeItem(cache);
+        mergeRemoteData({...data,week_reflection:'Old policy text.',week_reflection_policy:'earned-v4'});
+        const rejectsOldPolicy=!localStorage.getItem(cache);
+        mergeRemoteData({...data,week_reflection:'Current policy text.',week_reflection_policy:window._weekReflectionPolicy});
+        return {retired,audit: audit.selectedKind===null,rejectsOldPolicy,
+          acceptsCurrentPolicy:localStorage.getItem(cache)==='Current policy text.'};
+      },snapshot);
+      await expectAll('Sunday two-store feedback/policy',{...result,noErrors:errorsA.length===0&&errorsB.length===0});
+      ok('Sunday retirement and policy compatibility hold after the real two-store sync merge');
+    } finally {await contextA.close();await contextB.close();}
   }
 
   // 19. Static wiring checks.
