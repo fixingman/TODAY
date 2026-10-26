@@ -300,7 +300,7 @@
           `<button class="memory-clear-btn" data-today-click="memory.clear-request">clear all memory</button>` +
           `<button type="button" class="memory-conn-link" data-today-click="memory.connections">Connections →</button>` +
           `</div>`;
-      Today.use('reflections').renderFeedbackFooter(footer);
+      Today.use('reflections').renderFeedbackFooter();
     }
 
     function _memoryGoToConnections() {

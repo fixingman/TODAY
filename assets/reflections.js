@@ -572,7 +572,7 @@
         const coverage = [...container.children].find(el => el.querySelector('.memory-type-name')?.textContent === 'WHAT TODAY HAS SEEN');
         if (tmp.firstChild) container.insertBefore(tmp.firstChild, coverage || document.getElementById('dreamMemoryBlock'));
       }
-      renderFeedbackFooter(document.getElementById('memoryFooter'));
+      renderFeedbackFooter();
     }
 
     function endFeedbackVisit() { _feedbackAck = null; _feedbackOpen = false; _feedbackError = false; }
@@ -619,13 +619,13 @@
       _clearFeedback(true); _refreshOpenMemory(); _refreshMemoryBlock(); _feedbackSaveRemote();
       document.querySelector('#memoryFooter .memory-clear-btn')?.focus();
     }
-    function renderFeedbackFooter(_footer) {
+    function renderFeedbackFooter() {
       const wasOpen = document.querySelector('#reflectionFeedbackManage')?.open || false;
       document.querySelector('#reflectionFeedbackManage')?.remove();
       const evidence = _reflectionEvidence();
       const rows = evidence.feedback.records.filter(r => r.reactedAt && r.reaction !== null);
       if (!_sourceReady || evidence.policy?.choice !== 'remember' || !rows.length) return;
-      const block = document.getElementById('reflectionMemoryBlock') || _footer;
+      const block = document.getElementById('reflectionMemoryBlock') || document.getElementById('memoryFooter');
       if (!block) return;
       const details = document.createElement('details'); details.id = 'reflectionFeedbackManage'; details.open = wasOpen;
       details.className = 'reflection-feedback-manage';
@@ -818,7 +818,7 @@
         _loadFeedbackPolicy().then(() => { if (mergeFeedback()) { _refreshOpenMemory(); _refreshMemoryBlock(); _feedbackSaveRemote(); } });
       }
       _refreshOpenMemory();
-      renderFeedbackFooter(document.getElementById('memoryFooter'));
+      renderFeedbackFooter();
 
       return changed;
     }
@@ -829,7 +829,7 @@
     });
     window.addEventListener('storage', event => {
       if ([POLICY_KEY, DATA_KEY, CLEARED_KEY, FEEDBACK_KEY, FEEDBACK_CLEAR_KEY, 'today_memory'].includes(event.key)) {
-        _refreshOpenMemory(); renderFeedbackFooter(document.getElementById('memoryFooter'));
+        _refreshOpenMemory(); renderFeedbackFooter();
       }
     });
     document.addEventListener('visibilitychange', () => {
