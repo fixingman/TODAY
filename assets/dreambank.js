@@ -610,10 +610,10 @@
         ? `${n} dream${n === 1 ? '' : 's'} kept in your Dropbox`
         : 'a dream you tell the mic lands here';
       const html = `<div class="memory-type-block dream-memory-block" id="dreamMemoryBlock">` +
-        `<div class="memory-type-header"><span class="memory-type-name">DREAMS</span></div>` +
-        `<div class="memory-item"><span class="memory-item-text">${esc(summary)}</span>` +
+        `<div class="memory-type-header"><span class="memory-type-name">DREAMS</span>` +
         (n ? `<button type="button" class="memory-item-btn" data-today-click="dream.memory-manage" aria-expanded="${_listOpen}">${_listOpen ? 'less' : 'manage'}</button>` : '') +
         `</div>` +
+        `<div class="memory-item"><span class="memory-item-text">${esc(summary)}</span></div>` +
         (images.length ? `<div class="memory-item"><span class="memory-item-text">comes back: ${images.map(_recurrence).join(' · ')}</span></div>` : '') +
         (n && _listOpen ? rows.map(_memoryRow).join('') : '') +
         `</div>`;
