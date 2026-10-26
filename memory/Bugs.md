@@ -20,15 +20,16 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 131 | 🔧 Local | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
 | 130 | ⏳ Verify | Completed tasks can reach other devices late after a failed read or overlapping write. | v2.98.6 |
-| 129 | ⏳ Verify | Split suggestions disappear after a temporary failure or offline capture. | v2.99.1 |
+| 129 | ✅ Verified | Split suggestions disappear after a temporary failure or offline capture. | v2.99.1 |
 | 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
 | 127 | ⏳ Verify | Web/Trello context outlives its task, source or focus view. | v2.99.1 |
-| 126 | ⏳ Verify | Sunday fallback bypasses feedback and overstates weekly evidence. | v2.99.1 |
+| 126 | ✅ Verified | Sunday fallback bypasses feedback and overstates weekly evidence. | v2.99.1 |
 | 125 | ⏳ Verify | Temporary Trello failures show a disconnected icon. | v2.98.5 |
 | 124 | ⏳ Verify | Manual-task pomodoro counts revert after syncing. | v2.98.5 |
 | 123 | ⏳ Verify | Feeling feedback can be lost before its source data finishes loading. | v2.98.3 |
-| 122 | ⏳ Verify | Sync warns when zones agree, or keeps an older Soon copy after a Past move. | v2.97.8 |
+| 122 | ✅ Verified | Sync warns when zones agree, or keeps an older Soon copy after a Past move. | v2.97.8 |
 | 121 | ⏳ Verify | Opening shortly before midnight can suppress the next day’s poem. | v2.97.8 |
 | 120 | ↪ Merged | Daily-nudge delivery follow-up; tracked with the strip/About mismatch. | BUG-118 |
 | 118 | ⏳ Verify | Daily nudge can be missing or disagree between the task list and About. | v2.97.8 |
@@ -41,6 +42,16 @@
 ---
 
 *BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-131 — Post-add splitting loses valid actions and can apply an obsolete offer
+
+**15F audit/reproduction (October 27):** the fixed English verb guard rejects the explicitly written “Install the shelves and paint the wall” and “Translate the document and send it”. The earlier fictional probe is retained in `.context/post-add-split-review-2026-10-26.json`. Requiring the model to repeat every source phrase also makes paraphrases ineligible; the frequency of that behavior on Can’s account is unmeasured. A new actual-component fixture shows an accepted split can remove a task after its text changes, recording application against the obsolete source. This is separate from BUG-129 transport recovery and does not explain every historical missing offer.
+
+**Local fix (v2.100.1):** expand supported English imperatives and ask the writer to confirm the complete zero-based source-clause index sequence. The client, not the model, supplies the child task wording. The same 2–3 complete verb-led clause guard remains; broad tasks, joined objects, unfamiliar/ambiguous syntax and unsupported languages stay conservative. Invalid indices or mixed invented text are rejected, with exact legacy-copy compatibility. No fuzzy semantic matching, inferred prep or unrelated task input. Applying the explicit offer rechecks its current identity, unchanged source and undone Today owner, revalidates the clauses, then preserves source text/tag inheritance. Stale application quietly dismisses the offer without a false miss or losing the owner.
+
+**Verification:** policy regressions fail before and pass after for the confirmed verbs. The real browser reproduces stale edit/application before the fix. Actual Add → real proxy → fictional index-only provider → mobile keyboard Split covers two/three actions, exact spacing/case/punctuation/tags and one applied outcome. Reversed/duplicate/out-of-range/missing/sparse/wrong-type indices, invented mixed responses, legacy paraphrases, single activity/objects, and edit/check/move before Apply remain rejected. Existing offline/transient/deadline/terminal/owner recovery tests pass unchanged. Evidence is retained under `.context/15f-splitting/`. Full release checks pending; installed acceptance and live model selection/usefulness are not established by mocked fixtures.
 
 ---
 
@@ -57,20 +68,6 @@
 **Automated verification:** `scripts/dropbox-test.mjs` reproduces failed-content and upload-race behavior before the fixes. It covers 503/network/invalid JSON recovery on the next same-revision poll, rendered completion, intervening writes after upload, manual restore with valid/missing/malformed metadata, startup, and actual check/uncheck plus wake/poll convergence across two isolated browser stores against a fictional Dropbox. The exact v2.98.6 release passes all 52 suites with zero flaky/failed tests and unchanged payload budgets. Release validation also restores documented Memory action target sizing and updates the reviewed visual baseline and Dreams manage fixture to match the preceding layout commits. Artifacts: `.context/sync-2986-gate.log`, `.context/sync-2986-payload.log`; original failure reproductions remain in `.context/sync-latency-*.log`.
 
 **Remaining:** dev release; installed/account acceptance and the precise cause of Can's historical delay remain open. On healthy visible devices the designed path is an 800ms debounce plus the next seven-second poll and network time, not a guaranteed delivery SLA. Background/suspended devices do not poll until return. Slow/unbounded requests, pending-backup deferral and retry backoff can add delay; this patch addresses confirmed unread-revision stalls, not every cause of latency. Release details: `.context/sync-latency-release-note.md`.
-
----
-
-## BUG-129 — Post-add split delivery cannot recover from a transient request failure
-
-**Report (Can, October 26):** no split suggestions seen for at least ten days, including remembered compound tasks; a tentative two-action example passes the split guard. The historical causes on his device remain unconfirmed.
-
-**Mechanical reproduction:** a fictional mobile browser uses the real Add/Enter action, actual `ai-assist` proxy and a mocked upstream model. Healthy request: 1 request → 1 visible offer. First request HTTP 503, then healthy connection: 1 request → 0 offers, including after `online`. Offline capture then reconnect: 0 upstream requests → 0 offers. A rapid subsequent ordinary capture also cancels the earlier compound analysis; that is the separately retained newest-capture contract, not evidence of a broken provider. Artifacts: `.context/postadd-mechanics-before.json`, `.context/postadd-mechanics-results.json`.
-
-**Cause:** the controller attempts one request, silently returns on transport/non-OK failure, has no whole-response deadline and retains no recent eligible analysis for reconnect. Passing the split predicate alone does not establish delivery.
-
-**Implementation (included in v2.99.1 dev release):** retain only the latest capture in memory for two minutes; keep the two-second debounce; bound request plus body to twelve seconds. Network/timeout/408/429/5xx failures may retry once after five seconds. Offline/hidden deferral consumes no provider attempt; online/foreground can resume after the same backoff. Before a request or result, require the same existing, unchanged, undone manual task and AI credentials. Edit/delete/complete/move/new capture/expiry/config change cancels recovery; stale queued callbacks cannot start a newer capture early. A model abstention, malformed/ungrounded response, reason suppression or permanent HTTP error is terminal. Existing prompt, exact-copy/verb guard, frequency policy, viewport delivery and explicit application remain unchanged. Failed attempts do not create offers or negative outcomes. No persistent queue, telemetry, extra UI, provider/model/routing or backup change.
-
-**Verification:** `assistant-test` adds real Add → real proxy → fictional provider recovery and actual offline reconnect; whole-body timeout/late reply; terminal-result/two-attempt cap; and source/credential/age/supersession fences. No personal task wording enters fixtures. Assistant capture/recovery/fence tests, suggestion policy/outcomes, smoke, component contract, design lint and payload checks pass. The combined v2.99.0 gate now passes 52/52 suites with zero flaky tests, plus all five performance runs and unchanged payload budgets; both release changelogs include this fix. Commit/release, installed behavior and the precise cause of each past missed offer remain open. W1 useful capture-time help survives a brief outage; W2 only the still-current recent capture can recover, with existing frequency and viewport limits.
 
 ---
 
@@ -91,16 +88,6 @@
 **Local v2.99.0:** v3 cache validates retained manual owner/exact text across Today/Soon/Past, source board, policy and 30-day age; limits the prefix to 60 entries / 200,000 UTF-8 bytes. Pending headers/body check source/credentials/cache adoption and request identity, with 26s abort and safe supersession. Focus has independent view ownership and synchronous close invalidation. Failures are retryable 502; only explicit no-result is cached. Existing card gains exact-card local withholding/Undo/show context with neutral link semantics. Hidden state is authoritative and success-ineligible in the previous client as well; unchanged zone moves retain it and true deletion removes it. No preference inference, new prompt, extra feedback call, new synced data or Gmail controls.
 
 **Verification:** before-fix browser fixture fails; targeted real-component tests pass for source/policy/expiry, pending races, keyboard/Undo/retained hiding, closed focus and 320px wrapping. Focused Claude review completed and its reproduced Undo-focus/label/hidden-state findings are corrected. Earlier slice 52-suite runs pass; cleanup passes 37 component checks including axe/real zone transitions, plus zones/drag/Focus/smoke and payload. Final integrated v2.99.0 checks now pass 52/52 suites (zero flaky), all six visual scenes, accessibility and five-run performance/payload with unchanged budgets. Memory targets and absent-insight feedback access were repaired while retaining the parallel styling; commit/release remains pending. No installed-account/usefulness acceptance claimed.
-
----
-
-## BUG-126 — Sunday fallback bypasses feedback and overstates weekly evidence
-
-**Discovery (Phase 3 integration, October 25):** fictional source/component probes reproduced independent gaps in the v2.98.2 week-shape fallback: `_pickSundayInsight()` returns `week-shape` even when that kind is permanently retired; the audit reports no selected candidate while the UI picks that fallback; 5 let-go events versus 4 done + 2 Soon pulls are described as more than the others, and a 2/2 tie also claims more; unrelated prose passes the unknown-kind wording guard. The claimed seven-day inclusive window also includes the preceding Sunday. No real-user votes, keys or source history were read; these are deterministic integration findings, not a personal-usefulness verdict.
-
-**Correction (included in v2.99.1 dev release):** route fallback through the existing kind feedback/novelty gate, using a seven-day base cooldown plus the existing extra week after one miss and retirement after two. Require a strict majority for directional claims; mixed wording needs all three actions, otherwise abstain. Use exactly today plus six preceding calendar dates with timezone-independent date arithmetic. Add week-shape action/direction anchors and include fallback selection/rejection in the existing content-free audit. Bump the Sunday evidence policy to earned-v5; replace only unvoted stale-policy same-day lines, retaining explicit old votes as gate evidence. Wait for initial memory readiness; fence late success/failure against relevant outcomes/feedback, Memory clear, day, credentials and an adopted cache. Unrelated Focus wording and source-row order do not cancel a valid response. A late quiet response cannot hide an already accepted synced/current cache.
-
-**Verification:** pure policy cases cover minority/tie/presence claims, real wording guard, exactly seven dates/DST, weekly cooldown/miss/retirement and audit parity. Actual About browser cases cover voted policy migration, held response bodies and late failures after source/vote/clear/day/key/cache/readiness changes, initial sync, and two isolated stores through the real sync merge. Targeted suites and the full 52-suite run pass (0 flaky); payload is 1200.7 KiB decoded / 342.9 KiB Brotli / 38 scripts, within unchanged budgets. One five-run performance measurement passes (`.context/phase3-performance.json`); it does not resolve the retained earlier first-focus failure. The other session released ownership after committing v2.98.5; this correction is included in local v2.99.0, whose combined 52-suite and five-run performance/payload gates now pass with the audit refreshed; commit/release remains pending; no deployed/installed or product keep verdict is claimed.
 
 ---
 
@@ -143,20 +130,6 @@
 **Follow-up (local v2.100.0):** incoming feedback now merges with explicit source readiness. While evidence is incomplete, valid bounded records/revisions are retained without interpreting missing outcome versions as withdrawal. Consent/generation, clear watermarks and retention/caps remain live; natural expiry still strips prose/support. Readiness reconciles against the completed source snapshot, removing true edits/withdrawal. Unit and actual-browser reproductions fail before the change and pass afterward; real Dropbox merge and manual Restore preserve supported misses. Source withdrawal and deletion before readiness remain covered. No new persisted queue or backup fields.
 
 **Status:** initial fix shipped v2.98.3; incoming-merge follow-up implemented locally in v2.100.0, awaiting release and installed verification.
-
----
-
-## BUG-122 — Zone agreement warned as a conflict; remote Past did not fence older Soon
-
-**Report (Can, 2026-10-22):** Dropbox metadata returned HTTP 504; a separate zone anomaly showed both copies in Past with different timestamps. Those messages do not by themselves show a failed upload or a lost task.
-
-**Causes:** the zone logger compared operation timestamps without requiring different destinations, so same-zone reconciliation produced a conflict warning. An adjacent regression fixture found a separate merge defect: Soon exclusion checked only local Past stamps. A newer remote move to Past could therefore retain an older local Soon copy alongside the winning Past entry. This second defect is reproduced with fictional data, not established for Can’s reported task.
-
-**Fix (v2.97.8):** zone warnings require different destinations; existing timestamp/freshness gates remain. Soon exclusion uses the newest Past timestamp from both devices. Newer revives still win, older duplicates are excluded, and same-zone stamps retain the newer entry. Metadata poll behavior is unchanged: a 504 skips that check and the next active tick retries.
-
-**Tests:** `dropbox-test` adds sixteen zone cases (same-zone local/remote wins, contradictory moves in both directions, newer revives, stale operations, echoes, equal-time ties and legacy missing timestamps) and a mocked metadata 504 followed by a healthy check. The old code fails the same-zone cases and retains both zone copies in the remote-Past case. Fixtures use no live credentials or task data.
-
-**Release:** included in v2.97.8 with the nudge/poem fixes. Real-device verification remains open: same-zone sync should stay quiet, and the newer zone move should converge on both devices.
 
 ---
 
@@ -306,4 +279,4 @@ Consolidated with BUG-118 at Can’s request, 2026-10-22. The strip/About agreem
 
 ---
 
-**Dev release checkpoint (October 26):** BUG-126/127/128/129 are included in the approved v2.99.1 dev release; their earlier local implementation/verification notes above are historical checkpoints. Installation and accepted verification remain open.
+**Dev release checkpoint (October 26):** BUG-127/128 are included in the approved v2.99.1 dev release; their earlier local implementation/verification notes above are historical checkpoints. Installation and accepted verification remain open.

@@ -6,9 +6,9 @@
 
 ---
 
-## Status Summary — BUG-001 to BUG-087; verified BUG-088–119
+## Status Summary — BUG-001 to BUG-087; verified BUG-088–129
 
-> BUG-001–055 moved from `Bugs.md` 2026-09-01; BUG-056–087 moved 2026-09-27; verified BUG-088–119 moved 2026-10-25. `Bugs.md`
+> BUG-001–055 moved from `Bugs.md` 2026-09-01; BUG-056–087 moved 2026-09-27; verified BUG-088–119 moved 2026-10-25; verified BUG-122/126/129 moved 2026-10-27. `Bugs.md`
 > now carries open, awaiting-verification, rejected, and merge-pointer rows only. Three rows in 001–087 are not verified fixes: BUG-061 is ⚠️ Stale
 > (needs a fresh-device Sunday/habit badge check) and BUG-062/069 are 🚫 Rejected.
 > Newest first, matching the ordering rule above. Not every row has a detail section —
@@ -16,6 +16,9 @@
 
 | # | Description | Status |
 |---|---|---|
+| 129 | Split suggestions disappear after a temporary failure or offline capture | ✅ v2.99.1 |
+| 126 | Sunday fallback bypasses feedback and overstates weekly evidence | ✅ v2.99.1 |
+| 122 | Sync warns when zones agree, or keeps an older Soon copy after a Past move | ✅ v2.97.8 |
 | 119 | Red dot on a fresh mobile session: "Script error. at :0:0" — an error from a script TODAY did not load, details withheld by the browser | ✅ v2.93.26 |
 | 116 | Email and web context arrows blink repeatedly after returning to the desktop PWA — completed arrival animation replayed by wake repaints | ✅ v2.93.20 |
 | 115 | Gmail kept retrying a refused sign-in (`gmail-token` 400 in the console) while Connections still said "Connected" | ✅ v2.93.17 |
@@ -145,6 +148,42 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 ## Verification batch — 2026-09-07
 
 Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. All five are now ✅. Remaining open from the 2026-09-04 batch: BUG-091 (real Gmail), BUG-089 (native Mail handoff), and BUG-061 (stale, Sunday/habit badge).
+
+## BUG-129 — Post-add split delivery cannot recover from a transient request failure
+
+**Report (Can, October 26):** no split suggestions seen for at least ten days, including remembered compound tasks; a tentative two-action example passes the split guard. The historical causes on his device remain unconfirmed.
+
+**Mechanical reproduction:** a fictional mobile browser uses the real Add/Enter action, actual `ai-assist` proxy and a mocked upstream model. Healthy request: 1 request → 1 visible offer. First request HTTP 503, then healthy connection: 1 request → 0 offers, including after `online`. Offline capture then reconnect: 0 upstream requests → 0 offers. A rapid subsequent ordinary capture also cancels the earlier compound analysis; that is the separately retained newest-capture contract, not evidence of a broken provider. Artifacts: `.context/postadd-mechanics-before.json`, `.context/postadd-mechanics-results.json`.
+
+**Cause:** the controller attempts one request, silently returns on transport/non-OK failure, has no whole-response deadline and retains no recent eligible analysis for reconnect. Passing the split predicate alone does not establish delivery.
+
+**Implementation (included in v2.99.1 dev release):** retain only the latest capture in memory for two minutes; keep the two-second debounce; bound request plus body to twelve seconds. Network/timeout/408/429/5xx failures may retry once after five seconds. Offline/hidden deferral consumes no provider attempt; online/foreground can resume after the same backoff. Before a request or result, require the same existing, unchanged, undone manual task and AI credentials. Edit/delete/complete/move/new capture/expiry/config change cancels recovery; stale queued callbacks cannot start a newer capture early. A model abstention, malformed/ungrounded response, reason suppression or permanent HTTP error is terminal. Existing prompt, exact-copy/verb guard, frequency policy, viewport delivery and explicit application remain unchanged. Failed attempts do not create offers or negative outcomes. No persistent queue, telemetry, extra UI, provider/model/routing or backup change.
+
+**Verification:** `assistant-test` adds real Add → real proxy → fictional provider recovery and actual offline reconnect; whole-body timeout/late reply; terminal-result/two-attempt cap; and source/credential/age/supersession fences. No personal task wording enters fixtures. Assistant capture/recovery/fence tests, suggestion policy/outcomes, smoke, component contract, design lint and payload checks pass. The combined v2.99.0 gate now passes 52/52 suites with zero flaky tests, plus all five performance runs and unchanged payload budgets; both release changelogs include this fix. Commit/release, installed behavior and the precise cause of each past missed offer remain open. W1 useful capture-time help survives a brief outage; W2 only the still-current recent capture can recover, with existing frequency and viewport limits.
+
+---
+
+## BUG-126 — Sunday fallback bypasses feedback and overstates weekly evidence
+
+**Discovery (Phase 3 integration, October 25):** fictional source/component probes reproduced independent gaps in the v2.98.2 week-shape fallback: `_pickSundayInsight()` returns `week-shape` even when that kind is permanently retired; the audit reports no selected candidate while the UI picks that fallback; 5 let-go events versus 4 done + 2 Soon pulls are described as more than the others, and a 2/2 tie also claims more; unrelated prose passes the unknown-kind wording guard. The claimed seven-day inclusive window also includes the preceding Sunday. No real-user votes, keys or source history were read; these are deterministic integration findings, not a personal-usefulness verdict.
+
+**Correction (included in v2.99.1 dev release):** route fallback through the existing kind feedback/novelty gate, using a seven-day base cooldown plus the existing extra week after one miss and retirement after two. Require a strict majority for directional claims; mixed wording needs all three actions, otherwise abstain. Use exactly today plus six preceding calendar dates with timezone-independent date arithmetic. Add week-shape action/direction anchors and include fallback selection/rejection in the existing content-free audit. Bump the Sunday evidence policy to earned-v5; replace only unvoted stale-policy same-day lines, retaining explicit old votes as gate evidence. Wait for initial memory readiness; fence late success/failure against relevant outcomes/feedback, Memory clear, day, credentials and an adopted cache. Unrelated Focus wording and source-row order do not cancel a valid response. A late quiet response cannot hide an already accepted synced/current cache.
+
+**Verification:** pure policy cases cover minority/tie/presence claims, real wording guard, exactly seven dates/DST, weekly cooldown/miss/retirement and audit parity. Actual About browser cases cover voted policy migration, held response bodies and late failures after source/vote/clear/day/key/cache/readiness changes, initial sync, and two isolated stores through the real sync merge. Targeted suites and the full 52-suite run pass (0 flaky); payload is 1200.7 KiB decoded / 342.9 KiB Brotli / 38 scripts, within unchanged budgets. One five-run performance measurement passes (`.context/phase3-performance.json`); it does not resolve the retained earlier first-focus failure. The other session released ownership after committing v2.98.5; this correction is included in local v2.99.0, whose combined 52-suite and five-run performance/payload gates now pass with the audit refreshed; commit/release remains pending; no deployed/installed or product keep verdict is claimed.
+
+---
+
+## BUG-122 — Zone agreement warned as a conflict; remote Past did not fence older Soon
+
+**Report (Can, 2026-10-22):** Dropbox metadata returned HTTP 504; a separate zone anomaly showed both copies in Past with different timestamps. Those messages do not by themselves show a failed upload or a lost task.
+
+**Causes:** the zone logger compared operation timestamps without requiring different destinations, so same-zone reconciliation produced a conflict warning. An adjacent regression fixture found a separate merge defect: Soon exclusion checked only local Past stamps. A newer remote move to Past could therefore retain an older local Soon copy alongside the winning Past entry. This second defect is reproduced with fictional data, not established for Can's reported task.
+
+**Fix (v2.97.8):** zone warnings require different destinations; existing timestamp/freshness gates remain. Soon exclusion uses the newest Past timestamp from both devices. Newer revives still win, older duplicates are excluded, and same-zone stamps retain the newer entry. Metadata poll behavior is unchanged: a 504 skips that check and the next active tick retries.
+
+**Tests:** `dropbox-test` adds sixteen zone cases (same-zone local/remote wins, contradictory moves in both directions, newer revives, stale operations, echoes, equal-time ties and legacy missing timestamps) and a mocked metadata 504 followed by a healthy check. The old code fails the same-zone cases and retains both zone copies in the remote-Past case. Fixtures use no live credentials or task data.
+
+**Release:** included in v2.97.8 with the nudge/poem fixes. Real-device verification remains open: same-zone sync should stay quiet, and the newer zone move should converge on both devices.
 
 ---
 
