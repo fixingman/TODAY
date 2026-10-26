@@ -1274,6 +1274,12 @@
   @media (hover: none) {
     .section-header::after { display: none; }
   }
+  /* On pointer devices the first task's hover background (--surface) contrasts
+     against the gradient anchored to --bg, dimming the top edge. Hide the
+     gradient only when that specific task is hovered — no other task is affected. */
+  @media (hover: hover) {
+    .section-header:has(+ .task-list > .task:first-child:hover)::after { display: none; }
+  }
 
   /* BUG-050 sixth pass — continuous tracking via scroll math, no jitter.
      Previous passes tried getBoundingClientRect() (iOS compositor lag) and
