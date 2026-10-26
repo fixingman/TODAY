@@ -663,15 +663,11 @@
         localStorage.setItem('last_successful_backup', now);
         localStorage.removeItem('dropbox_token_expired');
         if (window._dbxSetRev) {
-          // Update rev baseline so next sync tick doesn't re-trigger on our own write
+          // Only our upload's revision is known; a later metadata read may see another device's write.
           try {
-            const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-              method:  'POST',
-              headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ path: DROPBOX_FILE }),
-            });
-            if (meta.ok) { const m = await meta.json(); if (m && m.rev) window._dbxSetRev(m.rev); }
-          } catch(e) { /* non-critical */ }
+            const meta = await res.json();
+            window._dbxSetRev(meta?.rev || null);
+          } catch(e) { window._dbxSetRev(null); }
         }
 
         const label = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -1762,6 +1758,9 @@
         if (!res.ok) throw new Error(`Dropbox ${res.status}`);
 
         const data = await res.json();
+        let downloadedRev = null;
+        try { downloadedRev = JSON.parse(res.headers.get('Dropbox-API-Result') || 'null')?.rev || null; }
+        catch (_) { /* No revision is safer than acknowledging an unread snapshot. */ }
 
         if (fromSync) {
           // No timestamp guard here — mergeRemoteData() handles conflicts correctly
@@ -1910,20 +1909,10 @@
           // habitsList/habitCompletions) that's empty on a fresh device until now.
           if (typeof checkSundayNudge === 'function') checkSundayNudge();
           if (typeof checkHabitNudge === 'function') checkHabitNudge();
-          // Seed rev baseline so syncDropbox doesn't immediately re-merge on top of this restore
-          if (window._dbxSetRev) {
-            try {
-              const _token = localStorage.getItem('dropbox_token');
-              const _m = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${_token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: DROPBOX_FILE }),
-              });
-              if (_m.ok) { const _md = await _m.json(); if (_md && _md.rev) window._dbxSetRev(_md.rev); }
-            } catch(e) { _logSyncError('Dropbox', 'Rev seed: ' + e.message); }
-          }
+          if (window._dbxSetRev) window._dbxSetRev(downloadedRev);
           dropboxShowMsg('Restore complete ✓', 'success');
         }
+        return { rev:downloadedRev };
 
       } catch(e) {
         _logSyncError('Dropbox', 'Restore: ' + e.message);
@@ -1932,7 +1921,7 @@
     }
 
     // Live sync
-    // Visibility-based polling: re-syncs when tab regains focus or every 30s while
+    // Visibility-based polling: re-syncs when tab regains focus or every 7s while
     // active. Background tabs are completely silent — no network, no battery drain.
       let   ticker         = null;
       let   lastDropboxRev = null;
@@ -1981,13 +1970,14 @@
           const meta = await res.json();
           const rev  = meta.rev;
           if (!rev || rev === lastDropboxRev) return;
-          lastDropboxRev = rev;
-          await dropboxRestore(true);
+          const restored = await dropboxRestore(true);
+          if (!restored) return;
+          lastDropboxRev = restored.rev || rev;
           localStorage.setItem('last_sync_read', new Date().toISOString());
         } catch(e) { _logSyncError('Dropbox', 'Sync: ' + e.message); }
       }
 
-      // Expose rev setter so dropboxBackup can update baseline after its own write
+      // A revision baseline must come from content actually uploaded or applied.
       window._dbxSetRev = function(rev) { lastDropboxRev = rev; };
 
       // Day boundary cleanup — uses midnight boundary (aligned with habits as of v2.12.74)
@@ -2188,18 +2178,12 @@
                     localStorage.setItem('last_sync_read', new Date().toISOString());
                     deferredSyncBookkeeping = async () => {
                       try {
-                        // Seed rev so ticker doesn't re-trigger on same data
-                        const meta = await fetch('https://api.dropboxapi.com/2/files/get_metadata', {
-                          method: 'POST',
-                          headers: { 'Authorization': `Bearer ${freshToken}`, 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ path: DROPBOX_FILE }),
-                        });
-                        if (meta.ok) {
-                          const m = await meta.json();
-                          if (m && m.rev && window._dbxSetRev) window._dbxSetRev(m.rev);
-                        }
+                        let rev = null;
+                        try { rev = JSON.parse(r.headers.get('Dropbox-API-Result') || 'null')?.rev || null; }
+                        catch (_) { /* Missing metadata leaves the next poll eligible. */ }
+                        if (window._dbxSetRev) window._dbxSetRev(rev);
                         // If local had changes that weren't in remote, push merged result
-                        // (dropboxBackup re-seeds the rev after its own write)
+                        // (dropboxBackup uses its own upload response's revision)
                         if (changed) await dropboxBackup(true);
                       } catch(e) { _logSyncError('Dropbox', 'Rev seed: ' + e.message); }
                     };

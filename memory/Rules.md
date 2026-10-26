@@ -12,6 +12,7 @@
 - **10b foundation live (v2.94.0, dev + production):** separate read-only Google Calendar connection and transient primary-calendar timing; Cloud API/scope configuration verified. **v2.96.0 release approved (2026-10-14):** optional derived same-task timing support for the ordinary daily writer, only on explicit duration/deadline evidence; no raw event details/times in AI, title import, new scopes, calendar writes, agenda or automatic recording. Ordinary input stays unchanged without support; pool/Sunday/focus unchanged. Real consent, refresh and Forget checks on desktop/phone remain owed before the meeting-start offer; Granola remains separate/not started.
 - **Machine routing guard:** before any agent changes Headroom, a model provider/base URL, proxy/wrapper, port/mode, runtime override, or Headroom version, read `/Users/can/.headroom/ROUTING-GUARD.md` and obtain Can's explicit approval for that exact change. Keep Codex on explicit `127.0.0.1`, not `localhost`. Do not run `headroom learn --verbosity --apply`: v0.35.0 learns from Claude history only but hot-enables a proxy-global output shaper that can also affect Codex.
 - **Watch for (open items only — verified history lives in Changelog.md / archives):**
+  - **BUG-130 ⏳ v2.98.6 — sync revision fix; installed verification pending.** A completion could remain unseen after a failed content download or an intervening write during revision seeding. Only successfully applied/downloaded or own-upload revisions are acknowledged; same-revision failures remain eligible next tick. Fictional two-store regressions cover actual checks/unchecks and wake; installed latency/acceptance remains open. No polling-speed or extraction change.
   - **BUG-124/125 ⏳ v2.98.5 — sync/Trello fixes; installed verification pending.** Manual-task session counts MAX-merge across Today/Soon/Past; changed progress refreshes badges and heals the remote snapshot. Focus completion/partial-exit autosave is in v2.98.4. Temporary Trello read failures retain the star; 401/404 and Forget still require attention. Verify installed two-device progress and reconnect behavior after release; synthetic regressions do not close these bugs.
   - **BUG-123 ⏳ v2.98.3 — feeling feedback source-readiness pruning.** Fixed: `_reconcileEvidence()` write and `_reflectionBackupFields()` export now guarded by `_sourceReady`. `_reflectionMergeRemote` incoming-sync gap deferred. Awaiting real-device verification.
   - **v2.97.8 ⏳ (BUG-122)** — verify same-zone sync no longer warns and newer Today/Soon/Past moves converge on both devices; metadata timeouts should leave local tasks intact and retry on the next active tick. Fictional regression coverage is not real-device verification.
@@ -85,6 +86,7 @@ When Can says a bug is verified, including acceptance of a reproduction-equivale
 3. **`Rules.md` Watch for** — remove the bug's entry from the Watch for line.
 
 Status symbols used throughout:
+- 🔧 = fix implemented locally, not pushed
 - ⏳ = fix shipped, awaiting an accepted verification pass
 - ✅ = verified fixed (date noted)
 

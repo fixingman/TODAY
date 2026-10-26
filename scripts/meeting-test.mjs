@@ -717,9 +717,9 @@ try {
       const block = () => document.getElementById('dreamMemoryBlock');
       const line = block().querySelector('.memory-item');
       const collapsed = /^1 dream kept in your Dropbox$/.test(line.querySelector('.memory-item-text').textContent)
-        && line.querySelector('.memory-item-btn').textContent === 'manage'
+        && block().querySelector('[data-today-click="dream.memory-manage"]').textContent === 'manage'
         && !block().querySelector('[data-today-click="dream.memory-open"]');
-      line.querySelector('[data-today-click="dream.memory-manage"]').click();
+      block().querySelector('[data-today-click="dream.memory-manage"]').click();
       const row = block().querySelector('[data-today-click="dream.memory-open"]').closest('.memory-item');
       const listed = !!row && row.querySelector('.memory-item-text').textContent.startsWith('Sep 1 — A whale sang')
         && row.querySelector('.memory-item-btn').textContent === 'read';

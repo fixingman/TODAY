@@ -165,6 +165,8 @@ The underlying habit/context idea remains open. Preserve the actual Habits compo
 
 ### Release verification
 
+**BUG-130 — cross-device completion delay (v2.98.6, installed verification pending):** failed content downloads and post-operation metadata sampling could acknowledge unread revisions. Same-revision retry, exact upload/download revision provenance and two-store check/uncheck plus wake regressions are implemented; installed visible/reopen latency remains open. See `Bugs.md`; do not close this from the fictional tests or lower the poll interval to hide the fault.
+
 **v2.98.5 — installed verification pending:** BUG-124 protects manual task pomodoro progress across sync/zone moves; BUG-125 keeps the connection star during temporary Trello read failures. Focus completion/partial-exit autosave is included in v2.98.4. After release, check that the higher count survives restart/two-device sync and that a brief network interruption no longer implies disconnection. Automated regressions do not establish installed/account acceptance.
 
 **Do not archive these as verified:** [BUG-118](Bugs.md#bug-118--daily-nudge-delivery-and-recovery), [BUG-121](Bugs.md#bug-121--yesterdays-splash-cooldown-suppresses-the-new-days-poem), and [BUG-122](Bugs.md#bug-122--zone-agreement-warned-as-a-conflict-remote-past-did-not-fence-older-soon) have implemented v2.97.8 fixes but still await accepted verification. `Bugs.md` owns exact causes/statuses and other open bug work.

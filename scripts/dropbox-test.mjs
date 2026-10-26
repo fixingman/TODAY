@@ -55,8 +55,8 @@ browser = await puppeteer.launch({
   args: ['--no-first-run', '--disable-extensions'],
 });
 
-async function openPage(extraSeed) {
-  const page = await browser.newPage();
+async function openPage(extraSeed, owner = browser) {
+  const page = await owner.newPage();
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -1052,6 +1052,201 @@ try {
     });
     await expectAll('metadata 504 recovery', { ...result, noErrors:errors.length === 0 });
     ok('metadata 504 preserves local tasks and the next sync tick checks again without reconnecting');
+    await page.close();
+  }
+
+  // An observed revision is not applied until its download and merge succeed.
+  {
+    const failures = [];
+    for (const failure of ['503', 'network', 'json']) {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(async failure => {
+        localStorage.setItem('dropbox_token', 'fictional-sync-token');
+        localStorage.setItem('stat_last_visit', _getAppDay());
+        localStorage.setItem('last_sync_read', '2026-01-01T00:00:00.000Z');
+        _dbxSetRev('old-revision');
+        let downloads = 0;
+        const remote = { manual_tasks:manualTasks, done_ids:['task_1'],
+          checked_ids:[{ id:'task_1', at:new Date().toISOString() }] };
+        window.fetch = async input => {
+          const url = String(input);
+          if (url.endsWith('/2/files/get_metadata')) return new Response(JSON.stringify({ rev:'new-revision' }));
+          if (!url.endsWith('/2/files/download')) throw new Error('Unexpected fixture request');
+          downloads++;
+          if (downloads === 1) {
+            if (failure === 'network') throw new TypeError('Failed to fetch');
+            return new Response(failure === 'json' ? '{' : 'Unavailable', { status:failure === '503' ? 503 : 200 });
+          }
+          return new Response(JSON.stringify(remote), { headers:{ 'Dropbox-API-Result':'{"rev":"new-revision"}' } });
+        };
+        _dbxSyncNow();
+        await new Promise(resolve => setTimeout(resolve, 30));
+        const failedReadNotAcknowledged = localStorage.getItem('last_sync_read') === '2026-01-01T00:00:00.000Z';
+        const noCompletionAfterFailure = !doneIds.has('task_1');
+        _dbxSyncNow();
+        await new Promise(resolve => setTimeout(resolve, 30));
+        return { failedReadNotAcknowledged, noCompletionAfterFailure,
+          sameRevisionRetried:downloads === 2, completionApplied:doneIds.has('task_1'),
+          completionPainted:document.querySelector('.task[data-taskid="task_1"]')?.classList.contains('done') === true };
+      }, failure);
+      if (!Object.values(result).every(Boolean) || errors.length) failures.push({ failure, result, errors });
+      await page.close();
+    }
+    if (failures.length) await fail('failed downloads retain an unread revision', failures);
+    ok('503/network/invalid JSON download: next tick retries the same revision and paints the completion');
+  }
+
+  // A later metadata sample must not acknowledge another device's intervening write.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      localStorage.setItem('dropbox_token', 'fictional-sync-token');
+      localStorage.setItem('stat_last_visit', _getAppDay());
+      _dbxSetRev('old-revision');
+      let downloads = 0, samplesAfterWrite = 0, uploaded = false;
+      window.fetch = async input => {
+        const url = String(input);
+        if (url.endsWith('/2/files/upload')) {
+          uploaded = true;
+          return new Response('{"rev":"own-upload-revision"}');
+        }
+        if (url.endsWith('/2/files/get_metadata')) {
+          if (uploaded) samplesAfterWrite++;
+          return new Response('{"rev":"other-device-revision"}');
+        }
+        if (url.endsWith('/2/files/download')) {
+          downloads++;
+          return new Response(JSON.stringify({ manual_tasks:manualTasks, done_ids:['task_1'],
+            checked_ids:[{ id:'task_1', at:new Date().toISOString() }] }),
+          { headers:{ 'Dropbox-API-Result':'{"rev":"other-device-revision"}' } });
+        }
+        throw new Error('Unexpected fixture request');
+      };
+      const saved = await dropboxBackup(true);
+      const noMetadataRoundTrip = samplesAfterWrite === 0;
+      _dbxSyncNow();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      return { saved, noMetadataRoundTrip, interveningWriteDownloaded:downloads === 1,
+        completionApplied:doneIds.has('task_1') };
+    });
+    await expectAll('upload revision race', { ...result, noErrors:errors.length === 0 });
+    ok('upload acknowledges its own revision only; the next poll sees another device’s completion');
+    await page.close();
+  }
+
+  // Manual restore uses only its content revision; missing metadata leaves the next poll eligible.
+  for (const metadata of ['valid', 'missing', 'malformed']) {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async metadata => {
+      localStorage.setItem('dropbox_token', 'fictional-restore-token');
+      let downloads = 0, samples = 0, seeded = 'not-set';
+      const setRev = window._dbxSetRev;
+      window._dbxSetRev = rev => { seeded = rev; setRev(rev); };
+      window.fetch = async input => {
+        const url = String(input);
+        if (url.endsWith('/2/files/get_metadata')) { samples++; return new Response('{"rev":"later-revision"}'); }
+        if (!url.endsWith('/2/files/download')) throw new Error('Unexpected fixture request');
+        downloads++;
+        const headers = metadata === 'missing' ? {} : { 'Dropbox-API-Result':metadata === 'valid' ? '{"rev":"restored-revision"}' : '{' };
+        return new Response(JSON.stringify({ manual_tasks:manualTasks, done_ids:downloads > 1 ? ['task_1'] : [],
+          checked_ids:downloads > 1 ? [{ id:'task_1', at:new Date().toISOString() }] : [] }), { headers });
+      };
+      await dropboxRestore(false);
+      const exactSeed = seeded === (metadata === 'valid' ? 'restored-revision' : null);
+      const noExtraMetadata = samples === 0;
+      _dbxSyncNow();
+      await new Promise(resolve => setTimeout(resolve, 30));
+      return { exactSeed, noExtraMetadata, nextRevisionApplied:downloads === 2 && doneIds.has('task_1') };
+    }, metadata);
+    await expectAll('manual restore metadata: ' + metadata, { ...result, noErrors:errors.length === 0 });
+    await page.close();
+  }
+  ok('manual restore uses exact content metadata; missing/malformed metadata cannot silence later completions');
+
+  // Independent device stores use actual check/uncheck, queued uploads and wake/poll pulls.
+  {
+    const contexts = await Promise.all([browser.createBrowserContext(), browser.createBrowserContext()]);
+    let cloud = null, revision = 0, failNextDownload = true;
+    try {
+      const devices = [];
+      for (const context of contexts) {
+        const device = await openPage(null, context);
+        await device.page.exposeFunction('__syncCloud', (url, body) => {
+          if (url.endsWith('/2/files/upload')) {
+            cloud = JSON.parse(body); revision++;
+            return { body:JSON.stringify({ rev:'cloud-' + revision }) };
+          }
+          if (url.endsWith('/2/files/get_metadata')) return { body:JSON.stringify({ rev:'cloud-' + revision }) };
+          if (url.endsWith('/2/files/download')) {
+            if (failNextDownload) { failNextDownload = false; return { status:503, body:'Unavailable' }; }
+            return { body:JSON.stringify(cloud), headers:{ 'Dropbox-API-Result':JSON.stringify({ rev:'cloud-' + revision }) } };
+          }
+          throw new Error('Unexpected fictional cloud request');
+        });
+        await device.page.evaluate(() => {
+          localStorage.setItem('dropbox_token', 'fictional-device-token');
+          localStorage.setItem('stat_last_visit', _getAppDay());
+          _dbxSetRev('cloud-0');
+          window.fetch = async (input, options = {}) => {
+            const result = await window.__syncCloud(String(input), options.body);
+            if (String(input).endsWith('/2/files/download') && result.status === 503) window.__failedDownloads = 1;
+            return new Response(result.body, { status:result.status || 200, headers:result.headers });
+          };
+        });
+        devices.push(device);
+      }
+      const [a, b] = devices;
+      await a.page.evaluate(() => document.querySelector('.task-check[data-taskid="task_1"]').click());
+      await a.page.waitForFunction(() => !!localStorage.getItem('last_successful_backup'));
+      await b.page.evaluate(() => _dbxSyncNow());
+      await b.page.waitForFunction(() => window.__failedDownloads === 1 && !doneIds.has('task_1'));
+      await new Promise(resolve => setTimeout(resolve, 30));
+      await b.page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable:true, value:'visible' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await b.page.waitForFunction(() => doneIds.has('task_1'));
+      const checkPainted = await b.page.$eval('.task[data-taskid="task_1"]', el => el.classList.contains('done'));
+      await b.page.evaluate(() => document.querySelector('.task-check[data-taskid="task_1"]').click());
+      await b.page.waitForFunction(() => !!localStorage.getItem('last_successful_backup'));
+      await a.page.evaluate(() => _dbxSyncNow());
+      await a.page.waitForFunction(() => !doneIds.has('task_1'));
+      await expectAll('two-device completion convergence', { checkPainted,
+        remoteUncheck:cloud.done_ids.length === 0, allChecksQuiet:devices.every(device => device.errors.length === 0) });
+      ok('two isolated devices: actual completion uploads, failed pull recovers on wake, newer uncheck converges back');
+    } finally { await Promise.all(contexts.map(context => context.close())); }
+  }
+
+  // Cold start seeds the downloaded revision without sampling an unseen newer one.
+  {
+    const owner = { newPage:async () => {
+      const page = await browser.newPage();
+      await page.evaluateOnNewDocument(() => {
+        window.__seededRevs = []; window.__metadataSamples = 0;
+        let setter;
+        Object.defineProperty(window, '_dbxSetRev', { configurable:true,
+          get:() => setter, set:fn => { setter = rev => { window.__seededRevs.push(rev); fn(rev); }; } });
+        window.fetch = async input => {
+          const url = String(input);
+          if (url.endsWith('/2/files/download')) return new Response(JSON.stringify({
+            manual_tasks:[{ id:'task_1', text:'First task' }, { id:'task_2', text:'Second task' }], done_ids:[],
+          }), { headers:{ 'Dropbox-API-Result':'{"rev":"downloaded-at-startup"}' } });
+          if (url.endsWith('/2/files/upload')) return new Response('{"rev":"own-startup-upload"}');
+          if (url.endsWith('/2/files/get_metadata')) {
+            window.__metadataSamples++;
+            return new Response('{"rev":"unread-newer-revision"}');
+          }
+          return new Response('{}', { status:400 });
+        };
+      });
+      return page;
+    } };
+    const { page, errors } = await openPage({ dropbox_token:'fictional-startup-token' }, owner);
+    await page.waitForFunction(() => window.__seededRevs.length > 0);
+    const result = await page.evaluate(() => ({ exactFirstRevision:window.__seededRevs[0] === 'downloaded-at-startup',
+      noUnseenRevision:!window.__seededRevs.includes('unread-newer-revision'), noExtraMetadata:window.__metadataSamples === 0 }));
+    await expectAll('startup revision provenance', { ...result, noErrors:errors.length === 0 });
+    ok('cold start uses its download response revision and performs no post-download metadata round trip');
     await page.close();
   }
 

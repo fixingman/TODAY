@@ -4,37 +4,55 @@
 
 ## Status key
 
-| Badge | Meaning |
-|-------|---------|
-| ✅ `vX.X.X`  | Fixed and verified by Can on a real device, or by an accepted reproduction-equivalent simulator run |
-| ⏳ `vX.X.X`  | Fix shipped — awaiting an accepted verification pass |
-| 🔍 In progress | Investigation or remaining fix is open; earlier fixes may already be shipped |
-| ↪ Merged | Tracked under the linked bug; the old number remains a reference |
-| ⚠️ Stale     | Fix shipped long ago, never verified, condition may no longer be reproducible |
-| 🚫 Rejected  | Not a fixable app bug (platform limitation, won't fix) |
+| Status | Meaning |
+|---|---|
+| ✅ Verified | Fixed and verified by Can, including an accepted reproduction-equivalent simulator run |
+| ⏳ Verify | Fix pushed; awaiting Can’s verification |
+| 🔧 Local | Fix implemented locally; not pushed |
+| 🔍 Investigating | Cause or remaining fix is still under investigation |
+| ↪ Merged | Tracked under the bug shown in the Reference column |
+| ⚠️ Stale | Old, unverified report that needs a fresh reproduction |
+| 🚫 Rejected | Platform limitation or deliberately not being fixed |
 
 ## Status Summary
 
-> Status cells join badge and version with a non-breaking space, so a long description can't squeeze the Status column into wrapping the badge.
+> Descriptions state the symptom; status and release/reference have separate columns. Local versions are unreleased candidates.
 
-| # | Description | Status |
-|---|---|---|
-| 125 | Temporary Trello read failures show the disconnected lightning icon until a successful refresh | ⏳ v2.98.5 |
-| 124 | Manual task pomodoro counts revert when an older task record arrives through Dropbox sync | ⏳ v2.98.5 |
-| 123 | Feeling feedback can be pruned while source readiness is false, losing a missed claim | ⏳ v2.98.3 |
-| 122 | Zone diagnostics warn when both devices agree; a newer remote Past move can leave an older Soon copy | ⏳ v2.97.8 |
-| 121 | A recent pre-midnight open suppresses the new day’s poem on restart | ⏳ v2.97.8 |
-| 120 | Daily-nudge follow-up — merged into BUG-118; investigation preserved there | ↪ BUG-118 |
-| 118 | Daily nudge delivery and recovery, including the former BUG-120 strip/About mismatch; real-use verification open | ⏳ v2.97.8 |
-| 117 | “Book haircut” showed a calendar-generated reminder as email context — automated notifications were eligible search results and caches | ⏳ v2.93.20 |
-| 107 | Three header icon buttons have a raised halo in the iPhone PWA | 🚫 Rejected |
-| 106 | Focus task ages, weekly aging list, and wake offline banner fell back silently — guards on functions moved into modules | ⏳ v2.91.1 |
-| 105 | Gmail enrichment silently missed explicit email tasks — classifier and query fallback gaps after the original provider fix | ⏳ v2.92.5 |
-| 091 | Gmail enrichment picks wrong email — forces person query for topic-based tasks | ⏳ v2.82.3 |
+| # | Status | Description | Reference |
+|---|---|---|---|
+| 130 | ⏳ Verify | Completed tasks can reach other devices late after a failed read or overlapping write. | v2.98.6 |
+| 125 | ⏳ Verify | Temporary Trello failures show a disconnected icon. | v2.98.5 |
+| 124 | ⏳ Verify | Manual-task pomodoro counts revert after syncing. | v2.98.5 |
+| 123 | ⏳ Verify | Feeling feedback can be lost before its source data finishes loading. | v2.98.3 |
+| 122 | ⏳ Verify | Sync warns when zones agree, or keeps an older Soon copy after a Past move. | v2.97.8 |
+| 121 | ⏳ Verify | Opening shortly before midnight can suppress the next day’s poem. | v2.97.8 |
+| 120 | ↪ Merged | Daily-nudge delivery follow-up; tracked with the strip/About mismatch. | BUG-118 |
+| 118 | ⏳ Verify | Daily nudge can be missing or disagree between the task list and About. | v2.97.8 |
+| 117 | ⏳ Verify | Gmail context includes automated booking and calendar notifications. | v2.93.20 |
+| 107 | 🚫 Rejected | iPhone header buttons have a raised halo. | — |
+| 106 | ⏳ Verify | Focus ages, weekly aging and wake banners silently fall back. | v2.91.1 |
+| 105 | ⏳ Verify | Gmail context misses explicit email tasks. | v2.92.5 |
+| 091 | ⏳ Verify | Gmail searches for a person when the task names a topic. | v2.82.3 |
 
 ---
 
 *BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-130 — Sync acknowledges revisions whose content was never applied
+
+**Report (Can, October 26):** a task marked done appears completed on another device minutes later rather than seconds; possibly both while visible and after reopening. Slow internet may contribute, but the exact historical device sequence has not been observed.
+
+**Reproduced causes:** (1) `syncDropbox()` assigned `lastDropboxRev` before `dropboxRestore(true)` downloaded/merged successfully. HTTP 503, a network rejection or invalid JSON then left the same revision skipped on subsequent healthy polls, while incorrectly advancing `last_sync_read`. (2) backup, manual restore and cold-start bookkeeping sampled metadata after uploading/downloading. Another device could write between the content operation and that metadata sample, causing an unread completion to be acknowledged. A slow metadata follow-up also unnecessarily delayed releasing a queued backup/startup bookkeeping.
+
+**History:** both the pre-download assignment and post-upload metadata sampling exist in March 5/6 history (`34fcc62f`, `5f14aa67`) and in March 19 `439480cf`; August 17 `ba100923` moved the code into `assets/dropbox.js`. This is an existing failure-path gap, not evidence that the recent AI work or BUG-124 fix introduced it. Previous metadata-504 coverage did not exercise successful metadata followed by failed content or intervening writes.
+
+**Fix (v2.98.6):** a polling revision/read timestamp advances only after successful download and merge. Backups seed only the revision in their own upload response; restore/startup seed only the downloaded content's `Dropbox-API-Result`. Missing or malformed content metadata keeps a subsequent poll eligible; polling can safely fall back to the revision observed before that successful download. Removes extra metadata round trips. No faster polling, new extraction, schema/provider change or retry framework; existing check/uncheck timestamp merge and the 800ms save / seven-second active poll remain.
+
+**Automated verification:** `scripts/dropbox-test.mjs` reproduces failed-content and upload-race behavior before the fixes. It covers 503/network/invalid JSON recovery on the next same-revision poll, rendered completion, intervening writes after upload, manual restore with valid/missing/malformed metadata, startup, and actual check/uncheck plus wake/poll convergence across two isolated browser stores against a fictional Dropbox. The exact v2.98.6 release passes all 52 suites with zero flaky/failed tests and unchanged payload budgets. Release validation also restores documented Memory action target sizing and updates the reviewed visual baseline and Dreams manage fixture to match the preceding layout commits. Artifacts: `.context/sync-2986-gate.log`, `.context/sync-2986-payload.log`; original failure reproductions remain in `.context/sync-latency-*.log`.
+
+**Remaining:** dev release; installed/account acceptance and the precise cause of Can's historical delay remain open. On healthy visible devices the designed path is an 800ms debounce plus the next seven-second poll and network time, not a guaranteed delivery SLA. Background/suspended devices do not poll until return. Slow/unbounded requests, pending-backup deferral and retry backoff can add delay; this patch addresses confirmed unread-revision stalls, not every cause of latency. Release details: `.context/sync-latency-release-note.md`.
 
 ---
 

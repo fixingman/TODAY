@@ -8,7 +8,7 @@
 - Header panels are disclosures. Closed panels and parked/closed overlays are both untabbable and absent from the accessibility tree.
 - Triage and meeting review are modal dialogs with initial focus, focus containment, temporary background `inert`, Escape handling, and focus restoration. The meeting-name prompt is nonmodal.
 - Shared visually-hidden live regions report meaningful completion, focus, recording, reordering, sharing, and asynchronous results without narrating every drag movement.
-- Interactive controls have a 24×24px minimum target and visible `:focus-visible` treatment. Hover-revealed PiP controls also reveal with `:focus-within`.
+- Interactive controls have a 24×24px minimum target and visible `:focus-visible` treatment. Hover-revealed PiP controls also reveal with `:focus-within`. Memory actions retain that minimum with the quiet bordered CTA styling; footer actions keep `--space-2` vertical padding.
 - Full findings and the accepted completed-task contrast and pointer-drag exceptions are in `memory/Accessibility-audit.md`.
 
 ---

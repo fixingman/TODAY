@@ -497,6 +497,8 @@ later section or automated suite was added.
 
 ### Dropbox sync invariants
 
+**BUG-130 transport/revision regression (`scripts/dropbox-test.mjs`):** metadata succeeds but content fails with 503/network/invalid JSON → unchanged read timestamp and retry the same revision next tick; upload followed by another device’s write → download its completion; manual restore with valid/missing/malformed metadata and cold start → seed only consumed content revisions. Two independent stores use actual task check/uncheck, queued backup and wake/poll to converge against a fictional shared Dropbox. Installed network/background timing remains a separate acceptance check.
+
 | # | Scenario | Expected |
 |---|----------|----------|
 | 14.22 | Remote has newer `reflection_policy.updatedAt` | Remote policy adopted |
