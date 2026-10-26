@@ -3104,6 +3104,13 @@
   .nudge-react-btn.on { color: var(--accent); }
   .reflection-reading { background: none; border: 0; padding: 0; text-align: left; font-family: inherit; cursor: pointer; }
   .nudge-react.reflection-reaction { flex-wrap: wrap; max-height: none; }
+  .reflection-reaction .nudge-react-btn {
+    font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: none;
+    border: 1px solid transparent; border-radius: var(--radius-md);
+    padding: 2px var(--space-2);
+  }
+  .reflection-reaction .nudge-react-btn:hover,
+  .reflection-reaction .nudge-react-btn:focus-visible { border-color: var(--border); }
   .reflection-feedback-manage { margin-top: var(--space-4); }
   .reflection-feedback-manage summary { cursor: pointer; }
   .reflection-feedback-manage .memory-item-text { overflow-wrap: anywhere; }

@@ -343,8 +343,10 @@
       const canReflect = candidate && Today.use('connections')._aiIsConfigured() && navigator.onLine;
       if (remembers) {
         if (_feedbackAck && document.getElementById('memoryPanel')?.classList.contains('open')) {
-          const ack = document.createElement('div'); ack.id = 'reflectionMemoryBlock'; ack.className = 'memory-type-block';
-          ack.innerHTML = `<div class="nudge-react open reflection-reaction"><span class="memory-empty" role="status">not really</span><button class="nudge-react-btn" data-today-click="reflections.feedback-undo">undo</button></div>`;
+          const ack = document.createElement('div'); ack.id = 'reflectionMemoryBlock'; ack.className = 'memory-type-block reflection-memory-block';
+          ack.innerHTML = `<div class="memory-type-header"><span class="memory-type-name">HOW DAYS FELT</span></div>` +
+            (_reflectResult ? `<div class="memory-item"><span class="memory-item-text" style="color:var(--muted)">${esc(_reflectResult)}</span></div>` : '') +
+            `<div class="nudge-react open reflection-reaction"><span class="memory-empty" role="status">not really</span><button class="nudge-react-btn" data-today-click="reflections.feedback-undo">undo</button></div>`;
           container.appendChild(ack); return;
         }
         if (!candidate) return;
@@ -617,13 +619,14 @@
       _clearFeedback(true); _refreshOpenMemory(); _refreshMemoryBlock(); _feedbackSaveRemote();
       document.querySelector('#memoryFooter .memory-clear-btn')?.focus();
     }
-    function renderFeedbackFooter(footer) {
-      if (!footer) return;
-      const wasOpen = footer.querySelector('#reflectionFeedbackManage')?.open || false;
-      footer.querySelector('#reflectionFeedbackManage')?.remove();
+    function renderFeedbackFooter(_footer) {
+      const wasOpen = document.querySelector('#reflectionFeedbackManage')?.open || false;
+      document.querySelector('#reflectionFeedbackManage')?.remove();
       const evidence = _reflectionEvidence();
       const rows = evidence.feedback.records.filter(r => r.reactedAt && r.reaction !== null);
       if (!_sourceReady || evidence.policy?.choice !== 'remember' || !rows.length) return;
+      const block = document.getElementById('reflectionMemoryBlock') || _footer;
+      if (!block) return;
       const details = document.createElement('details'); details.id = 'reflectionFeedbackManage'; details.open = wasOpen;
       details.className = 'reflection-feedback-manage';
       details.innerHTML = `<summary class="memory-conn-link">feeling feedback</summary>` + rows.map(r =>
@@ -632,7 +635,7 @@
         (r.expired ? '' : ['landed','missed'].map(choice => `<button type="button" class="nudge-react-btn${r.reaction === choice ? ' on' : ''}" aria-pressed="${r.reaction === choice}" data-today-click="reflections.feedback-review" data-reading-id="${r.id}" data-reaction="${choice}">${choice === 'landed' ? 'landed' : 'not really'}</button>`).join('')) +
         `<button type="button" class="nudge-react-btn" data-today-click="reflections.feedback-review" data-reading-id="${r.id}" data-reaction="clear">clear vote</button></div></div>`).join('') +
         `<button type="button" class="memory-clear-btn" data-today-click="reflections.feedback-clear">clear feeling feedback</button>`;
-      footer.appendChild(details);
+      block.appendChild(details);
     }
 
     function reflectionRememberAgain() {
