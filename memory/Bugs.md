@@ -21,7 +21,7 @@
 | # | Status | Description | Reference |
 |---|---|---|---|
 | 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
-| 130 | ⏳ Verify | Completed tasks can reach other devices late after a failed read or overlapping write. | v2.98.6 |
+| 130 | ✅ Verified | Completed tasks can reach other devices late after a failed read or overlapping write. | v2.98.6 |
 | 129 | ✅ Verified | Split suggestions disappear after a temporary failure or offline capture. | v2.99.1 |
 | 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
 | 127 | ⏳ Verify | Web/Trello context outlives its task, source or focus view. | v2.99.1 |
@@ -35,7 +35,7 @@
 | 118 | ⏳ Verify | Daily nudge can be missing or disagree between the task list and About. | v2.97.8 |
 | 117 | ⏳ Verify | Gmail context includes automated booking and calendar notifications. | v2.93.20 |
 | 107 | 🚫 Rejected | iPhone header buttons have a raised halo. | — |
-| 106 | ⏳ Verify | Focus ages, weekly aging and wake banners silently fall back. | v2.91.1 |
+| 106 | ✅ Verified | Focus ages, weekly aging and wake banners silently fall back. | v2.91.1 |
 | 105 | ⏳ Verify | Gmail context misses explicit email tasks. | v2.92.5 |
 | 091 | ⏳ Verify | Gmail searches for a person when the task names a topic. | v2.82.3 |
 
@@ -52,22 +52,6 @@
 **Fix (v2.100.1 dev release):** expand supported English imperatives and ask the writer to confirm the complete zero-based source-clause index sequence. The client, not the model, supplies the child task wording. The same 2–3 complete verb-led clause guard remains; broad tasks, joined objects, unfamiliar/ambiguous syntax and unsupported languages stay conservative. Invalid indices or mixed invented text are rejected, with exact legacy-copy compatibility. No fuzzy semantic matching, inferred prep or unrelated task input. Applying the explicit offer rechecks its current identity, unchanged source and undone Today owner, revalidates the clauses, then preserves source text/tag inheritance. Stale application quietly dismisses the offer without a false miss or losing the owner.
 
 **Verification:** policy regressions fail before and pass after for the confirmed verbs. The real browser reproduces stale edit/application before the fix. Actual Add → real proxy → fictional index-only provider → mobile keyboard Split covers two/three actions, exact spacing/case/punctuation/tags and one applied outcome. Reversed/duplicate/out-of-range/missing/sparse/wrong-type indices, invented mixed responses, legacy paraphrases, single activity/objects, and edit/check/move before Apply remain rejected. Existing offline/transient/deadline/terminal/owner recovery tests pass unchanged. Evidence is retained under `.context/15f-splitting/`. Final automated validation: 52/52 suites, zero flaky/failed; all five performance runs and payload pass unchanged budgets (1203.9 KiB decoded / 343.2 KiB Brotli / 38 scripts). Runtime/test source stayed unchanged. Installed acceptance and live model selection/usefulness are not established by mocked fixtures.
-
----
-
-## BUG-130 — Sync acknowledges revisions whose content was never applied
-
-**Report (Can, October 26):** a task marked done appears completed on another device minutes later rather than seconds; possibly both while visible and after reopening. Slow internet may contribute, but the exact historical device sequence has not been observed.
-
-**Reproduced causes:** (1) `syncDropbox()` assigned `lastDropboxRev` before `dropboxRestore(true)` downloaded/merged successfully. HTTP 503, a network rejection or invalid JSON then left the same revision skipped on subsequent healthy polls, while incorrectly advancing `last_sync_read`. (2) backup, manual restore and cold-start bookkeeping sampled metadata after uploading/downloading. Another device could write between the content operation and that metadata sample, causing an unread completion to be acknowledged. A slow metadata follow-up also unnecessarily delayed releasing a queued backup/startup bookkeeping.
-
-**History:** both the pre-download assignment and post-upload metadata sampling exist in March 5/6 history (`34fcc62f`, `5f14aa67`) and in March 19 `439480cf`; August 17 `ba100923` moved the code into `assets/dropbox.js`. This is an existing failure-path gap, not evidence that the recent AI work or BUG-124 fix introduced it. Previous metadata-504 coverage did not exercise successful metadata followed by failed content or intervening writes.
-
-**Fix (v2.98.6):** a polling revision/read timestamp advances only after successful download and merge. Backups seed only the revision in their own upload response; restore/startup seed only the downloaded content's `Dropbox-API-Result`. Missing or malformed content metadata keeps a subsequent poll eligible; polling can safely fall back to the revision observed before that successful download. Removes extra metadata round trips. No faster polling, new extraction, schema/provider change or retry framework; existing check/uncheck timestamp merge and the 800ms save / seven-second active poll remain.
-
-**Automated verification:** `scripts/dropbox-test.mjs` reproduces failed-content and upload-race behavior before the fixes. It covers 503/network/invalid JSON recovery on the next same-revision poll, rendered completion, intervening writes after upload, manual restore with valid/missing/malformed metadata, startup, and actual check/uncheck plus wake/poll convergence across two isolated browser stores against a fictional Dropbox. The exact v2.98.6 release passes all 52 suites with zero flaky/failed tests and unchanged payload budgets. Release validation also restores documented Memory action target sizing and updates the reviewed visual baseline and Dreams manage fixture to match the preceding layout commits. Artifacts: `.context/sync-2986-gate.log`, `.context/sync-2986-payload.log`; original failure reproductions remain in `.context/sync-latency-*.log`.
-
-**Remaining:** dev release; installed/account acceptance and the precise cause of Can's historical delay remain open. On healthy visible devices the designed path is an 800ms debounce plus the next seven-second poll and network time, not a guaranteed delivery SLA. Background/suspended devices do not poll until return. Slow/unbounded requests, pending-backup deferral and retry backoff can add delay; this patch addresses confirmed unread-revision stalls, not every cause of latency. Release details: `.context/sync-latency-release-note.md`.
 
 ---
 
@@ -226,16 +210,6 @@ Consolidated with BUG-118 at Can’s request, 2026-10-22. The strip/About agreem
 **Current evidence (2026-09-27):** The iPhone screenshot softens the logo and three button borders over several physical pixels, while the bottom input border remains sharp. A local Chromium standalone app at a 393px mobile viewport and 3× device scale renders the same header sharply. After a USB connection, Safari exposed `dev--today-here.netlify.app` under the iPhone's Home Screen Web Apps. Can confirmed TODAY opens from its own Home Screen icon (added via Arc Search); [WebKit documents](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/) that Home Screen web apps run separately from the browser that added them. The live page reported standalone mode, DPR 3, 393px viewport, scale 1, and no active filter, transform, backdrop filter, shadow, or reduced opacity on the header, buttons, logo, or ancestors. The header had an inline `opacity 300ms` transition, no running animation, and its own 393×180px WebKit layer. Disabling that transition, changing the header from sticky to static, and rounding its fractional 169.09375px height to 170px each left the halo unchanged. A source audit found no authored normal-state overlay above the header.
 
 **Controlled physical-device probe:** Clones of the exact logo and icon-button markup rendered sharply at ~177px and ~350px below the viewport top, while the original at ~75px stayed blurred. A clone in a separate fixed overlay placed at the *original's exact screen coordinates* also blurred. This reverses the initial header-layer inference: the effect follows the top-screen location, not this header's CSS or artwork. A temporary opaque 11px fixed top strip did not remove it. All probes were removed (or cleared by page reload), and the normal page was verified restored. Apple [documents automatic scroll-edge blur](https://developer.apple.com/documentation/SwiftUI/ScrollEdgeEffectStyle) and [status-bar edge treatments](https://developer.apple.com/design/human-interface-guidelines/status-bars); an iOS 27 Home Screen PWA top-edge effect is the leading explanation, but WebKit's exact mechanism is unconfirmed. Do not ship another speculative header CSS change. Any workaround must first be demonstrated on the physical device without disrupting safe-area layout or focus/modals, then tested after a fresh launch and scrolling.
-
----
-
-## BUG-106 — Three more features guarded on functions that moved into modules
-
-**Symptom:** The focus companion never mentioned how long other tasks had waited; the offline banner could stay stale after the app woke from sleep.
-
-**Root cause:** same pattern as BUG-105 — `typeof _getCreatedFromId === 'function'` (`focus.js`, `about.js`) and `typeof _applyOfflinePanel === 'function'` (`dropbox.js`) name functions that live only inside `connections.js` since the 2026-09-05 refactor, so the guard is always false. Focus sent every task's age as 0; About ignored `createdAt`; the wake handler skipped the offline refresh.
-
-**Fix (v2.91.1):** call `Today.use('connections')` directly; ages use `lastActive || createdAt || _getCreatedFromId(id)`, as triage does. `meeting.js:169` was checked and is correct (same-closure function). `component-contract-test` now rejects any `typeof _x === 'function'` guard whose name is not declared in the same file or published as a property.
 
 ---
 

@@ -29,6 +29,7 @@
 | 110 | A one-sentence dream told to the mobile mic came back as "Nothing came up" — silent empty result from meeting-extract | ✅ v2.93.13 |
 | 109 | Task list bobbed up and down after refocusing the desktop PWA while the morning strip was showing — wake repaint replayed its CSS open animation | ✅ v2.93.2 |
 | 108 | Dragging a task on mobile left a neighbouring task looking highlighted — row :hover rules unguarded on touch | ✅ v2.92.5 |
+| 106 | Three more features guarded on functions that moved into modules — focus ages, offline banner silently fell back | ✅ v2.91.1 |
 | 104 | Web enrichment (↗) always empty — Haiku 4.5 sent an unsupported web search tool version; failures cached as no result | ✅ v2.90.53 |
 | 103 | Yesterday’s undated Dropbox nudge dismissal can hide the new daily nudge after midnight | ✅ v2.90.54 |
 | 102 | Triage review initially focused Keep all, making the bulk action look preselected and Enter-ready | ✅ v2.90.49 |
@@ -148,6 +149,22 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 ## Verification batch — 2026-09-07
 
 Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. All five are now ✅. Remaining open from the 2026-09-04 batch: BUG-091 (real Gmail), BUG-089 (native Mail handoff), and BUG-061 (stale, Sunday/habit badge).
+
+## BUG-130 — Sync acknowledges revisions whose content was never applied
+
+**Report (Can, October 26):** a task marked done appears completed on another device minutes later rather than seconds; possibly both while visible and after reopening. Slow internet may contribute, but the exact historical device sequence has not been observed.
+
+**Reproduced causes:** (1) `syncDropbox()` assigned `lastDropboxRev` before `dropboxRestore(true)` downloaded/merged successfully. HTTP 503, a network rejection or invalid JSON then left the same revision skipped on subsequent healthy polls, while incorrectly advancing `last_sync_read`. (2) backup, manual restore and cold-start bookkeeping sampled metadata after uploading/downloading. Another device could write between the content operation and that metadata sample, causing an unread completion to be acknowledged. A slow metadata follow-up also unnecessarily delayed releasing a queued backup/startup bookkeeping.
+
+**History:** both the pre-download assignment and post-upload metadata sampling exist in March 5/6 history (`34fcc62f`, `5f14aa67`) and in March 19 `439480cf`; August 17 `ba100923` moved the code into `assets/dropbox.js`. This is an existing failure-path gap, not evidence that the recent AI work or BUG-124 fix introduced it. Previous metadata-504 coverage did not exercise successful metadata followed by failed content or intervening writes.
+
+**Fix (v2.98.6):** a polling revision/read timestamp advances only after successful download and merge. Backups seed only the revision in their own upload response; restore/startup seed only the downloaded content's `Dropbox-API-Result`. Missing or malformed content metadata keeps a subsequent poll eligible; polling can safely fall back to the revision observed before that successful download. Removes extra metadata round trips. No faster polling, new extraction, schema/provider change or retry framework; existing check/uncheck timestamp merge and the 800ms save / seven-second active poll remain.
+
+**Automated verification:** `scripts/dropbox-test.mjs` reproduces failed-content and upload-race behavior before the fixes. It covers 503/network/invalid JSON recovery on the next same-revision poll, rendered completion, intervening writes after upload, manual restore with valid/missing/malformed metadata, startup, and actual check/uncheck plus wake/poll convergence across two isolated browser stores against a fictional Dropbox. The exact v2.98.6 release passes all 52 suites with zero flaky/failed tests and unchanged payload budgets. Release validation also restores documented Memory action target sizing and updates the reviewed visual baseline and Dreams manage fixture to match the preceding layout commits. Artifacts: `.context/sync-2986-gate.log`, `.context/sync-2986-payload.log`; original failure reproductions remain in `.context/sync-latency-*.log`.
+
+**Remaining:** dev release; installed/account acceptance and the precise cause of Can's historical delay remain open. On healthy visible devices the designed path is an 800ms debounce plus the next seven-second poll and network time, not a guaranteed delivery SLA. Background/suspended devices do not poll until return. Slow/unbounded requests, pending-backup deferral and retry backoff can add delay; this patch addresses confirmed unread-revision stalls, not every cause of latency. Release details: `.context/sync-latency-release-note.md`.
+
+---
 
 ## BUG-129 — Post-add split delivery cannot recover from a transient request failure
 
@@ -322,6 +339,14 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 **Fix (v2.92.5):** every task/habit row `:hover` rule is inside `@media (hover: hover)`; touch keeps its always-visible delete and pull controls. `drag-test` walks the live stylesheet and fails on any unguarded row `:hover` rule — it listed the offenders on the old CSS.
 
 **Verification:** on a phone, long-press and drag tasks up and down several times; no other row should stay highlighted.
+
+## BUG-106 — Three more features guarded on functions that moved into modules
+
+**Symptom:** The focus companion never mentioned how long other tasks had waited; the offline banner could stay stale after the app woke from sleep.
+
+**Root cause:** same pattern as BUG-105 — `typeof _getCreatedFromId === 'function'` (`focus.js`, `about.js`) and `typeof _applyOfflinePanel === 'function'` (`dropbox.js`) name functions that live only inside `connections.js` since the 2026-09-05 refactor, so the guard is always false. Focus sent every task's age as 0; About ignored `createdAt`; the wake handler skipped the offline refresh.
+
+**Fix (v2.91.1):** call `Today.use('connections')` directly; ages use `lastActive || createdAt || _getCreatedFromId(id)`, as triage does. `meeting.js:169` was checked and is correct (same-closure function). `component-contract-test` now rejects any `typeof _x === 'function'` guard whose name is not declared in the same file or published as a property.
 
 ---
 
