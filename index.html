@@ -614,6 +614,7 @@
     cursor: pointer; min-height: 24px;
   }
   .focus-agent-feedback:hover { opacity: 1; }
+  .focus-agent-feedback[aria-pressed="true"] { opacity: 1; }
   .focus-agent-link:focus-visible, .focus-agent-feedback:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
@@ -4715,8 +4716,8 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.103.0': 'Web and Trello context has optional wording feedback for future cards. You can ask for other context after hiding a card.',
   '2.102.1': 'Dream delete is red; read appears on hover; dream list no longer flashes when refocusing the window.',
-  '2.102.0': 'Web and Trello context has optional wording feedback for future cards. You can ask for other context after hiding a card.',
   '2.101.5': 'Expanded lists fade gently into view in Memory, Soon and Past.',
 };
 

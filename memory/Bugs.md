@@ -20,6 +20,8 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 136 | ⏳ Verify | Dev service worker installs without the app-shell precache because a listed helper returns 404. | v2.103.0 |
+| 135 | 🔍 Investigating | Startup blocking and cold/warm load exceed performance limits. | 15E release gate / existing startup |
 | 134 | ⏳ Verify | Sunday treats tied let-go reasons as a majority and generalizes missing reasons. | v2.101.1 |
 | 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
 | 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
@@ -34,6 +36,26 @@
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–126, 129–130, 132–133 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-136 — Dev app-shell precache lists an unpublished helper
+
+**Discovery (October 28):** origin/dev 5d97baa1 includes /assets/enrichment-feedback.js in sw.js, but that commit does not contain the file. Direct dev fetch returned HTTP 404. The parallel metadata push included a prepared entry before the enrichment runtime was committed.
+
+**Impact:** cache.addAll rejects the missing resource. Its install handler catches the error, so installation can complete without the full app-shell cache; this is an offline-precache defect, not proof that update installation stops.
+
+**Fix (v2.103.0):** include the actual lazy helper already named in the shell. The real service-worker suite confirms all shell resources cache and the actual helper imports offline; full 53-suite gate passes. Can requested dev/master publication October 28; deployed/offline acceptance remains pending. Performance failure is separately BUG-135.
+
+---
+
+## BUG-135 — Startup performance exceeds release budgets
+
+**Discovery (October 28):** the stable isolated v2.103.0 candidate passes 53 functional suites with no flakes/failures and passes payload. Its retained five-run performance result fails cold FCP 7040 ms / 7000, cold TBT 492 ms / 200, cold DCL 7031.6 ms / 7000, cold interactive 7013.6 ms / 7000, warm FCP/LCP 704 ms / 500 and warm interactive 671.9 ms / 500. Input medians remain add 13 ms / focus 83.2 ms; worst focus 112.6 ms.
+
+**Attribution/control:** the original first cold run records 434.8 ms in unchanged sound.js initialization. Chrome is 156.0.8078.49, compared with .48 in the prior passing baseline. One separate diagnostic run of published 512bc7b2 / v2.101.5 under the same current Chrome/Node also fails cold TBT 301 ms, with 338.6 ms sound initialization. This demonstrates a wider startup issue; it does not establish the browser update as cause, explain every load failure or clear the candidate. No enrichment/sound/harness/threshold workaround or successful reroll was substituted.
+
+**Status:** investigating. Can requested publication to dev and master on October 28 after this failure was reported; this is publication authorization, not a performance pass. Preserve original failed benchmark in memory/performance-baseline.json and .context/15e-adaptation/isolated-final-performance.json, plus the single-run control, logs and 149 source fingerprints. In-progress parallel Focus changes are excluded from this candidate. A causal startup repair must preserve first-input behavior and satisfy unchanged five-run budgets; technical loop completion and actual writing usefulness remain separate.
 
 ---
 

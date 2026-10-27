@@ -81,6 +81,56 @@ try {
   global.fetch = async () => ({ok:true,json:async () => ({stop_reason:'end_turn',content:[{type:'text',text:'{"card":null}'}]})});
   const empty = await handler(event({taskText:'Find paint',apiKey:'key'}));
   assert(empty.statusCode === 200 && JSON.parse(empty.body).card === null, 'explicit no-result remains cacheable');
+
+  const providerBodies = [];
+  const answer = {headline:'Paint shop',body:'Open until 18:00',cta:{label:'Visit',href:'https://example.com/paint'}};
+  global.fetch = async (_url,options) => {
+    providerBodies.push(JSON.parse(options.body));
+    return {ok:true,json:async()=>({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify(answer)}]})};
+  };
+  await handler(event({taskText:'Find paint price',apiKey:'key',wordingConcerns:['hard_to_follow','too_formal','PRIVATE_INSTRUCTION'],history:'PRIVATE_CARD_HISTORY'}));
+  const guided = providerBodies.at(-1);
+  assert(guided.system.includes('easy-to-follow') && guided.system.includes('everyday words')
+    && guided.system.includes('Preserve source-supported') && !JSON.stringify(guided).includes('PRIVATE_')
+    && JSON.stringify(guided.messages) === JSON.stringify(sent.messages)
+    && JSON.stringify(guided.tools) === JSON.stringify(sent.tools) && guided.model === sent.model && guided.max_tokens === sent.max_tokens,
+    'only supported wording concerns enter the existing writer; facts, tools, model and request budget remain unchanged');
+  await handler(event({taskText:'Find paint price',apiKey:'key',wordingConcerns:['hard_to_follow\nPRIVATE_INSTRUCTION'],avoidSource:'javascript:PRIVATE_INSTRUCTION'}));
+  assert(providerBodies.at(-1).system === sent.system && JSON.stringify(providerBodies.at(-1).messages) === JSON.stringify(sent.messages),
+    'unknown concerns and unsafe source exclusions leave the baseline prompt unchanged');
+  const beforeAlternative = providerBodies.length;
+  const sameSource = await handler(event({taskText:'Find paint',apiKey:'key',avoidSource:'https://user:password@example.com/paint?secret=token#fragment'}));
+  const otherRequest = providerBodies.at(-1);
+  assert(JSON.parse(sameSource.body).card === null && providerBodies.length === beforeAlternative + 1
+    && otherRequest.messages[0].content.includes('https://example.com/paint')
+    && !JSON.stringify(otherRequest).includes('password') && !JSON.stringify(otherRequest).includes('secret=')
+    && otherRequest.system.includes('Abstain'),
+    'explicit alternative excludes the previous canonical source, strips URL secrets and abstains without another model call');
+  const otherSource = await handler(event({taskText:'Find paint',apiKey:'key',avoidSource:'https://example.com/old'}));
+  assert(JSON.parse(otherSource.body).card.cta.href === answer.cta.href,
+    'a different supported source remains eligible under the existing response contract');
+  let turns = 0, trelloRequests = 0, synthesis;
+  global.fetch = async (url,options) => {
+    if (String(url).startsWith('https://api.trello.com/')) {
+      trelloRequests++;
+      return {ok:true,json:async()=>({cards:[{name:'OLD_PRIVATE_MATCH',shortUrl:'https://trello.com/c/oldid/other-title'},
+        {name:'New fixture match',shortUrl:'https://trello.com/c/newid/current'}]})};
+    }
+    turns++;
+    if (turns === 1) return {ok:true,json:async()=>({stop_reason:'tool_use',content:[{type:'tool_use',id:'fictional-search',name:'search_trello',input:{query:'paint shop'}}]})};
+    synthesis = JSON.parse(options.body);
+    return {ok:true,json:async()=>({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify({...answer,cta:{label:'Open',href:'https://trello.com/c/newid/current'}})}]})};
+  };
+  const trelloAlternative = await handler(event({taskText:'Find paint',apiKey:'key',trelloToken:'fictional-token',trelloBoardId:'fictionalboard',avoidSource:'https://trello.com/c/oldid/original-title'}));
+  assert(turns === 2 && trelloRequests === 1 && !JSON.stringify(synthesis).includes('OLD_PRIVATE_MATCH')
+    && JSON.stringify(synthesis).includes('New fixture match') && JSON.parse(trelloAlternative.body).card.cta.href.includes('newid'),
+    'Trello results exclude the rejected card identity across title changes and retain the existing bounded tool flow');
+  global.fetch = async () => ({ok:true,json:async()=>({stop_reason:'end_turn',content:[{type:'text',text:JSON.stringify({
+    ...answer,cta:{label:'Call',href:'https://trello.com/c/sourcecard/current'},
+  })}]})});
+  const trelloAction = JSON.parse((await handler(event({taskText:'Find the booking phone',apiKey:'key'}))).body).card;
+  assert(trelloAction.cta.label === 'Open' && trelloAction.cta.href === 'https://trello.com/c/sourcecard/current',
+    'a Trello source opens its card instead of claiming a Call action, including the live-comparison regression');
 } finally {
   global.fetch = oldFetch;
   if (oldEnvKey === undefined) delete process.env.ANTHROPIC_API_KEY;
@@ -107,7 +157,10 @@ try {
   const desktopInput = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
   browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions', desktopInput] });
   const page = await browser.newPage();
-  await page.evaluateOnNewDocument(() => localStorage.setItem('splash_shown_at', String(Date.now())));
+  await page.evaluateOnNewDocument(() => {
+    window.__nativeEnrichmentFetch = window.fetch.bind(window);
+    localStorage.setItem('splash_shown_at',String(Date.now()));
+  });
   await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window._agentEnrichTask === 'function');
   await page.waitForFunction(() => getComputedStyle(document.getElementById('addTaskBar')).opacity === '1');
@@ -296,10 +349,11 @@ try {
     for (const change of ['rename','delete','board','credential','adopted-cache']) {
       const id = 'race_' + change;
       __agentSeed(id, 'Find current paint');
-      let release;
-      window.fetch = async () => ({ok:true,status:200,json:() => new Promise(resolve => { release = () => resolve({card}); })});
+      let release, reached;
+      const bodyReady = new Promise(resolve => {reached = resolve;});
+      window.fetch = async () => ({ok:true,status:200,json:() => new Promise(resolve => { release = () => resolve({card}); reached(); })});
       const request = _agentEnrichTask(id, 'Find current paint');
-      await Promise.resolve(); await Promise.resolve();
+      await bodyReady;
       if (change === 'rename') __agentSeed(id, 'Find different paint');
       if (change === 'delete') manualTasks = manualTasks.filter(t => t.id !== id);
       if (change === 'board') { localStorage.setItem('trello_token','fictional-token'); localStorage.setItem('trello_config',JSON.stringify({boardId:'new-board'})); }
@@ -311,12 +365,14 @@ try {
       localStorage.setItem('today_ai_key_claude','browser-key');
       localStorage.removeItem('agent_enrichment_' + id);
     }
-    let calls = 0; const releases = [];
+    let calls = 0, reached; const releases = [];
+    let bodyReady = new Promise(resolve => {reached = resolve;});
     const id = 'race_replacement'; __agentSeed(id, 'Find first paint');
-    window.fetch = async () => { calls++; return {ok:true,status:200,json:() => new Promise(resolve => releases.push(() => resolve({card}))) }; };
-    const old = _agentEnrichTask(id, 'Find first paint'); await Promise.resolve(); await Promise.resolve();
+    window.fetch = async () => { calls++; return {ok:true,status:200,json:() => new Promise(resolve => {releases.push(() => resolve({card})); reached();}) }; };
+    const old = _agentEnrichTask(id, 'Find first paint'); await bodyReady;
     __agentSeed(id, 'Find second paint');
-    const next = _agentEnrichTask(id, 'Find second paint'); await Promise.resolve(); await Promise.resolve();
+    bodyReady = new Promise(resolve => {reached = resolve;});
+    const next = _agentEnrichTask(id, 'Find second paint'); await bodyReady;
     releases[0](); await old;
     const shared = _agentEnrichTask(id, 'Find second paint');
     releases[1](); await next; await shared;
@@ -525,6 +581,238 @@ try {
     return block.hidden && !block.textContent;
   });
   assert(lateHidden,'late focus delivery after Escape cannot repaint or resurrect the closed block');
+
+  // Explicit device-local wording guidance: real controls, ordinary next task lookup.
+  await page.setViewport({width:1280,height:900});
+  await page.evaluate(() => {
+    manualTasks = []; doneIds.clear();
+    Object.keys(localStorage).filter(key => key.startsWith('agent_enrichment_')).forEach(key => localStorage.removeItem(key));
+    localStorage.removeItem('trello_token'); localStorage.removeItem('trello_config');
+    localStorage.setItem('today_ai_key_claude','browser-key');
+    window.__writingRequests = []; window.__writingMode = 'success'; window.__writingRelease = null;
+    window.__supportId = 'manual_wording_support';
+    __agentSeed(__supportId,'Find North Quay Workshop opening hours');
+    window.__supportEntry = {v:3,state:'success',taskText:'Find North Quay Workshop opening hours',boardId:'',fetchedAt:Date.now(),
+      card:{icon:'↗',headline:'PRIVATE_OLD_CARD',body:'PRIVATE_OLD_BODY',cta:{label:'Visit',href:'https://example.com/old'}}};
+    localStorage.setItem('agent_enrichment_'+__supportId,JSON.stringify(__supportEntry));
+    window.fetch = (url,options) => {
+      if (!String(url).includes('/task-enrich')) return __nativeEnrichmentFetch(url,options);
+      __writingRequests.push(JSON.parse(options.body));
+      const result = {card:{icon:'↗',headline:'Other workshop',body:'Open until 18:00',cta:{label:'Visit',href:'https://example.com/other'}}};
+      if (__writingMode === 'error') return Promise.resolve({ok:false,status:503});
+      if (__writingMode === 'empty') result.card = null;
+      const response={ok:true,status:200,json:() => __writingMode === 'hold'
+        ? new Promise(resolve => {__writingRelease = () => resolve(result);}) : Promise.resolve(result)};
+      return __writingMode==='hold_headers' ? new Promise(resolve=>{__writingRelease=()=>resolve(response);}) : Promise.resolve(response);
+    };
+    Today.use('connections').renderManual();
+  });
+  await page.click('[data-taskid="manual_wording_support"] .task-text');
+  await page.waitForFunction(()=>!document.getElementById('focusAgentBlock').hidden && document.body.style.transition==='');
+  const activate = async selector => { await page.focus(selector); await page.keyboard.press('Space'); };
+  await activate('#focusAgentBlock [data-today-click="enrichment.wording"]');
+  await activate('#focusAgentBlock [data-concern="hard_to_follow"]');
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('agent_enrichment_'+__supportId)).wording?.concern === 'hard_to_follow');
+  const firstGuide = await page.evaluate(()=>{
+    const entry = JSON.parse(localStorage.getItem('agent_enrichment_'+__supportId));
+    window.__savedSupport = entry;
+    return {calls:__writingRequests.length,w:entry.wording,limit:entry.fetchedAt+30*86400000,
+      unchanged:document.getElementById('focusAgentBlock').textContent.includes('PRIVATE_OLD_BODY'),
+      paused:JSON.parse(localStorage.getItem('today_focus_session')).paused,
+      focused:document.activeElement.dataset.concern};
+  });
+  assert(firstGuide.calls === 0 && firstGuide.unchanged && !firstGuide.paused && firstGuide.focused === 'hard_to_follow'
+    && /^[a-f0-9]{64}$/.test(firstGuide.w.cardId) && firstGuide.w.expiresAt <= firstGuide.limit,
+    'wording feedback saves only a bounded exact-card concern, with no request, rewrite or timer pause',firstGuide);
+  const nextLookup = async suffix => page.evaluate(async suffix => {
+    const id = 'manual_guided_'+suffix, text = 'Find the address for the other workshop '+suffix;
+    __agentSeed(id,text); await _agentEnrichTask(id,text);
+    return __writingRequests.at(-1);
+  },suffix);
+  const guidedNext = await nextLookup('first');
+  assert(JSON.stringify(guidedNext.wordingConcerns) === '["hard_to_follow"]'
+    && !JSON.stringify(guidedNext).includes('PRIVATE_OLD_') && !JSON.stringify(guidedNext).includes('North Quay')
+    && !JSON.stringify(guidedNext).includes(firstGuide.w.cardId)
+    && !JSON.stringify(guidedNext).includes('manual_wording_support'),
+    'the next ordinary other-task lookup receives only a fixed concern, never supporting task/card text, identity or history',guidedNext);
+  const cachedUnchanged = await page.evaluate(async()=>{
+    const before = __writingRequests.length;
+    await _agentEnrichTask('manual_guided_first','Find the address for the other workshop first');
+    return __writingRequests.length === before;
+  });
+  assert(cachedUnchanged,'new feedback does not regenerate already accepted cached cards');
+  await activate('#focusAgentBlock [data-concern="too_formal"]');
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('agent_enrichment_'+__supportId)).wording?.concern === 'too_formal');
+  assert(JSON.stringify((await nextLookup('revised')).wordingConcerns) === '["too_formal"]',
+    'revising an explicit concern replaces its next-use influence');
+  await activate('#focusAgentBlock [data-today-click="enrichment.wording-clear"]');
+  assert(!(await nextLookup('cleared')).wordingConcerns,'clear removes the supporting wording concern from the next lookup');
+  await activate('#focusAgentBlock [data-today-click="enrichment.wording-undo"]');
+  assert(JSON.stringify((await nextLookup('undone')).wordingConcerns) === '["too_formal"]',
+    'Undo restores only the prior valid concern without a generation request of its own');
+  await page.evaluate(()=>{
+    const key='agent_enrichment_manual_guided_first',entry=JSON.parse(localStorage.getItem(key));
+    entry.wording={...__savedSupport.wording,concern:'hard_to_follow'};localStorage.setItem(key,JSON.stringify(entry));
+    _agentRestoreAllIndicators();
+  });
+  assert(JSON.stringify((await nextLookup('two-concerns')).wordingConcerns)==='["hard_to_follow","too_formal"]',
+    'multiple supporting cards project at most the two fixed concerns without counts or history');
+  if (await page.$eval('#enrichmentWording',e=>e.hidden)) await activate('#focusAgentBlock [data-today-click="enrichment.wording"]');
+  await activate('#focusAgentBlock [data-today-click="enrichment.wording-clear"]');
+  assert(!(await nextLookup('all-cleared')).wordingConcerns,'clear all removes influence from every card on this device');
+  await page.evaluate(()=>{manualTasks=manualTasks.filter(t=>t.id!=='manual_guided_first');_agentCleanupCache();});
+  await activate('#focusAgentBlock [data-today-click="enrichment.wording-undo"]');
+  assert(JSON.stringify((await nextLookup('eligible-restored')).wordingConcerns)==='["too_formal"]',
+    'Undo of clear all cannot resurrect a deleted supporting owner');
+
+  await page.setViewport({width:320,height:780});
+  const wordingA11y = await page.evaluate(async()=>{
+    await document.fonts.ready;
+    await Promise.allSettled(document.querySelector('.focus-timer').getAnimations({subtree:true})
+      .filter(a=>Number.isFinite(a.effect.getTiming().iterations)).map(a=>a.finished));
+    const block=document.getElementById('focusAgentBlock');
+    const violations=(await axe.run(block,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']}})).violations;
+    const timerBottom=block.closest('.focus-timer').getBoundingClientRect().bottom;
+    return {violations:violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.failureSummary)})),fit:block.scrollWidth<=block.clientWidth,
+      unclipped:[...block.querySelectorAll('button')].filter(b=>b.getClientRects().length).every(b=>b.getBoundingClientRect().bottom<=timerBottom+1),
+      targets:[...block.querySelectorAll('button')].filter(b=>b.getClientRects().length).every(b=>b.getBoundingClientRect().height>=24)};
+  });
+  assert(!wordingA11y.violations.length && wordingA11y.fit && wordingA11y.targets && wordingA11y.unclipped,
+    'expanded wording controls pass settled axe, native keyboard use and 320px targets/reflow',wordingA11y);
+  await page.screenshot({path:join(ROOT,'.context/15e-adaptation/implemented-wording-320.png')});
+  await (await page.$('#focusAgentBlock')).screenshot({path:join(ROOT,'.context/15e-adaptation/implemented-wording-card-320.png')});
+  await page.setViewport({width:1280,height:900});
+
+  // Held real request bodies must lose withdrawn supporting feedback.
+  for (const withdrawal of ['clear','storage','expiry','delete','clear-headers','memory-sync']) {
+    await page.evaluate(withdrawal=>{
+      __agentSeed(__supportId,__savedSupport.taskText);
+      localStorage.setItem('agent_enrichment_'+__supportId,JSON.stringify(__savedSupport));
+      const id='manual_held_'+withdrawal,text='Find another workshop address '+withdrawal;
+      __agentSeed(id,text);__writingMode=withdrawal==='clear-headers'?'hold_headers':'hold';__writingRelease=null;
+      window.__heldWriting = _agentEnrichTask(id,text);
+      window.__previousMemoryClear = appMemory.clearedAt;
+    },withdrawal);
+    await page.waitForFunction(()=>typeof __writingRelease==='function');
+    const fenced = await page.evaluate(async withdrawal=>{
+      const key='agent_enrichment_'+__supportId;
+      if (withdrawal.startsWith('clear')) Today.use('task-enrich').clearFeedback();
+      if (withdrawal==='storage') {
+        const entry=JSON.parse(localStorage.getItem(key));delete entry.wording;localStorage.setItem(key,JSON.stringify(entry));
+        window.dispatchEvent(new StorageEvent('storage',{key}));
+      }
+      if (withdrawal==='expiry') {
+        const entry=JSON.parse(localStorage.getItem(key));entry.wording.expiresAt=Date.now()-1;localStorage.setItem(key,JSON.stringify(entry));
+      }
+      if (withdrawal==='delete') {manualTasks=manualTasks.filter(t=>t.id!==__supportId);_agentCleanupCache();}
+      if (withdrawal==='memory-sync') appMemory.clearedAt=new Date().toISOString();
+      __writingRelease();await __heldWriting;__writingMode='success';
+      const absent=!localStorage.getItem('agent_enrichment_manual_held_'+withdrawal);
+      if (withdrawal==='memory-sync') {
+        localStorage.setItem(key,JSON.stringify(__savedSupport));
+        const id='manual_stale_clear',text='Find another workshop after memory clear';__agentSeed(id,text);
+        await _agentEnrichTask(id,text);
+        const replayBlocked=!__writingRequests.at(-1).wordingConcerns && !JSON.parse(localStorage.getItem(key)).wording;
+        appMemory.clearedAt=__previousMemoryClear;
+        return absent&&replayBlocked;
+      }
+      return absent;
+    },withdrawal);
+    assert(fenced,'a late guided body cannot save after supporting feedback '+withdrawal);
+  }
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(()=>!document.querySelector('.task.focused'));
+  const invalidSupport = await page.evaluate(async()=>{
+    const results=[];
+    for (const change of ['rename','expired','board','invalid-concern','invalid-policy']) {
+      __agentSeed(__supportId,__savedSupport.taskText);
+      const entry=JSON.parse(JSON.stringify(__savedSupport));
+      localStorage.removeItem('trello_token');localStorage.removeItem('trello_config');
+      if(change==='rename') __agentSeed(__supportId,'Find a renamed workshop');
+      if(change==='expired') entry.wording.expiresAt=Date.now()-1;
+      if(change==='invalid-concern') entry.wording.concern='PRIVATE_INSTRUCTION';
+      if(change==='invalid-policy') entry.wording.policy=999;
+      localStorage.setItem('agent_enrichment_'+__supportId,JSON.stringify(entry));
+      if(change==='board') {localStorage.setItem('trello_token','fictional-token');localStorage.setItem('trello_config',JSON.stringify({boardId:'other-board'}));}
+      const id='manual_invalid_'+change,text='Find another workshop '+change;__agentSeed(id,text);
+      await _agentEnrichTask(id,text);results.push({change,clear:!__writingRequests.at(-1).wordingConcerns});
+    }
+    localStorage.removeItem('trello_token');localStorage.removeItem('trello_config');
+    return results;
+  });
+  assert(invalidSupport.every(row=>row.clear),'renamed, expired, other-board and malformed support never reaches the writer',invalidSupport);
+
+  // Relevance recovery is an explicit one-per-visit lookup; legacy hides stay quiet.
+  await page.evaluate(()=>{
+    manualTasks=[];doneIds.clear();_agentCleanupCache();
+    __agentSeed(__supportId,__savedSupport.taskText);
+    const entry={...__savedSupport,state:'hidden'};delete entry.wording;
+    localStorage.setItem('agent_enrichment_'+__supportId,JSON.stringify(entry));
+    __writingRequests=[];__writingMode='empty';Today.use('connections').renderManual();
+  });
+  await page.click('[data-taskid="manual_wording_support"] .task-text');
+  await page.waitForFunction(()=>!document.getElementById('focusAgentBlock').hidden && document.body.style.transition==='');
+  assert(await page.evaluate(()=>__writingRequests.length===0),'a legacy hidden-card visit does not automatically look again');
+  await activate('#focusAgentBlock [data-today-click="enrichment.retry"]');
+  await page.waitForFunction(()=>document.getElementById('focusAgentBlock').textContent.includes('No other context found.'));
+  const noOther=await page.evaluate(()=>({calls:__writingRequests.length,request:__writingRequests[0],
+    stored:JSON.parse(localStorage.getItem('agent_enrichment_'+__supportId)),
+    disabled:document.querySelector('[data-today-click="enrichment.retry"]').disabled}));
+  assert(noOther.calls===1 && noOther.disabled && noOther.stored.state==='hidden'
+    && noOther.stored.card.headline==='PRIVATE_OLD_CARD' && noOther.request.avoidSource==='https://example.com/old'
+    && !JSON.stringify(noOther.request).includes('PRIVATE_OLD_'),
+    'explicit alternative sends only its canonical old link, spends one request and preserves the recoverable hidden card on no result',noOther);
+  await activate('#focusAgentBlock [data-today-click="enrichment.feedback"]');
+  assert(await page.evaluate(()=>document.getElementById('focusAgentBlock').textContent.includes('PRIVATE_OLD_CARD')&&__writingRequests.length===1),
+    'show context restores the original after an empty replacement without another request');
+
+  for (const outcome of ['success','error','late-exit','late-clear']) {
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>!document.querySelector('.task.focused'));
+    await page.evaluate(outcome=>{
+      const entry={...__savedSupport,state:'hidden'};
+      localStorage.setItem('agent_enrichment_'+__supportId,JSON.stringify(entry));
+      __writingRequests=[];__writingMode=outcome.startsWith('late-')?'hold':outcome==='error'?'error':'success';__writingRelease=null;
+      Today.use('connections').renderManual();
+    },outcome);
+    await page.click('[data-taskid="manual_wording_support"] .task-text');
+    await page.waitForFunction(()=>!document.getElementById('focusAgentBlock').hidden && document.body.style.transition==='');
+    await activate('#focusAgentBlock [data-today-click="enrichment.retry"]');
+    if (outcome.startsWith('late-')) {
+      await page.waitForFunction(()=>typeof __writingRelease==='function');
+      if (outcome==='late-exit') await page.keyboard.press('Escape');
+      else await page.evaluate(()=>Today.use('task-enrich').clearFeedback());
+      await page.evaluate(()=>__writingRelease());
+      await page.waitForFunction(()=>!document.querySelector('[data-today-click="enrichment.retry"]')
+        || document.querySelector('[data-today-click="enrichment.retry"]').textContent!=='looking…');
+    } else await page.waitForFunction(outcome=>document.getElementById('focusAgentBlock').textContent
+      .includes(outcome==='success'?'Other workshop':'Can’t look again'),{},outcome);
+    const replacement=await page.evaluate(()=>({calls:__writingRequests.length,entry:JSON.parse(localStorage.getItem('agent_enrichment_'+__supportId)),
+      originalExpiry:__savedSupport.wording.expiresAt,hidden:document.getElementById('focusAgentBlock').hidden}));
+    if (outcome==='success') assert(replacement.calls===1 && replacement.entry.state==='success'
+      && replacement.entry.card.headline==='Other workshop' && replacement.entry.wording.expiresAt===replacement.originalExpiry,
+      'one explicit successful replacement keeps wording support within its original expiry',replacement);
+    else assert(replacement.calls===1 && replacement.entry.state==='hidden' && replacement.entry.card.headline==='PRIVATE_OLD_CARD'
+      && (outcome!=='late-exit'||replacement.hidden) && (outcome!=='late-clear'||!replacement.entry.wording),
+      'failed/late replacement preserves the old hidden card and respects '+outcome,replacement);
+  }
+
+  const clearHooks=await page.evaluate(()=>{
+    localStorage.setItem('agent_enrichment_'+__supportId,JSON.stringify(__savedSupport));
+    Today.use('memory').confirmClear();
+    const memoryCleared=!JSON.parse(localStorage.getItem('agent_enrichment_'+__supportId)).wording;
+    localStorage.setItem('agent_enrichment_'+__supportId,JSON.stringify(__savedSupport));
+    Today.use('connections')._aiRenderConfig();
+    document.querySelector('[data-today-click="connections.ai-clear"][data-provider="claude"]').click();
+    const forgotten=!JSON.parse(localStorage.getItem('agent_enrichment_'+__supportId)).wording;
+    localStorage.setItem('today_ai_key_claude','browser-key');
+    Today.use('connections')._aiRenderConfig();
+    _agentRenderFocusBlock(__supportId,__savedSupport.taskText);
+    document.querySelector('[data-today-click="connections.ai-clear"][data-provider="claude"]').click();
+    return {memoryCleared,forgotten,noStaleControls:document.getElementById('focusAgentBlock').hidden};
+  });
+  assert(clearHooks.memoryCleared&&clearHooks.forgotten&&clearHooks.noStaleControls,
+    'clear all memory and Claude Forget remove wording influence and stale source controls, including an already-clear cache',clearHooks);
 
   console.log(`\nTask-enrichment tests passed (${passed} checks).`);
 } finally {

@@ -60,9 +60,8 @@
     // All other state (manualTasks, doneIds, soonTasks, pastTasks, trelloTasks, $)
     // is wholesale-replaced by mergeRemoteData — must stay as inline globals.
 
-    // ── AI provider config ─────────────────────────────────────────────────────
-    // Keys and provider preference live in localStorage; helpers are used by the
-    // rest of the AI stack (nudge, assistant, post-add) via window.* exports below.
+    // AI provider config
+    // Local keys/default; shared helpers are exported below.
     const AI_BUILD_PROVIDER   = 'claude';   // ← set to 'gemini' in public forks
     const AI_DEFAULT_PROVIDER = 'gemini';   // ← open-source default, never changes
 
@@ -215,8 +214,7 @@
 
     function renderConnections() {
       _syncConnectionsNudge(); // runs even while the panel is closed — expiry is noticed in the background
-      // Skip if panel isn't open — background sync calls this frequently
-      // but rebuilding HTML when panel is hidden is wasted work
+      // Background sync need not rebuild the closed panel.
       const configPanel = $.configPanel || document.getElementById('configPanel');
       if (configPanel && !configPanel.classList.contains('open')) return;
 
@@ -516,16 +514,13 @@
       Today.use('assistant')._aiReanchorSuggestion();
       if (timerControl) {
         const target = timerControl.isConnected ? timerControl
+          : list.contains(document.activeElement) && document.activeElement.closest('.focus-timer') ? document.activeElement
           : list.querySelector(timerControl.matches('.focus-agent-feedback') ? '.focus-agent-feedback' : '.focus-ai-timer-btn');
         target?.focus({ preventScroll:true });
       }
     }
 
-    // Wire hover/scroll shimmer on .task-tag elements in the manual list.
-    // Pass a list container (renderManual) or a single .task element (addManual).
-    // Desktop: mouseenter → single shimmer sweep. Mobile: IntersectionObserver.
-    // Threshold 0.3 (not 0.8) so shimmer leads the element into view rather than
-    // waiting until it's nearly fully visible.
+    // Manual tags: hover/scroll shimmer, starting at 30% visibility.
     function _wireManualTagShimmer(container) {
       const _isTouch = !window.matchMedia('(hover: hover)').matches;
       const tasks = container.classList && container.classList.contains('task')
@@ -560,9 +555,7 @@
           ? _trelloAgeBasis(task.id)   // first-seen in your list, not Trello creation date (BUG-049)
           : (task.lastActive || _getCreatedFromId(task.id));
         ageDays = Math.floor((Date.now() - created) / (1000 * 60 * 60 * 24));
-        // A Trello card focused today reads as active — no dimming. Trello age is first-seen-based
-        // (cards have no lastActive), so manual tasks un-age on activity but Trello can't; the
-        // daily-reset focus count is its activity signal. (BUG-043)
+        // Trello lacks lastActive; today's focus count prevents dimming (BUG-043).
         if (type === 'trello' && (_getTrelloFocus()[task.id] || 0) > 0) ageDays = 0;
       }
 
@@ -664,7 +657,7 @@
       return Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
     }
 
-    // ── AI config panel functions ──────────────────────────────────────────────
+    // AI config panel
 
     function _aiRenderConfig() {
       const container = document.getElementById('aiProviderRows');
@@ -720,8 +713,7 @@
       document.body.classList.toggle('ai-connected', _aiIsConfigured());
       _renderConnectionsPrivacy();
 
-      // Re-apply offline state — buttons are freshly rendered so _applyOfflinePanel's
-      // earlier pass over the panel won't have reached them yet.
+      // Apply offline state to the newly rendered buttons.
       _applyOfflinePanel();
     }
 
@@ -803,6 +795,7 @@
 
     function clearAIKey(provider) {
       localStorage.removeItem('today_ai_key_' + provider);
+      if (provider === 'claude') Today.use('task-enrich').clearFeedback();
       // If we just cleared the default, switch default to the other provider if it has a key
       const other = provider === 'gemini' ? 'claude' : 'gemini';
       if (_aiGetProvider() === provider) {

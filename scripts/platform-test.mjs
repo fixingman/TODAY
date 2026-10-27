@@ -305,7 +305,16 @@ try {
       input.blur();
       input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }));
       input.focus();
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Positioning follows a timer and an animation frame; sample its rendered
+      // state rather than assuming both have run within 150ms on a busy host.
+      await new Promise((resolve, reject) => {
+        const deadline = setTimeout(() => reject(new Error('Keyboard bar did not position')), 3000);
+        const ready = () => {
+          if (bar.style.transform && bar.style.transform !== 'none') { clearTimeout(deadline); resolve(); }
+          else requestAnimationFrame(ready);
+        };
+        ready();
+      });
       const firstTransform = bar.style.transform;
       window.__setVisualViewport(10, 500);
       // Model WebKit's native focus scroll during the software-keyboard opening.

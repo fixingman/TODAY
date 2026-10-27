@@ -366,6 +366,7 @@
       // Back up the clear watermark promptly.
       if (typeof dropboxAutoSave === 'function') dropboxAutoSave();
       Today.use('reflections')._reflectionClearFromAllMemory();
+      Today.use('task-enrich').clearFeedback();
       renderMemoryPanel();
     }
 

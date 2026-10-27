@@ -6,7 +6,7 @@
   const MAX_AGE = 30 * 86400000;
   const TRIGGER_RE = /https?:\/\/|\b(book|order|where|directions|price|hours|find|look\s+up|compare|research|navigate|reserve|schedule|answer|reply|call|contact|email|message|reach\s+out|follow\s+up|respond|check\s+in)\b/i;
   const _inflight = new Map();
-  let _focusView = null;
+  let _focusView = null, _feedbackComponent = null, _feedbackLoading = null, _feedbackEpoch = 0;
 
   const _task = id => (typeof manualTasks !== 'undefined' ? manualTasks : []).find(t => t.id === id);
   const _owner = id => _task(id) || (typeof soonTasks !== 'undefined' ? soonTasks : []).find(t => t.id === id)
@@ -75,35 +75,82 @@
       return !!_getCache(taskId);
     } catch (_) { return false; }
   }
+  function _entries() {
+    return Object.keys(localStorage).filter(key => key.startsWith(CACHE_PREFIX))
+      .map(key => ({id:key.slice(CACHE_PREFIX.length),entry:_getCache(key.slice(CACHE_PREFIX.length))})).filter(row => row.entry);
+  }
+  function _feedbackChanged() {
+    _feedbackEpoch++;
+    for (const request of _inflight.values()) request.controller.abort();
+    _inflight.clear();
+  }
+  function _clearFeedback() {
+    _feedbackChanged();
+    _agentCleanupCache();
+    for (const {id,entry} of _entries()) if (entry.wording) { delete entry.wording; _setCache(id,entry); }
+    if (_focusView) {
+      _focusView.wordingUndo = null; _focusView.wordingSequence = (_focusView.wordingSequence || 0) + 1;
+      const entry = _getCache(_focusView.id);
+      if (entry?.card) _renderFocus(entry,_focusView);
+    }
+  }
+  function _feedback() {
+    return _feedbackLoading ||= import('/assets/enrichment-feedback.js').then(() => {
+      return _feedbackComponent = Today.use('enrichment-feedback').create({
+        entries:_entries,view:() => _focusView,get:_getCache,set:_setCache,current:_viewCurrent,identity:_identity,
+        revision:id => localStorage.getItem(CACHE_PREFIX + id),changed:_feedbackChanged,
+        clear:_clearFeedback,indicator:_agentUpdateIndicator,retry:(view,entry) => _agentEnrichTask(view.id,view.text,{view,entry}),
+      });
+    }).catch(error => { _feedbackLoading = null; throw error; });
+  }
   const _enrichShouldTrigger = text => typeof text === 'string' && text.length <= 500 && TRIGGER_RE.test(text);
 
-  function _agentEnrichTask(taskId, taskText) {
-    if (_task(taskId)?.text !== taskText || !_enrichShouldTrigger(taskText) || _getCache(taskId)) return Promise.resolve();
+  function _agentEnrichTask(taskId, taskText, retry = null) {
+    const existing = _getCache(taskId);
+    if (_task(taskId)?.text !== taskText || !_enrichShouldTrigger(taskText) || (!retry && existing)
+        || (retry && (!_viewCurrent(retry.view) || existing?.state !== 'hidden'
+          || _identity(existing) !== _identity(retry.entry) || doneIds.has(taskId)))) return Promise.resolve('stale');
     const source = _sourceKey();
     const prior = _inflight.get(taskId);
     if (prior && prior.text === taskText && prior.source === source) return prior.promise;
     prior?.controller.abort();
-    const request = { text:taskText, source, controller:new AbortController() };
+    const request = { text:taskText, source, controller:new AbortController(), view:retry?.view, epoch:_feedbackEpoch };
     const cache = localStorage.getItem(CACHE_PREFIX + taskId);
     _inflight.set(taskId, request);
     const current = () => _inflight.get(taskId) === request && !request.controller.signal.aborted
       && _task(taskId)?.text === taskText && _sourceKey() === source
-      && cache === localStorage.getItem(CACHE_PREFIX + taskId);
+      && cache === localStorage.getItem(CACHE_PREFIX + taskId) && request.epoch === _feedbackEpoch
+      && (!request.support || request.support === _feedbackComponent.snapshot().stamp)
+      && (!retry || _viewCurrent(retry.view));
     request.promise = (async () => {
       const timeout = setTimeout(() => request.controller.abort(), 26000);
       try {
+        const help = await Promise.race([_feedback(),new Promise((_,reject) => {
+          request.controller.signal.addEventListener('abort',() => reject(new DOMException('Aborted','AbortError')),{once:true});
+        })]);
+        const support = help.snapshot(); request.support = support.stamp;
+        if (!current()) return 'stale';
         const res = await fetch('/.netlify/functions/task-enrich', {
           method:'POST', headers:{ 'Content-Type':'application/json' }, signal:request.controller.signal,
-          body:JSON.stringify({ taskText, ..._source() }),
+          body:JSON.stringify({ taskText, ..._source(), ...(support.concerns.length ? {wordingConcerns:support.concerns} : {}),
+            ...(retry ? {avoidSource:help.avoidSource(retry.entry)} : {}) }),
         });
-        if (!current() || !res.ok) return;
+        if (!current()) return 'stale';
+        if (!res.ok) return 'failed';
         const data = await res.json();
-        if (!current() || !data || !Object.hasOwn(data, 'card')) return;
+        if (!current()) return 'stale';
+        if (!data || !Object.hasOwn(data,'card')) return 'failed';
         const card = _card(data.card);
-        if (data.card !== null && !card) return; // malformed is retryable, not a negative result
+        if (data.card !== null && !card) return 'failed';
+        if (retry && (!card || JSON.stringify(card) === JSON.stringify(_card(existing.card)))) return 'empty';
         if (_setCache(taskId, { v:CACHE_VERSION, state:card ? 'success' : 'no_result', card,
-          taskText, boardId:JSON.parse(source).trelloBoardId, fetchedAt:Date.now() }) && card) _agentUpdateIndicator(taskId, true);
-      } catch (_) { /* Transient failures stay retryable. */ }
+          taskText, boardId:JSON.parse(source).trelloBoardId, fetchedAt:Date.now(),
+          ...(retry && help.wording(existing) ? {wording:help.wording(existing)} : {}) })) {
+          if (card) _agentUpdateIndicator(taskId,true);
+          return 'updated';
+        }
+        return 'failed';
+      } catch (_) { return current() ? 'failed' : 'stale'; }
       finally {
         clearTimeout(timeout);
         if (_inflight.get(taskId) === request) _inflight.delete(taskId);
@@ -131,7 +178,8 @@
   }
   function _agentRestoreAllIndicators() {
     const focusId = _focusView?.id;
-    const focusControl = document.activeElement?.matches('.focus-agent-feedback');
+    const active = document.activeElement;
+    const focusControl = active?.matches('.focus-agent-feedback') ? {action:active.dataset.todayClick,concern:active.dataset.concern} : null;
     _agentCleanupCache();
     document.querySelectorAll('.agent-indicator').forEach(el => el.remove());
     Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX))
@@ -140,12 +188,17 @@
       const entry = _getCache(focusId);
       const button = document.querySelector('#focusAgentBlock .focus-agent-feedback');
       if (_focusView && _viewCurrent(_focusView) && entry?.card
-          && button?.dataset.cardId === _identity(entry) && button.dataset.state === entry.state) return;
+          && button?.dataset.cardId === _identity(entry) && button.dataset.state === entry.state
+          && button.dataset.wording === JSON.stringify(entry.wording || null)
+          && _focusView.guidanceStamp === _feedbackComponent?.snapshot().stamp) return;
       _agentRenderFocusBlock(focusId, _task(focusId)?.text || '');
-      if (focusControl) document.querySelector('#focusAgentBlock .focus-agent-feedback')?.focus({preventScroll:true});
+      if (focusControl) _feedbackComponent?.focus(focusControl.action,focusControl.concern);
     }
   }
   function _closeFocus() {
+    for (const [id,request] of _inflight) if (request.view && request.view === _focusView) {
+      request.controller.abort(); _inflight.delete(id);
+    }
     _focusView = null;
     const block = document.getElementById('focusAgentBlock');
     if (block) { block.hidden = true; block.innerHTML = ''; }
@@ -157,92 +210,32 @@
   function _agentRenderFocusBlock(taskId, taskText) {
     const block = document.getElementById('focusAgentBlock');
     if (!block) return;
+    const prior = _focusView;
+    const retain = prior && _viewCurrent(prior) && prior.id === taskId && prior.text === taskText;
     _closeFocus();
     _shortcut(null);
-    const view = _focusView = { id:taskId, text:taskText, source:_sourceKey() };
+    const view = _focusView = { id:taskId, text:taskText, source:_sourceKey(),
+      wordingOpen:retain && prior.wordingOpen,retryUsed:retain && prior.retryUsed };
     if (!_viewCurrent(view)) return;
     const cached = _getCache(taskId);
-    if (cached?.card) { _doRenderBlock(block, cached, view); return; }
+    if (cached?.card) { _renderFocus(cached,view); return; }
     if (!cached && _enrichShouldTrigger(taskText)) _agentEnrichTask(taskId, taskText).then(() => {
       const entry = _getCache(taskId);
-      if (_viewCurrent(view) && entry?.card) _doRenderBlock(block, entry, view);
+      if (_viewCurrent(view) && entry?.card) _renderFocus(entry,view);
     });
   }
-  const _identity = entry => JSON.stringify([entry.taskText, entry.boardId, entry.card, entry.fetchedAt]);
-  function _shortcut(cta) {
-    const ai = document.querySelector('.focus-ai-timer-btn');
-    if (!ai || ai.closest('.ai-active')) return;
-    if (document.querySelector('#focusGmailBlock:not([hidden]) .focus-gmail-draft-btn')) cta = { label:'Draft reply' };
-    ai.textContent = '✦︎ ' + (cta ? cta.label.toLowerCase() : 'ask');
-    ai.setAttribute('aria-label', cta ? cta.label + ' context source' : 'Ask for focus help');
-  }
-  function _feedback(event, button) {
-    event.preventDefault();
-    event.stopImmediatePropagation(); // Replacement detaches the old target before document focus handlers run.
-    const view = _focusView;
-    if (!view || !_viewCurrent(view)) return;
-    const block = document.getElementById('focusAgentBlock');
-    const entry = _getCache(view.id);
-    if (!entry?.card || !block?.contains(button) || button.dataset.cardId !== _identity(entry)) return;
-    const hide = button.dataset.hide === 'true';
-    entry.state = hide ? 'hidden' : 'success';
-    delete entry.hiddenAt; // discard obsolete pre-release metadata
-    if (!_setCache(view.id, entry)) return;
-    _agentUpdateIndicator(view.id, false);
-    _doRenderBlock(block, entry, view, hide);
-    block.querySelector('.focus-agent-feedback')?.focus();
-    if (window._a11yAnnounce) _a11yAnnounce(hide ? 'Context hidden for this task. Undo is available.' : 'Context restored for this task.');
-  }
-  function _doRenderBlock(block, entry, view, undo) {
-    if (!_viewCurrent(view)) return;
-    block.innerHTML = '';
-    const card = entry.card;
-    const hidden = entry.state === 'hidden';
-    if (hidden) {
-      const status = document.createElement('div');
-      status.className = 'focus-agent-body';
-      status.textContent = 'Context hidden for this task.';
-      block.appendChild(status);
-    } else {
-      const meta = document.createElement('div');
-      meta.className = 'focus-agent-meta';
-      const icon = document.createElement('span');
-      icon.className = 'focus-agent-icon'; icon.textContent = card.icon;
-      meta.appendChild(icon);
-      const headline = document.createElement('span');
-      headline.className = 'focus-agent-headline'; headline.textContent = card.headline;
-      meta.appendChild(headline); block.appendChild(meta);
-      if (card.body) {
-        const body = document.createElement('div');
-        body.className = 'focus-agent-body'; body.textContent = card.body;
-        block.appendChild(body);
-      }
-    }
-    const actions = document.createElement('div');
-    actions.className = 'focus-agent-actions';
-    if (!hidden && card.cta) {
-      const link = document.createElement('a');
-      link.className = 'focus-agent-link'; link.textContent = card.cta.label + ' ↗';
-      link.href = card.cta.href; link.target = '_blank'; link.rel = 'noopener';
-      actions.appendChild(link);
-    }
-    actions.insertAdjacentHTML('beforeend', '<button type="button" class="focus-agent-feedback" data-today-click="enrichment.feedback"></button>');
-    const button = actions.lastElementChild;
-    button.dataset.cardId = _identity(entry);
-    button.dataset.state = entry.state;
-    button.dataset.hide = String(!hidden);
-    button.textContent = hidden ? undo ? 'undo' : 'show context' : 'not useful';
-    button.setAttribute('aria-label', button.textContent + (hidden ? ' — restore context for this task' : ' — hide this context for this task'));
-    block.appendChild(actions);
-    block.hidden = false;
-    _shortcut(hidden ? null : card.cta);
-    if (window._focusExpandTimer) _focusExpandTimer();
+  const _identity = entry => JSON.stringify([entry.v,entry.taskText,entry.boardId,entry.card,entry.fetchedAt]);
+  function _shortcut(cta) { _feedbackComponent?.shortcut(cta); }
+  function _renderFocus(entry, view, undo = false) {
+    if (_feedbackComponent) _feedbackComponent.render(entry,view,undo);
+    else _feedback().then(help => { if (_viewCurrent(view)) help.render(entry,view,undo); }).catch(() => {});
   }
 
-  Today.define('task-enrich', { closeFocus:_closeFocus });
-  Today.ui.register('click', 'enrichment.feedback', _feedback);
+  Today.define('task-enrich', { closeFocus:_closeFocus, clearFeedback:_clearFeedback });
   window.addEventListener('storage', event => {
-    if (!event.key || event.key.startsWith(CACHE_PREFIX) || ['trello_config','trello_token','today_ai_key_claude'].includes(event.key)) _agentRestoreAllIndicators();
+    if (!event.key || event.key.startsWith(CACHE_PREFIX) || ['trello_config','trello_token','today_ai_key_claude'].includes(event.key)) {
+      _feedbackChanged(); _agentRestoreAllIndicators();
+    }
   });
   window._agentEnrichTask = _agentEnrichTask;
   window._agentUpdateIndicator = _agentUpdateIndicator;

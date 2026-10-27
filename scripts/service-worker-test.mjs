@@ -160,6 +160,8 @@ try {
   console.log('  ✓ the lazy Calendar evidence policy loads from the service-worker cache offline');
   assert.equal(await page.evaluate(async()=>{await import('/assets/reflection-wording.js');return typeof Today.use('reflection-wording').render;}),'function');
   console.log('  ✓ optional feeling-wording controls load from the service-worker cache offline');
+  assert.equal(await page.evaluate(async()=>{await import('/assets/enrichment-feedback.js');return typeof Today.use('enrichment-feedback').create;}),'function');
+  console.log('  ✓ optional web/Trello context feedback loads from the service-worker cache offline');
 
   await page.setOfflineMode(false);
   failUnknownNetwork = true;
