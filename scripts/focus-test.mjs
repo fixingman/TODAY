@@ -970,6 +970,17 @@ try {
       await page.waitForFunction(() => !document.querySelector('#focusAskFeedback').hidden);
     };
     const rate = async (page,value) => clickFeedbackControl(page,`#focusAskFeedback [data-choice="${value}"]`);
+    const waitForAnswerScroll = async page => {
+      try { await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll')); }
+      catch (error) {
+        console.error('Focus overflow state:',JSON.stringify(await page.evaluate(()=>{
+          const answer=document.querySelector('.focus-ai-timer-btn'),range=document.createRange();range.selectNodeContents(answer);
+          return {viewport:innerWidth,client:answer.clientWidth,scroll:answer.scrollWidth,textWidth:range.getBoundingClientRect().width,
+            reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,classes:answer.className,timer:document.querySelector('.focus-timer').className};
+        })));
+        throw error;
+      }
+    };
     const geometry = page => page.evaluate(() => {
       const answer = document.querySelector('.focus-ai-timer-btn'), line = document.querySelector('.focus-timer-inner');
       const r = answer.getBoundingClientRect();
@@ -1014,7 +1025,7 @@ try {
       // A reply that fitted before resize must become scrollable after narrowing, without another Ask.
       await page.setViewport({width:320,height:800});
       await page.waitForFunction(()=>innerWidth===320&&document.querySelector('.focus-ai-timer-btn').clientWidth<250);
-      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      await waitForAnswerScroll(page);
       await expectAll('existing answer adapts to a narrower viewport',{
         scrolls:await page.$eval('.focus-ai-timer-btn',e=>e.classList.contains('question-scroll')),
         sameReply:await page.$eval('.focus-ai-timer-btn',e=>e.textContent===e.getAttribute('aria-label')),
@@ -1024,6 +1035,18 @@ try {
       await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').clientWidth>400);
       await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
       await expectAll('widening stops unnecessary answer motion',{fits:await page.$eval('.focus-ai-timer-btn',e=>!e.classList.contains('question-scroll'))});
+
+      // Native button overflow reporting must not decide whether its clipped text is readable.
+      await page.$eval('.focus-ai-timer-btn',e=>Object.defineProperty(e,'scrollWidth',{configurable:true,get(){return this.clientWidth;}}));
+      await page.setViewport({width:320,height:800});await waitForAnswerScroll(page);
+      await expectAll('text measurement survives incomplete button overflow reporting',{
+        reportedClipped:await page.$eval('.focus-ai-timer-btn',e=>e.scrollWidth===e.clientWidth),
+        sameReply:await page.$eval('.focus-ai-timer-btn',e=>e.textContent===e.getAttribute('aria-label')),
+        ratingKept:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
+      });
+      await page.setViewport({width:1280,height:900});
+      await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      await page.$eval('.focus-ai-timer-btn',e=>{delete e.scrollWidth;});
 
       await dismiss(page);
       await expectAll('clicking the answer restores the whole timer',{
@@ -1061,7 +1084,7 @@ try {
         neutral:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='false'),
       });
       await rate(page,'landed');
-      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      await waitForAnswerScroll(page);
       const narrow=await page.evaluate(()=>{
         const text=document.querySelector('.focus-ai-timer-btn').getBoundingClientRect(),toggle=document.querySelector('.focus-ask-feedback').getBoundingClientRect();
         const buttons=[...document.querySelectorAll('#focusAskFeedback button:not([hidden])')].map(e=>e.getBoundingClientRect());

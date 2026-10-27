@@ -118,7 +118,8 @@ Stay with the task's own action, object or constraint. No mood or motivation che
           if (!answer || !hooks.current(request)) return;
           if (answer.textContent !== q) return;
           const previous = answer.querySelector('.focus-q-text');
-          const overflow = (previous ? previous.scrollWidth : answer.scrollWidth) - answer.clientWidth;
+          const text = document.createRange(); text.selectNodeContents(answer);
+          const overflow = text.getBoundingClientRect().width - answer.clientWidth;
           previous?.getAnimations().forEach(animation => animation.cancel());
           answer.textContent = q; answer.classList.remove('question-scroll');
           if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || overflow <= 4) return;
