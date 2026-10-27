@@ -54,6 +54,7 @@
       if (!el) return;
       const m = appMemory;
       if (!m) { el.innerHTML = '<div class="memory-empty">nothing noticed yet</div>'; return; }
+      const revealPatterns = _patternsOpen && el.querySelector('[data-today-click="memory.patterns-more"]')?.getAttribute('aria-expanded') !== 'true';
 
       function itemRow(item, extraClass = '') {
         return `<div class="memory-item${extraClass ? ' ' + extraClass : ''}">` +
@@ -64,7 +65,7 @@
                 (item.rejectKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.hypothesis-reject" data-hypothesis="${esc(item.rejectKey)}" aria-label="Not true about me: ${esc(item.text)}">not me</button>` : '') +
                 `</div>`;
       }
-      function typeBlock(name, desc, items, pendingNote, more = '', extraItems = []) {
+      function typeBlock(name, desc, items, pendingNote, more = '', extraItems = [], animateExtra = true) {
         const rows = items.length
           ? items.map(item => itemRow(item)).join('')
           : more ? '' : pendingNote
@@ -75,7 +76,7 @@
           `<span class="memory-type-name">${name}</span>` +
           `<span class="memory-type-desc">${desc}</span>` +
           (more ? more : '') +
-          `</div>${rows}${extraItems.map(i => itemRow(i, 'memory-item--extra')).join('')}</div>`;
+          `</div>${rows}${extraItems.map(i => itemRow(i, animateExtra ? 'memory-item--extra' : '')).join('')}</div>`;
       }
 
       const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -277,11 +278,11 @@
             ? `<button type="button" class="memory-item-btn" data-today-click="memory.known-waiting" aria-expanded="${_knownWaitingOpen}">${_knownWaitingOpen ? 'less' : `show waiting (${waitingItems.length})`}</button>`
             : '', _knownWaitingOpen ? waitingItems : []) +
         typeBlock('PATTERNS', '— what holds over time',
-          _patternsOpen ? semanticItems : semanticItems.slice(0, PATTERNS_SHOWN),
+          semanticItems.slice(0, PATTERNS_SHOWN),
           'patterns appear as more evidence builds',
           semanticItems.length > PATTERNS_SHOWN
             ? `<button type="button" class="memory-item-btn" data-today-click="memory.patterns-more" aria-expanded="${_patternsOpen}">${_patternsOpen ? 'less' : `show all (${semanticItems.length})`}</button>`
-            : '') +
+            : '', _patternsOpen ? semanticItems.slice(PATTERNS_SHOWN) : [], revealPatterns) +
         typeBlock('LATELY', '— the last week or so', episodicItems,
           'nothing new this week');
 

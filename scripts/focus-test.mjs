@@ -215,6 +215,7 @@ try {
         });
       });
       await page.click('.task[data-taskid="manual_t1"] .task-text');
+      await page.waitForSelector('.focus-timer.open', { visible:true });
       const completed = await page.evaluate(() => {
         const original = Date.now;
         const now = original();
@@ -227,6 +228,7 @@ try {
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => !document.querySelector('.focus-timer.open'));
       await page.click('.task[data-taskid="manual_t1"] .task-text');
+      await page.waitForSelector('.focus-timer.open', { visible:true });
       await page.evaluate(() => {
         window.__focusSaves = [];
         localStorage.removeItem('last_local_change');
@@ -988,7 +990,7 @@ try {
     });
     {
       const {page,errors} = await feedbackFixture();
-      const first = 'Which input reproduces the export crash?';
+      const first = 'Which exact input reliably reproduces the export crash?';
       await deliver(page,first);
       await page.waitForFunction(()=>document.body.style.transition==='');
       await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))));

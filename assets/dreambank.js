@@ -567,14 +567,14 @@
     }
 
     // Opened dream: reading, retelling, storage location and delete.
-    function _memoryRow({ e, r }) {
+    function _memoryRow({ e, r }, reveal = false) {
       const id = (e || r).id;
       const day = dayLabel((e || r).night);
       const where = e && !e.pruned && !(e.uploadedRev && e.uploadedRev === e.rev) ? 'kept on this phone' : 'kept in your Dropbox';
       const first = e && e.retelling ? e.retelling.split(/\s+/).slice(0, 9).join(' ') + '…'
         : ((e || r).images || []).slice(0, 3).join(' · ') || 'kept';
       const open = _openId === id;
-      let html = `<div class="memory-item"><span class="memory-item-text">${esc(day)} — ${esc(first)}</span>` +
+      let html = `<div class="memory-item${reveal ? ' memory-item--extra' : ''}"><span class="memory-item-text">${esc(day)} — ${esc(first)}</span>` +
         `<button type="button" class="memory-item-btn" data-today-click="dream.memory-open" data-dream-id="${esc(id)}" aria-expanded="${open}">${open ? 'less' : 'read'}</button></div>`;
       if (!open) return html;
       const content = e && e.retelling ? e : _remoteRead && _remoteRead.id === id ? _remoteRead.content : null;
@@ -600,6 +600,7 @@
     function renderMemory(container) {
       if (!container) return;
       const old = document.getElementById('dreamMemoryBlock');
+      const reveal = _listOpen && !old?.querySelector('[data-today-click="dream.memory-open"]');
       const active = old?.contains(document.activeElement) ? document.activeElement : null;
       const action = active?.dataset.todayClick;
       const identity = active?.dataset.dreamId;
@@ -615,7 +616,7 @@
         `</div>` +
         `<div class="memory-item"><span class="memory-item-text">${esc(summary)}</span></div>` +
         (images.length ? `<div class="memory-item"><span class="memory-item-text">comes back: ${images.map(_recurrence).join(' · ')}</span></div>` : '') +
-        (n && _listOpen ? rows.map(_memoryRow).join('') : '') +
+        (n && _listOpen ? rows.map(row => _memoryRow(row, reveal)).join('') : '') +
         `</div>`;
       if (old) old.outerHTML = html;
       else container.insertAdjacentHTML('beforeend', html);

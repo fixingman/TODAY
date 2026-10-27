@@ -556,6 +556,7 @@
 
     function _refreshMemoryBlock() {
       const restoreWording = _wording?.preserve();
+      const reviewOpen = !!document.getElementById('reflectionFeedbackManage')?.open;
       const existing = document.getElementById('reflectionMemoryBlock');
       if (existing) {
         const tmp = document.createElement('div');
@@ -571,7 +572,7 @@
         const coverage = [...container.children].find(el => el.querySelector('.memory-type-name')?.textContent === 'WHAT TODAY HAS SEEN');
         if (tmp.firstChild) container.insertBefore(tmp.firstChild, coverage || document.getElementById('dreamMemoryBlock'));
       }
-      renderFeedbackFooter();
+      renderFeedbackFooter(reviewOpen);
       restoreWording?.();
     }
 
@@ -619,8 +620,7 @@
       _clearFeedback(true); _refreshOpenMemory(); _refreshMemoryBlock(); _feedbackSaveRemote();
       document.querySelector('#memoryFooter .memory-clear-btn')?.focus();
     }
-    function renderFeedbackFooter() {
-      const wasOpen = document.querySelector('#reflectionFeedbackManage')?.open || false;
+    function renderFeedbackFooter(wasOpen = document.querySelector('#reflectionFeedbackManage')?.open || false) {
       document.querySelector('#reflectionFeedbackManage')?.remove();
       const evidence = _reflectionEvidence();
       const rows = evidence.feedback.records.filter(r => (r.reactedAt && r.reaction !== null) || r.wordingReaction || _wording?.hasUndo(r));
@@ -629,6 +629,12 @@
       if (!block) return;
       const details = document.createElement('details'); details.id = 'reflectionFeedbackManage'; details.open = wasOpen;
       details.className = 'reflection-feedback-manage';
+      let open = wasOpen;
+      details.addEventListener('toggle', () => {
+        if (details.open === open) return;
+        open = details.open;
+        details.querySelectorAll(':scope > .memory-type-block').forEach(row => row.classList.toggle('memory-item--extra', open));
+      });
       details.innerHTML = `<summary class="memory-conn-link">feeling feedback</summary>` + rows.map(r =>
         `<div class="memory-type-block"><p class="memory-item-text">${r.expired ? 'Earlier feeling insight — source records have expired.' : esc(r.text)}</p>` +
         `<div class="nudge-react open reflection-reaction" role="group" aria-label="Review feedback on this feeling insight">` +

@@ -60,6 +60,15 @@ async function page(){
   stage='page ready';
   return page;
 }
+async function settleMemoryAnimations(page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await Promise.allSettled(document.getElementById('memoryPanel').getAnimations({subtree:true})
+      .filter(animation => Number.isFinite(animation.effect.getTiming().iterations))
+      .map(animation => animation.finished));
+  });
+}
 const waitReading=p=>p.waitForSelector('.reflection-reading',{visible:true});
 async function open(p){await p.evaluate(()=>Today.use('memory').toggle());}
 async function vote(p,choice){
@@ -89,7 +98,7 @@ try{
   await a.click('#reflectionFeedbackManage summary');
   await a.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
   // Audit the settled panel, including finite color/fade transitions, without disabling motion or contrast checks.
-  await a.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled(document.getElementById('memoryPanel').getAnimations({subtree:true}).filter(animation=>Number.isFinite(animation.effect.getTiming().iterations)).map(animation=>animation.finished));});
+  await settleMemoryAnimations(a);
   const accessibility=await a.evaluate(()=>axe.run({include:[['#reflectionMemoryBlock'],['#reflectionFeedbackManage']]},{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
   if(accessibility.violations.length)console.error(JSON.stringify(accessibility.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})),null,2));
   assert.deepEqual(accessibility.violations.map(v=>v.id),[]);
@@ -283,6 +292,7 @@ try{
   await e.click('#reflectionReaction .reflection-wording summary');
   await e.$eval(wordingSelector('unclear'),el=>el.scrollIntoView({block:'center'}));await e.click(wordingSelector('unclear'));
   await e.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+  await settleMemoryAnimations(e);
   const wordingA11y=await e.evaluate(()=>axe.run({include:[['#reflectionMemoryBlock']]},{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
   assert.deepEqual(wordingA11y.violations.map(v=>v.id),[]);
   assert.ok(await e.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

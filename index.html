@@ -4694,16 +4694,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '371h';
+const DEV_HOURS     = '372h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.101.5': 'Expanded lists fade gently into view in Memory, Soon and Past.',
   '2.101.4': 'Scrolling focus answers fade out before the feedback button instead of cutting off.',
   '2.101.3': 'Expanded lists fade gently into view in Memory, Soon and Past.',
-  '2.101.2': 'Focus answers remain readable when the window narrows.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
