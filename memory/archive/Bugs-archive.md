@@ -6,9 +6,9 @@
 
 ---
 
-## Status Summary — BUG-001 to BUG-087; verified BUG-088–133
+## Status Summary — BUG-001 to BUG-087; verified BUG-088–133 (excl. open/pending 131, 134)
 
-> BUG-001–055 moved from `Bugs.md` 2026-09-01; BUG-056–087 moved 2026-09-27; verified BUG-088–119 moved 2026-10-25; verified BUG-122/126/129 moved 2026-10-27; BUG-121/123/124/125/132/133 archived after Can accepted their browser reproductions on 2026-10-27. `Bugs.md`
+> BUG-001–055 moved from `Bugs.md` 2026-09-01; BUG-056–087 moved 2026-09-27; verified BUG-088–119 moved 2026-10-25; verified BUG-122/126/129 moved 2026-10-27; BUG-121/123/124/125/132/133 archived after Can accepted their browser reproductions on 2026-10-27; BUG-106/130 table rows archived 2026-10-27. `Bugs.md`
 > now carries open, awaiting-verification, rejected, and merge-pointer rows only. Three rows in 001–087 are not verified fixes: BUG-061 is ⚠️ Stale
 > (needs a fresh-device Sunday/habit badge check) and BUG-062/069 are 🚫 Rejected.
 > Newest first, matching the ordering rule above. Not every row has a detail section —
@@ -18,6 +18,7 @@
 |---|---|---|
 | 133 | A reordered new task jumps to the bottom as sync and an AI tip arrive | ✅ v2.101.0 |
 | 132 | Long desktop task edits cannot visually scroll back to the beginning | ✅ v2.100.2 |
+| 130 | Completed tasks can reach other devices late after a failed read or overlapping write | ✅ v2.98.6 |
 | 129 | Split suggestions disappear after a temporary failure or offline capture | ✅ v2.99.1 |
 | 126 | Sunday fallback bypasses feedback and overstates weekly evidence | ✅ v2.99.1 |
 | 125 | Temporary Trello failures show a disconnected icon | ✅ v2.98.5 |

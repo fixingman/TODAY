@@ -21,30 +21,19 @@
 | # | Status | Description | Reference |
 |---|---|---|---|
 | 134 | ⏳ Verify | Sunday treats tied let-go reasons as a majority and generalizes missing reasons. | v2.101.1 |
-| 133 | ✅ Verified | A reordered new task jumps to the bottom as sync and an AI tip arrive. | v2.101.0 |
-| 132 | ✅ Verified | Long desktop task edits cannot visually scroll back to the beginning. | v2.100.2 |
 | 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
-| 130 | ✅ Verified | Completed tasks can reach other devices late after a failed read or overlapping write. | v2.98.6 |
-| 129 | ✅ Verified | Split suggestions disappear after a temporary failure or offline capture. | v2.99.1 |
 | 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
 | 127 | ⏳ Verify | Web/Trello context outlives its task, source or focus view. | v2.99.1 |
-| 126 | ✅ Verified | Sunday fallback bypasses feedback and overstates weekly evidence. | v2.99.1 |
-| 125 | ✅ Verified | Temporary Trello failures show a disconnected icon. | v2.98.5 |
-| 124 | ✅ Verified | Manual-task pomodoro counts revert after syncing. | v2.98.5 |
-| 123 | ✅ Verified | Feeling feedback can be lost before its source data finishes loading. | v2.98.3 |
-| 122 | ✅ Verified | Sync warns when zones agree, or keeps an older Soon copy after a Past move. | v2.97.8 |
-| 121 | ✅ Verified | Opening shortly before midnight can suppress the next day’s poem. | v2.97.8 |
 | 120 | ↪ Merged | Daily-nudge delivery follow-up; tracked with the strip/About mismatch. | BUG-118 |
 | 118 | ⏳ Verify | Daily nudge can be missing or disagree between the task list and About. | v2.97.8 |
 | 117 | ⏳ Verify | Gmail context includes automated booking and calendar notifications. | v2.93.20 |
 | 107 | 🚫 Rejected | iPhone header buttons have a raised halo. | — |
-| 106 | ✅ Verified | Focus ages, weekly aging and wake banners silently fall back. | v2.91.1 |
 | 105 | ⏳ Verify | Gmail context misses explicit email tasks. | v2.92.5 |
 | 091 | ⏳ Verify | Gmail searches for a person when the task names a topic. | v2.82.3 |
 
 ---
 
-*BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+*BUG-001–087 (all), verified BUG-088–119, 121–126, 129–130, 132–133 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
 
 ---
 
