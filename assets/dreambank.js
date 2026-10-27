@@ -200,6 +200,7 @@
     let _openId = null;          // Memory panel: which dream row is expanded
     let _confirmDeleteId = null; // Memory panel: which row is asking "delete?"
     let _listOpen = false;       // Memory panel: per-dream list shown under the one-line summary
+    let _listRenderedOpen = false; // true after at least one render in open state; reset when closed
     let _remoteRead = null;      // One transient Dropbox body; never saved or synced
     let _readEpoch = 0;          // Ignore a download after collapse, deletion, or switching rows
 
@@ -600,7 +601,8 @@
     function renderMemory(container) {
       if (!container) return;
       const old = document.getElementById('dreamMemoryBlock');
-      const reveal = _listOpen && !old?.querySelector('[data-today-click="dream.memory-open"]');
+      const reveal = _listOpen && !_listRenderedOpen;
+      _listRenderedOpen = _listOpen;
       const active = old?.contains(document.activeElement) ? document.activeElement : null;
       const action = active?.dataset.todayClick;
       const identity = active?.dataset.dreamId;
