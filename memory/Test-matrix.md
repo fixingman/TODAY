@@ -146,6 +146,9 @@ If testing **task actions** (add, copy, complete, delete, undo, or stats/favicon
       delegated row controls, long desktop Delete → Edit scrolling and leading-text saves,
       focus interception, feedback, accessibility state, and favicon refresh.
 
+If testing **new task reorder and delayed AI tips**:
+- [ ] Run `node scripts/assistant-test.mjs` and `node scripts/dropbox-test.mjs` — actual Add/desktop drag/touch long-press must retain the new task’s position through an older snapshot, whether the tip arrives before or after sync (BUG-133). Check remote reorder recency, remote additions, deletions and zone-move controls too.
+
 If testing **zone** changes:
 - [ ] Triage bar appears 8pm–midnight
 - [ ] Zone moves trigger sync
@@ -334,6 +337,7 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 7.10a | Habit focus companion (v2.97.0 local implementation) | `focus-test`: explicit Ask sends only the selected active habit name; no automatic request, history/Memory/other-task context or forced cue/25-minute framing. Correct accessible question/Ask labels; timer untouched; accepted prose uses existing private spoken history. Separate habit prompt stays unchanged |
 | 7.10b | Pending habit question changes/fails | `focus-test`: dismiss/exit/switch, rename/archive/delete/check, 3am day change, AI Forget, DOM replacement and delayed response body withhold display/history; old rejection cannot clear a newer answer. Timeout/malformed/empty/non-question/overlong/network/HTTP replies reset; retry, content-first/legacy message and touch/no-key boundaries. Synthetic safety coverage is not live AI quality |
 | 7.10c | Task focus help (v2.97.10) | `focus-test`: only JSON-quoted focused task; history and unrelated task/person/inference context excluded. Explicit question/action/wait acknowledgement delivery, accessible dismissal, strict format rejection without recording, current-only retry status, timeout/retry, rename/exit fencing and a paused timer remain correct. Synthetic checks do not certify usefulness or a destructive-action semantic guard. |
+| 7.10d | Exact-answer Focus feedback (local v2.101.0) | `focus-test`: unchanged answer row before/after keyboard expansion/voting; one landed/not-landed row, Undo/revision/clear, positive/missed/neutral next-explicit-Ask pickup, cap three, no storage/call/pause, task/habit/owner separation, neutral answer dismissal restoring counter/progress, edit/delete/real sync deletion/day/key/exit/completion/restart fences and late responses. Actual controls/axe, hidden states, 24px targets, 320px reflow and confined long-answer scrolling. Installed VoiceOver and real-writing usefulness remain separate. |
 | 7.11 | _onWake rapid double-fire | Alt-tab away and back quickly multiple times — no repaint glitches |
 | 7.12 | Start focus among rows at different distances | Nearby rows recede before farther rows; the full delay wave spans exactly `--dur-fast` and the selected row stays stable |
 | 7.13 | Start focus with reduced motion | Focus state applies without per-row wave delays |
@@ -643,3 +647,5 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 | 19.2 | Manual reduced-motion check | A successful add changes the listening dot into an accent check before the pill disappears; empty, unavailable, and failure paths never show success. With reduced motion, the state remains clear without a transition. |
 
 **15B optional wording loop (local v2.100.0):** actual browser coverage includes first-use choice, no immediate rewrite, Undo, guidance on a new eligible evening, clear while pending, late guided-answer rejection, the next unguided answer, real sync/stale-backup clear, both concern types, private history canaries, keyboard/axe and 320px. Pure tests cover field-independent LWW/null and old-client absence, source readiness/withdrawal, natural expiry and ordinary-vote isolation. Offline SW coverage imports the lazy helper. Live writer quality remains separately unmeasured.
+
+**v2.101.0 combined release checks:** `focus-test` covers exact-answer feedback, next explicit Ask, Undo/revision/clear, no persistent writes, owner/source/day/key/session/completion fences, keyboard/320px/axe and answer layout. `memory-panel-test` covers keyboard reveal and native dismissal of quiet row actions; `gmail-test` checks distinct draft/thread actions and the no-address Copy fallback. The enrichment revisit fixture activates the focused native button after Undo and asserts the hidden write before closing, avoiding a pointer coordinate race during resize.

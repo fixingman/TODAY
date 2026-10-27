@@ -15,6 +15,8 @@
 
 ---
 
+**Focus feedback boundary (v2.101.0):** exact-answer Focus reactions/replies/Undo are active-session memory only. They never enter Dropbox payloads, merge, manual Restore or old-client replay. Existing sync changes to the owning task/habit invalidate their local influence; no schema or merge rule changes. Source-bound lifecycle and limits are in Focus.md / Data.md.
+
 **Enrichment boundary (v2.99.0 local):** web/Trello `agent_enrichment_*` cards and optional exact-card withholding remain device-local. They are absent from backup/merge/restore; no schema bump, LWW map, clear watermark or old-client replay is introduced. True task deletion/text/source changes invalidate the card; unchanged Today/Soon/Past moves retain its hide; Undo/show context clears only that device’s hide. This is explicitly not cross-device feedback or cross-task learning. Gmail keeps its separate existing mail cache/draft domain. Local v2.99.1 binds both existing Gmail caches to exact retained task text and sensitive local refresh-grant provenance, with current-owner/source/cache/visit fences for pending work. Normal sync edits/deletion invalidate them; source tokens/digests, email data and drafts remain excluded from backup. Zone cleanup waits until a complete move, preserving unchanged owners. No backup-schema change.
 
 ## Dropbox Integration
@@ -148,7 +150,7 @@ Additive keys do not bump the version; `Rules.md` #12 records which keys arrived
 
 | Data | Rule |
 |------|------|
-| Task list | Union by ID; remote order wins unless a strictly newer `manual_order_at` keeps the local order (shared tasks; remote-only additions append, then local-only). When remote order wins, the device adopts the remote stamp so the next merge doesn't re-win off a stale local one (mirrors Trello, BUG-042). Per field remote wins, except `focusSessions` and `lastActive`: MAX across all Today/Soon/Past copies, independent of the winning zone record (BUG-124). Progress differences refresh the badge and trigger merged autosave to heal stale remote copies. Ties → remote |
+| Task list | Union by ID; remote order wins unless a strictly newer `manual_order_at` keeps the local order (all eligible local tasks, including unsynced additions, retain their positions; remote-only additions append — BUG-133). When remote order wins, local-only tasks append and the device adopts the remote stamp so the next merge doesn't re-win off a stale local one (mirrors Trello, BUG-042). Per field remote wins, except `focusSessions` and `lastActive`: MAX across all Today/Soon/Past copies, independent of the winning zone record (BUG-124). Progress differences refresh the badge and trigger merged autosave to heal stale remote copies. Ties → remote |
 | Task order change | Detected by comparing the ID sequence, not just set membership, so a reorder alone re-renders |
 | Habit list | Union by ID, remote order wins |
 | Trello order | Newer `trello_order_at` wins; bootstrap if local is empty (BUG-042) |

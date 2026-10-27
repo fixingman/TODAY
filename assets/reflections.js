@@ -337,7 +337,17 @@
             `<div class="nudge-react open reflection-reaction"><span class="memory-empty" role="status">not really</span><button class="nudge-react-btn" data-today-click="reflections.feedback-undo">undo</button></div>`;
           container.appendChild(ack); return;
         }
-        if (!candidate) return;
+        if (!candidate) {
+          const fb = evidence.feedback;
+          const hasFeedback = fb.records.some(r => (r.reactedAt && r.reaction !== null) || r.wordingReaction);
+          if (!hasFeedback) return;
+          const block = document.createElement('div');
+          block.className = 'memory-type-block reflection-memory-block';
+          block.id = 'reflectionMemoryBlock';
+          block.innerHTML = `<div class="memory-type-header"><span class="memory-type-name">HOW DAYS FELT</span></div>`;
+          container.appendChild(block);
+          return;
+        }
         if (!_reflectResult && !_reflectPending && !_reflectTriggered && canReflect) {
           _reflectTriggered = true;
           const key = evidence.key;

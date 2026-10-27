@@ -762,35 +762,31 @@
         draftEl.textContent = draft;
         draftEl.hidden      = false;
         if (window._focusExpandTimer) _focusExpandTimer();
-        _setBtnLabel(btn, 'Copy', view);
-        btn.disabled        = false;
-        btn.addEventListener('click', function copyOnce() {
-          if (!current()) return;
-          navigator.clipboard?.writeText(draft).then(() => {
-            if (!current()) return;
-            _setBtnLabel(btn, 'Copied ✓', view);
-            setTimeout(() => { _setBtnLabel(btn, 'Copy', view); }, 2000);
-          }).catch(() => {});
-        });
-
-        const _toEmail   = block.dataset.fromEmail || '';
-        const _rawSubj   = block.dataset.subject || '';
-        const _subject   = _rawSubj ? 'Re: ' + _rawSubj : '';
-        const _actionsEl = block.querySelector('.focus-gmail-actions');
-        if (_actionsEl && _toEmail && !_actionsEl.querySelector('.focus-gmail-mailto')) {
+        const _toEmail = block.dataset.fromEmail || '';
+        const _rawSubj = block.dataset.subject || '';
+        btn.disabled   = false;
+        if (_toEmail) {
+          // One Mail action: the draft button opens the prefilled reply; the thread link stays as is.
           // util owns mailto address escaping and the 2KB/grapheme limits.
-          const _mLink = document.createElement('a');
-          _mLink.className   = 'focus-gmail-mailto focus-gmail-open';
-          _mLink.textContent = 'Open in Mail ↗';
-          _mLink.href        = _mailtoDraftHref(_toEmail, _subject, draft);
+          btn.dataset.mailto = _mailtoDraftHref(_toEmail, _rawSubj ? 'Re: ' + _rawSubj : '', draft);
+          _setBtnLabel(btn, 'Show draft in Mail ↗', view);
           // Same-context Mail navigation avoids a browser detour (BUG-089).
-          _mLink.addEventListener('click', function(ev) {
-            ev.preventDefault();
-            if (current()) window.location.href = _mLink.href;
+          btn.addEventListener('click', function openDraft() {
+            if (current()) window.location.href = btn.dataset.mailto;
           });
-          _actionsEl.appendChild(_mLink);
-          if (window._focusExpandTimer) _focusExpandTimer();
+        } else {
+          // No address to reply to: copying is the useful step.
+          _setBtnLabel(btn, 'Copy', view);
+          btn.addEventListener('click', function copyOnce() {
+            if (!current()) return;
+            navigator.clipboard?.writeText(draft).then(() => {
+              if (!current()) return;
+              _setBtnLabel(btn, 'Copied ✓', view);
+              setTimeout(() => { _setBtnLabel(btn, 'Copy', view); }, 2000);
+            }).catch(() => {});
+          });
         }
+        if (window._focusExpandTimer) _focusExpandTimer();
         return true;
       } catch(e) { return false; }
       finally {

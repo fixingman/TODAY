@@ -184,10 +184,7 @@
     /* config-panel exit: base rule needed since it isn't in the .task/etc. list above */
     .config-panel { transition: filter 320ms ease, opacity 220ms ease; }
 
-    /* Everything around the task recedes, not just the list (v2.82.4): the morning
-       nudge and its sibling reactions, the triage bar and the sticky header. Only the add bar and its mic buttons
-       stay crisp — they are the one thing you can still do. Same dim-then-blur beat as
-       the rows. The header keeps pointer-events: its buttons exit focus (v2.75.15). */
+    /* Focus dims the surrounding chrome while the add bar stays available. */
     .focusing .morning-nudge,
     .focusing .morning-nudge-react,
     body.focus-locked #triageBar {
@@ -197,11 +194,9 @@
       pointer-events: none;
     }
     #triageBar { transition: filter 320ms ease, opacity 220ms ease; }
-    /* Pinned for the lock (BUG-098): sticky has nothing to stick to inside a
-       position:fixed body, so it rode the body.top nudge off the top of the screen —
-       visible as the nav being pushed up whenever a task near the bottom entered focus.
-       Fixed keeps it exactly where sticky had it; focus.js pads the body by the header's
-       height so nothing below shifts when it leaves the flow. */
+    /* Fixed during body scroll lock; focus.js preserves the header flow space (BUG-098). */
+    /* Unpin section headers during focus to avoid a blurred box under the logo. */
+    body.focus-locked .section-header { position: relative; top: auto; }
     body.focus-locked .sticky-header {
       position: fixed;
       top: 0;
@@ -272,7 +267,7 @@
 
     /* Timer bar — slides open downward only */
     .focus-timer {
-      overflow: hidden;
+      overflow: clip;
       max-height: 0;
       will-change: max-height, opacity;
       opacity: 0;
@@ -514,7 +509,9 @@
     margin-top: var(--space-1);
   }
   .focus-gmail-draft-btn,
-  .focus-gmail-open {
+  .focus-gmail-open,
+  .focus-ask-feedback,
+  .focus-ask-reaction {
     font-family: inherit;
     font-size: var(--text-xs);
     color: var(--highlight-ui);
@@ -527,7 +524,9 @@
     letter-spacing: 0.02em;
   }
   .focus-gmail-draft-btn:hover,
-  .focus-gmail-open:hover { opacity: 1; }
+  .focus-gmail-open:hover,
+  .focus-ask-feedback:hover,
+  .focus-ask-reaction:hover { opacity: 1; }
   .focus-gmail-draft-btn:disabled { opacity: var(--opacity-dim); cursor: default; }
   .focus-gmail-draft-label { transition: opacity var(--dur-fast) var(--ease-std); }
   .focus-gmail-draft-label.changing { opacity: 0; }
@@ -540,6 +539,31 @@
     padding-left: var(--space-3);
     margin-top: var(--space-1);
     user-select: text;
+  }
+
+  /* Focus feedback expands independently below the unchanged answer row. */
+  .focus-timer { --focus-feedback-width: 0px; }
+  .focus-timer.has-focus-answer .focus-ai-timer-btn {
+    right: calc(var(--focus-feedback-width) + var(--space-4) + var(--space-3));
+  }
+  .focus-ask-feedback {
+    position: absolute; right: var(--space-4); top: 50%;
+    transform: translateY(-50%); min-height: 24px;
+  }
+  .focus-ask-feedback[hidden], .focus-ask-feedback-panel[hidden],
+  .focus-ask-reaction[hidden] { display: none; }
+  .focus-ask-feedback-panel {
+    border-top: 1px solid var(--accent-focus-divider);
+    background: var(--accent-timer-bg);
+    padding: var(--space-1) var(--space-4) var(--space-2);
+  }
+  .focus-ask-feedback-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+  }
+  .focus-ask-reaction { min-height: 24px; }
+  .focus-ask-reaction.on { opacity: 1; }
+  .focus-ask-feedback:focus-visible, .focus-ask-reaction:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
   }
 
   /* ── Agent focus block ─ */
@@ -4202,6 +4226,36 @@
     vertical-align: middle;
     position: relative; top: -1px;
   }
+  /* Dismiss and not-me buttons: hidden at rest, revealed on row hover (desktop) or tap (mobile) */
+  .memory-item [data-today-click="memory.item-revoke"],
+  .memory-item [data-today-click="memory.hypothesis-reject"] {
+    opacity: 0;
+    transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  }
+  @media (hover: hover) {
+    .memory-item:hover [data-today-click="memory.item-revoke"],
+    .memory-item:hover [data-today-click="memory.hypothesis-reject"] {
+      opacity: 1;
+    }
+  }
+  .memory-item:focus-within [data-today-click="memory.item-revoke"],
+  .memory-item:focus-within [data-today-click="memory.hypothesis-reject"],
+  .memory-item--active [data-today-click="memory.item-revoke"],
+  .memory-item--active [data-today-click="memory.hypothesis-reject"] {
+    opacity: 1;
+  }
+  /* Expand/collapse buttons sit at the far right of the section header */
+  .memory-type-header .memory-item-btn {
+    margin-left: auto;
+  }
+  /* Extra items (revealed by show-more) fade and slide in */
+  @keyframes memory-item-in {
+    from { opacity: 0; transform: translateY(-3px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .memory-item--extra {
+    animation: memory-item-in var(--dur-slow) var(--ease-out) both;
+  }
 
 
   /* ── Accessibility: Reduced Motion ─ */
@@ -4635,16 +4689,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '368h';
+const DEV_HOURS     = '369h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.101.0': 'Focus answers have optional feedback for your next Ask in the same session. New tasks keep their reordered position through sync; Memory and email draft controls are clearer.',
   '2.100.2': 'Long tasks scroll back to the beginning correctly while editing on desktop.',
   '2.100.1': 'Task splitting recognizes more actions and keeps your wording. Old offers cannot replace changed tasks.',
-  '2.100.0': 'Feeling insights distinguish daytime actions from evening reflections. Optional wording feedback guides later insights, and unfinished sync preserves your votes.',
 
 };
 

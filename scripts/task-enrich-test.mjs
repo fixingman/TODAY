@@ -432,7 +432,10 @@ try {
     calls:__enrichCalls, focus:document.activeElement.textContent,
   }));
   assert(undo.link && !undo.hidden && undo.calls===1 && undo.focus==='not useful', 'Undo restores the same card and indicator without a request',undo);
-  await page.click('#focusAgentBlock .focus-agent-feedback');
+  // Undo just resized the card. Activate its focused native control without
+  // racing pointer coordinates through that transition, then assert the write.
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('agent_enrichment_manual_agent_focus')).state==='hidden');
   await page.keyboard.press('Escape');
   await new Promise(resolve=>setTimeout(resolve,250));
   await page.click('[data-taskid="manual_agent_focus"] .task-text');

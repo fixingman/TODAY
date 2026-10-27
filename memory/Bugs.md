@@ -20,18 +20,19 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 132 | ⏳ Verify | Long desktop task edits cannot visually scroll back to the beginning. | v2.100.2 |
+| 133 | ✅ Verified | A reordered new task jumps to the bottom as sync and an AI tip arrive. | v2.101.0 |
+| 132 | ✅ Verified | Long desktop task edits cannot visually scroll back to the beginning. | v2.100.2 |
 | 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
 | 130 | ✅ Verified | Completed tasks can reach other devices late after a failed read or overlapping write. | v2.98.6 |
 | 129 | ✅ Verified | Split suggestions disappear after a temporary failure or offline capture. | v2.99.1 |
 | 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
 | 127 | ⏳ Verify | Web/Trello context outlives its task, source or focus view. | v2.99.1 |
 | 126 | ✅ Verified | Sunday fallback bypasses feedback and overstates weekly evidence. | v2.99.1 |
-| 125 | ⏳ Verify | Temporary Trello failures show a disconnected icon. | v2.98.5 |
-| 124 | ⏳ Verify | Manual-task pomodoro counts revert after syncing. | v2.98.5 |
-| 123 | ⏳ Verify | Feeling feedback can be lost before its source data finishes loading. | v2.98.3 |
+| 125 | ✅ Verified | Temporary Trello failures show a disconnected icon. | v2.98.5 |
+| 124 | ✅ Verified | Manual-task pomodoro counts revert after syncing. | v2.98.5 |
+| 123 | ✅ Verified | Feeling feedback can be lost before its source data finishes loading. | v2.98.3 |
 | 122 | ✅ Verified | Sync warns when zones agree, or keeps an older Soon copy after a Past move. | v2.97.8 |
-| 121 | ⏳ Verify | Opening shortly before midnight can suppress the next day’s poem. | v2.97.8 |
+| 121 | ✅ Verified | Opening shortly before midnight can suppress the next day’s poem. | v2.97.8 |
 | 120 | ↪ Merged | Daily-nudge delivery follow-up; tracked with the strip/About mismatch. | BUG-118 |
 | 118 | ⏳ Verify | Daily nudge can be missing or disagree between the task list and About. | v2.97.8 |
 | 117 | ⏳ Verify | Gmail context includes automated booking and calendar notifications. | v2.93.20 |
@@ -43,18 +44,6 @@
 ---
 
 *BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
-
----
-
-## BUG-132 — Long desktop task edits stay visually scrolled toward the end
-
-**Report (Can, October 27):** while editing a long task in the desktop entry field, scrolling back to its beginning does not appear to work.
-
-**Reproduced:** the real Delete → Edit flow fills the native input with a long fictional task. Scroll to the end, retain the caret there and scroll the input back to zero: native input is at the beginning, but `newTaskMirrorContent` still has a negative horizontal translation. `_syncScroll()` interprets every zero offset as iOS's missing scroll position and calculates an end-of-text offset on desktop too.
-
-**Fix (v2.100.2 dev release):** restrict the existing canvas fallback to iOS, including touch-capable iPad desktop identity. Desktop always uses the native offset, including zero. No task data, save, selection, animation or sync change.
-
-**Verification:** the new `task-actions-test` regression fails before the fix and passes after; it uses actual Delete/Edit controls, verifies start/end overlay alignment with the caret retained at the end, and types/saves a leading edit. All 12 task-action checks, 36 bounce wiring checks, smoke, service-worker, design lint and payload budgets pass. Evidence: `.context/task-edit-scroll-before.log`, `.context/task-edit-scroll-after.log`, `.context/task-edit-*.log`. Desktop installed verification remains open; this is not a physical iOS verification.
 
 ---
 
@@ -85,62 +74,6 @@
 **Local v2.99.0:** v3 cache validates retained manual owner/exact text across Today/Soon/Past, source board, policy and 30-day age; limits the prefix to 60 entries / 200,000 UTF-8 bytes. Pending headers/body check source/credentials/cache adoption and request identity, with 26s abort and safe supersession. Focus has independent view ownership and synchronous close invalidation. Failures are retryable 502; only explicit no-result is cached. Existing card gains exact-card local withholding/Undo/show context with neutral link semantics. Hidden state is authoritative and success-ineligible in the previous client as well; unchanged zone moves retain it and true deletion removes it. No preference inference, new prompt, extra feedback call, new synced data or Gmail controls.
 
 **Verification:** before-fix browser fixture fails; targeted real-component tests pass for source/policy/expiry, pending races, keyboard/Undo/retained hiding, closed focus and 320px wrapping. Focused Claude review completed and its reproduced Undo-focus/label/hidden-state findings are corrected. Earlier slice 52-suite runs pass; cleanup passes 37 component checks including axe/real zone transitions, plus zones/drag/Focus/smoke and payload. Final integrated v2.99.0 checks now pass 52/52 suites (zero flaky), all six visual scenes, accessibility and five-run performance/payload with unchanged budgets. Memory targets and absent-insight feedback access were repaired while retaining the parallel styling; commit/release remains pending. No installed-account/usefulness acceptance claimed.
-
----
-
-## BUG-125 — Temporary Trello failures show a disconnected connection icon
-
-**Report (Can, October 25):** Connections showed lightning instead of the star; manually refreshing Trello restored the star, alongside network-change/DNS errors.
-
-**Reproduced:** with saved Trello credentials and no cached cards, a rejected network fetch changes the icon to lightning. HTTP 429 and 5xx failures do the same. A successful read sets the star again. A temporary read failure does not remove the credentials.
-
-**Fix (v2.98.5; installed verification pending):** temporary network/rate-limit/server failures keep the configured connection star. Actual 401 credentials / 404 board failures still show lightning; Forget still clears the connection. The empty-cache network message explains temporary reachability rather than suggesting the user's credentials are wrong. No new indicator, animation or retry loop. W1: the existing icon describes the connection; W2: ordinary network interruptions do not demand reconnection.
-
-**Coverage / verification:** `trello-test` exercises manual/background network, 429, 500 and 503 failures without cached cards, plus 401 attention and existing 404/Forget behavior. Installed behavior remains to be verified after release.
-
----
-
-## BUG-124 — Manual task pomodoro progress overwritten by stale sync records
-
-**Report (Can, October 25):** a manual TODAY task's completed pomodoro count decreases after sync.
-
-**Reproduced:** local `focusSessions:3` merged with the same task's remote `focusSessions:1` becomes 1 in memory/storage. The task merge spreads remote fields over local fields and protects only `lastActive`; badge changes are not detected when IDs/order stay identical. A later render exposes the lower count. Focus completion/exit also lacked the normal local-change stamp and autosave request, leaving the new progress local until another mutation caused an upload.
-
-**Fix:** completion and partial exit now stamp the local change and queue retrying autosave (included in the concurrent v2.98.4 commit). The remaining merge fix is **v2.98.5; installed verification pending**: preserve the maximum completed-session count and newest activity across every copy of the task in Today/Soon/Past, independently of the winning text/order/zone record. A progress difference refreshes the row and schedules the ordinary merged backup, healing a stale remote snapshot. Deletes, zone precedence, manual Restore's explicit overwrite and the backup schema are unchanged. Counts are cumulative per task; this is MAX reconciliation, not addition of concurrent sessions from equal starting counts. Already-lost counts cannot be reconstructed when no surviving copy has them.
-
-**Coverage / verification:** the new `dropbox-test` regression fails before the fix; checks stale/repeated snapshots, storage/badge agreement, newer remote progress and 36 zone/direction/progress combinations. `focus-test` checks completion and partial exit queue sync without another edit. After release, verify a completed manual-task pomodoro survives sync, restart and another device with an older copy; confirm the other device receives the higher badge count. Real-account/device acceptance remains open.
-
----
-
-## BUG-123 — Feeling feedback pruned against not-yet-ready source evidence
-
-**Discovery (2026-10-25):** Claude’s independent #15 plan review flagged that `_reconcileEvidence()` can persist pruned feedback before the `_sourceReady` display/generation guard. Source review also found the backup path calls reconciliation. This is a source-readiness correctness issue to resolve before expanding feeling feedback, not evidence that Can’s actual votes were lost.
-
-**Isolated reproduction:** use the actual reflection component in a fictional browser; create a qualified insight and mark it missed; mark source readiness false; temporarily remove the fixture’s outcome evidence; call the real `_reflectionBackupFields()`; restore outcomes/readiness. The stored missed-record count is **1 → 0 → 0**. The record is not recovered by returning the sources. No live account, private reflection, network model call or production-state access was used. Exact probe/log: `.context/feedback-loops/claude-plan-review/source-readiness-probe.mjs` and `.log`.
-
-**Cause:** `_reflectionEvidence()` projects source-valid records; `_reconcileEvidence()` writes that projection to storage without checking source readiness. `mergeRecords()` treats a missing/changed recent source version as withdrawal. `_refreshOpenMemory()` also removes feedback when policy is absent/not remember; startup/restore ordering needs review before relying only on a single write guard.
-
-**Fix (v2.98.3):** Two-line guard. (1) `_reconcileEvidence()` write condition gains `&& _sourceReady` — prevents `_saveFeedback()` from persisting pruned records while outcome versions are incomplete. (2) `_reflectionBackupFields()` falls back to raw `_feedbackStore()` for the Dropbox export when `!_sourceReady` — prevents pushing pruned records to the remote backup. The explicit `feedbackClear()` / `feedbackVote()` / `_refreshOpenMemory()` delete paths are unaffected (they each guard `_sourceReady` independently or go through `localStorage.removeItem`, not `_saveFeedback`). The `_reflectionMergeRemote()` incoming-sync write uses the same `versions` issue and remains a known gap; fencing it conflicts with being the event that establishes coherence and is deferred to a follow-up.
-
-**Tests:** `reflection-feedback-test.mjs` adds a BUG-123 regression case: vote missed → fire `today:memory-ready` with `ready:false` + clear outcomes → call `_reflectionBackupFields()` → assert storage still has the missed record; assert backup export also preserves it; restore readiness → assert vote still there.
-
-**Follow-up (local v2.100.0):** incoming feedback now merges with explicit source readiness. While evidence is incomplete, valid bounded records/revisions are retained without interpreting missing outcome versions as withdrawal. Consent/generation, clear watermarks and retention/caps remain live; natural expiry still strips prose/support. Readiness reconciles against the completed source snapshot, removing true edits/withdrawal. Unit and actual-browser reproductions fail before the change and pass afterward; real Dropbox merge and manual Restore preserve supported misses. Source withdrawal and deletion before readiness remain covered. No new persisted queue or backup fields.
-
-**Status:** initial fix shipped v2.98.3; incoming-merge follow-up implemented locally in v2.100.0, awaiting release and installed verification.
-
----
-
-## BUG-121 — Yesterday’s splash cooldown suppresses the new day’s poem
-
-**Report:** Can, 2026-10-22 shortly after midnight: repeated restarts showed the default daily nudge and no opening poem; the proper nudge was present by about 00:42. The About observation was under **Noticed**, not **Today**, so this report does not establish BUG-120’s strip/About mismatch.
-
-**Confirmed cause (poem only):** `splash.js` checked a rolling 30-minute `splash_shown_at` cooldown before checking `poem_splash_date`. A 23:55 open therefore skipped the entire splash at 00:02, including the unseen new-day poem. Both dates are local; this is cooldown ordering, not a UTC or 3am day boundary. The nudge does not depend on this cooldown.
-
-**Fix (prepared as v2.97.6, included in v2.97.8):** apply the 30-minute cooldown only when the previous splash was on the same local date. Crossing midnight allows the normal splash and first daily poem; another restart that day still skips within the cooldown. No new timer, storage key, collection or sync change.
-
-**Tests:** desktop and touch browser fixtures at Istanbul 00:02, seeded with yesterday’s 23:55 splash and poem date. The test fails on the old code, then checks populated/visible new-day poem, its dated shown marker, and the next restart’s cooldown. Existing coda/exit timing and reduced-motion behavior remain covered by the release suites.
-
-**Verify after deployment:** open shortly before midnight, restart shortly afterwards, and see the new poem. Keep open until Can accepts real-device or reproduction-equivalent verification.
 
 ---
 

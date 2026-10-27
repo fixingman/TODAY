@@ -135,6 +135,10 @@ v2.96.0 may add a minimal derived same-task Calendar relationship to the ordinar
 - `alpha_down = 0.97` — misses are gentle (30-day streak miss: 3% drop, not 10%)
 - Perfect streaks reach identical peaks. One bad day doesn't feel catastrophic.
 
+### Transient Focus feedback (v2.101.0)
+
+`focus-ask` keeps one current task/habit scope and at most three accepted `{id, text, reaction}` reply records in memory (800 characters per reply; landed/missed/null plus one transient Undo). Identity is per accepted response, not the historical spoken-line date key. Exact source/name, owner type/id, local date/habit day, current AI configuration and active Focus session govern eligibility. Exit/completion/restart, source change/deletion, rollover, configuration change or reload clears it. Opening/closing controls and neutral dismissal write no feedback to localStorage. Existing accepted spoken history is unchanged and does not receive these votes. There is no new storage key, retention policy, backup field, schema migration or cross-device merge. A sync-adopted source change/deletion can invalidate local influence; it cannot replay a vote.
+
 ### Memory (AI Companion)
 
 | Key | Type | Description |

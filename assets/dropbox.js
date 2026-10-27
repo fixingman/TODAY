@@ -1084,7 +1084,7 @@
       for (const task of progressCopies) taskProgress.set(task.id, mergeProgress(task, taskProgress.get(task.id)));
       const keepProgress = task => mergeProgress(task, taskProgress.get(task.id));
 
-      // Task list: remote order wins, local-only tasks appended at end
+      // Task list: union membership; newer reorder chooses the sequence.
       const localIds = new Set(manualTasks.map(t => t.id));
       const remoteIds = new Set(remoteTasks.map(t => t.id));
 
@@ -1097,13 +1097,11 @@
       soonTasks.forEach(t => localZoneMap.set(t.id, { zone: 'soon', at: t.zoneChangedAt || '' }));
       pastTasks.forEach(t => localZoneMap.set(t.id, { zone: 'past', at: t.zoneChangedAt || '' }));
 
-      // Local-only tasks — but EXCLUDE any that were moved to zones on remote MORE RECENTLY
+      // Retain local additions unless a newer remote zone move supersedes them.
       const localOnly = manualTasks.filter(t => {
         if (remoteIds.has(t.id)) return false; // exists in remote manualTasks
         const remoteZone = remoteZoneMap.get(t.id);
         if (!remoteZone) return true; // not in any remote zone, keep it
-        // Task is in remote zone — compare timestamps
-        // If local task's zoneChangedAt is MORE RECENT, it was pulled back to TODAY
         const localAt = t.zoneChangedAt || '';
         return localAt > remoteZone.at; // local pull-back is more recent
       });
@@ -1117,19 +1115,17 @@
         taskDataMap.set(t.id, merged);
       });
 
-      // Order basis: remote wins, but a more recent local reorder keeps its sequence so an
-      // in-flight pull can't revert a drag (mirrors Trello order, BUG-042; ties → remote).
+      // Newer local reorder wins; equal stamps retain remote order.
       const _localOrderAt  = localStorage.getItem('today_manual_order_at') || '';
       const _remoteOrderAt = data.manual_order_at || '';
       const _localWinsOrder = _localOrderAt && _localOrderAt > _remoteOrderAt;
       const _orderBasis = _localWinsOrder
-        ? [...manualTasks.filter(t => remoteIds.has(t.id)),   // shared tasks in LOCAL order
-           ...remoteTasks.filter(t => !localIds.has(t.id))]    // remote-only additions appended at end
-        : remoteTasks;                                          // default: remote order wins
+        ? [...manualTasks.filter(t => remoteIds.has(t.id) || localOnly.includes(t)),
+           ...remoteTasks.filter(t => !localIds.has(t.id))]
+        : [...remoteTasks, ...localOnly];
 
-      // Preserve chosen order, then append local-only tasks
-      // EXCLUDE any tasks that exist in LOCAL zones MORE RECENTLY than their manualTasks version
-      const orderedTasks = [..._orderBasis.map(t => taskDataMap.get(t.id)), ...localOnly]
+      // Preserve unsynced positions (BUG-133); newer local zone moves still win.
+      const orderedTasks = _orderBasis.map(t => taskDataMap.get(t.id))
         .filter(t => {
           const localZone = localZoneMap.get(t.id);
           if (!localZone) return true; // not in any local zone, keep it

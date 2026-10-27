@@ -241,6 +241,48 @@ try {
     await page.close();
   }
 
+  // Reorder ownership covers tasks not yet uploaded, without reviving deleted/zone-moved tasks.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const task = id => ({ id, text:'Fictional ' + id });
+      const older = new Date(Date.now() - 2000).toISOString();
+      const newer = new Date(Date.now() - 1000).toISOString();
+      const base = { done_ids:[], deleted_ids:[], unchecked_ids:[], checked_ids:[], habits:[], soon_tasks:[], past_tasks:[] };
+      const run = (localAt, remoteAt, extra = {}) => {
+        manualTasks = ['new_head','shared_a','new_middle','shared_b','shared_c'].map(task);
+        soonTasks = []; pastTasks = [];
+        localStorage.setItem('today_manual_order_at', localAt);
+        localStorage.setItem('today_deleted_ids', '[]');
+        mergeRemoteData({ ...base, manual_tasks:['shared_c','shared_b','shared_a','remote_new'].map(task),
+          manual_order_at:remoteAt, ...extra });
+        const ids = manualTasks.map(t => t.id);
+        return { ids, persisted:JSON.stringify(ids) === JSON.stringify(JSON.parse(localStorage.getItem('today_manual')).map(t => t.id)),
+          rendered:JSON.stringify(ids) === JSON.stringify([...document.querySelectorAll('#manualList .task[data-taskid]:not(.removing)')].map(el => el.dataset.taskid)) };
+      };
+      const same = (actual, expected) => JSON.stringify(actual.ids) === JSON.stringify(expected) && actual.persisted && actual.rendered;
+      const localExpected = ['new_head','shared_a','new_middle','shared_b','shared_c','remote_new'];
+      const remoteExpected = ['shared_c','shared_b','shared_a','remote_new','new_head','new_middle'];
+      const localWins = same(run(newer, older), localExpected);
+      const oldBackup = same(run(newer, ''), localExpected);
+      const remoteWins = same(run(older, newer), remoteExpected);
+      const remoteStampAdopted = localStorage.getItem('today_manual_order_at') === newer;
+      const tieRemote = same(run(newer, newer), remoteExpected);
+      const legacyRemote = same(run('', ''), remoteExpected);
+      const deletion = same(run(newer, older, { deleted_ids:[{ id:'new_head', at:newer }] }), localExpected.filter(id => id !== 'new_head'));
+      const zones = same(run(newer, older, {
+        soon_tasks:[{ ...task('new_head'), zoneChangedAt:newer }],
+        past_tasks:[{ ...task('new_middle'), zoneChangedAt:newer }],
+      }), localExpected.filter(id => !['new_head','new_middle'].includes(id)));
+      return { localWins, oldBackup, remoteWins, remoteStampAdopted, tieRemote, legacyRemote, deletion, zones,
+        oneSoon:soonTasks.filter(t => t.id === 'new_head').length === 1,
+        onePast:pastTasks.filter(t => t.id === 'new_middle').length === 1 };
+    });
+    await expectAll('new manual task reorder ownership', { ...result, noErrors:errors.length === 0 });
+    ok('reorder: new local tasks keep head/middle positions; remote additions append; recency, ties, deletes and zones retain their rules');
+    await page.close();
+  }
+
   // Completed task sessions survive stale snapshots, including a concurrent zone move.
   {
     const { page, errors } = await openPage();

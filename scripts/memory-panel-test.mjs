@@ -153,6 +153,26 @@ async function openPage() {
 }
 
 try {
+  // Quiet row actions remain visible and usable when reached by keyboard.
+  {
+    const { page, errors } = await openPage();
+    await page.emulateMediaFeatures([{ name:'prefers-reduced-motion', value:'reduce' }]);
+    await page.evaluate(() => Today.use('memory').toggle());
+    const selector = '#memoryContent [data-today-click="memory.item-revoke"]';
+    await page.waitForSelector(selector);
+    await page.focus(selector);
+    await page.waitForFunction(selector => getComputedStyle(document.querySelector(selector)).opacity === '1', {}, selector);
+    const key = await page.$eval(selector, el => el.dataset.revokeKey);
+    await page.keyboard.press('Enter');
+    const result = await page.evaluate(key => ({
+      revoked: !!appMemory.revokedKnownItems[key],
+      removed: !document.querySelector(`[data-revoke-key="${CSS.escape(key)}"]`),
+    }), key);
+    await expectAll('keyboard Memory dismiss', { ...result, noErrors:errors.length === 0 });
+    await page.close();
+    ok('quiet Memory actions reveal on keyboard focus and Enter dismisses the intended record');
+  }
+
   // Panel toggle: open and close via toggleMemory().
   {
     const { page, errors } = await openPage();

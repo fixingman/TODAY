@@ -55,8 +55,8 @@
       const m = appMemory;
       if (!m) { el.innerHTML = '<div class="memory-empty">nothing noticed yet</div>'; return; }
 
-      function itemRow(item) {
-        return `<div class="memory-item">` +
+      function itemRow(item, extraClass = '') {
+        return `<div class="memory-item${extraClass ? ' ' + extraClass : ''}">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
                 `<span class="memory-item-text">${esc(item.text)}</span>` +
                 (item.action ? `<button type="button" class="memory-item-btn" data-today-click="memory.kind-restore" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
@@ -66,7 +66,7 @@
       }
       function typeBlock(name, desc, items, pendingNote, more = '', extraItems = []) {
         const rows = items.length
-          ? items.map(itemRow).join('')
+          ? items.map(item => itemRow(item)).join('')
           : more ? '' : pendingNote
             ? `<div class="memory-pending">${pendingNote}</div>`
             : `<div class="memory-empty">nothing here yet</div>`;
@@ -74,7 +74,8 @@
           `<div class="memory-type-header">` +
           `<span class="memory-type-name">${name}</span>` +
           `<span class="memory-type-desc">${desc}</span>` +
-          `</div>${rows}${more ? `<div class="memory-item">${more}</div>` : ''}${extraItems.map(itemRow).join('')}</div>`;
+          (more ? more : '') +
+          `</div>${rows}${extraItems.map(i => itemRow(i, 'memory-item--extra')).join('')}</div>`;
       }
 
       const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -737,6 +738,17 @@
       Today.ui.register('click', 'memory.clear-request', _memoryClearRequest);
       Today.ui.register('click', 'memory.clear-cancel', _memoryClearCancel);
       Today.ui.register('click', 'memory.clear-confirm', _memoryClearConfirm);
+
+      // Touch-tap to reveal dismiss / not-me buttons on non-hover (mobile) devices
+      document.getElementById('memoryContent')?.addEventListener('click', e => {
+        if (!window.matchMedia('(hover: none)').matches) return;
+        const item = e.target.closest('.memory-item');
+        if (!item) return;
+        if (e.target.closest('[data-today-click="memory.item-revoke"],[data-today-click="memory.hypothesis-reject"]')) return;
+        const wasActive = item.classList.contains('memory-item--active');
+        document.querySelectorAll('#memoryContent .memory-item--active').forEach(el => el.classList.remove('memory-item--active'));
+        if (!wasActive) item.classList.add('memory-item--active');
+      }, true);
     }
 
   };

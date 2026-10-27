@@ -9,7 +9,7 @@
 //   node scripts/focus-test.mjs
 
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
@@ -931,6 +931,220 @@ try {
       await page.close();
     }
 
+    // Exact-answer feedback: real controls, next explicit request, no persistent votes.
+    const feedbackFixture = async (owner = 'task') => {
+      const fixture = await habitFixture();
+      if (owner === 'habit') await startHabit(fixture.page);
+      else {
+        await fixture.page.evaluate(() => { manualTasks[0].id = 'manual_1700000000000'; manualTasks[0].text = 'Fix the export crash'; Today.use('connections').renderManual(); document.querySelector('.task-text').click(); });
+        await fixture.page.waitForSelector('.focus-timer.open');
+      }
+      await fixture.page.waitForFunction(()=>document.body.style.transition===''&&document.querySelector('.focus-timer.open'));
+      await fixture.page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(resolve))));
+      await fixture.page.waitForFunction(()=>{const timer=document.querySelector('.focus-timer.open');return timer&&Math.abs(timer.getBoundingClientRect().height-parseFloat(timer.style.maxHeight))<0.1;});
+      return fixture;
+    };
+    const deliver = async (page,text) => {
+      const index = await ask(page); await reply(page,index,{content:text});
+      await page.waitForFunction(text => document.querySelector('.focus-ai-timer-btn').textContent === text && !document.querySelector('.focus-ask-feedback').hidden,{},text);
+      return index;
+    };
+    const clickFeedbackControl = async (page,selector) => {
+      // Wait for clipping/expansion to expose the actual pointer target, not just its layout box.
+      await page.waitForFunction(selector=>{const button=document.querySelector(selector);if(!button||button.hidden)return false;const r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===button;},{},selector);
+      await page.click(selector);
+    };
+    const dismiss = async page => {
+      await clickFeedbackControl(page,'.focus-ai-timer-btn');
+      await page.waitForFunction(() => !document.querySelector('.focus-timer').classList.contains('ai-active'));
+    };
+    const openFeedback = async page => {
+      await clickFeedbackControl(page,'.focus-ask-feedback');
+      await page.waitForFunction(() => !document.querySelector('#focusAskFeedback').hidden);
+    };
+    const rate = async (page,value) => clickFeedbackControl(page,`#focusAskFeedback [data-choice="${value}"]`);
+    const geometry = page => page.evaluate(() => {
+      const answer = document.querySelector('.focus-ai-timer-btn'), line = document.querySelector('.focus-timer-inner');
+      const r = answer.getBoundingClientRect();
+      return {text:answer.textContent,x:r.x,y:r.y,width:r.width,height:r.height,lineHeight:line.getBoundingClientRect().height};
+    });
+    {
+      const {page,errors} = await feedbackFixture();
+      const first = 'Which input reproduces the export crash?';
+      await deliver(page,first);
+      await page.waitForFunction(()=>document.body.style.transition==='');
+      await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))));
+      const closed = await geometry(page);
+      const stored = await page.evaluate(() => JSON.stringify(Object.entries(localStorage).filter(([key]) => key !== 'today_focus_session').sort()));
+      await expectAll('feedback starts genuinely hidden',{
+        collapsed:await page.$eval('#focusAskFeedback',e=>e.hidden),
+        counterInert:await page.$eval('#focusTime',e=>e.inert&&e.getAttribute('aria-hidden')==='true'),
+      });
+      // Keyboard activation is native and cannot invoke the background Space timer shortcut.
+      await page.focus('.focus-ask-feedback'); await page.keyboard.press('Space');
+      await page.waitForFunction(()=>!document.querySelector('#focusAskFeedback').hidden);
+      const opened = await geometry(page);
+      await page.focus('#focusAskFeedback [data-choice="landed"]'); await page.keyboard.press('Space');
+      const selected = await geometry(page);
+      if(JSON.stringify(closed)!==JSON.stringify(opened)||JSON.stringify(opened)!==JSON.stringify(selected)) await fail('feedback moved the answer',{closed,opened,selected});
+      await expectAll('landed does not disturb the answer or add a row',{
+        sameAnswer:JSON.stringify(closed)===JSON.stringify(opened)&&JSON.stringify(opened)===JSON.stringify(selected),
+        selected:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
+        oneActionRow:await page.$eval('#focusAskFeedback',e=>e.children.length===2&&e.querySelectorAll('.focus-ask-feedback-actions').length===1),
+        noGeneration:await page.evaluate(()=>window.__asks.length===1),
+        notPaused:await page.evaluate(()=>!JSON.parse(localStorage.getItem('today_focus_session')).paused),
+        notPersisted:stored===await page.evaluate(()=>JSON.stringify(Object.entries(localStorage).filter(([key])=>key!=='today_focus_session').sort())),
+      });
+      await page.evaluate(()=>{window.__answerNode=document.querySelector('.focus-ai-timer-btn');window.__ratingNode=document.querySelector('#focusAskFeedback [data-choice="landed"]');Today.use('connections').renderManual();});
+      await page.evaluate(()=>new Promise(requestAnimationFrame));
+      await expectAll('unchanged list refresh preserves the exact answer and reaction controls',{
+        answer:await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn')===window.__answerNode),
+        controls:await page.evaluate(()=>document.querySelector('#focusAskFeedback [data-choice="landed"]')===window.__ratingNode&&document.activeElement===window.__ratingNode&&window.__ratingNode.getAttribute('aria-pressed')==='true'),
+      });
+      await mkdir(join(ROOT,'.context/15d-focus-feedback'),{recursive:true});
+      const clip = await page.$eval('.task.focused',e=>{const r=e.getBoundingClientRect();return {x:r.x-12,y:r.y-12,width:r.width+24,height:190};});
+      await page.screenshot({path:join(ROOT,'.context/15d-focus-feedback/implemented-desktop.png'),clip});
+      await dismiss(page);
+      await expectAll('clicking the answer restores the whole timer',{
+        feedbackHidden:await page.$eval('.focus-ask-feedback',e=>e.hidden),
+        rowsHidden:await page.$eval('#focusAskFeedback',e=>e.hidden),
+        counterRestored:await page.$eval('#focusTime',e=>!e.inert&&!e.hasAttribute('aria-hidden')&&getComputedStyle(e).pointerEvents==='auto'),
+        askRestored:await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')==='Ask for focus help'),
+      });
+      const next=await ask(page), nextBody=await page.evaluate(i=>window.__asks[i].body,next);
+      await expectAll('positive feedback reaches only the next explicit Ask',{
+        positive:nextBody.messages[0].content.includes(JSON.stringify({reply:first,rating:'landed'})),
+        factsOnly:nextBody.messages[0].content.startsWith('Task: "Fix the export crash"'),
+        wholeReply:nextBody.messages[0].content.includes('Do not infer a reason, writing preference'),
+        noHabit:!nextBody.messages[0].content.includes('Habit:'),
+      });
+      const second='Which export format triggers it?';await reply(page,next,{content:second});
+      await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},second);
+      await openFeedback(page);await rate(page,'missed');
+      await page.click('#focusAskFeedback [data-today-click="focus-ask.clear"]');
+      await page.click('#focusAskFeedback [data-today-click="focus-ask.undo"]');
+      await rate(page,'landed');await page.click('#focusAskFeedback [data-today-click="focus-ask.undo"]');
+      await page.evaluate(()=>{window.__oldVote=document.querySelector('#focusAskFeedback [data-choice="landed"]');});
+      await dismiss(page);const third=await ask(page);
+      const message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,third);
+      await expectAll('revision clear and Undo stay tied to exact wording',{
+        positiveKept:message.includes(JSON.stringify({reply:first,rating:'landed'})),
+        revisedMiss:message.includes(JSON.stringify({reply:second,rating:'not landed'})),
+      });
+      await page.setViewport({width:320,height:800});
+      const long='Which input and export format reproduce the crash, and does it happen before or after the file appears?';
+      await reply(page,third,{content:long});await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},long);
+      await openFeedback(page);
+      await page.evaluate(()=>{document.querySelector('.focus-ask-feedback-actions').append(window.__oldVote);window.__oldVote.click();window.__oldVote.remove();});
+      await expectAll('detached old-result votes cannot rate the current answer',{
+        neutral:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='false'),
+      });
+      await rate(page,'landed');
+      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      const narrow=await page.evaluate(()=>{
+        const text=document.querySelector('.focus-ai-timer-btn').getBoundingClientRect(),toggle=document.querySelector('.focus-ask-feedback').getBoundingClientRect();
+        const buttons=[...document.querySelectorAll('#focusAskFeedback button:not([hidden])')].map(e=>e.getBoundingClientRect());
+        return {separate:text.right<=toggle.left,fit:buttons.every(r=>r.left>=0&&r.right<=innerWidth&&r.height>=24),noOverflow:document.body.scrollWidth<=innerWidth};
+      });
+      await expectAll('320px feedback and long-answer marquee',{...narrow});
+      const narrowClip=await page.$eval('.task.focused',e=>{const r=e.getBoundingClientRect();return {x:0,y:r.y-12,width:320,height:220};});
+      await page.screenshot({path:join(ROOT,'.context/15d-focus-feedback/implemented-320.png'),clip:narrowClip});
+      await page.addScriptTag({path:join(ROOT,'scripts/node_modules/axe-core/axe.min.js')});
+      const {violations}=await page.evaluate(async()=>axe.run(document.querySelector('.focus-timer')));
+      await expectAll('feedback accessibility',{noViolations:!violations.length,noErrors:!errors.length});
+      await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.task.focused'));
+      await page.evaluate(()=>document.querySelector('.task-text').click());
+      const restarted=await ask(page);
+      await expectAll('leaving focus erases session influence',{fresh:await page.evaluate(i=>window.__asks[i].body.messages[0].content==='Task: "Fix the export crash"',restarted)});
+      await page.close();ok('15D exact-answer feedback: keyboard, next-use, Undo/clear, neutral dismissal, isolated layout, 320px and exit reset');
+    }
+    for (const change of ['edit','delete','sync-delete','day','key']) {
+      console.log('  · Focus feedback source case: '+change);
+      const {page,errors}=await feedbackFixture();
+      await deliver(page,'Which input reproduces the export crash?');await openFeedback(page);await rate(page,'landed');
+      await page.evaluate(change=>{
+        if(change==='edit'){manualTasks[0].text='Check the photo export';document.querySelector('.task.focused .task-text').textContent=manualTasks[0].text;}
+        if(change==='delete'){manualTasks=[];document.querySelector('.task.focused').remove();}
+        if(change==='sync-delete')mergeRemoteData({deleted_ids:[{id:'manual_1700000000000',at:new Date().toISOString()}],manual_tasks:[],done_ids:[],checked_ids:[],unchecked_ids:[],soon_tasks:[],past_tasks:[],habits:[]});
+        if(change==='day'){window.__oldLocalISO=window._localISO;window._localISO=()=> '2099-01-02';}
+        if(change==='key'){localStorage.setItem('today_ai_key_claude','replacement-fictional-key');window.dispatchEvent(new StorageEvent('storage',{key:'today_ai_key_claude'}));}
+      },change);
+      await page.waitForFunction(()=>{const button=document.querySelector('.focus-ask-feedback'),timer=document.querySelector('.focus-timer');return (!button||button.hidden)&&!timer?.classList.contains('ai-active');});
+      if(change==='delete'||change==='sync-delete')await page.waitForFunction(()=>!window._focusUIActive&&!localStorage.getItem('today_focus_session')&&document.querySelector('.focus-timer')?.hidden);
+      if(change!=='delete'&&change!=='sync-delete'){
+        await page.evaluate(()=>{if(!window._focusUIActive)document.querySelector('.task-text').click();});
+        const fresh=await ask(page),message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,fresh);
+        await expectAll('invalidated feedback stays absent',{noPrior:!message.includes('Already offered'),noRating:!message.includes('rating')});
+      }
+      await expectAll('source/config/date withdrawal',{noErrors:!errors.length});await page.close();
+    }
+    {
+      const {page,errors}=await feedbackFixture('habit');
+      const text='Which book would you like to read?';await deliver(page,text);await openFeedback(page);await rate(page,'landed');await dismiss(page);
+      const next=await ask(page),message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,next);
+      await expectAll('habit feedback retains the name-only factual boundary',{
+        sameHabit:message.startsWith('Habit: "Read"'),positive:message.includes(JSON.stringify({reply:text,rating:'landed'})),
+        noTask:!message.includes('Fix the export crash'),
+      });
+      await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.habit.focused')&&!window._focusUIActive);await startHabit(page,'habit_walk');
+      const switched=await ask(page);
+      await expectAll('habit owners never share feedback',{fresh:await page.evaluate(i=>window.__asks[i].body.messages[0].content==='Habit: "Walk"',switched),noErrors:!errors.length});
+      await page.close();ok('15D source withdrawal, rollover, key rotation and task/habit feedback separation');
+    }
+
+    {
+      const {page,errors}=await feedbackFixture();
+      const offers=['Which file reproduces it?', 'Which format triggers it?', 'Which input differs?', 'Which export succeeds?'];
+      for(const text of offers){await deliver(page,text);await openFeedback(page);await rate(page,'landed');await rate(page,'landed');await dismiss(page);}
+      const next=await ask(page),message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,next);
+      await expectAll('bounded neutral history after clears',{
+        cap:!message.includes(JSON.stringify(offers[0]))&&offers.slice(1).every(text=>message.includes(JSON.stringify(text))),
+        noVotes:!message.includes('Feedback on those exact replies:'),
+      });
+      await page.evaluate(()=>mergeRemoteData({deleted_ids:[{id:'manual_1700000000000',at:new Date().toISOString()}],manual_tasks:[],done_ids:[],checked_ids:[],unchecked_ids:[],soon_tasks:[],past_tasks:[],habits:[]}));
+      await reply(page,next,{content:'Which stale input should never appear?'});
+      await page.waitForFunction(()=>!window._focusUIActive&&document.querySelector('.focus-timer')?.hidden);
+      await expectAll('late answer after sync deletion cannot restore feedback',{
+        hidden:await page.$eval('.focus-ask-feedback',e=>e.hidden),
+        noStale:await page.$eval('.focus-ai-timer-btn',e=>!e.textContent.includes('stale input')),
+        notRecorded:await page.evaluate(()=>window.__spoken.length===4),
+        noErrors:!errors.length,
+      });
+      await page.close();ok('15D cap, cleared reactions, real sync deletion and late response fencing');
+    }
+
+    {
+      const {page,errors}=await feedbackFixture();
+      await deliver(page,'Which input reproduces the export crash?');await openFeedback(page);await rate(page,'landed');
+      await page.evaluate(()=>{const now=Date.now;Date.now=()=>now()+26*60*1000;document.dispatchEvent(new Event('visibilitychange'));Date.now=now;});
+      await page.waitForFunction(()=>document.querySelector('.focus-timer').classList.contains('complete'));
+      await expectAll('completed focus session erases the answer and feedback',{
+        hidden:await page.$eval('.focus-ask-feedback',e=>e.hidden),rowsHidden:await page.$eval('#focusAskFeedback',e=>e.hidden),
+        timer:await page.$eval('#focusTime',e=>e.textContent==='again?'&&!e.inert),
+      });
+      await page.evaluate(()=>document.querySelector('.focus-timer-inner').click());const next=await ask(page);
+      const restartedMessage=await page.evaluate(i=>window.__asks[i].body.messages[0].content,next);
+      if(restartedMessage!=='Task: "Fix the export crash"') await fail('restarted session has no old vote',{message:restartedMessage,state:await page.evaluate(()=>({timer:document.querySelector('.focus-timer').className,asks:window.__asks.length}))});
+      await expectAll('restarted session errors',{noErrors:!errors.length});
+      await page.close();ok('15D completion and restart reset the feedback session');
+    }
+
+    {
+      const {page,errors}=await feedbackFixture();
+      const source='work: Review https://example.com/export';
+      await page.evaluate(source=>{Object.assign(manualTasks[0],{text:source,url:'https://example.com/export',focusSessions:3});Today.use('connections').renderManual();},source);
+      const index=await ask(page);
+      await expectAll('Ask uses source text without rendered badges or link labels',{
+        exactSource:await page.evaluate(({index,source})=>window.__asks[index].body.messages[0].content==='Task: '+JSON.stringify(source),{index,source}),
+      });
+      await reply(page,index,{content:'Which export format needs reviewing?'});
+      await page.waitForFunction(()=>!document.querySelector('.focus-ask-feedback').hidden);
+      await page.evaluate(()=>{document.querySelector('.task.focused .task-text').textContent='A different displayed task';});
+      await page.waitForFunction(()=>document.querySelector('.focus-ask-feedback').hidden&&!document.querySelector('.focus-timer').classList.contains('ai-active'));
+      await expectAll('display-only source withdrawal still clears Ask',{noErrors:!errors.length});
+      await page.close();ok('15D source-only payload excludes metadata; displayed task changes still invalidate feedback');
+    }
+
     const question = 'Which book would you like to spend time with?';
 
     {
@@ -1072,7 +1286,7 @@ try {
     }
     ok('habit Ask: no configured AI or touch device makes no request');
 
-    console.log('\nFocus tests passed (post-extraction, 25 check groups).');
+    console.log('\nFocus tests passed (post-extraction, 29 check groups).');
   }
 } finally {
   if (browser) await browser.close();

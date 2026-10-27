@@ -152,6 +152,71 @@ async function captureRecoveryTask(page, text = recoveryText) {
 }
 
 try {
+  // A new task reordered before its first cloud round trip keeps that position
+  // when an older snapshot and a delayed tip arrive in either order.
+  for (const mobile of [false, true]) for (const tipFirst of [false, true]) {
+    const { page, errors } = await recoveryPage(mobile
+      ? { width:390, height:844, isMobile:true, hasTouch:true }
+      : { width:1200, height:900 });
+    await page.evaluate(() => {
+      window.__beforeCapture = JSON.parse(JSON.stringify(manualTasks));
+      window.__setAssistantFetch(() => new Promise(resolve => { window.__releaseReorderTip = resolve; }));
+    });
+    await captureRecoveryTask(page);
+    await page.waitForFunction(() => typeof window.__releaseReorderTip === 'function');
+    const reordered = await page.evaluate(async mobile => {
+      const list = document.getElementById('manualList');
+      const source = list.querySelector(`[data-taskid="${CSS.escape(window.__recoveryTaskId)}"]`);
+      const target = list.querySelector('[data-taskid="task_1"]');
+      const fire = (el, type, props = {}) => {
+        const event = new Event(type, { bubbles:true, cancelable:true });
+        Object.assign(event, props); el.dispatchEvent(event);
+      };
+      if (mobile) {
+        const start = source.getBoundingClientRect(), end = target.getBoundingClientRect();
+        fire(source, 'touchstart', { touches:[{ clientX:start.left + 60, clientY:start.top + 10 }] });
+        await new Promise(resolve => setTimeout(resolve, 420));
+        fire(source, 'touchmove', { touches:[{ clientX:end.left + 60, clientY:end.top + 1 }] });
+        fire(source, 'touchend', { touches:[] });
+      } else {
+        const dataTransfer = new DataTransfer();
+        fire(source, 'mousedown'); fire(source, 'dragstart', { dataTransfer });
+        fire(target, 'dragover', { dataTransfer }); fire(target, 'drop', { dataTransfer });
+        fire(source, 'dragend', { dataTransfer }); fire(document, 'mouseup');
+      }
+      return manualTasks[0]?.id === window.__recoveryTaskId;
+    }, mobile);
+    await expectAll('new task actually reordered', { reordered });
+    const release = async () => {
+      await page.evaluate(reply => window.__releaseReorderTip({ ok:true, json:async () => reply }), recoveryReply);
+      await page.waitForSelector('.task-suggestion:not(.removing)');
+    };
+    if (tipFirst) await release();
+    await page.evaluate(() => mergeRemoteData({
+      manual_tasks:window.__beforeCapture, manual_order_at:'',
+      done_ids:[], deleted_ids:[], unchecked_ids:[], checked_ids:[],
+      soon_tasks:[], past_tasks:[], habits:[],
+    }));
+    if (!tipFirst) await release();
+    const result = await page.evaluate(() => {
+      const expected = [window.__recoveryTaskId, 'task_1', 'task_2'];
+      const same = ids => JSON.stringify(ids) === JSON.stringify(expected);
+      const owner = document.querySelector(`#manualList [data-taskid="${CSS.escape(window.__recoveryTaskId)}"]`);
+      return {
+        memoryOrder: same(manualTasks.map(t => t.id)),
+        persistedOrder: same(JSON.parse(localStorage.getItem('today_manual')).map(t => t.id)),
+        renderedOrder: same([...document.querySelectorAll('#manualList .task[data-taskid]')].map(el => el.dataset.taskid)),
+        oneTipAtOwner: document.querySelectorAll('.task-suggestion:not(.removing)').length === 1 &&
+          owner.nextElementSibling?.classList.contains('task-suggestion'),
+        oneOffer: appMemory.suggestionOutcomes.length === 1,
+      };
+    });
+    await expectAll(`${mobile ? 'touch' : 'desktop'} reorder, ${tipFirst ? 'tip then sync' : 'sync then tip'}`,
+      { ...result, noErrors:errors.length === 0 });
+    await page.close();
+  }
+  ok('actual Add + desktop/touch reorder: an older sync and delayed AI tip preserve the new task position in either arrival order');
+
   // 1. Post-add suggestion waits for viewport delivery, follows its task
   // through reordering/re-rendering, then measures exposure and dismissal.
   // _aiAnalyzeTask debounces 2s, then _aiDoAnalyze calls fetch.

@@ -383,6 +383,15 @@ try {
     mac.dispatchEvent(clickEv);
     const navigated = clickEv.defaultPrevented && location.hash === '#apple-mail-test';
     history.replaceState(null, '', location.pathname + location.search);
+    // Mac + draft (Can, Oct 27): the thread's "Open in Mail ↗" and the draft must not become two identical CTAs.
+    linkFor();
+    const realFetch = window.fetch;
+    window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ content: 'Three works for me.' }) });
+    block.querySelector('.focus-gmail-draft-btn')?.click();
+    for (let i = 0; i < 60 && !block.querySelector('.focus-gmail-draft-btn')?.dataset.mailto; i++) await new Promise(r => setTimeout(r, 10));
+    await new Promise(r => setTimeout(r, 200));
+    const macDraftLabels = [...block.querySelectorAll('.focus-gmail-actions a, .focus-gmail-actions button')].map(el => el.textContent.trim());
+    window.fetch = realFetch;
     setPlatform('Win32');
     const win = linkFor();
     setPlatform('MacIntel');
@@ -391,9 +400,11 @@ try {
     if (realPlatform) Object.defineProperty(navigator, 'platform', realPlatform); else delete navigator.platform;
     localStorage.removeItem('gmail_enrichment_gmail_mail_1');
     block.hidden = true; block.innerHTML = '';
-    return { askedForId, cachedId: cached.messageId, macOut, defaultPrevented: navigated,
+    return { askedForId, cachedId: cached.messageId, macOut, defaultPrevented: navigated, macDraftLabels,
       winText: win?.textContent, winHref: win?.getAttribute('href'), oldText: old?.textContent };
   });
+  assert(JSON.stringify(mailOpen.macDraftLabels) === JSON.stringify(['Show draft in Mail ↗', 'Open in Mail ↗']),
+    'Mac draft shows one draft action and one thread link, never two identical "Open in Mail" CTAs', mailOpen.macDraftLabels);
   assert(mailOpen.askedForId && mailOpen.cachedId === 'CAB+x9#1@mail.gmail.com'
       && mailOpen.macOut.text === 'Open in Mail ↗' && mailOpen.macOut.href === 'message://%3CCAB%2Bx9%231%40mail.gmail.com%3E'
       && !mailOpen.macOut.target && mailOpen.defaultPrevented === true
@@ -711,7 +722,7 @@ try {
 
   const draftOwnership = await page.evaluate(async () => {
     const turn=()=>new Promise(resolve=>setTimeout(resolve,0)),results=[];
-    for(const kind of ['rename','delete','exit','switch','ai-key','account','adopt','control']) {
+    for(const kind of ['rename','delete','exit','switch','ai-key','account','adopt','control','control-copy']) {
       const id='draft_owner_'+kind;__mailOwner(id,'Reply about contract');
       // Populate through the real lookup to bind the renewed connection.
       window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
@@ -726,20 +737,32 @@ try {
       if(kind==='switch') {__mailOwner('draft_next','Reply about invoice');_gmailRenderFocusBlock('draft_next','Reply about invoice');}
       if(kind==='ai-key')localStorage.setItem('today_ai_key_claude','new-fictional-key');
       if(kind==='account')localStorage.setItem('gmail_refresh_token','another-fictional-grant');
+      if(kind==='control-copy')delete document.getElementById('focusGmailBlock').dataset.fromEmail;
       if(kind==='adopt')localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({...__binding('Reply about contract'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'New cache'}));
       release();await turn();await turn();
       const block=document.getElementById('focusGmailBlock');
-      results.push({kind,correct:kind==='control'?block.textContent.includes('Thanks, I will review'):!block.textContent.includes('Thanks, I will review')});
+      results.push({kind,correct:kind.startsWith('control')?block.textContent.includes('Thanks, I will review'):!block.textContent.includes('Thanks, I will review')});
       if(kind==='control'){
+        // With a reply address the draft button becomes the one Mail action (no second link).
+        await new Promise(r=>setTimeout(r,200));
+        const label=button.querySelector('.focus-gmail-draft-label')?.textContent||button.textContent;
+        const ctaLabels=[...block.querySelectorAll('.focus-gmail-actions a, .focus-gmail-actions button')].map(el=>el.textContent.trim());
+        results.push({kind:'show-draft-in-mail',correct:label==='Show draft in Mail ↗'&&/^mailto:/.test(button.dataset.mailto||'')
+          &&decodeURIComponent(button.dataset.mailto).includes('Thanks, I will review the contract.')&&!block.querySelector('.focus-gmail-mailto')
+          &&new Set(ctaLabels).size===ctaLabels.length&&ctaLabels.length===2&&calls===1});
+      }
+      if(kind==='control-copy'){
+        // Without a reply address, Copy stays the useful step and stays bound to its task.
+        await new Promise(r=>setTimeout(r,200));
         let copied=0;Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{copied++;}}});
-        button.click();await turn();button.click();await turn();results.push({kind:'copy-without-regeneration',correct:copied===2&&calls===1});
+        button.click();await turn();button.click();await turn();results.push({kind:'copy-without-regeneration',correct:copied===2&&calls===1&&!button.dataset.mailto});
         manualTasks.find(t=>t.id===id).text='Reply about invoice';button.click();await turn();results.push({kind:'stale-copy-blocked',correct:copied===2});
       }
       Today.use('gmail').closeFocus();localStorage.setItem('today_ai_key_claude','claude-test-key');localStorage.setItem('gmail_refresh_token','refresh-test');
     }
     return results;
   });
-  assert(draftOwnership.every(c=>c.correct),'draft responses and Copy belong to their current task, visit, connection, cache and AI configuration',draftOwnership);
+  assert(draftOwnership.every(c=>c.correct),'draft responses, Show draft in Mail and Copy belong to their current task, visit, connection, cache and AI configuration',draftOwnership);
 
   const lifecycle = await page.evaluate(async () => {
     const turn=()=>new Promise(resolve=>setTimeout(resolve,0));
