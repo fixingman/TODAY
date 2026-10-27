@@ -20,6 +20,7 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 134 | ⏳ Verify | Sunday treats tied let-go reasons as a majority and generalizes missing reasons. | v2.101.1 |
 | 133 | ✅ Verified | A reordered new task jumps to the bottom as sync and an AI tip arrive. | v2.101.0 |
 | 132 | ✅ Verified | Long desktop task edits cannot visually scroll back to the beginning. | v2.100.2 |
 | 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
@@ -44,6 +45,16 @@
 ---
 
 *BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-134 — Let-go reason selection overstates its evidence
+
+**Discovery (15C review, October 27):** the existing builder selects a reason shared by three of six reasoned releases as a majority. Input order decides which tied reason wins. Four relevance reasons out of seven also produce an unsupported claim that competing energy reasons were rare. With three energy reasons, one relevance reason and twenty unreasoned releases, the selected insight generalizes across all releases rather than the four supplied reasons. Fictional controls reproduce these defects; no particular historical reading or quiet Sunday is diagnosed.
+
+**Fix (v2.101.1 dev release):** require >50% of recorded reasons while retaining minimum four reasoned releases and three matching reasons. The aggregate audit uses the same boundary. Scope the four supported insights to reasons given/stated and remove the unsupported rare-competing-reason assertion. Unknown reasons remain unknown; no new coverage threshold. Kind identity, ranks, votes, retirement, cooldowns, material-change reopening, dated caches, existing writer and request count stay unchanged. Existing cached/spoken readings are preserved; the correction applies to new selections.
+
+**Verification:** five new policy regressions and six relevant real-browser assertions fail before the fix. Afterward, all 130 policy checks and the complete About/Sunday browser suite pass in the working tree and against published dev 83aa057f plus only this patch. Coverage includes tie order, valid/narrow majority, plurality, missing reasons in all supported insights, competing candidates, fallback retirement, actual scoped writer input, no raw-record leakage and one existing call. Existing source/readiness/late-response and two-store sync controls still pass. Lint and unchanged payload budgets pass. Evidence: `.context/15c-reason-majority/`. Integrated gate: 53 passed, zero flaky/failed; all five performance runs and payload pass unchanged budgets, recorded in `combined-gate.log` and `integrated-performance.json` in that directory. Real-use usefulness remains iterate.
 
 ---
 

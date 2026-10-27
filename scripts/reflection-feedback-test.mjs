@@ -88,7 +88,10 @@ try{
   await a.$eval('#reflectionFeedbackManage summary',el=>el.scrollIntoView({block:'center'}));
   await a.click('#reflectionFeedbackManage summary');
   await a.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+  // Audit the settled panel, including finite color/fade transitions, without disabling motion or contrast checks.
+  await a.evaluate(async()=>{await document.fonts.ready;await Promise.allSettled(document.getElementById('memoryPanel').getAnimations({subtree:true}).filter(animation=>Number.isFinite(animation.effect.getTiming().iterations)).map(animation=>animation.finished));});
   const accessibility=await a.evaluate(()=>axe.run({include:[['#reflectionMemoryBlock'],['#reflectionFeedbackManage']]},{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
+  if(accessibility.violations.length)console.error(JSON.stringify(accessibility.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})),null,2));
   assert.deepEqual(accessibility.violations.map(v=>v.id),[]);
   await a.click('#reflectionFeedbackManage summary');
   const privacy=await a.evaluate(()=>({general:JSON.stringify(appMemory),requests:window.__requests}));

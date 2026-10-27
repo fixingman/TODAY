@@ -4689,17 +4689,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '369h';
+const DEV_HOURS     = '370h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.101.1': 'Focus opens smoothly on first use, and answers stay readable when the window changes size. Let-go observations distinguish a majority from tied reasons.',
   '2.101.0': 'Focus answers have optional feedback for your next Ask in the same session. New tasks keep their reordered position through sync; Memory and email draft controls are clearer.',
   '2.100.2': 'Long tasks scroll back to the beginning correctly while editing on desktop.',
-  '2.100.1': 'Task splitting recognizes more actions and keeps your wording. Old offers cannot replace changed tasks.',
-
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

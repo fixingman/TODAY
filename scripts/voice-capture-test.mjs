@@ -143,6 +143,7 @@ async function openPage(options = {}) {
     class FakeAudioContext {
       constructor() { this.closed = false; state.audioContexts.push(this); }
       createMediaStreamSource() {
+        this.meter = true;
         return { connect() {}, disconnect() {} };
       }
       createAnalyser() {
@@ -297,7 +298,8 @@ try {
         rejectsSilence: request?.rejectSilence === true,
         speechBitrate: rec?.options?.audioBitsPerSecond === 32000,
         trackStopped: __voiceCaptureTest.streams[0]?.track?.stops === 1,
-        meterClosed: __voiceCaptureTest.audioContexts[0]?.closed === true,
+        meterClosed: __voiceCaptureTest.audioContexts.some(ctx => ctx.meter) && __voiceCaptureTest.audioContexts.filter(ctx => ctx.meter).every(ctx => ctx.closed),
+        soundContextRetained: __voiceCaptureTest.audioContexts.some(ctx => !ctx.meter) && __voiceCaptureTest.audioContexts.filter(ctx => !ctx.meter).every(ctx => !ctx.closed),
         noCloudRecognizer: __voiceCaptureTest.recognitions.length === 0,
         addedOnce: manualTasks.filter(task => task.text === 'Send the revised proposal').length === 1,
       };
@@ -320,7 +322,8 @@ try {
       noRequest: __voiceCaptureTest.requests.length === 0,
       noTask: manualTasks.length === 0,
       trackStopped: __voiceCaptureTest.streams[0]?.track?.stops === 1,
-      meterClosed: __voiceCaptureTest.audioContexts[0]?.closed === true,
+      meterClosed: __voiceCaptureTest.audioContexts.some(ctx => ctx.meter) && __voiceCaptureTest.audioContexts.filter(ctx => ctx.meter).every(ctx => ctx.closed),
+        soundContextRetained: __voiceCaptureTest.audioContexts.some(ctx => !ctx.meter) && __voiceCaptureTest.audioContexts.filter(ctx => !ctx.meter).every(ctx => !ctx.closed),
       honestFeedback: document.querySelector('#voiceCapturePill .vc-label')?.textContent === 'Nothing heard',
     }));
     await expectAll('silent quick capture', { ...result, noErrors: errors.length === 0 });

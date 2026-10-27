@@ -483,6 +483,63 @@ try {
     await page.close();
   }
 
+  // A reason tie cannot win Sunday selection; incomplete reason records stay scoped
+  // in the actual writer payload without changing retirement or request frequency.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const today = _localISO(), about = Today.use('about');
+      const rows = reasons => reasons.map((reason,i) => ({
+        id:'fictional-reason-'+i, date:today, outcome:'letgo', obligation:null, focusSessions:0,
+        ...(reason ? {reason} : {}),
+      }));
+      appMemory.spokenLines = []; appMemory.kindVerdicts = {};
+      appMemory.taskOutcomes = rows([
+        'not_relevant','not_relevant','not_relevant','no_energy','no_energy','no_energy',
+      ]);
+      const tied = about._pickSundayInsight({});
+      const tiedAudit = about._debugSundayAudit(today);
+      appMemory.kindVerdicts['week-shape'] = {retired:today,missed:2};
+      const retiredSilence = about._pickSundayInsight({}) === null;
+      appMemory.kindVerdicts = {};
+      appMemory.taskOutcomes.push(...Array.from({length:3},(_,i) => ({
+        id:'fictional-pull-'+i,date:today,outcome:'soon_pull',obligation:null,focusSessions:0,
+      })));
+      const otherQualified = about._pickSundayInsight({})?.kind === 'soon-pullback';
+      appMemory.taskOutcomes = rows(['no_energy','no_energy','no_energy','not_relevant',...Array(20).fill(null)]);
+      const selected = about._pickSundayInsight({});
+      const realFetch = window.fetch;
+      let body = null, calls = 0;
+      const answer = 'Your stated reasons for letting go have mostly reflected limited energy rather than changing relevance.';
+      window.fetch = (url,options) => {
+        const request = options?.body && JSON.parse(options.body);
+        if (request?.messages?.[0]?.content.startsWith('Verified observation type: letgo-reason\n')) {
+          body = request; calls++;
+          return Promise.resolve({ok:true,json:async () => ({content:answer})});
+        }
+        return realFetch(url,options);
+      };
+      const text = await about._fetchWeekReflection({insight:selected});
+      window.fetch = realFetch;
+      const prompt = body?.messages?.[0]?.content || '';
+      return {
+        tieUsesExistingFallback:tied?.kind === 'week-shape',
+        auditAgrees:tiedAudit.selectedKind === tied?.kind
+          && tiedAudit.thresholds.find(row => row.kind === 'letgo-reason').met === false,
+        retiredSilence, otherQualified,
+        scopedInsight:selected?.kind === 'letgo-reason' && /stated reasons/i.test(selected.insight),
+        scopedWriterInput:/stated reasons/i.test(prompt) && !/What leaves your list/i.test(prompt),
+        noRawRecords:!prompt.includes('fictional-') && !prompt.includes('24') && !prompt.includes('reasonedLetgos'),
+        oneExistingCall:calls === 1,
+        returnedSupportedLine:text === answer,
+        kindPreserved:appMemory.spokenLines.some(line => line.kind === 'letgo-reason' && line.policy === window._weekReflectionPolicy),
+      };
+    });
+    await expectAll('Sunday reason majority and incomplete evidence', { ...result, noErrors:errors.length === 0 });
+    ok('Sunday reason selection: strict majority, truthful scoped writer input, audit parity and existing retirement/fallback behavior');
+    await page.close();
+  }
+
   // 14. Sunday prompt receives one verified observation, not lifetime memory or
   //     a bag of unrelated completed-task titles.
   {

@@ -124,6 +124,65 @@ test('letgo-reason is silent when reasons are evenly spread', () =>
     out({ outcome: 'letgo', reason: 'replaced' }),
   ], TODAY), 'letgo-reason'));
 
+const reasonRows = reasons => reasons.map((reason, i) => ({
+  id: 'reason-fixture-' + i, date: ago(3), outcome: 'letgo', obligation: null, focusSessions: 0,
+  ...(reason ? { reason } : {}),
+}));
+const tiedReasons = reasonRows([
+  'not_relevant', 'not_relevant', 'not_relevant', 'no_energy', 'no_energy', 'no_energy',
+]);
+test('a three-three reason tie cannot become a majority in either input order', () =>
+  [tiedReasons, [...tiedReasons].reverse()].every(rows =>
+    !find(_buildOutcomeCandidates(rows, TODAY), 'letgo-reason')));
+
+test('reason-majority audit agrees with strict selection at the boundary', () => {
+  return [[3,3,false], [2,2,false], [3,2,true], [4,3,true], [2,1,false]].every(([a,b,expected]) => {
+    const outcomes = reasonRows([...Array(a).fill('not_relevant'), ...Array(b).fill('no_energy')]);
+    const audit = _observationPoolAudit({ outcomes, todayISO:TODAY }, 'sunday', {});
+    return !!find(_buildOutcomeCandidates(outcomes, TODAY), 'letgo-reason') === expected
+      && audit.thresholds.find(row => row.kind === 'letgo-reason').met === expected;
+  });
+});
+
+test('a plurality below half cannot become a majority', () =>
+  !find(_buildOutcomeCandidates(reasonRows([
+    'not_relevant','not_relevant','not_relevant','no_energy','no_energy','lost_interest','lost_interest',
+  ]), TODAY), 'letgo-reason'));
+
+test('rejecting a tied reason leaves another qualified Sunday relationship eligible', () => {
+  const outcomes = tiedReasons.concat(Array.from({length:3},(_,i) => ({
+    id:'pull-fixture-'+i, date:ago(3), outcome:'soon_pull', obligation:null, focusSessions:0,
+  })));
+  const audit = _observationPoolAudit({ outcomes, todayISO:TODAY }, 'sunday', {});
+  return audit.selectedKind === 'soon-pullback'
+    && !audit.candidates.some(row => row.kind === 'letgo-reason');
+});
+
+test('missing reasons stay unknown for every supported reason insight', () =>
+  ['not_relevant','no_energy','lost_interest','replaced'].every(reason => {
+    const other = reason === 'no_energy' ? 'not_relevant' : 'no_energy';
+    const c = find(_buildOutcomeCandidates(reasonRows([
+      reason,reason,reason,other,...Array(20).fill(null),
+    ]), TODAY), 'letgo-reason');
+    return !!c && c.signal.reasonedLetgos === 4 && c.signal.allLetgos === 24
+      && /reasons you've given|stated reasons/i.test(c.insight)
+      && _weekReflectionTextIsGrounded(c.insight,c);
+  }));
+
+test('a narrow reason majority cannot describe competing reasons as rare', () => {
+  const c = find(_buildOutcomeCandidates(reasonRows([
+    ...Array(4).fill('not_relevant'),...Array(3).fill('no_energy'),
+  ]), TODAY), 'letgo-reason');
+  return !!c && !/rarely/i.test(c.insight);
+});
+
+test('corrected reason wording preserves retirement and missed-reading cooldowns', () => {
+  const c = find(_buildOutcomeCandidates(letgos, TODAY), 'letgo-reason');
+  return !!c
+    && /retired/.test(_observationGateExplain(c,{todayISO:TODAY,kindVerdicts:{'letgo-reason':{retired:ago(3)}}}))
+    && _observationGateExplain(c,{todayISO:TODAY,spokenLines:[{date:ago(27),surface:'Sunday reflection',kind:'letgo-reason',reaction:'missed'}]}) !== null;
+});
+
 // ── soon-pullback ───────────────────────────────────────────────────────────
 test('soon-pullback fires at 3 pull-backs', () =>
   !!find(_buildOutcomeCandidates(

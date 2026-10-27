@@ -2,7 +2,7 @@
 (function() {
 'use strict';
 function create(timerEl, answer, hooks) {
-  let scope = null, replies = [], shown = null, undo = null, sequence = 0, poll = null;
+  let scope = null, replies = [], shown = null, undo = null, sequence = 0, poll = null, delivered = null, scrollFrame = 0;
   const fields = ['id','habit','name','source','display','date','day','provider','key'];
   const same = (a,b) => a && b && fields.every(key => a[key] === b[key]);
   const toggle = document.createElement('button');
@@ -34,6 +34,7 @@ function create(timerEl, answer, hooks) {
   }
   function reset(clearHistory = false) {
     const focused = panel.contains(document.activeElement) || document.activeElement === toggle;
+    cancelAnimationFrame(scrollFrame); scrollFrame = 0; delivered = null;
     shown = null; undo = null; toggle.hidden = true; panel.hidden = true;
     toggle.setAttribute('aria-expanded','false'); timerEl.classList.remove('has-focus-answer');
     if (clearHistory) { scope = null; replies = []; stop(); }
@@ -74,9 +75,11 @@ function create(timerEl, answer, hooks) {
   });
   Today.ui.register('click','focus-ask.clear',(event,button) => { event.stopPropagation(); if (!button.hidden && !panel.hidden && shown && panel.contains(button) && button.dataset.reply === String(shown.row.id)) change(null); });
   window.addEventListener('storage',reconcile);
-  new ResizeObserver(() => {
+  const layout = new ResizeObserver(() => {
     if (!toggle.hidden) timerEl.style.setProperty('--focus-feedback-width',toggle.getBoundingClientRect().width + 'px');
-  }).observe(toggle);
+    if (delivered && hooks.current(delivered.request)) scroll(delivered.request,delivered.text);
+  });
+  layout.observe(toggle); layout.observe(answer);
   function build(request) {
     if (!same(scope,request)) { replies = []; scope = Object.fromEntries(fields.map(key => [key,request[key]])); }
     watch();
@@ -108,15 +111,17 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     return {messages,systemPrompt};
   }
   function scroll(request,q) {
-        // Scroll long questions rather than truncating with ellipsis.
-        // rAF lets the browser compute layout with the actual question text
-        // before we measure overflow. Guard: skip if AI state was already cleared.
-        requestAnimationFrame(() => {
+        // Recheck the current answer after layout; viewport and font metrics can settle later.
+        cancelAnimationFrame(scrollFrame);
+        scrollFrame = requestAnimationFrame(() => {
+          scrollFrame = 0;
           if (!answer || !hooks.current(request)) return;
           if (answer.textContent !== q) return;
-          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-          const overflow = answer.scrollWidth - answer.clientWidth;
-          if (overflow <= 4) return;
+          const previous = answer.querySelector('.focus-q-text');
+          const overflow = (previous ? previous.scrollWidth : answer.scrollWidth) - answer.clientWidth;
+          previous?.getAnimations().forEach(animation => animation.cancel());
+          answer.textContent = q; answer.classList.remove('question-scroll');
+          if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || overflow <= 4) return;
           answer.innerHTML = `<span class="focus-q-text">${esc(q)}</span>`;
           answer.classList.add('question-scroll');
           const span = answer.querySelector('.focus-q-text');
@@ -135,6 +140,7 @@ Stay with the task's own action, object or constraint. No mood or motivation che
   function offered(request,text) {
     reset();
     if (!hooks.current(request)) return;
+    delivered = {request,text};
     scroll(request,text);
     if (!same(scope,request) || text.length > 800) return;
     const row = {id:++sequence,text,reaction:null}; replies = replies.concat(row).slice(-3);

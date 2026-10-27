@@ -32,6 +32,7 @@ const SUITE = [
   'console-probe-test',
   'ci-tooling-test',
   'performance-harness-test',
+  'sound-test',
   'zones-test',
   'task-actions-test',
   'task-bounce-test',

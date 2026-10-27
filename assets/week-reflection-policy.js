@@ -31,10 +31,10 @@
   // reading. Keeping this in policy code means the model phrases meaning selected
   // by the product instead of trying to discover meaning from a table of counts.
   const _LETGO_INSIGHT = {
-    not_relevant: 'Letting go has mostly kept your commitments current; it has rarely been about low energy or lost interest.',
-    no_energy: 'What leaves your list has mostly reflected limited energy, rather than changing relevance or replacement.',
-    lost_interest: 'What leaves your list has mostly reflected lost interest, rather than limited energy or replacement.',
-    replaced: 'Letting go has mostly made room for something else, rather than reflecting low energy or lost interest.',
+    not_relevant: 'In the reasons you\'ve given, letting go has mostly kept commitments current rather than reflected low energy or lost interest.',
+    no_energy: 'Your stated reasons for letting go have mostly reflected limited energy, rather than changing relevance or replacement.',
+    lost_interest: 'Your stated reasons for letting go have mostly reflected lost interest, rather than limited energy or replacement.',
+    replaced: 'In the reasons you\'ve given, letting go has mostly made room for something else, rather than reflected low energy.',
   };
 
   function _outcomesWithin(outcomes, dayCount, todayISO) {
@@ -110,7 +110,7 @@
       const tally = {};
       for (const e of letgos) tally[e.reason] = (tally[e.reason] || 0) + 1;
       const [topReason, topCount] = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
-      if (topCount >= 3 && topCount / letgos.length >= 0.5) {
+      if (topCount >= 3 && topCount / letgos.length > 0.5) {
         const label  = _LETGO_LABELS[topReason] || String(topReason).replace(/_/g, ' ');
         candidates.push({
           kind: 'letgo-reason',
@@ -479,8 +479,8 @@
       {
         kind: 'letgo-reason',
         met: reasonedLetgos.length >= 4 && dominantReason[1] >= 3
-          && dominantReason[1] / reasonedLetgos.length >= 0.5,
-        requires: '4 reasoned let-gos; dominant reason >=3 and >=50%',
+          && dominantReason[1] / reasonedLetgos.length > 0.5,
+        requires: '4 reasoned let-gos; dominant reason >=3 and >50%',
         observed: {
           reasonedLetgos: reasonedLetgos.length,
           dominantReason: dominantReason[0], dominantCount: dominantReason[1],

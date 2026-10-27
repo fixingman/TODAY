@@ -17,9 +17,8 @@
 //   habitDone  — heavier three-step fall. Habit done. 520→400→300 Hz, 320ms.
 //   chime      — low organic growl + wobble. Session end. Two osc, ~1.4s.
 
-// Persistent AudioContext — created once on first user gesture, kept alive.
-// A context created during a user interaction survives background tabs.
-// Creating a fresh context when the tab is hidden always fails.
+// Prepare the shared context before input; autoplay policy keeps it suspended.
+// The existing gesture/sound paths resume it, including after backgrounding.
 let _sharedAudioCtx = null;
 
 function _getAudioCtx() {
@@ -30,6 +29,10 @@ function _getAudioCtx() {
     return _sharedAudioCtx;
   } catch(e) { return null; }
 }
+
+// Avoid cold, running-context construction on the first pointer/key event.
+// A browser that refuses preparation still retries through _getAudioCtx on use.
+_getAudioCtx();
 
 // ─── Haptic feedback ─────────────────────────────────────────────────────────
 // Unified haptic helper. Works on:
@@ -100,14 +103,11 @@ function _primeAudio() {
   if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
 }
 
-// Pre-warm AudioContext on the very first user interaction with the page —
-// before the task list is visible. This avoids a 200-600ms main-thread block
-// on mobile when the user first taps a task (cold AudioContext creation).
-// We use pointerdown on the splash screen since that's the first touch.
+// Unlock the prepared context on the first real gesture; never autoplay tones.
+// Keep both touch and pointer support for the existing browser fallback.
 (function _preWarmAudio() {
   function _warm() {
-    _getAudioCtx(); // creates context
-    _primeAudio();  // calls resume() — hardware init happens now, not on first task tap
+    _primeAudio();
     document.removeEventListener('pointerdown', _warm);
     document.removeEventListener('touchstart', _warm);
   }

@@ -28,7 +28,7 @@ Pattern reference: [Anthropic's evaluator-optimizer notebook](https://github.com
 
 ## Loop 1: ordinary morning nudges
 
-**v2.98.1 prepared:** the ordinary writer reads up to two landed and two missed prior ordinary lines from fourteen local calendar days. Existing `spokenLines` supplies the current synced votes; unlabelled repetition history remains unchanged. A failed or hanging optional helper falls back to the old three-miss context. Pool/Sunday cooldown and retirement remain separate.
+**v2.98.1 foundation published to dev/master:** the ordinary writer reads up to two landed and two missed prior ordinary lines from fourteen local calendar days. Existing `spokenLines` supplies the current synced votes; unlabelled repetition history remains unchanged. A failed or hanging optional helper falls back to the old three-miss context. Pool/Sunday cooldown and retirement remain separate.
 
 **Feedback behavior:**
 
@@ -69,7 +69,7 @@ The shipped feeling loop is incomplete as a writing-personalization loop. Can ex
 
 ### 15B implementation — approved optional wording feedback (October 27)
 
-Can approved adding optional **wording** feedback inside the existing reaction. Local v2.100.0 implements safety, baseline clarity and that narrow personal-writing mechanism. The earlier whole-vote/content-free-projection feasibility objection remains valid; this adds an explicit wording signal rather than assigning a cause to landed/not-really.
+Can approved adding optional **wording** feedback inside the existing reaction. v2.100.0, now included in dev/master, implements safety, baseline clarity and that narrow personal-writing mechanism. The earlier whole-vote/content-free-projection feasibility objection remains valid; this adds an explicit wording signal rather than assigning a cause to landed/not-really.
 
 `reflected-days-v2` starts “In your evening reflections,” and compares explicit “on days … than on days …”. It names a task’s recorded focus session without claiming it happened that day. The person/feeling phrase can use everyday language while population, ordered action clauses, frequency comparison, one feeling and the 40-word bound remain enforced. Stable claim strings retain the original contexts; accepted legacy prose can be reused. Updating copy cannot reset a miss, manufacture an evening or trigger cosmetic regeneration.
 
@@ -152,9 +152,9 @@ Outputs use new paths and restrictive permissions. The review command exits nonz
 | Development evaluator, fictional rubric fixtures and transport contracts | Implemented; the default test gate covers contracts. No live semantic/usefulness certification. |
 | Independent feedback/instruction comparison and evaluator calibration/revision | Completed and retained, including failures and false positives. Do not request another generic packet or call the combined writer a winner. |
 | Evidence-bound feeling reaction/reuse/withholding loop | Shipped v2.98.0; installed/real-use value remains independently verifiable. Does not learn writing style. |
-| Ordinary two-landed/two-missed context with existing instruction | Implemented locally v2.98.1; release/performance gate remains open. Not deployed. |
-| Explicit feeling wording feedback | Approved October 27 and implemented locally v2.100.0; next eligible writer reads a bounded instruction, with historical prose private. Real-use writing quality remains open. |
-| Broader personal style, exact task/habit Ask feedback and enrichment adaptation | Broader mechanisms remain open under #15B/15D/15E. The optional wording loop is a narrow increment, not completion of the full 3.0.0 vision. |
+| Ordinary two-landed/two-missed context with existing instruction | Implemented in v2.98.1 and included in dev/master. Installed next-use/delivery and writing quality remain open; the retained cold-audio performance failure is separate. |
+| Explicit feeling wording feedback | Approved October 27 and implemented in v2.100.0, included in dev/master; next eligible writer reads a bounded instruction, with historical prose private. Real-use writing quality remains open. |
+| Focus Ask and broader adaptation | Exact task/habit answer feedback is implemented in v2.101.0 for the active session only. Broader personal style, cross-session Focus scope and enrichment adaptation remain open under #15B/15D/15E. Current bounded loops do not complete the full 3.0.0 vision. |
 | General automatic evaluator revision | Parked after false alarms and weakened acceptable prose. Future consideration needs a concrete defect, held-out acceptable controls, independent relationship cases, a fixed request/time cap and safe fallback; not a dependency of ordinary adaptation. |
 
 ### Required checks for the runtime steps

@@ -719,20 +719,22 @@ try {
       const routine=await signalFor({id:'manual_'+(now-9*D),text:'Draft the quarterly letter',focusSessions:4,lastActive:now-3*D});
       await routine.page.close();
       const returned=await signalFor({id:'manual_'+(now-9*D),text:'Await Maya "signed" contract; follow up Oct 30',focusSessions:0,revived:1,returnedFrom:'soon'});
-      const sent=await returned.page.evaluate(async()=>{
+      await returned.page.evaluate(()=>{
         manualTasks.push({id:'manual_other',text:'Unrelated private task marker'});
         appMemory.preferences={...appMemory.preferences,peakHour:new Date().getHours(),dragKeywords:['Maya','Maya']};
         appMemory.patterns.letgoReasons={no_energy:10};
         appMemory.memory={semantic:[{id:'private',text:'Private confirmed inference marker',status:'confirmed'}],procedural:[],episodic:[]};
-        let body=null;const original=window.fetch;
+        window.__taskScopeBody=null;const original=window.fetch;
         window.fetch=async(url,options)=>{
           if(!String(url).includes('ai-assist'))return original(url,options);
-          body=JSON.parse(options.body);return {ok:true,json:async()=>({content:'The agreed follow-up date is enough for this task.'})};
+          const body=JSON.parse(options.body);
+          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
+          window.__taskScopeBody=body;return {ok:true,json:async()=>({content:'The agreed follow-up date is enough for this task.'})};
         };
         document.querySelector('.focus-ai-timer-btn').click();
-        await new Promise(requestAnimationFrame);
-        return body;
       });
+      await returned.page.waitForFunction(()=>window.__taskScopeBody,{timeout:3000});
+      const sent=await returned.page.evaluate(()=>window.__taskScopeBody);
       const message=sent?.messages?.[0]?.content||'';
       await expectAll('task Ask scope and neutral availability',{
         routineQuiet:!routine.lit,returnedQuiet:!returned.lit,
@@ -798,7 +800,9 @@ try {
         const original=window.fetch;
         window.fetch=(url,options)=>{
           if(!String(url).includes('ai-assist'))return original(url,options);
-          return new Promise((resolve,reject)=>window.__asks.push({body:JSON.parse(options.body),signal:options.signal,reject,
+          const body=JSON.parse(options.body);
+          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
+          return new Promise((resolve,reject)=>window.__asks.push({body,signal:options.signal,reject,
             reply:(data,mode)=>resolve({ok:mode!=='http',status:mode==='http'?503:200,json:()=>mode==='json'?Promise.reject(new SyntaxError('Malformed fixture')):Promise.resolve(data)})}));
         };
       });
@@ -815,7 +819,8 @@ try {
         }),
         noAutoRetry:await page.evaluate(()=>window.__asks.length===1&&window.__spoken.length===0),
       });
-      await page.click('#focusTime');
+      await page.focus('#focusTime');await page.keyboard.press('Space');
+      await page.waitForFunction(()=>JSON.parse(localStorage.getItem('today_focus_session')).paused);
       const before=await page.evaluate(()=>({requests:window.__asks.length,session:localStorage.getItem('today_focus_session')}));
       const valid=['Which input reproduces the export crash?', 'Restore a small folder and check the photos before the full restore.', 'The named follow-up date is enough for this task.'];
       for(const text of valid){
@@ -879,7 +884,9 @@ try {
         const original=window.fetch;
         window.fetch=(url,options)=>{
           if(!String(url).includes('ai-assist'))return original(url,options);
-          return new Promise((resolve,reject)=>window.__asks.push({body:JSON.parse(options.body),signal:options.signal,reject,
+          const body=JSON.parse(options.body);
+          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
+          return new Promise((resolve,reject)=>window.__asks.push({body,signal:options.signal,reject,
             reply:(data,mode)=>resolve({ok:mode!=='http',status:mode==='http'?503:200,json:()=>Promise.resolve(data)})}));
         };
       });
@@ -1004,6 +1011,20 @@ try {
       await mkdir(join(ROOT,'.context/15d-focus-feedback'),{recursive:true});
       const clip = await page.$eval('.task.focused',e=>{const r=e.getBoundingClientRect();return {x:r.x-12,y:r.y-12,width:r.width+24,height:190};});
       await page.screenshot({path:join(ROOT,'.context/15d-focus-feedback/implemented-desktop.png'),clip});
+      // A reply that fitted before resize must become scrollable after narrowing, without another Ask.
+      await page.setViewport({width:320,height:800});
+      await page.waitForFunction(()=>innerWidth===320&&document.querySelector('.focus-ai-timer-btn').clientWidth<250);
+      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      await expectAll('existing answer adapts to a narrower viewport',{
+        scrolls:await page.$eval('.focus-ai-timer-btn',e=>e.classList.contains('question-scroll')),
+        sameReply:await page.$eval('.focus-ai-timer-btn',e=>e.textContent===e.getAttribute('aria-label')),
+        ratingKept:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
+      });
+      await page.setViewport({width:1280,height:900});
+      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').clientWidth>400);
+      await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      await expectAll('widening stops unnecessary answer motion',{fits:await page.$eval('.focus-ai-timer-btn',e=>!e.classList.contains('question-scroll'))});
+
       await dismiss(page);
       await expectAll('clicking the answer restores the whole timer',{
         feedbackHidden:await page.$eval('.focus-ask-feedback',e=>e.hidden),
