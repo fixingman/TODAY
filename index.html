@@ -443,6 +443,11 @@
     /* Question text longer than the bar: clip instead of ellipsis, inner span scrolls */
     .focus-timer.ai-active .focus-ai-timer-btn.question-scroll { text-overflow: clip; }
     .focus-q-text { display: inline-block; }
+    /* Fade scrolling answer text before the feedback button — softer than a hard clip */
+    .focus-timer.has-focus-answer .focus-ai-timer-btn.question-scroll {
+      -webkit-mask-image: linear-gradient(to right, black calc(100% - var(--space-8)), transparent 100%);
+      mask-image: linear-gradient(to right, black calc(100% - var(--space-8)), transparent 100%);
+    }
 
   } /* end @media (hover: hover) */
 
@@ -4248,12 +4253,12 @@
   .memory-type-header .memory-item-btn {
     margin-left: auto;
   }
-  /* Extra items (revealed by show-more) fade and slide in */
+  /* Newly revealed Memory rows and opened zone lists fade and slide in. */
   @keyframes memory-item-in {
     from { opacity: 0; transform: translateY(-3px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  .memory-item--extra {
+  .memory-item--extra, .zone-list:not([hidden]) {
     animation: memory-item-in var(--dur-slow) var(--ease-out) both;
   }
 
@@ -4696,9 +4701,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.101.4': 'Scrolling focus answers fade out before the feedback button instead of cutting off.',
+  '2.101.3': 'Expanded lists fade gently into view in Memory, Soon and Past.',
   '2.101.2': 'Focus answers remain readable when the window narrows.',
-  '2.101.1': 'Focus opens smoothly on first use, and answers stay readable when the window changes size. Let-go observations distinguish a majority from tied reasons.',
-  '2.101.0': 'Focus answers have optional feedback for your next Ask in the same session. New tasks keep their reordered position through sync; Memory and email draft controls are clearer.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
