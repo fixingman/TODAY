@@ -143,7 +143,8 @@ If testing **task or habit reorder** changes:
 
 If testing **task actions** (add, copy, complete, delete, undo, or stats/favicon):
 - [ ] Run `node scripts/task-actions-test.mjs` first — it covers direct mutations,
-      delegated row controls, focus interception, feedback, accessibility state, and favicon refresh.
+      delegated row controls, long desktop Delete → Edit scrolling and leading-text saves,
+      focus interception, feedback, accessibility state, and favicon refresh.
 
 If testing **zone** changes:
 - [ ] Triage bar appears 8pm–midnight

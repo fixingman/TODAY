@@ -6,7 +6,7 @@
 //
 // Run from repo root:
 //   node scripts/task-actions-test.mjs --pre-extraction   # pre-extraction baseline
-//   node scripts/task-actions-test.mjs                    # post-extraction (11 tests)
+//   node scripts/task-actions-test.mjs                    # post-extraction (12 tests)
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -148,6 +148,50 @@ try {
       });
       await expectAll('Unicode task input and addManual', { ...result, noErrors: errors.length === 0 });
       ok('task input: emoji graphemes render intact and persist through addManual');
+      await page.close();
+    }
+
+    // Long edits must show the beginning when the native input scrolls back there,
+    // even while the caret remains at the end (e.g. horizontal scrolling).
+    {
+      const text = 'Beginning of the task: ' + 'review the detailed arrangements and confirm the delivery '.repeat(7).trim();
+      const { page, errors } = await openPage({
+        today_manual: JSON.stringify([{ id: 'task_1', text }, { id: 'task_2', text: 'Second task' }]),
+      });
+      await page.click('.task[data-taskid="task_1"] .task-delete');
+      await page.waitForSelector('#undoToast.show');
+      await page.click('#undoEditBtn');
+      await page.keyboard.press('End');
+      const result = await page.evaluate(async () => {
+        const input = document.getElementById('newTask');
+        input.setSelectionRange(input.value.length, input.value.length);
+        input.scrollLeft = input.scrollWidth;
+        input.dispatchEvent(new Event('scroll'));
+        const endOffset = new DOMMatrix(getComputedStyle(document.getElementById('newTaskMirrorContent')).transform).m41;
+        input.scrollLeft = 0;
+        input.dispatchEvent(new Event('scroll'));
+        await new Promise(requestAnimationFrame);
+        const mirror = document.getElementById('newTaskMirrorContent');
+        return {
+          longEnoughToScroll: input.scrollWidth > input.clientWidth,
+          endWasVisible: endOffset < 0,
+          nativeAtBeginning: input.scrollLeft === 0,
+          mirrorAtBeginning: new DOMMatrix(getComputedStyle(mirror).transform).m41 === 0,
+          caretStillAtEnd: input.selectionEnd === input.value.length,
+        };
+      });
+      await expectAll('long desktop edit scroll', { ...result, noErrors: errors.length === 0 });
+      await page.evaluate(() => document.getElementById('newTask').setSelectionRange(0, 0));
+      await page.keyboard.type('Updated: ');
+      await expectAll('long edit caret reaches beginning', await page.evaluate(expected => ({
+        leadingEdit: document.getElementById('newTask').value === 'Updated: ' + expected,
+      }), text));
+      await page.keyboard.press('Enter');
+      await expectAll('long edit saves beginning', await page.evaluate(expected => ({
+        saved: manualTasks.some(task => task.text === 'Updated: ' + expected),
+        cleared: document.getElementById('newTask').value === '',
+      }), text));
+      ok('long edit: native horizontal scroll reaches the beginning and leading changes save');
       await page.close();
     }
 
@@ -338,7 +382,7 @@ try {
       ok('task-actions module: row controls + favicon private, 13 exports unchanged, precached');
     }
 
-    console.log('\nTask-actions tests passed (post-extraction, 11 tests).');
+    console.log('\nTask-actions tests passed (post-extraction, 12 tests).');
   }
 } finally {
   if (browser) await browser.close();

@@ -20,6 +20,7 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 132 | ⏳ Verify | Long desktop task edits cannot visually scroll back to the beginning. | v2.100.2 |
 | 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
 | 130 | ✅ Verified | Completed tasks can reach other devices late after a failed read or overlapping write. | v2.98.6 |
 | 129 | ✅ Verified | Split suggestions disappear after a temporary failure or offline capture. | v2.99.1 |
@@ -42,6 +43,18 @@
 ---
 
 *BUG-001–087 (all) and BUG-088–119 (verified ✅) → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-132 — Long desktop task edits stay visually scrolled toward the end
+
+**Report (Can, October 27):** while editing a long task in the desktop entry field, scrolling back to its beginning does not appear to work.
+
+**Reproduced:** the real Delete → Edit flow fills the native input with a long fictional task. Scroll to the end, retain the caret there and scroll the input back to zero: native input is at the beginning, but `newTaskMirrorContent` still has a negative horizontal translation. `_syncScroll()` interprets every zero offset as iOS's missing scroll position and calculates an end-of-text offset on desktop too.
+
+**Fix (v2.100.2 dev release):** restrict the existing canvas fallback to iOS, including touch-capable iPad desktop identity. Desktop always uses the native offset, including zero. No task data, save, selection, animation or sync change.
+
+**Verification:** the new `task-actions-test` regression fails before the fix and passes after; it uses actual Delete/Edit controls, verifies start/end overlay alignment with the caret retained at the end, and types/saves a leading edit. All 12 task-action checks, 36 bounce wiring checks, smoke, service-worker, design lint and payload budgets pass. Evidence: `.context/task-edit-scroll-before.log`, `.context/task-edit-scroll-after.log`, `.context/task-edit-*.log`. Desktop installed verification remains open; this is not a physical iOS verification.
 
 ---
 

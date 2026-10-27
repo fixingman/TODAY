@@ -76,6 +76,7 @@ Fixed at bottom, outside `.app` container.
 
 - Input: full width minus button
 - The bounce mirror preserves the native input for focus, accessibility, IME, and storage. Its visual spans are split by Unicode grapheme cluster—not UTF-16 index—so emoji, modifiers, flags, and joined sequences shape intact.
+- Horizontal scrolling: the mirror follows native desktop `scrollLeft`, including zero; only iOS uses the canvas/caret fallback when its native offset is unavailable (BUG-132).
 - Enter: always adds task
 - Voice Note and Meeting buttons appear beside the input when those capabilities are available. Inline suggestions and the focus companion remain the task-level AI surfaces; the unreachable legacy AI sheet was fully removed in v2.83.1.
 

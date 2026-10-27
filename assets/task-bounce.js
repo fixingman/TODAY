@@ -26,11 +26,7 @@
   let _prev      = '';
   let _composing = false;
 
-  // JavaScript string indexes address UTF-16 code units, not visible
-  // characters. Splitting on those indexes separates emoji surrogate pairs
-  // (and can also separate skin tones, flags, or ZWJ sequences) across spans,
-  // which prevents the browser from shaping them as one glyph. Segment the
-  // mirror and its insertion math by grapheme cluster instead.
+  // Segment graphemes so emoji, skin tones, flags and ZWJ sequences stay intact.
   const _segmenter = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
     ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
     : null;
@@ -46,13 +42,15 @@
   // input.scrollLeft = 0 regardless of actual scroll position.
   const _canvas = document.createElement('canvas');
   const _ctx    = _canvas.getContext('2d');
+  const _iosScrollFallback = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   // Translate mirrorContent to match the input's horizontal scroll offset so
   // the visible mirror window stays aligned with the caret position.
   // Desktop: native scrollLeft (fast). iOS: canvas measurement fallback.
   function _syncScroll() {
     let offset = input.scrollLeft;
-    if (!offset) {
+    if (!offset && _iosScrollFallback) {
       _ctx.font  = getComputedStyle(input).font;
       const cursor   = input.selectionEnd ?? input.value.length;
       const textW    = _ctx.measureText(input.value.substring(0, cursor)).width;
