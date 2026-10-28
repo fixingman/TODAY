@@ -679,6 +679,7 @@ try {
   });
   assert(!wordingA11y.violations.length && wordingA11y.fit && wordingA11y.targets && wordingA11y.unclipped,
     'expanded wording controls pass settled axe, native keyboard use and 320px targets/reflow',wordingA11y);
+  await mkdir(join(ROOT,'.context/15e-adaptation'),{recursive:true});
   await page.screenshot({path:join(ROOT,'.context/15e-adaptation/implemented-wording-320.png')});
   await (await page.$('#focusAgentBlock')).screenshot({path:join(ROOT,'.context/15e-adaptation/implemented-wording-card-320.png')});
   await page.setViewport({width:1280,height:900});

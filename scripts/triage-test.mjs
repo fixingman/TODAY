@@ -215,7 +215,7 @@ try {
       return { noReplayDrop: tops.length > 5 && drops === 0 };
     });
     await page.keyboard.press('Escape');
-    await new Promise(r => setTimeout(r, 450));
+    await page.waitForFunction(() => document.getElementById('triageOverlay').hidden, { timeout: 5000 });
     const closed = await page.evaluate(() => ({
       openingClassCleared: !document.getElementById('triagePanel').classList.contains('triage-morph-opening'),
       barBack: document.getElementById('triageBar').classList.contains('visible'),

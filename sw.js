@@ -4,7 +4,7 @@
 // This is the ONE version value still hand-synced — a SW can't import APP_VERSION from
 // index.html (separate context, no build step). scripts/smoke-test.mjs asserts it matches
 // `today-v${APP_VERSION}` and fails the pre-commit gate on drift.
-const CACHE_VERSION  = 'today-v2.103.0';
+const CACHE_VERSION  = 'today-v2.103.2';
 const CACHE_APP_SHELL = [
   '/',
   '/poem.html',
@@ -138,13 +138,14 @@ self.addEventListener('message', event => {
 self.addEventListener('install', event => {
   console.log('[SW] Installing version:', CACHE_VERSION);
   event.waitUntil(
-    caches.open(CACHE_VERSION).then(cache => {
+    caches.open(CACHE_VERSION).then(async cache => {
       // Cache offline fallback immediately — always available, even cold start
-      cache.put('/__offline', new Response(OFFLINE_HTML, {
+      await cache.put('/__offline', new Response(OFFLINE_HTML, {
         headers: { 'Content-Type': 'text/html; charset=utf-8' }
       }));
-      // Attempt to cache app shell — may fail if offline during SW install, that's fine
-      return cache.addAll(CACHE_APP_SHELL).catch(() => { /* offline at install time — ok */ });
+      // A partial update must not replace the complete offline worker.
+      try { await cache.addAll(CACHE_APP_SHELL); }
+      catch (error) { await caches.delete(CACHE_VERSION); throw error; }
     })
   );
   // skipWaiting is triggered by the client via postMessage('SKIP_WAITING')

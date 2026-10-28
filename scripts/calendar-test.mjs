@@ -249,6 +249,8 @@ try {
   browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     headless: 'new', args: ['--no-first-run', '--disable-extensions'] });
   const page = await browser.newPage();
+  const fixtureNow = Date.UTC(2026,9,28,12);
+  await page.emulateTimezone('UTC');
   await page.setViewport({ width: 390, height: 844 });
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   let calendarReads = 0;
@@ -261,19 +263,24 @@ try {
       calendarReads++;
       return request.respond({ status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ items: [{
         summary: 'PRIVATE_TEST_EVENT', description: 'PRIVATE_TEST_DESCRIPTION',
-        start: { dateTime: new Date(Date.now() + 600000).toISOString() },
-        end: { dateTime: new Date(Date.now() + 3600000).toISOString() },
+        start: { dateTime: new Date(fixtureNow + 600000).toISOString() },
+        end: { dateTime: new Date(fixtureNow + 3600000).toISOString() },
       }] }) });
     }
     return request.url().startsWith('http://127.0.0.1:') || request.url().startsWith('data:') ? request.continue() : request.abort();
   });
-  await page.evaluateOnNewDocument(() => {
+  await page.evaluateOnNewDocument(now => {
+    const NativeDate = Date;
+    window.Date = class extends NativeDate {
+      constructor(...args) { super(...(args.length ? args : [now])); }
+      static now() { return now; }
+    };
     localStorage.setItem('splash_shown_at', String(Date.now()));
     localStorage.setItem('calendar_access_token', 'browser-calendar');
     localStorage.setItem('calendar_refresh_token', 'browser-refresh');
     localStorage.setItem('calendar_token_expiry', String(Date.now() + 3600000));
     localStorage.setItem('gmail_access_token', 'browser-gmail');
-  });
+  }, fixtureNow);
   await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'load' });
   await page.waitForFunction(() => { try { return Today.use('calendar').context().length === 1; } catch { return false; } });
   assert.ok(calendarReads > 0, 'Calendar reads must pass the deployed CSP, not a replaced fetch');

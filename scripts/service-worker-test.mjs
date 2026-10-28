@@ -19,10 +19,16 @@ assert.ok(SHELL_PATHS.length > 10, 'sw.js must declare a non-trivial app shell')
 const UPGRADE_VERSION = CACHE_VERSION + '-test-upgrade';
 const LEGACY_VERSION = 'today-v-test-legacy';
 let serveUpgrade = false;
+let serveFailure = '';
 let failUnknownNetwork = false;
 
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (serveFailure && pathname === '/assets/enrichment-feedback.js') {
+    if (serveFailure === 'network') req.socket.destroy();
+    else { res.writeHead(404); res.end('missing shell fixture'); }
+    return;
+  }
   if (pathname === '/__sw-test-seed') {
     res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
     res.end('<!doctype html><title>SW seed</title>');
@@ -35,7 +41,9 @@ const server = createServer(async (req, res) => {
   let path = pathname === '/' ? '/index.html' : pathname;
   try {
     let body = path === '/sw.js' ? swSource : await readFile(join(ROOT, path));
-    if (path === '/sw.js' && serveUpgrade) body = body.replace(CACHE_VERSION, UPGRADE_VERSION);
+    if (path === '/sw.js' && (serveFailure || serveUpgrade)) {
+      body = body.replace(CACHE_VERSION, serveFailure ? CACHE_VERSION + '-test-' + serveFailure : UPGRADE_VERSION);
+    }
     const headers = {
       'Content-Type': MIME[extname(path)] || 'application/octet-stream',
       'Cache-Control': path === '/sw.js' ? 'no-store' : 'no-cache',
@@ -104,6 +112,39 @@ try {
   assert.equal(installed.offlineFallbackCached, true);
   console.log(`  ✓ fresh install controls the app and caches all ${SHELL_PATHS.length} shell resources`);
   console.log('  ✓ activation purges a stale cache');
+
+  for (const failure of ['missing','network']) {
+    serveFailure = failure;
+    const state = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      window.__workerBeforeFailedUpgrade = registration.active;
+      const outcome = new Promise((resolve,reject) => {
+        const deadline = setTimeout(() => reject(new Error('failed-install state timeout')),10000);
+        registration.addEventListener('updatefound',() => {
+          const worker = registration.installing;
+          const changed = () => {
+            if (worker.state === 'redundant' || worker.state === 'installed') {
+              clearTimeout(deadline); resolve(worker.state);
+            }
+          };
+          worker.addEventListener('statechange',changed); changed();
+        },{once:true});
+      });
+      await registration.update();
+      return outcome;
+    });
+    assert.equal(state,'redundant','an incomplete update must fail installation rather than replace the complete offline worker');
+    const retained = await page.evaluate(async ({current,failed}) => {
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      const keys = await caches.keys(), cache = await caches.open(current);
+      return {sameWorker:registration.active === window.__workerBeforeFailedUpgrade,
+        oldShell:!!(await cache.match('/')) && !!(await cache.match('/assets/enrichment-feedback.js')),
+        noPartialCache:!keys.includes(failed)};
+    },{current:CACHE_VERSION,failed:CACHE_VERSION+'-test-'+failure});
+    assert.deepEqual(retained,{sameWorker:true,oldShell:true,noPartialCache:true});
+    console.log('  ✓ '+failure+' shell update retains the previous worker/cache and removes its incomplete cache');
+  }
+  serveFailure = '';
 
   // Serve a byte-distinct worker with a new cache name. The production update
   // listener must detect it, ask it to skip waiting, and let activation purge the

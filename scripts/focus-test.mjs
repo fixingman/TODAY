@@ -763,8 +763,10 @@ try {
         const original = window.fetch;
         window.fetch = (url, options) => {
           if (!String(url).includes('ai-assist')) return original(url, options);
+          const body=JSON.parse(options.body);
+          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
           return new Promise((resolve,reject) => {
-            const request = {body:JSON.parse(options.body),signal:options.signal,reject};
+            const request = {body,signal:options.signal,reject};
             request.reply = (data,mode) => resolve({ok:mode!=='http',status:mode==='http'?503:200,json:() => {
               if(mode==='json')return Promise.reject(new SyntaxError('Synthetic malformed JSON'));
               if(mode==='body')return new Promise(resolve => {request.finishBody=resolve});
@@ -785,7 +787,14 @@ try {
     const ask = async page => {
       const count = await page.evaluate(()=>window.__asks.length);
       await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      await page.waitForFunction(count=>window.__asks.length===count+1,{timeout:3000},count);
+      try { await page.waitForFunction(count=>window.__asks.length===count+1,{timeout:3000},count); }
+      catch(error){
+        console.error('Focus request ledger state:',JSON.stringify(await page.evaluate(count=>({before:count,after:__asks.length,
+          focused:document.querySelector('.habit.focused,.task.focused')?.dataset.habitId||document.querySelector('.task.focused')?.dataset.taskid,
+          open:!!document.querySelector('.focus-timer.open'),active:!!document.querySelector('.focus-timer.ai-active'),
+          configured:Today.use('connections')._aiIsConfigured(),aborted:__asks.filter(r=>r.signal.aborted).length}),count)));
+        throw error;
+      }
       return count;
     };
     const reply = (page,index,data,mode) => page.evaluate(async ({index,data,mode})=>{
@@ -793,6 +802,32 @@ try {
       else window.__asks[index].reply(data,mode);
       await new Promise(requestAnimationFrame);
     },{index,data,mode});
+    // Background writers must not enter the held Focus request ledger.
+    {
+      const {page,errors}=await habitFixture();await startHabit(page);
+      await page.evaluate(()=>{
+        const original=window.fetch;
+        window.fetch=(url,options)=>{
+          const result=original(url,options);
+          if(!String(url).includes('ai-assist'))return result;
+          const body=JSON.parse(options.body||'{}');
+          if(/^The person (?:has )?explicitly asked/.test(body.systemPrompt||'')&&!window.__backgroundInjected){
+            window.__backgroundInjected=true;
+            window.__unrelatedFocusControl=original(url,{...options,body:JSON.stringify({systemPrompt:'Fictional unrelated background writer',messages:[]})}).then(response=>response.status);
+          }
+          return result;
+        };
+      });
+      const index=await ask(page);
+      await expectAll('Focus request ledger excludes unrelated writers',{
+        oneFocus:await page.evaluate(()=>__asks.length===1),
+        nativeResponse:(await page.evaluate(()=>__unrelatedFocusControl))===404,noErrors:!errors.length,
+      });
+      await reply(page,index,{content:'What would make reading more inviting?'});
+      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').textContent==='What would make reading more inviting?');
+      ok('habit Focus mock isolates an overlapping unrelated writer without suppressing its request');
+      await page.close();
+    }
     // Task help may be a question, action or acknowledgement; habits remain questions.
     {
       const {page,errors}=await openPage({extraSeed:{today_ai_key_claude:'test-key'}});
@@ -1026,7 +1061,7 @@ try {
       await page.screenshot({path:join(ROOT,'.context/15d-focus-feedback/implemented-desktop.png'),clip});
       // A reply that fitted before resize must become scrollable after narrowing, without another Ask.
       await page.setViewport({width:320,height:800});
-      await page.waitForFunction(()=>innerWidth===320&&document.querySelector('.focus-ai-timer-btn').clientWidth<250);
+      await page.waitForFunction(width=>innerWidth===320&&document.querySelector('.focus-ai-timer-btn').clientWidth<width,{},closed.width);
       await waitForAnswerScroll(page);
       await expectAll('existing answer adapts to a narrower viewport',{
         scrolls:await page.$eval('.focus-ai-timer-btn',e=>e.classList.contains('question-scroll')),

@@ -1,56 +1,42 @@
 // TODAY — sound + haptics (Roadmap #3 module extraction)
-//
-// Self-contained: browser APIs only (AudioContext, navigator.vibrate, the iOS
-// switch-element haptic trick) — zero app-state or app-function coupling. Loaded
-// as a classic <script> BEFORE the main inline script; its globals (play* sounds,
-// _haptic, _primeAudio) are visible everywhere via the shared lexical environment.
-// MUST load inside <body>: the haptic IIFE appends its switch element to
-// document.body at parse time.
-//
-// What stays in index.html: nothing visual — _flashAccentGlow moved to assets/celebration.js.
 
-// ─── Sound design language ────────────────────────────────────────────────────
-// All sine wave. Family of 5 sounds, each a gesture:
-//   start      — snappy rising chirp. Intention. 520→680 Hz, 150ms.
-//   resume     — ascending chirp, start's quieter sibling. 500→600 Hz, 120ms.
-//   complete   — warm two-step fall. Task done. 600→480→380 Hz, 240ms.
-//   habitDone  — heavier three-step fall. Habit done. 520→400→300 Hz, 320ms.
-//   chime      — low organic growl + wobble. Session end. Two osc, ~1.4s.
 
-// Prepare the shared context before input; autoplay policy keeps it suspended.
-// The existing gesture/sound paths resume it, including after backgrounding.
-let _sharedAudioCtx = null;
+// Prepare a silent sink first; attach the system default asynchronously when supported.
+// Legacy browsers retain the original suspended-context preparation.
+let _sharedAudioCtx = null, _audioReady = null, _audioLegacy = false, _audioTone = 0;
 
 function _getAudioCtx() {
   try {
     if (!_sharedAudioCtx || _sharedAudioCtx.state === 'closed') {
-      _sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      const staged = !_audioLegacy && typeof Audio?.prototype.setSinkId === 'function';
+      try { _sharedAudioCtx = new Audio(staged ? { sinkId:{ type:'none' } } : undefined); }
+      catch (error) {
+        if (!staged) throw error;
+        _audioLegacy = true; _sharedAudioCtx = new Audio();
+      }
+      _audioReady = null;
+      const ctx = _sharedAudioCtx;
+      if (staged && ctx.sinkId?.type === 'none') {
+        const fallback = () => {
+          if (ctx !== _sharedAudioCtx || ctx.state === 'closed') return null;
+          try { Promise.resolve(ctx.close()).catch(function(){}); } catch (_) {}
+          _sharedAudioCtx = null; _audioLegacy = true;
+          return _getAudioCtx();
+        };
+        try { _audioReady = Promise.resolve(ctx.setSinkId('')).then(() => {
+          if (ctx === _sharedAudioCtx) _audioReady = null;
+          return ctx;
+        }, fallback); }
+        catch (_) { _audioReady = Promise.resolve().then(fallback); }
+      }
     }
     return _sharedAudioCtx;
   } catch(e) { return null; }
 }
 
-// Avoid cold, running-context construction on the first pointer/key event.
-// A browser that refuses preparation still retries through _getAudioCtx on use.
 _getAudioCtx();
 
-// ─── Haptic feedback ─────────────────────────────────────────────────────────
-// Unified haptic helper. Works on:
-//   Android Chrome  — navigator.vibrate() with differentiated patterns
-//   iOS Safari 17.4+ — <input type=checkbox switch> trick (system haptic tap)
-//   Desktop / unsupported — silent no-op, zero cost
-//
-// Presets and their Android vibration patterns (iOS always fires one system tap):
-//   success   — [40, 60, 80]   double rising pulse — task/habit check, session end
-//   warning   — [30, 40, 30]   sharp double        — delete
-//   heavy     — [65]           single firm press   — long-press drag activate
-//   selection — [12]           tiny tick           — drag row snaps to new slot
-//   medium    — [40]           standard tap        — fallback
-//
-// Rules (from web-haptics design guide):
-//   - Supplement visuals, never replace them. UI works fully without haptics.
-//   - Fire at the exact instant the visual change occurs.
-//   - Don't overuse — reserve for meaningful moments.
 (function() {
   const PATTERNS = {
     success:   [40, 60, 80],
@@ -60,25 +46,15 @@ _getAudioCtx();
     medium:    [40],
   };
 
-  // iOS: Use <input type=checkbox switch> trick — WebKit fires a system haptic when
-  // the switch toggles. MUST be called synchronously within a user gesture handler.
-  // _haptic() is always called synchronously from click/touch handlers so this works.
-  // The element must be "visible" to the browser (not display:none) — opacity:0 is fine.
-  //
-  // Android: navigator.vibrate() with differentiated patterns.
-  // Desktop: silent no-op.
   const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const _hasVibrate = !_isIOS && typeof navigator.vibrate === 'function';
 
-  // Create switch element eagerly — avoids DOM append cost on the first haptic call,
-  // which would otherwise delay svg.animate() on iOS cold start. (BUG-030)
   const _sw = document.createElement('input');
   _sw.type = 'checkbox';
   _sw.setAttribute('switch', '');
   _sw.setAttribute('aria-hidden', 'true');
   _sw.setAttribute('tabindex', '-1');
-  // Must not be display:none/visibility:hidden — needs to exist in the render tree
   _sw.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;' +
     'opacity:0;pointer-events:none;margin:0;padding:0;border:none;outline:none;' +
     '-webkit-appearance:none;appearance:none;';
@@ -97,14 +73,10 @@ _getAudioCtx();
   };
 })();
 
-// Call this on any user gesture to warm up the context while the tab is active.
 function _primeAudio() {
-  const ctx = _getAudioCtx();
-  if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
+  _withCtx();
 }
 
-// Unlock the prepared context on the first real gesture; never autoplay tones.
-// Keep both touch and pointer support for the existing browser fallback.
 (function _preWarmAudio() {
   function _warm() {
     _primeAudio();
@@ -115,16 +87,23 @@ function _primeAudio() {
   document.addEventListener('touchstart', _warm, { once: true, passive: true });
 })();
 
+// Unlock in the gesture; retain only the latest pending cue for at most one second.
 function _withCtx(fn) {
   try {
     const ctx = _getAudioCtx();
     if (!ctx) return;
-    // Always resume if suspended — but don't wait for the promise.
-    // Playing immediately after resume() in a user gesture works because
-    // the browser queues the audio and plays it once resumed (same frame).
-    // Waiting for .then() caused noticeable delay after long focus sessions.
+    const pending = _audioReady, ticket = fn ? ++_audioTone : _audioTone, at = performance.now();
     if (ctx.state === 'suspended') ctx.resume().catch(function(){});
-    fn(ctx);
+    const play = ready => {
+      if (!ready || ready !== _sharedAudioCtx || ready.state === 'closed') return;
+      if (pending && fn && (ticket !== _audioTone || performance.now() - at > 1000)) return;
+      try {
+        if (ready.state === 'suspended') ready.resume().catch(function(){});
+        if (fn) fn(ready);
+      } catch (_) {}
+    };
+    if (pending) pending.then(play);
+    else play(ctx);
   } catch(e) {}
 }
 
@@ -151,8 +130,6 @@ function playResumeSound() {
     osc.connect(gain); gain.connect(ctx.destination);
     osc.type = 'sine';
     const t = ctx.currentTime;
-    // Same ascending shape as start (520→680) but shorter rise, lower ceiling.
-    // Clearly in the "action" family — not closure territory.
     osc.frequency.setValueAtTime(500, t);
     osc.frequency.exponentialRampToValueAtTime(600, t + 0.05);
     gain.gain.setValueAtTime(0.001, t);
@@ -181,9 +158,6 @@ function playCompleteSound() {
 }
 
 // Habit done — heavier sibling of complete. Same descending gesture, more body:
-// starts lower (520 Hz vs 600), three steps instead of two (520→400→300 Hz),
-// slightly longer tail (320ms vs 240ms), marginally fuller gain (0.16 vs 0.13).
-// The extra step and lower floor give it more gravity — a habit earns it.
 function playHabitDoneSound() {
   _withCtx(function(ctx) {
     const osc = ctx.createOscillator(), gain = ctx.createGain();
@@ -202,7 +176,6 @@ function playHabitDoneSound() {
 }
 
 // Chime — same sine family as start/resume/complete. Three notes ascending
-// then one settling back — done, done, done, rest. Belongs to the same sound package.
 function playChime() {
   _withCtx(function(ctx) {
     function note(freq, startT, vol, dur) {

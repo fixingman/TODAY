@@ -209,3 +209,7 @@ session" check must use `rem > 0 && rem < TOTAL`, else a completed-then-dismisse
 re-opens idle instead of starting fresh on click.
 
 **Ask source boundary (v2.101.0):** factual task input comes from the authoritative stored wording, preserving its tags and URLs while excluding rendered session badges and link labels. A separate display snapshot strips presentation metadata and still invalidates on displayed-text changes. Deleting a focused owner closes the detached timer as well as discarding feedback.
+
+## Audio preparation — 15G (v2.103.2)
+
+Sound remains self-contained in assets/sound.js: the five existing sine-wave envelopes and haptics do not change. Where the browser supports a silent output sink, prepare it before input and asynchronously attach only the system default. Gesture-bound resume stays intact; an early cue waits for output readiness without blocking the timer. Only the latest pending cue may wait up to one second; closed/replaced contexts and expired cues do not play later. Once ready, original tone overlap is preserved. Unsupported/refused setup uses the existing default-context path without an unhandled rejection. No device picker, enumeration, new permission, storage or AI/provider change. sound-test covers slow default construction, held/refused output, stale contexts/cues, all tones and native autoplay/default routing. See [Chrome’s audio output API contract](https://developer.chrome.com/blog/audiocontext-setsinkid).

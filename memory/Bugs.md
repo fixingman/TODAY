@@ -20,8 +20,9 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 137 | ⏳ Verify | Clean GitHub runs fail Calendar, enrichment screenshots and Focus resize fixtures. | v2.103.2 |
 | 136 | ⏳ Verify | Dev service worker installs without the app-shell precache because a listed helper returns 404. | v2.103.0 |
-| 135 | 🔍 Investigating | Startup blocking and cold/warm load exceed performance limits. | 15E release gate / existing startup |
+| 135 | ⏳ Verify | Startup blocking and cold/warm load exceed performance limits. | v2.103.2 |
 | 134 | ⏳ Verify | Sunday treats tied let-go reasons as a majority and generalizes missing reasons. | v2.101.1 |
 | 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
 | 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
@@ -39,7 +40,24 @@
 
 ---
 
+## BUG-137 — Clean CI fixture failures
+
+**Focus ledger isolation:** the second full gate also reports52 passes/one flake/zero failures, with a habit Ask timing out while waiting for exactly one new request. Its mock held every ai-assist surface, so an unrelated writer could increment the same ledger. An injected overlapping background writer reproduces the exact three-second timeout. Restricting the mock to the explicit Focus rubric passes that control and the complete Focus suite, forwards the unrelated request normally and keeps the original deadline. Timeout diagnostics now expose bounded request counts and owner/UI/configuration flags, never credentials or prior private text. The original failed gate and negative control remain retained.
+
+
+**Additional local gate evidence:** initial candidate gate reports 52 passed/one flaky/zero failed. The triage-close case samples 450 ms after Escape without waiting for collapse completion. A controlled 250 ms delay to its existing 300 ms collapse timer reproduces the identical barBack=false result. The fixture now waits for the actual overlay-hidden completion using the existing state-wait bound, then checks bar restoration and unchanged morph assertions. This does not change triage runtime, motion durations or performance budgets. Original52/1 gate plus deterministic before/after controls are retained.
+
+
+**Confirmed run:** dev 40605616074 / commit 9f012a5e reports 50 passed, zero flaky, three failed. Enrichment tries to write a screenshot below a directory absent from a fresh checkout. Calendar builds an event ten minutes from wall-clock now, which falls outside today near midnight; its expected one-event context then never arrives. Focus waits for a button narrower than 250px although a valid resized answer can be wider on another platform. The source/user-input contracts are unchanged. Original logs: .context/15g-reliability/dev-ci-failure.log.
+
+**Local repair (v2.103.2):** create the artifact directory before screenshot; freeze the integration fixture at UTC noon and build its token/event dates from that clock; compare Focus width with the actual desktop width while retaining scrolling/reply/rating assertions and deadlines. Final local verification: 53 functional suites passed with zero flaky/failed results; all five performance runs pass unchanged budgets (worst cold blocking59ms/200, coldFCP6748ms/7000, warmFCP124ms/500, focus35.9ms/300; medianfocus33ms). Payload1201.1KiB decoded/341.0KiB Brotli/38scripts. The About-history-only copy correction has identical version/executable behavior and passes subsequent syntax/smoke/design/payload checks. Original failures and causal negative controls are retained. Hosted confirmation is pending the new publication. No timeout or budget raised.
+
+---
+
 ## BUG-136 — Dev app-shell precache lists an unpublished helper
+
+**Automated deployed verification (October 28):** fresh anonymous browser contexts on both dev and production return 200 for the actual helper; all 69 declared shell resources plus branded fallback are cached. Offline reload shows the app/add field and imports the actual helper. No personal account, tasks or installed device was accessed. Deployed v2.103.0 repairs the missing file; accepted real-device verification remains separate. Local v2.103.2 additionally rejects incomplete updates and removes their partial caches, preserving the old worker/cache for both missing-file and network failures. Those new regression cases fail before and pass after; healthy update and offline/fallback paths pass.
+
 
 **Discovery (October 28):** origin/dev 5d97baa1 includes /assets/enrichment-feedback.js in sw.js, but that commit does not contain the file. Direct dev fetch returned HTTP 404. The parallel metadata push included a prepared entry before the enrichment runtime was committed.
 
@@ -51,11 +69,14 @@
 
 ## BUG-135 — Startup performance exceeds release budgets
 
+**15G local repair (v2.103.2):** supported browsers first prepare a silent audio sink and asynchronously attach the system default; no device enumeration, permission request, tone shape or autoplay-policy change. Legacy/refused-option paths preserve existing behavior. A pending default-output connection cannot block Focus input; only the latest cue may wait, for at most one second, and closed/replaced contexts discard late work. The controlled 340 ms synchronous-default constructor fails the startup guard before and passes after; first-input and real native/default-output tests pass. A one-run diagnostic has cold TBT 81 ms and warm TBT 0 ms, but it is not the required five-run release result. Final verification: 53 functional suites passed with zero flaky/failed results; all five performance runs pass unchanged budgets (worst cold blocking59ms/200, coldFCP6748ms/7000, warmFCP124ms/500, focus35.9ms/300; medianfocus33ms). Payload1201.1KiB decoded/341.0KiB Brotli/38scripts. The About-history-only copy correction has identical version/executable behavior and passes subsequent syntax/smoke/design/payload checks. Original failures and causal negative controls are retained. Hosted confirmation is pending the new publication. Original failed evidence remains below.
+
+
 **Discovery (October 28):** the stable isolated v2.103.0 candidate passes 53 functional suites with no flakes/failures and passes payload. Its retained five-run performance result fails cold FCP 7040 ms / 7000, cold TBT 492 ms / 200, cold DCL 7031.6 ms / 7000, cold interactive 7013.6 ms / 7000, warm FCP/LCP 704 ms / 500 and warm interactive 671.9 ms / 500. Input medians remain add 13 ms / focus 83.2 ms; worst focus 112.6 ms.
 
 **Attribution/control:** the original first cold run records 434.8 ms in unchanged sound.js initialization. Chrome is 156.0.8078.49, compared with .48 in the prior passing baseline. One separate diagnostic run of published 512bc7b2 / v2.101.5 under the same current Chrome/Node also fails cold TBT 301 ms, with 338.6 ms sound initialization. This demonstrates a wider startup issue; it does not establish the browser update as cause, explain every load failure or clear the candidate. No enrichment/sound/harness/threshold workaround or successful reroll was substituted.
 
-**Status:** investigating. Can requested publication to dev and master on October 28 after this failure was reported; this is publication authorization, not a performance pass. Preserve original failed benchmark in memory/performance-baseline.json and .context/15e-adaptation/isolated-final-performance.json, plus the single-run control, logs and 149 source fingerprints. In-progress parallel Focus changes are excluded from this candidate. A causal startup repair must preserve first-input behavior and satisfy unchanged five-run budgets; technical loop completion and actual writing usefulness remain separate.
+**15E publication status (historical):** investigating. Can requested publication to dev and master on October 28 after that failure was reported; it did not establish a performance pass. The subsequent v2.103.2 repair has the passing local evidence above. Preserve original failed benchmark in memory/performance-baseline.json and .context/15e-adaptation/isolated-final-performance.json, plus the single-run control, logs and 149 source fingerprints. In-progress parallel Focus changes are excluded from this candidate. A causal startup repair must preserve first-input behavior and satisfy unchanged five-run budgets; technical loop completion and actual writing usefulness remain separate.
 
 ---
 
