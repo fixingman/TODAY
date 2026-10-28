@@ -134,7 +134,8 @@ try {
       if (task) task.text = text; else manualTasks.push({ id, text });
     };
     window.__enrich = (id, text) => { __mailOwner(id, text); return _gmailEnrichTask(id, text); };
-    window.__mailFocus = (id, text) => { __mailOwner(id, text); Today.use('gmail').closeFocus(); _gmailRenderFocusBlock(id, text); };
+    // These isolated component fixtures mount a visible timer; native Focus Escape is tested separately.
+    window.__mailFocus = (id, text) => { const timer=document.querySelector('.focus-timer');timer.hidden=false;timer.classList.add('open');timer.style.maxHeight='800px';__mailOwner(id, text); Today.use('gmail').closeFocus(); _gmailRenderFocusBlock(id, text); };
   });
 
   const classified = await page.evaluate(async () => {
@@ -390,7 +391,7 @@ try {
     block.querySelector('.focus-gmail-draft-btn')?.click();
     for (let i = 0; i < 60 && !block.querySelector('.focus-gmail-draft-btn')?.dataset.mailto; i++) await new Promise(r => setTimeout(r, 10));
     await new Promise(r => setTimeout(r, 200));
-    const macDraftLabels = [...block.querySelectorAll('.focus-gmail-actions a, .focus-gmail-actions button')].map(el => el.textContent.trim());
+    const macDraftLabels = [...block.querySelectorAll('.focus-gmail-actions .focus-gmail-draft-btn, .focus-gmail-actions .focus-gmail-open')].map(el => el.textContent.trim());
     window.fetch = realFetch;
     setPlatform('Win32');
     const win = linkFor();
@@ -746,7 +747,7 @@ try {
         // With a reply address the draft button becomes the one Mail action (no second link).
         await new Promise(r=>setTimeout(r,200));
         const label=button.querySelector('.focus-gmail-draft-label')?.textContent||button.textContent;
-        const ctaLabels=[...block.querySelectorAll('.focus-gmail-actions a, .focus-gmail-actions button')].map(el=>el.textContent.trim());
+        const ctaLabels=[...block.querySelectorAll('.focus-gmail-actions .focus-gmail-draft-btn, .focus-gmail-actions .focus-gmail-open')].map(el=>el.textContent.trim());
         results.push({kind:'show-draft-in-mail',correct:label==='Show draft in Mail ↗'&&/^mailto:/.test(button.dataset.mailto||'')
           &&decodeURIComponent(button.dataset.mailto).includes('Thanks, I will review the contract.')&&!block.querySelector('.focus-gmail-mailto')
           &&new Set(ctaLabels).size===ctaLabels.length&&ctaLabels.length===2&&calls===1});
@@ -861,7 +862,7 @@ try {
     const turn=()=>new Promise(resolve=>setTimeout(resolve,0));
     __mailOwner('mail_draft_deadline','Reply about contract');
     window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
-    await _gmailEnrichTask('mail_draft_deadline','Reply about contract');_gmailRenderFocusBlock('mail_draft_deadline','Reply about contract');
+    await _gmailEnrichTask('mail_draft_deadline','Reply about contract');__mailFocus('mail_draft_deadline','Reply about contract');
     let expire,release;const native=setTimeout;
     window.setTimeout=(fn,ms,...args)=>ms===26000?(expire=fn,987654):native(fn,ms,...args);
     window.fetch=async()=>({ok:true,status:200,json:()=>new Promise(resolve=>{release=()=>resolve({content:'Too late'});})});

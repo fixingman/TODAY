@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "capturedAt": "2026-10-28T09:59:41.852Z",
+  "capturedAt": "2026-10-28T14:40:24.512Z",
   "target": "local-static-server",
   "environment": {
     "browserVersion": "Chrome/156.0.8078.49",
@@ -15,19 +15,19 @@
     "latencyMs": 150
   },
   "payload": {
-    "appVersion": "2.103.5",
+    "appVersion": "2.104.0",
     "eagerScripts": 38,
-    "runtimeShellRaw": 1229915,
-    "runtimeShellBrotli": 349117,
-    "indexRaw": 213279,
-    "indexBrotli": 65135,
+    "runtimeShellRaw": 1229287,
+    "runtimeShellBrotli": 348956,
+    "indexRaw": 213805,
+    "indexBrotli": 65248,
     "fontCount": 6,
     "fontBytes": 93416,
     "largest": [
       {
         "file": "index.html",
-        "raw": 213279,
-        "brotli": 65135
+        "raw": 213805,
+        "brotli": 65248
       },
       {
         "file": "assets/dropbox.js",
@@ -41,8 +41,8 @@
       },
       {
         "file": "assets/focus.js",
-        "raw": 68254,
-        "brotli": 17881
+        "raw": 68304,
+        "brotli": 17914
       },
       {
         "file": "assets/poems.js",
@@ -55,50 +55,50 @@
         "brotli": 14059
       },
       {
-        "file": "assets/gmail.js",
-        "raw": 45173,
-        "brotli": 11895
-      },
-      {
         "file": "assets/reflections.js",
         "raw": 44752,
         "brotli": 10607
+      },
+      {
+        "file": "assets/gmail.js",
+        "raw": 43713,
+        "brotli": 11519
       }
     ]
   },
   "timings": {
     "cold": {
       "ttfb": {
-        "median": 1.3,
-        "worst": 4.4,
+        "median": 1.2,
+        "worst": 2.5,
         "runs": [
-          2.4,
-          1.2,
+          2.5,
+          1.3,
           1.1,
-          4.4,
-          1.3
+          1.2,
+          1.1
         ]
       },
       "fcp": {
-        "median": 6692,
-        "worst": 6700,
+        "median": 6668,
+        "worst": 6680,
         "runs": [
-          6700,
-          6692,
-          6684,
-          6692,
+          6668,
+          6664,
+          6668,
+          6652,
           6680
         ]
       },
       "lcp": {
-        "median": 10060,
-        "worst": 10080,
+        "median": 10036,
+        "worst": 10064,
         "runs": [
-          10032,
-          10060,
-          10016,
-          10072,
-          10080
+          10048,
+          9948,
+          10036,
+          10036,
+          10064
         ]
       },
       "cls": {
@@ -114,9 +114,9 @@
       },
       "tbt": {
         "median": 0,
-        "worst": 57,
+        "worst": 69,
         "runs": [
-          57,
+          69,
           0,
           0,
           0,
@@ -135,102 +135,102 @@
         ]
       },
       "domContentLoaded": {
-        "median": 6656,
-        "worst": 6686.9,
+        "median": 6641,
+        "worst": 6647,
         "runs": [
-          6642.4,
-          6686.9,
-          6652.4,
-          6656,
-          6659.1
+          6644.9,
+          6639.7,
+          6641,
+          6637.3,
+          6647
         ]
       },
       "load": {
-        "median": 6658.5,
-        "worst": 6690.1,
+        "median": 6643.9,
+        "worst": 6650.5,
         "runs": [
-          6645.7,
-          6690.1,
-          6655.5,
-          6658.5,
-          6661.7
+          6647.6,
+          6642.4,
+          6643.9,
+          6640.8,
+          6650.5
         ]
       },
       "shellVisible": {
-        "median": 17200,
-        "worst": 17259.9,
+        "median": 17190.1,
+        "worst": 17214.3,
         "runs": [
-          17196,
-          17205.1,
-          17168.2,
-          17200,
-          17259.9
+          17193.9,
+          17094.5,
+          17189.7,
+          17214.3,
+          17190.1
         ]
       },
       "interactive": {
-        "median": 6649,
-        "worst": 6679,
+        "median": 6633.7,
+        "worst": 6639.2,
         "runs": [
-          6636,
-          6679,
-          6646.1,
-          6649,
-          6652.9
+          6637.3,
+          6632.2,
+          6633.7,
+          6629.3,
+          6639.2
         ]
       },
       "morningReady": {
-        "median": 6642,
-        "worst": 6671.3,
+        "median": 6626.2,
+        "worst": 6632.1,
         "runs": [
-          6627.8,
-          6671.3,
-          6638.5,
-          6642,
-          6645.4
+          6628.7,
+          6624,
+          6626.2,
+          6622.6,
+          6632.1
         ]
       },
       "splashDismissed": {
-        "median": 17200.1,
-        "worst": 17259.9,
+        "median": 17190.1,
+        "worst": 17214.4,
         "runs": [
-          17196,
-          17205.1,
-          17168.3,
-          17200.1,
-          17259.9
+          17193.9,
+          17094.5,
+          17189.7,
+          17214.4,
+          17190.1
         ]
       },
       "transferBytes": {
-        "median": 1313219,
-        "worst": 1313219,
+        "median": 1312560,
+        "worst": 1312560,
         "runs": [
-          1313219,
-          1313219,
-          1313219,
-          1313219,
-          1313219
+          1312560,
+          1312560,
+          1312560,
+          1312560,
+          1312560
         ]
       },
       "encodedBodyBytes": {
-        "median": 1300019,
-        "worst": 1300019,
+        "median": 1299360,
+        "worst": 1299360,
         "runs": [
-          1300019,
-          1300019,
-          1300019,
-          1300019,
-          1300019
+          1299360,
+          1299360,
+          1299360,
+          1299360,
+          1299360
         ]
       },
       "decodedBodyBytes": {
-        "median": 1300019,
-        "worst": 1300019,
+        "median": 1299360,
+        "worst": 1299360,
         "runs": [
-          1300019,
-          1300019,
-          1300019,
-          1300019,
-          1300019
+          1299360,
+          1299360,
+          1299360,
+          1299360,
+          1299360
         ]
       },
       "serviceWorkerControlled": [
@@ -243,36 +243,36 @@
     },
     "warm": {
       "ttfb": {
-        "median": 2,
-        "worst": 3.1,
+        "median": 1.9,
+        "worst": 2.2,
         "runs": [
-          2.5,
-          2,
-          3.1,
-          1.7,
-          1.7
+          2.2,
+          1.9,
+          1.9,
+          1.9,
+          2.1
         ]
       },
       "fcp": {
-        "median": 100,
-        "worst": 164,
+        "median": 104,
+        "worst": 112,
         "runs": [
+          112,
+          104,
           100,
-          96,
-          164,
-          100,
-          88
+          108,
+          100
         ]
       },
       "lcp": {
-        "median": 100,
-        "worst": 164,
+        "median": 104,
+        "worst": 112,
         "runs": [
+          112,
+          104,
           100,
-          96,
-          164,
-          100,
-          88
+          108,
+          100
         ]
       },
       "cls": {
@@ -309,102 +309,102 @@
         ]
       },
       "domContentLoaded": {
-        "median": 94.9,
-        "worst": 157.5,
+        "median": 98.1,
+        "worst": 104,
         "runs": [
-          97.5,
-          94.9,
-          157.5,
-          89.6,
-          88.6
+          103.4,
+          97.1,
+          98.1,
+          104,
+          97.1
         ]
       },
       "load": {
-        "median": 96.1,
-        "worst": 159.7,
+        "median": 99.6,
+        "worst": 105.5,
         "runs": [
-          99,
-          96.1,
-          159.7,
-          90.5,
-          89.6
+          105.2,
+          98.7,
+          99.6,
+          105.5,
+          98.7
         ]
       },
       "shellVisible": {
-        "median": 88.1,
-        "worst": 149,
+        "median": 90.2,
+        "worst": 96.4,
         "runs": [
-          91.7,
-          88.1,
-          149,
-          82.7,
-          81.9
+          96.3,
+          90.2,
+          90,
+          96.4,
+          90.2
         ]
       },
       "interactive": {
-        "median": 88.8,
-        "worst": 149.8,
+        "median": 90.3,
+        "worst": 97.2,
         "runs": [
-          91.7,
-          88.8,
-          149.8,
-          83.2,
-          82
+          96.3,
+          90.3,
+          90,
+          97.2,
+          90.3
         ]
       },
       "morningReady": {
-        "median": 88.1,
-        "worst": 148.9,
+        "median": 90.2,
+        "worst": 96.2,
         "runs": [
-          91.5,
-          88.1,
-          148.9,
-          81.8,
-          81.2
+          96.2,
+          90.2,
+          89.9,
+          96.2,
+          90.1
         ]
       },
       "splashDismissed": {
-        "median": 88.1,
-        "worst": 149,
+        "median": 90.2,
+        "worst": 96.4,
         "runs": [
-          91.7,
-          88.1,
-          149,
-          82.7,
-          81.9
+          96.3,
+          90.2,
+          90,
+          96.4,
+          90.2
         ]
       },
       "transferBytes": {
-        "median": 213579,
-        "worst": 213579,
+        "median": 214105,
+        "worst": 214105,
         "runs": [
-          213579,
-          213579,
-          213579,
-          213579,
-          213579
+          214105,
+          214105,
+          214105,
+          214105,
+          214105
         ]
       },
       "encodedBodyBytes": {
-        "median": 1300019,
-        "worst": 1300019,
+        "median": 1299360,
+        "worst": 1299360,
         "runs": [
-          1300019,
-          1300019,
-          1300019,
-          1300019,
-          1300019
+          1299360,
+          1299360,
+          1299360,
+          1299360,
+          1299360
         ]
       },
       "decodedBodyBytes": {
-        "median": 1300019,
-        "worst": 1300019,
+        "median": 1299360,
+        "worst": 1299360,
         "runs": [
-          1300019,
-          1300019,
-          1300019,
-          1300019,
-          1300019
+          1299360,
+          1299360,
+          1299360,
+          1299360,
+          1299360
         ]
       },
       "serviceWorkerControlled": [
@@ -417,25 +417,25 @@
     },
     "interactions": {
       "addTask": {
-        "median": 5.7,
-        "worst": 11.7,
+        "median": 7.3,
+        "worst": 15.6,
         "runs": [
-          2.3,
-          11.7,
-          3.2,
-          7.4,
-          5.7
+          15.6,
+          1.7,
+          7.3,
+          4.8,
+          7.8
         ]
       },
       "enterFocus": {
-        "median": 33.2,
-        "worst": 55.1,
+        "median": 34.2,
+        "worst": 37.9,
         "runs": [
-          34,
-          32.6,
-          55.1,
+          32.4,
+          37.9,
           32.9,
-          33.2
+          34.2,
+          34.3
         ]
       }
     }
@@ -444,8 +444,8 @@
     "coldLongTasks": [
       [
         {
-          "start": 2732.899999976158,
-          "duration": 107
+          "start": 2755.100000023842,
+          "duration": 119
         }
       ],
       [],
@@ -459,29 +459,29 @@
         "cold": {
           "longAnimationFrames": [
             {
-              "start": 168.0999999642372,
-              "duration": 1006.1000000238419,
+              "start": 168.9000000357628,
+              "duration": 1021.1999999880791,
               "blockingDuration": 0,
-              "renderStart": 1171.5,
-              "styleAndLayoutStart": 1172.199999988079,
+              "renderStart": 1178.5,
+              "styleAndLayoutStart": 1178.5,
               "scripts": []
             },
             {
-              "start": 2732.899999976158,
-              "duration": 107.40000003576279,
-              "blockingDuration": 57.3,
-              "renderStart": 2840.099999964237,
-              "styleAndLayoutStart": 2840.099999964237,
+              "start": 2755.100000023842,
+              "duration": 120.19999998807907,
+              "blockingDuration": 69.6,
+              "renderStart": 2875,
+              "styleAndLayoutStart": 2875,
               "scripts": [
                 {
-                  "start": 2733.899999976158,
-                  "duration": 105.69999998807907,
-                  "executionStart": 2733.899999976158,
+                  "start": 2756,
+                  "duration": 118.5,
+                  "executionStart": 2756,
                   "forcedStyleAndLayoutDuration": 0,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/sound.js",
+                  "invoker": "http://127.0.0.1:60882/assets/sound.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/sound.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/sound.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 }
@@ -496,57 +496,57 @@
         },
         "interactions": {
           "add": {
-            "duration": 2.300000011920929,
-            "inputAt": 343.69999998807907,
-            "automationWait": 0.09999996423721313
+            "duration": 15.599999964237213,
+            "inputAt": 354.9000000357628,
+            "automationWait": 0.40000003576278687
           },
           "focus": {
-            "duration": 34,
-            "inputAt": 362.30000001192093,
-            "automationWait": 14.300000011920929
+            "duration": 32.40000003576279,
+            "inputAt": 388.80000001192093,
+            "automationWait": 15.800000011920929
           },
           "longTaskEntries": [],
           "longAnimationFrames": [
             {
-              "start": 5.5,
-              "duration": 58.80000001192093,
+              "start": 5.600000023841858,
+              "duration": 61.80000001192093,
               "blockingDuration": 0,
-              "renderStart": 63,
-              "styleAndLayoutStart": 63,
+              "renderStart": 66.10000002384186,
+              "styleAndLayoutStart": 66.10000002384186,
               "scripts": [
                 {
-                  "start": 9.300000011920929,
-                  "duration": 26.899999976158142,
-                  "executionStart": 9.300000011920929,
-                  "forcedStyleAndLayoutDuration": 26.6,
+                  "start": 10,
+                  "duration": 28.700000047683716,
+                  "executionStart": 10,
+                  "forcedStyleAndLayoutDuration": 28.4,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/util.js",
+                  "invoker": "http://127.0.0.1:60882/assets/util.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/util.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/util.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 38.90000003576279,
+                  "start": 41.5,
                   "duration": 8,
-                  "executionStart": 38.90000003576279,
+                  "executionStart": 41.5,
                   "forcedStyleAndLayoutDuration": 7.9,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/celebration.js",
+                  "invoker": "http://127.0.0.1:60882/assets/celebration.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/celebration.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/celebration.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 52.90000003576279,
-                  "duration": 10,
-                  "executionStart": 53.10000002384186,
+                  "start": 55.40000003576279,
+                  "duration": 10.5,
+                  "executionStart": 55.5,
                   "forcedStyleAndLayoutDuration": 0.6,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/",
+                  "invoker": "http://127.0.0.1:60882/",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/",
+                  "sourceURL": "http://127.0.0.1:60882/",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 }
@@ -561,19 +561,11 @@
         "cold": {
           "longAnimationFrames": [
             {
-              "start": 179.70000004768372,
-              "duration": 1041.0999999642372,
+              "start": 172.89999997615814,
+              "duration": 1020.5,
               "blockingDuration": 0,
-              "renderStart": 1188.7000000476837,
-              "styleAndLayoutStart": 1188.7000000476837,
-              "scripts": []
-            },
-            {
-              "start": 1223.800000011921,
-              "duration": 63.30000001192093,
-              "blockingDuration": 13.1,
-              "renderStart": 1226,
-              "styleAndLayoutStart": 1226,
+              "renderStart": 1181.300000011921,
+              "styleAndLayoutStart": 1181.300000011921,
               "scripts": []
             }
           ],
@@ -585,57 +577,57 @@
         },
         "interactions": {
           "add": {
-            "duration": 11.699999988079071,
-            "inputAt": 342.60000002384186,
-            "automationWait": 0.10000002384185791
+            "duration": 1.7000000476837158,
+            "inputAt": 344,
+            "automationWait": 0.09999996423721313
           },
           "focus": {
-            "duration": 32.60000002384186,
-            "inputAt": 372.30000001192093,
-            "automationWait": 17.5
+            "duration": 37.89999997615814,
+            "inputAt": 363.4000000357628,
+            "automationWait": 15.800000011920929
           },
           "longTaskEntries": [],
           "longAnimationFrames": [
             {
-              "start": 5.600000023841858,
-              "duration": 61,
+              "start": 6,
+              "duration": 60.40000003576279,
               "blockingDuration": 0,
-              "renderStart": 65.30000001192093,
-              "styleAndLayoutStart": 65.40000003576279,
+              "renderStart": 65.10000002384186,
+              "styleAndLayoutStart": 65.20000004768372,
               "scripts": [
                 {
-                  "start": 10,
-                  "duration": 28.5,
-                  "executionStart": 10,
-                  "forcedStyleAndLayoutDuration": 28.2,
+                  "start": 9.100000023841858,
+                  "duration": 29.100000023841858,
+                  "executionStart": 9.100000023841858,
+                  "forcedStyleAndLayoutDuration": 28.8,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/util.js",
+                  "invoker": "http://127.0.0.1:60882/assets/util.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/util.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/util.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 41.10000002384186,
-                  "duration": 8.300000011920929,
-                  "executionStart": 41.10000002384186,
-                  "forcedStyleAndLayoutDuration": 8.1,
+                  "start": 41,
+                  "duration": 8.800000011920929,
+                  "executionStart": 41,
+                  "forcedStyleAndLayoutDuration": 8.6,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/celebration.js",
+                  "invoker": "http://127.0.0.1:60882/assets/celebration.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/celebration.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/celebration.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 55.10000002384186,
-                  "duration": 9.699999988079071,
-                  "executionStart": 55.200000047683716,
+                  "start": 55.60000002384186,
+                  "duration": 9.399999976158142,
+                  "executionStart": 55.700000047683716,
                   "forcedStyleAndLayoutDuration": 0.6,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/",
+                  "invoker": "http://127.0.0.1:60882/",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/",
+                  "sourceURL": "http://127.0.0.1:60882/",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 }
@@ -650,19 +642,11 @@
         "cold": {
           "longAnimationFrames": [
             {
-              "start": 169.69999998807907,
-              "duration": 1007.8999999761581,
+              "start": 166.10000002384186,
+              "duration": 1023.3999999761581,
               "blockingDuration": 0,
-              "renderStart": 1174.5,
-              "styleAndLayoutStart": 1174.5,
-              "scripts": []
-            },
-            {
-              "start": 1197.0999999642372,
-              "duration": 59.90000003576279,
-              "blockingDuration": 0,
-              "renderStart": 1211.5999999642372,
-              "styleAndLayoutStart": 1211.5999999642372,
+              "renderStart": 1176,
+              "styleAndLayoutStart": 1176,
               "scripts": []
             }
           ],
@@ -674,73 +658,59 @@
         },
         "interactions": {
           "add": {
-            "duration": 3.199999988079071,
-            "inputAt": 458,
-            "automationWait": 0.30000001192092896
+            "duration": 7.300000011920929,
+            "inputAt": 340.5,
+            "automationWait": 0.19999998807907104
           },
           "focus": {
-            "duration": 55.09999996423721,
-            "inputAt": 483,
-            "automationWait": 18.600000023841858
+            "duration": 32.89999997615814,
+            "inputAt": 365.60000002384186,
+            "automationWait": 15.800000011920929
           },
-          "longTaskEntries": [
-            {
-              "start": 18.19999998807907,
-              "duration": 67
-            }
-          ],
+          "longTaskEntries": [],
           "longAnimationFrames": [
             {
-              "start": 10,
-              "duration": 98.19999998807907,
-              "blockingDuration": 19,
-              "renderStart": 106.89999997615814,
-              "styleAndLayoutStart": 106.89999997615814,
+              "start": 5.600000023841858,
+              "duration": 60.39999997615814,
+              "blockingDuration": 0,
+              "renderStart": 64.60000002384186,
+              "styleAndLayoutStart": 64.60000002384186,
               "scripts": [
                 {
-                  "start": 18.299999952316284,
-                  "duration": 67.5,
-                  "executionStart": 18.299999952316284,
-                  "forcedStyleAndLayoutDuration": 67.1,
+                  "start": 8.699999988079071,
+                  "duration": 27.600000023841858,
+                  "executionStart": 8.699999988079071,
+                  "forcedStyleAndLayoutDuration": 27.3,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/util.js",
+                  "invoker": "http://127.0.0.1:60882/assets/util.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/util.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/util.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 90.39999997615814,
-                  "duration": 15.5,
-                  "executionStart": 90.39999997615814,
-                  "forcedStyleAndLayoutDuration": 15.3,
+                  "start": 38.89999997615814,
+                  "duration": 9.600000023841858,
+                  "executionStart": 38.89999997615814,
+                  "forcedStyleAndLayoutDuration": 9.4,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/celebration.js",
+                  "invoker": "http://127.0.0.1:60882/assets/celebration.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/celebration.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/celebration.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
-                }
-              ]
-            },
-            {
-              "start": 478,
-              "duration": 59,
-              "blockingDuration": 2.5,
-              "renderStart": 492.89999997615814,
-              "styleAndLayoutStart": 536.7999999523163,
-              "scripts": [
+                },
                 {
-                  "start": 485.89999997615814,
-                  "duration": 5.5,
-                  "executionStart": 485.89999997615814,
-                  "forcedStyleAndLayoutDuration": 2.2,
+                  "start": 54.39999997615814,
+                  "duration": 10.100000023841858,
+                  "executionStart": 54.5,
+                  "forcedStyleAndLayoutDuration": 0.6,
                   "pauseDuration": 0,
-                  "invoker": "#document.onclick",
-                  "invokerType": "event-listener",
-                  "sourceURL": "http://127.0.0.1:52580/assets/focus.js",
+                  "invoker": "http://127.0.0.1:60882/",
+                  "invokerType": "classic-script",
+                  "sourceURL": "http://127.0.0.1:60882/",
                   "sourceFunctionName": "",
-                  "sourceCharPosition": 44552
+                  "sourceCharPosition": 0
                 }
               ]
             }
@@ -753,11 +723,11 @@
         "cold": {
           "longAnimationFrames": [
             {
-              "start": 197.79999995231628,
-              "duration": 1004.6000000238419,
+              "start": 165.0999999642372,
+              "duration": 1023.7000000476837,
               "blockingDuration": 0,
-              "renderStart": 1181.5999999642372,
-              "styleAndLayoutStart": 1181.5999999642372,
+              "renderStart": 1176.0999999642372,
+              "styleAndLayoutStart": 1176.0999999642372,
               "scripts": []
             }
           ],
@@ -769,57 +739,57 @@
         },
         "interactions": {
           "add": {
-            "duration": 7.399999976158142,
-            "inputAt": 347.5,
-            "automationWait": 0.10000002384185791
+            "duration": 4.800000011920929,
+            "inputAt": 348,
+            "automationWait": 0.19999998807907104
           },
           "focus": {
-            "duration": 32.89999997615814,
-            "inputAt": 372.69999998807907,
-            "automationWait": 17.19999998807907
+            "duration": 34.19999998807907,
+            "inputAt": 371,
+            "automationWait": 16.19999998807907
           },
           "longTaskEntries": [],
           "longAnimationFrames": [
             {
-              "start": 6.099999964237213,
-              "duration": 63.90000003576279,
+              "start": 5.800000011920929,
+              "duration": 63,
               "blockingDuration": 0,
-              "renderStart": 68.69999998807907,
-              "styleAndLayoutStart": 68.69999998807907,
+              "renderStart": 67.5,
+              "styleAndLayoutStart": 67.5,
               "scripts": [
                 {
-                  "start": 9.899999976158142,
-                  "duration": 31.5,
-                  "executionStart": 9.899999976158142,
-                  "forcedStyleAndLayoutDuration": 31.3,
+                  "start": 9.399999976158142,
+                  "duration": 31,
+                  "executionStart": 9.399999976158142,
+                  "forcedStyleAndLayoutDuration": 30.6,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/util.js",
+                  "invoker": "http://127.0.0.1:60882/assets/util.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/util.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/util.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 44.19999998807907,
-                  "duration": 7.899999976158142,
-                  "executionStart": 44.19999998807907,
-                  "forcedStyleAndLayoutDuration": 7.8,
+                  "start": 43.10000002384186,
+                  "duration": 8.399999976158142,
+                  "executionStart": 43.10000002384186,
+                  "forcedStyleAndLayoutDuration": 8.2,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/celebration.js",
+                  "invoker": "http://127.0.0.1:60882/assets/celebration.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/celebration.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/celebration.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 58.09999996423721,
-                  "duration": 10.400000035762787,
-                  "executionStart": 58.19999998807907,
-                  "forcedStyleAndLayoutDuration": 0.6,
+                  "start": 57.60000002384186,
+                  "duration": 9.799999952316284,
+                  "executionStart": 57.69999998807907,
+                  "forcedStyleAndLayoutDuration": 0.7,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/",
+                  "invoker": "http://127.0.0.1:60882/",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/",
+                  "sourceURL": "http://127.0.0.1:60882/",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 }
@@ -834,11 +804,11 @@
         "cold": {
           "longAnimationFrames": [
             {
-              "start": 176.9000000357628,
-              "duration": 1023.8999999761581,
+              "start": 172,
+              "duration": 1021.6000000238419,
               "blockingDuration": 0,
-              "renderStart": 1183.5,
-              "styleAndLayoutStart": 1183.6000000238419,
+              "renderStart": 1181,
+              "styleAndLayoutStart": 1181,
               "scripts": []
             }
           ],
@@ -850,57 +820,57 @@
         },
         "interactions": {
           "add": {
-            "duration": 5.700000047683716,
-            "inputAt": 348,
-            "automationWait": 0.09999996423721313
+            "duration": 7.799999952316284,
+            "inputAt": 340.30000001192093,
+            "automationWait": 0.20000004768371582
           },
           "focus": {
-            "duration": 33.19999998807907,
-            "inputAt": 370.10000002384186,
-            "automationWait": 15.399999976158142
+            "duration": 34.299999952316284,
+            "inputAt": 365.80000001192093,
+            "automationWait": 15.900000035762787
           },
           "longTaskEntries": [],
           "longAnimationFrames": [
             {
-              "start": 5.700000047683716,
-              "duration": 63.59999996423721,
+              "start": 5.599999964237213,
+              "duration": 59.40000003576279,
               "blockingDuration": 0,
-              "renderStart": 68,
-              "styleAndLayoutStart": 68,
+              "renderStart": 63.80000001192093,
+              "styleAndLayoutStart": 63.80000001192093,
               "scripts": [
                 {
-                  "start": 9.700000047683716,
-                  "duration": 31.69999998807907,
-                  "executionStart": 9.700000047683716,
-                  "forcedStyleAndLayoutDuration": 31.4,
+                  "start": 8.599999964237213,
+                  "duration": 28.900000035762787,
+                  "executionStart": 8.599999964237213,
+                  "forcedStyleAndLayoutDuration": 28.5,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/util.js",
+                  "invoker": "http://127.0.0.1:60882/assets/util.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/util.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/util.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 43.90000003576279,
+                  "start": 40.19999998807907,
                   "duration": 7.899999976158142,
-                  "executionStart": 43.90000003576279,
-                  "forcedStyleAndLayoutDuration": 7.8,
+                  "executionStart": 40.19999998807907,
+                  "forcedStyleAndLayoutDuration": 7.7,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/assets/celebration.js",
+                  "invoker": "http://127.0.0.1:60882/assets/celebration.js",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/assets/celebration.js",
+                  "sourceURL": "http://127.0.0.1:60882/assets/celebration.js",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 },
                 {
-                  "start": 58,
-                  "duration": 9.900000035762787,
-                  "executionStart": 58.10000002384186,
+                  "start": 54.19999998807907,
+                  "duration": 9.399999976158142,
+                  "executionStart": 54.30000001192093,
                   "forcedStyleAndLayoutDuration": 0.6,
                   "pauseDuration": 0,
-                  "invoker": "http://127.0.0.1:52580/",
+                  "invoker": "http://127.0.0.1:60882/",
                   "invokerType": "classic-script",
-                  "sourceURL": "http://127.0.0.1:52580/",
+                  "sourceURL": "http://127.0.0.1:60882/",
                   "sourceFunctionName": "",
                   "sourceCharPosition": 0
                 }

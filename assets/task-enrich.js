@@ -231,7 +231,8 @@
     else _feedback().then(help => { if (_viewCurrent(view)) help.render(entry,view,undo); }).catch(() => {});
   }
 
-  Today.define('task-enrich', { closeFocus:_closeFocus, clearFeedback:_clearFeedback });
+  Today.define('task-enrich', { closeFocus:_closeFocus, clearFeedback:_clearFeedback,
+    refreshShortcut() { const entry=_focusView && _getCache(_focusView.id); _shortcut(entry?.state==='success'?entry.card?.cta:null); } });
   window.addEventListener('storage', event => {
     if (!event.key || event.key.startsWith(CACHE_PREFIX) || ['trello_config','trello_token','today_ai_key_claude'].includes(event.key)) {
       _feedbackChanged(); _agentRestoreAllIndicators();

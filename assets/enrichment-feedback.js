@@ -164,7 +164,7 @@ function create(hooks) {
   function _shortcut(cta) {
     const ai = document.querySelector('.focus-ai-timer-btn');
     if (!ai || ai.closest('.ai-active')) return;
-    if (document.querySelector('#focusGmailBlock:not([hidden]) .focus-gmail-draft-btn')) cta = { label:'Draft reply' };
+    if (document.querySelector('#focusGmailBlock:not([hidden]) .focus-gmail-draft-btn:not([hidden])')) cta = { label:'Draft reply' };
     ai.textContent = '✦︎ ' + (cta ? cta.label.toLowerCase() : 'ask');
     ai.setAttribute('aria-label', cta ? cta.label + ' context source' : 'Ask for focus help');
   }

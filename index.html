@@ -512,6 +512,7 @@
     gap: var(--space-3);
     align-items: center;
     margin-top: var(--space-1);
+    flex-wrap: wrap;
   }
   .focus-gmail-draft-btn,
   .focus-gmail-open,
@@ -533,6 +534,13 @@
   .focus-ask-feedback:hover,
   .focus-ask-reaction:hover { opacity: 1; }
   .focus-gmail-draft-btn:disabled { opacity: var(--opacity-dim); cursor: default; }
+  .focus-gmail-block .focus-ask-reaction { color: var(--muted); opacity: 1; }
+  .focus-gmail-block .focus-ask-reaction:hover,
+  .focus-gmail-block .focus-ask-reaction[aria-pressed="true"] { color: var(--text); }
+  .gmail-wording-panel { flex-basis: 100%; min-width: 0; }
+  .focus-gmail-thread, .focus-gmail-draft { min-width: 0; overflow-wrap: anywhere; }
+  .focus-gmail-actions .focus-gmail-draft-btn,
+  .focus-gmail-actions .focus-gmail-open { min-height: 24px; display: inline-flex; align-items: center; }
   .focus-gmail-draft-label { transition: opacity var(--dur-fast) var(--ease-std); }
   .focus-gmail-draft-label.changing { opacity: 0; }
   .focus-gmail-draft {
@@ -4709,16 +4717,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '375h';
+const DEV_HOURS     = '377h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.104.0': 'Hide an unhelpful email and ask for another. Optional wording feedback guides later Gmail drafts on this device.',
   '2.103.5': 'Reliability improvements keep startup responsive and the app available offline.',
   '2.103.4': 'Startup stays responsive, and interrupted updates keep the previous offline copy ready.',
-  '2.103.2': 'Faster sound preparation keeps startup and Focus responsive. An interrupted update keeps your previous offline copy.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

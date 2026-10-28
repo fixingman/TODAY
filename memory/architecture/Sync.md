@@ -288,3 +288,5 @@ First Dropbox connection after local reflections exist uploads the full array an
 ## Offline Behavior
 
 The app is fully functional offline; mutations persist to localStorage and `last_local_change`; on reconnect the `online` handler pulls, merges, and pushes; the service worker serves the app shell.
+
+**Gmail next-result feedback (v2.104.0 dev):** optional per-cache context rejection and exact-draft concern stay local to the existing mail cache/grant. No email, draft, digest, rejected-thread list, derived profile or feedback field enters Dropbox backup/merge/Restore; backup schema remains 5.5 and added backup bytes are zero. Incoming task edits/deletion/source changes remove support. Existing appMemory.clearedAt excludes older independent context/wording sub-events and fences pending work; explicit full Memory clear removes both, while AI Forget removes wording. Cross-tab cache/feedback changes reconcile the same current card and invalidate pending support; no synced LWW map or remote feedback replay exists. Retention/caps and rollback are in Data.md / docs/gmail-feedback-plan.md.

@@ -25,12 +25,23 @@ for (const [path, source] of sources) {
 
 const declaredActions = new Set();
 const registeredActions = new Set();
-for (const source of sources.values()) {
+const eagerRegisteredActions = new Set();
+const actionSources = new Map(sources);
+// Lazy owners can declare controls used by eager markup/styles. Their dynamic
+// builders are exercised by component browser suites, not an inverse regex.
+for (const match of sw.matchAll(/['"](\/assets\/[^'"]+\.js)['"]/g)) {
+  const path=match[1].slice(1);
+  if (actionSources.has(path)) continue;
+  const source=readFileSync(join(ROOT,path),'utf8');
+  if (source.includes('Today.ui.register')) actionSources.set(path,source);
+}
+for (const [path,source] of actionSources) {
   for (const match of source.matchAll(/data-today-([a-z]+)=["']([^"']+)["']/g)) {
     declaredActions.add(`${match[1]}:${match[2]}`);
   }
   for (const match of source.matchAll(/Today\.ui\.register\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/g)) {
     registeredActions.add(`${match[1]}:${match[2]}`);
+    if (sources.has(path)) eagerRegisteredActions.add(`${match[1]}:${match[2]}`);
   }
 }
 
@@ -40,9 +51,9 @@ assert.deepEqual(
   'every declared UI action must have a component-owned registration',
 );
 assert.deepEqual(
-  [...registeredActions].filter(action => !declaredActions.has(action)).sort(),
+  [...eagerRegisteredActions].filter(action => !declaredActions.has(action)).sort(),
   [],
-  'every registered UI action must be reachable from owned markup',
+  'every eagerly registered UI action must be reachable from owned markup',
 );
 
 const globalAssignments = [];

@@ -796,6 +796,7 @@
     function clearAIKey(provider) {
       localStorage.removeItem('today_ai_key_' + provider);
       if (provider === 'claude') Today.use('task-enrich').clearFeedback();
+      Today.use('gmail').clearFeedback(true);
       // If we just cleared the default, switch default to the other provider if it has a key
       const other = provider === 'gemini' ? 'claude' : 'gemini';
       if (_aiGetProvider() === provider) {

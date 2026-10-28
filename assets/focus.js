@@ -194,7 +194,7 @@ window._startFocus = (function() {
 
   function _focusTaskDisplay() {
     const text = uiTaskEl?.querySelector('.task-text')?.cloneNode(true);
-    text?.querySelectorAll('.task-tail, .task-link').forEach(el => el.remove());
+    text?.querySelectorAll('.task-tail, .task-link, .gmail-indicator, .agent-indicator').forEach(el => el.remove());
     return text ? text.textContent.trim() : null;
   }
 
@@ -219,7 +219,7 @@ window._startFocus = (function() {
     // Enrichment shortcuts — don't require local AI key (ai-assist uses server key fallback)
     const _gmailBlock = document.getElementById('focusGmailBlock');
     if (_gmailBlock && !_gmailBlock.hidden) {
-      const _draftBtn = _gmailBlock.querySelector('.focus-gmail-draft-btn');
+      const _draftBtn = _gmailBlock.querySelector('.focus-gmail-draft-btn:not([hidden])');
       // A booking thread has no draft: Ask asks about the task instead.
       if (_draftBtn) { _draftBtn.click(); return; }
     }

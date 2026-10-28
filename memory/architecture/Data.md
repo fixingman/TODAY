@@ -292,3 +292,11 @@ Tasks, zones, streak, and focus roll at midnight. **Habits roll at 3am** (v2.17.
 ## Deletion Persistence
 
 `deleted_ids` is never cleared in new-day cleanup; entries expire after **180 days** (BUG-054). Full rule: `architecture/Sync.md` → Deletion Persistence.
+
+## Gmail next-result feedback (15E, v2.104.0 dev)
+
+Optional `feedback` inside existing `gmail_enrichment_<taskId>` entries: `{policy:1, expiresAt, context?:{at,hidden,rejectedThreads}, wording?:{at,concern,draftId,sourceId,writer,scope}}`. Reject at most five existing thread IDs (128 chars each) for this task; one current hard_to_follow/too_formal concern targets the actual shown draft SHA-256, without persisted draft prose. At most 20 feedback-bearing owners / 16,384 aggregate UTF-8 bytes of feedback; evict oldest optional feedback only. Each sub-event has its own timestamp and must postdate memory clear. Finite timestamps, current owner/text/policy/mail grant and original 24h support expiry govern validity; replacements cannot renew support. Reconcile invalid/expired records on read/use/cleanup. Can approved device-local cross-task Gmail wording on October 28; only fixed concerns may reach a draft writer, and old task-only votes retain their scope. No new localStorage prefix, mailbox ingestion, provider/routing change or backup payload. Undo is visit-local and must revalidate owner/source/clear/expiry. Clear-all-wording removes all Gmail wording only; context has its own restore control. Full Memory clear, reconnect or Gmail Forget removes both. AI Forget removes wording. Old clients ignore optional metadata and may discard it on replacement; rollback must discard Gmail cache prefixes to avoid revealing a previously hidden thread.
+
+`sourceId` is a SHA-256 of the current selected cache facts/version, verified before projecting a concern; the digest and original draft wording never enter writer context. Metadata changes withdraw its support even if a thread ID is reused.
+
+Wording records bind `writer: gmail-draft-v1` and their disclosed `scope: task|device`. Enabling device-local guidance cannot repurpose a task-only vote for other owners. Draft identity also includes the writer version; changing wording policy never clears a context rejection. Source identity includes the owning task ID as well as the selected cache facts/version.

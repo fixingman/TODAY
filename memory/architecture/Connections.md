@@ -257,3 +257,7 @@ Nothing blocks task entry. The app is fully functional without any connection.
 ## localStorage Keys
 
 Every connection key — what sets it, what clears it, and whether it syncs — is listed once in **`architecture/Data.md` → localStorage Keys → Integrations / AI / Meeting**. Tokens and AI keys are device-local and never enter the Dropbox backup; `trello_config` (with its `apiToken` stripped) and the meeting names do (see `Sync.md`).
+
+## Gmail feedback lifecycle (v2.104.0 dev)
+
+Gmail’s existing read-only connection/grant owns its local context and optional next-result feedback. No new OAuth scope/account query is added. Gmail Forget/reconnect clears its caches and both feedback subdomains. Normal access-token renewal preserves support; changing the refresh grant fences it. AI Forget removes only Gmail wording guidance, while full Memory clear removes Gmail wording and thread rejection and fences pending work. No prior emails/drafts or feedback metadata enter backup. Details: AI.md → Gmail next-result feedback.

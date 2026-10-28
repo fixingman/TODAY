@@ -17,7 +17,48 @@
     const CALENDAR_NOTIFICATION_SENDER = 'calendar-notification@google.com';
     const GMAIL_MATCH_POLICY = 'minisearch-v1';
     const OWNER_POLICY = 'owner-v2';
+    const MAIL_AGE = 86400000, DRAFT_WRITER='gmail-draft-v1';
     const _lookups = new Map();
+    let _feedbackEpoch = 0;
+    const _memoryClear = () => Date.parse(typeof appMemory !== 'undefined' ? appMemory?.clearedAt : '') || 0;
+    function _feedbackRecord(entry) {
+      const f=entry?.feedback, now=Date.now(), cleared=_memoryClear();
+      if (!f || f.policy!==1 || !Number.isFinite(entry.fetchedAt) || !Number.isFinite(f.expiresAt) || f.expiresAt<=now || f.expiresAt>entry.fetchedAt+MAIL_AGE) return null;
+      const validAt=at=>Number.isFinite(at)&&at>cleared&&at<=now+60000&&at<f.expiresAt;
+      const out={policy:1,expiresAt:f.expiresAt}, c=f.context, w=f.wording;
+      if (c && validAt(c.at) && typeof c.hidden==='boolean' && Array.isArray(c.rejectedThreads)
+          && c.rejectedThreads.length>0 && c.rejectedThreads.length<=5
+          && c.rejectedThreads.every(id=>typeof id==='string'&&id.length>0&&id.length<=128)
+          && (!c.hidden || c.rejectedThreads.includes(entry.threadId)))
+        out.context={at:c.at,hidden:c.hidden,rejectedThreads:[...new Set(c.rejectedThreads)]};
+      if (w && validAt(w.at) && w.writer===DRAFT_WRITER && ['task','device'].includes(w.scope) && ['hard_to_follow','too_formal'].includes(w.concern)
+          && typeof w.draftId==='string' && typeof w.sourceId==='string'
+          && /^[a-f0-9]{64}$/.test(w.draftId) && /^[a-f0-9]{64}$/.test(w.sourceId))
+        out.wording={at:w.at,concern:w.concern,draftId:w.draftId,sourceId:w.sourceId,writer:w.writer,scope:w.scope};
+      return out.context||out.wording ? out : null;
+    }
+    const _hidden = entry => !!_feedbackRecord(entry)?.context?.hidden;
+    const _identity = (entry,id) => JSON.stringify([id,entry.taskText,entry.connectionKey,entry.threadId,entry.messageId,
+      entry.subject,entry.from,entry.date,entry.snippet,entry.fetchedAt]);
+    function _feedbackChanged() {
+      _feedbackEpoch++;
+      for (const request of _lookups.values()) request.controller.abort();
+      _focusView?.draft?.abort();
+    }
+    function _clearFeedback(wordingOnly=false) {
+      _feedbackChanged();
+      for (const key of Object.keys(localStorage).filter(k=>k.startsWith('gmail_enrichment_'))) {
+        try {
+          const entry=JSON.parse(localStorage.getItem(key));
+          if (!entry?.feedback) continue;
+          if (wordingOnly) { delete entry.feedback.wording; if (!entry.feedback.context) delete entry.feedback; }
+          else delete entry.feedback;
+          localStorage.setItem(key,JSON.stringify(entry));
+        } catch (_) {}
+      }
+      _feedbackComponent?.cleared();
+      _cleanup();
+    }
     let _focusView = null, _authEpoch = 0, _connectionEpoch = -1, _connectionToken = '', _connectionKey = '', _connectionPromise;
     const _task = id => manualTasks.find(t => t.id === id);
     const _owner = id => _task(id) || soonTasks.find(t => t.id === id) || pastTasks.find(t => t.id === id);
@@ -42,6 +83,7 @@
       return _lookups.get(request.id) === request && !request.controller.signal.aborted
         && _task(request.id)?.text === request.text && !doneIds.has(request.id)
         && (!request.view || request.view === _focusView) && request.source === _source() && request.ai === _aiSource()
+        && request.feedbackEpoch === _feedbackEpoch && request.memoryClear === _memoryClear()
         && request.cache === localStorage.getItem('gmail_enrichment_' + request.id)
         && request.classify === localStorage.getItem('gmail_classify_' + request.id);
     }
@@ -63,7 +105,10 @@
       const block = document.getElementById('focusGmailBlock');
       if (block) { block.hidden = true; block.innerHTML = ''; delete block.dataset.focusTaskId; }
       const ask = document.querySelector('.focus-ai-timer-btn');
-      if (ask && /draft reply/i.test(ask.textContent)) ask.textContent = '✦︎ ask';
+      if (ask && !ask.closest('.ai-active') && /draft reply/i.test(ask.textContent)) {
+        ask.textContent = '✦︎ ask'; ask.setAttribute('aria-label','Ask for focus help');
+        Today.use('task-enrich').refreshShortcut();
+      }
     }
     function _viewCurrent(view) {
       return !!view && view === _focusView && (!view.expires || Date.now() < view.expires) && _task(view.id)?.text === view.text && !doneIds.has(view.id)
@@ -78,11 +123,26 @@
           if (!_gmailIsConnected() || entry.ownerPolicy !== OWNER_POLICY
               || (_connectionKey && entry.connectionKey !== _connectionKey)
               || (prune && (!owner || entry.taskText !== owner.text))) localStorage.removeItem(key);
+          else if (key.startsWith('gmail_enrichment_') && entry.feedback) {
+            const feedback=_feedbackRecord(entry);
+            if (JSON.stringify(feedback)!==JSON.stringify(entry.feedback)) {
+              if (feedback) entry.feedback=feedback; else delete entry.feedback;
+              localStorage.setItem(key,JSON.stringify(entry));
+            }
+          }
         } catch (_) { localStorage.removeItem(key); }
       }
       _gmailRestoreAllIndicators(prune);
       for (const request of _lookups.values()) if (!_current(request)) request.controller.abort();
-      if (_focusView && !_viewCurrent(_focusView)) _closeFocus();
+      if (_focusView && !_viewCurrent(_focusView)) {
+        const entry=_getEnrichment(_focusView.id);
+        if (entry && _focusView.identity===_identity(entry,_focusView.id) && _focusView.source===_source()
+            && _task(_focusView.id)?.text===_focusView.text && !doneIds.has(_focusView.id)) {
+          _focusView.cache=localStorage.getItem('gmail_enrichment_'+_focusView.id);
+          _feedbackComponent?.reconcile(entry,_focusView);
+        } else _closeFocus();
+      }
+      if (_focusView && _viewCurrent(_focusView)) _feedbackComponent?.reconcile(_getEnrichment(_focusView.id),_focusView);
     }
     let _miniSearchPromise;
     function _gmailSender(from) {
@@ -518,7 +578,7 @@
         }
       }
       if (!candidates.length) return { result: null, status: excluded ? 'excluded-calendar' : 'no-messages' };
-      return _gmailRankCandidates(taskText, candidates);
+      return _gmailRankCandidates(taskText, candidates.filter(c=>!request.rejected?.includes(c.threadId)));
     }
 
     // Enrichment.
@@ -528,6 +588,7 @@
         const raw = localStorage.getItem('gmail_enrichment_' + taskId);
         const cached = raw ? JSON.parse(raw) : null;
         const owner = _owner(taskId);
+        if (cached && !owner && prune) { localStorage.removeItem('gmail_enrichment_'+taskId); return null; }
         if (cached && ((owner && cached.taskText !== owner.text) || !_gmailIsConnected()
             || cached.ownerPolicy !== OWNER_POLICY || cached.connectionKey !== _connectionKey
             || !Number.isFinite(cached.fetchedAt) || Date.now() - cached.fetchedAt > 86400000
@@ -569,7 +630,7 @@
       return searched.result ? { result: searched.result, searchQuery } : null;
     }
 
-    async function _gmailEnrichTask(taskId, taskText, view) {
+    async function _gmailEnrichTask(taskId, taskText, view, alternative) {
       if (_task(taskId)?.text !== taskText || doneIds.has(taskId)) return null;
       if (!_gmailIsConnected()) {
         if (CONTACT_RE.test(taskText)) _gmailNote(taskId, 'gmail-disconnected', null, []);
@@ -580,18 +641,28 @@
       if (view && view !== _focusView) return null;
       if (view) view.source = _source();
       const cached = _getEnrichment(taskId, taskText);
-      if (cached) return cached;
+      if (cached && !alternative) return cached;
+      if (alternative && (!cached || !view || !_viewCurrent(view) || !_hidden(cached))) return null;
       const prior = _lookups.get(taskId);
       if (prior && _current(prior)) return prior.promise;
       prior?.controller.abort();
       const request = { id:taskId, text:taskText, view, source:_source(), ai:_aiSource(), controller:new AbortController(),
+        feedbackEpoch:_feedbackEpoch,memoryClear:_memoryClear(),rejected:alternative ? _feedbackRecord(cached)?.context?.rejectedThreads : [],
         cache:localStorage.getItem('gmail_enrichment_' + taskId), classify:localStorage.getItem('gmail_classify_' + taskId) };
       _lookups.set(taskId, request);
       request.promise = _bounded(request.controller, async () => {
-        const found = await _gmailFindThread(taskId, taskText, request);
+        const found = alternative ? await (async () => {
+          const query=cached.searchQuery||_buildQueryFallback(taskText);
+          const searched=await _gmailSearch(query,taskText,request);
+          if (!_current(request)) return null;
+          _gmailNote(taskId,searched.result?'found':searched.status,'feedback',[{path:'same-query',status:searched.status}]);
+          return searched.result ? {result:searched.result,searchQuery:query} : null;
+        })() : await _gmailFindThread(taskId, taskText, request);
         if (!found || !_current(request)) return null;
         const data = { ...found.result, taskText, searchQuery:found.searchQuery, fetchedAt:Date.now(),
           ownerPolicy:OWNER_POLICY, connectionKey:_connectionKey };
+        if (alternative && _feedbackRecord(cached)?.context) data.feedback={policy:1,expiresAt:cached.feedback.expiresAt,
+          context:{...cached.feedback.context,hidden:false}};
         try { localStorage.setItem('gmail_enrichment_' + taskId, JSON.stringify(data)); } catch (_) { return null; }
         _gmailUpdateIndicator(taskId, true);
         return data;
@@ -607,7 +678,7 @@
       if (!taskEl) return;
       taskEl.querySelector('.gmail-indicator')?.remove();
       const enrichment = _getEnrichment(taskId, undefined, prune);
-      if (!_task(taskId) || doneIds.has(taskId) || !enrichment || !_gmailIsConnected()) return;
+      if (!_task(taskId) || doneIds.has(taskId) || !enrichment || _hidden(enrichment) || !_gmailIsConnected()) return;
 
       const span = document.createElement('span');
       span.className = 'gmail-indicator';
@@ -628,73 +699,23 @@
     }
 
     // Focus block.
-    function _isDesktopMac() {
-      return /Mac/.test(navigator.platform) && !(navigator.maxTouchPoints > 1);
+    let _feedbackComponent, _feedbackLoading;
+    function _feedback() {
+      return _feedbackLoading ||= import('/assets/gmail-feedback.js').then(() =>
+        _feedbackComponent = Today.use('gmail-feedback').create({view:()=>_focusView,current:_viewCurrent,
+          writer:DRAFT_WRITER,booking:_isBookingTask,query:_buildQueryFallback,ai:_aiSource,bounded:_bounded,close:_closeFocus,
+          record:_feedbackRecord,identity:_identity,get:_getEnrichment,changed:_feedbackChanged,
+          epoch:()=>_feedbackEpoch,memoryClear:_memoryClear,indicator:_gmailUpdateIndicator,
+          entries:()=>Object.keys(localStorage).filter(k=>k.startsWith('gmail_enrichment_'))
+            .map(k=>({id:k.slice(17),entry:_getEnrichment(k.slice(17),undefined,false)})).filter(row=>row.entry),
+          alternative:(view)=>_gmailEnrichTask(view.id,view.text,view,true)}))
+        .catch(error => { _feedbackLoading=null; throw error; });
     }
-    // Encode message IDs safely inside message:// angle brackets.
-    function _appleMailHref(messageId) {
-      return 'message://%3C' + encodeURIComponent(messageId) + '%3E';
-    }
-
-    function _doRenderBlock(block, taskText, enrichment) {
-      const view = _focusView; view.expires = enrichment.fetchedAt + 86400000;
-      const booking  = _isBookingTask(taskText || enrichment.taskText || '');
-      const fromRaw  = enrichment.from || '';
-      const fromName = fromRaw.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
-      const _emailM  = fromRaw.match(/<([^>]+@[^>]+)>/);
-      block.dataset.fromEmail = _emailM ? _emailM[1] : (fromRaw.includes('@') ? fromRaw.trim() : '');
-      block.dataset.subject   = enrichment.subject || '';
-      const dateStr  = enrichment.date
-        ? (function() {
-            try { return new Date(enrichment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
-            catch(e) { return ''; }
-          })()
-        : '';
-      const snippet  = (enrichment.snippet || '')
-        .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c))
-        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        .slice(0, 200);
-      const searchQ  = encodeURIComponent(enrichment.searchQuery || _buildQueryFallback(taskText || enrichment.taskText || ''));
-      const gmailUrl = 'https://mail.google.com/mail/u/0/#search/' + searchQ;
-      // Desktop Mac uses Apple Mail; other platforms/missing IDs use Gmail.
-      const appleMail = _isDesktopMac() && enrichment.messageId;
-      const openLink = appleMail
-        ? '<a class="focus-gmail-open focus-gmail-applemail" href="' + esc(_appleMailHref(enrichment.messageId)) + '" data-today-click="gmail.open-mail">Open in Mail ↗</a>'
-        : '<a class="focus-gmail-open" href="' + esc(gmailUrl) + '" target="_blank" rel="noopener">Open in Gmail ↗</a>';
-
-      block.innerHTML =
-        '<div class="focus-gmail-thread">' +
-          '<div class="focus-gmail-meta">' +
-            '<span class="focus-gmail-icon">↩</span>' +
-            esc(fromName) + (dateStr ? ' — ' + esc(dateStr) : '') +
-          '</div>' +
-          '<div class="focus-gmail-snippet">&ldquo;' + esc(snippet) + (snippet.length >= 200 ? '…' : '') + '&rdquo;</div>' +
-          '<div class="focus-gmail-actions">' +
-            (booking ? '' : '<button class="focus-gmail-draft-btn"><span class="focus-gmail-draft-label">Draft reply</span></button>') +
-            openLink +
-          '</div>' +
-          '<div class="focus-gmail-draft" hidden></div>' +
-        '</div>';
-
-      block.querySelector('.focus-gmail-open').addEventListener('click', ev => {
-        if (!_viewCurrent(view)) { ev.preventDefault(); _closeFocus(); }
-      });
-      block.hidden = false;
-      if (window._focusExpandTimer) _focusExpandTimer();
-      const _aiBtn = document.querySelector('.focus-ai-timer-btn');
-      // Booking keeps Ask; correspondence can offer Draft reply.
-      if (booking) {
-        if (_aiBtn && /draft reply/.test(_aiBtn.textContent)) _aiBtn.textContent = '\u2726\ufe0e ask';
-        return;
-      }
-      if (_aiBtn) _aiBtn.textContent = '✦︎ draft reply';
-      const button = block.querySelector('.focus-gmail-draft-btn');
-      button.addEventListener('click', function requestDraft() {
-        button.removeEventListener('click', requestDraft);
-        _fetchDraft(taskText || enrichment.taskText || '', snippet, block, view).then(ok => {
-          if (!ok && _viewCurrent(view)) button.addEventListener('click', requestDraft);
-        });
-      });
+    function _doRenderBlock(block,text,entry) {
+      const view=_focusView;
+      view.identity=_identity(entry,view.id);
+      if (_feedbackComponent) _feedbackComponent.render(block,text,entry);
+      else _feedback().then(help => { if (_viewCurrent(view)) help.render(block,text,entry); }).catch(()=>{});
     }
 
     function _gmailRenderFocusBlock(taskId, taskText) {
@@ -715,87 +736,6 @@
       });
     }
 
-    function _setBtnLabel(btn, text, view) {
-      const label = btn.querySelector('.focus-gmail-draft-label');
-      if (!label) { btn.textContent = text; return; }
-      if (!btn.dataset.minWidthLocked) {
-        btn.style.minWidth = btn.getBoundingClientRect().width + 'px';
-        btn.dataset.minWidthLocked = '1';
-      }
-      label.classList.add('changing');
-      setTimeout(() => { if (btn.isConnected && (!view || _viewCurrent(view))) { label.textContent = text; label.classList.remove('changing'); } }, 150);
-    }
-
-    async function _fetchDraft(taskText, snippet, block, view) {
-      const btn     = block.querySelector('.focus-gmail-draft-btn');
-      const draftEl = block.querySelector('.focus-gmail-draft');
-      if (!btn || !draftEl || !_viewCurrent(view)) return false;
-      view.draft?.abort();
-      const controller = view.draft = new AbortController(), ai = _aiSource();
-      const current = () => _viewCurrent(view) && view.draft === controller && !controller.signal.aborted
-        && ai === _aiSource() && block.querySelector('.focus-gmail-draft-btn') === btn;
-
-      _setBtnLabel(btn, 'drafting…', view);
-      btn.disabled    = true;
-
-      try {
-        const result = await _bounded(controller, async () => {
-          const res = await fetch('/.netlify/functions/ai-assist', {
-          method:  'POST', signal:controller.signal,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider:     Today.use('connections')._aiGetProvider(),
-            apiKey:       Today.use('connections')._aiGetKey(),
-            messages:     [{ role: 'user', content: 'My task: "' + taskText + '". Their last message: "' + snippet + '"' }],
-            systemPrompt: 'Draft a brief, natural reply. Under 3 sentences. Use first name only if greeting. No subject line. No sign-off.',
-          }),
-        });
-          if (!res.ok) return null;
-          return await res.json();
-        });
-        if (!current()) return false;
-        const data = result || {};
-        const raw = data.content || data.message;
-        const draft = typeof raw === 'string' ? raw.trim().replace(/^["']+|["']+$/g, '') : '';
-        if (!draft) return false;
-
-        draftEl.textContent = draft;
-        draftEl.hidden      = false;
-        if (window._focusExpandTimer) _focusExpandTimer();
-        const _toEmail = block.dataset.fromEmail || '';
-        const _rawSubj = block.dataset.subject || '';
-        btn.disabled   = false;
-        if (_toEmail) {
-          // One Mail action: the draft button opens the prefilled reply; the thread link stays as is.
-          // util owns mailto address escaping and the 2KB/grapheme limits.
-          btn.dataset.mailto = _mailtoDraftHref(_toEmail, _rawSubj ? 'Re: ' + _rawSubj : '', draft);
-          _setBtnLabel(btn, 'Show draft in Mail ↗', view);
-          // Same-context Mail navigation avoids a browser detour (BUG-089).
-          btn.addEventListener('click', function openDraft() {
-            if (current()) window.location.href = btn.dataset.mailto;
-          });
-        } else {
-          // No address to reply to: copying is the useful step.
-          _setBtnLabel(btn, 'Copy', view);
-          btn.addEventListener('click', function copyOnce() {
-            if (!current()) return;
-            navigator.clipboard?.writeText(draft).then(() => {
-              if (!current()) return;
-              _setBtnLabel(btn, 'Copied ✓', view);
-              setTimeout(() => { _setBtnLabel(btn, 'Copy', view); }, 2000);
-            }).catch(() => {});
-          });
-        }
-        if (window._focusExpandTimer) _focusExpandTimer();
-        return true;
-      } catch(e) { return false; }
-      finally {
-        if (view === _focusView && view.draft === controller && !draftEl.textContent) {
-          btn.disabled = false; _setBtnLabel(btn, 'Draft reply', view);
-        }
-      }
-    }
-
     // Message links also use same-context Mail navigation.
     if (window.Today) Today.ui.register('click', 'gmail.open-mail', (ev, link) => {
       ev.preventDefault();
@@ -812,14 +752,14 @@
     window._gmailUpdateIndicator        = _gmailUpdateIndicator;
     window._gmailBuildQueryFallback     = _buildQueryFallback;
     Today.define('gmail', { observationAudit:_gmailObservationAudit, rankCandidates:_gmailRankCandidates,
-      closeFocus:_closeFocus, cleanup:_cleanup });
+      closeFocus:_closeFocus, cleanup:_cleanup,clearFeedback:_clearFeedback });
     window.addEventListener('storage', event => {
       if (event.key === null || /^gmail_(?:access_token|refresh_token)$/.test(event.key || '')) {
         if (!_gmailIsConnected() || _connectionToken !== _refreshToken()) {
           _closeFocus(); for (const request of _lookups.values()) request.controller.abort();
           _ensureConnection().then(() => _cleanup(false));
         }
-      } else if (/^gmail_(?:enrichment|classify)_/.test(event.key || '')) { _cleanup(false); }
+      } else if (/^gmail_(?:enrichment|classify)_/.test(event.key || '')) { _feedbackChanged(); _cleanup(false); }
     });
     _ensureConnection().then(_gmailRestoreAllIndicators);
   };
