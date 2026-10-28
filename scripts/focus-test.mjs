@@ -1,3 +1,4 @@
+import { waitForFonts } from './browser-fixture.mjs';
 // TODAY — focus mode module regression test
 //
 // Tests: mobile guard, desktop exports, task click opens timer, session persist,
@@ -132,6 +133,7 @@ async function openPage({ hoverHover = true, extraSeed = {}, pip = false, native
     for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v);
   }, { seed: extraSeed, hoverHover, pip });
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await waitForFonts(page);
   // Change only hardware predicates in this test page's real stylesheet rules.
   // Width, motion, selectors and declarations remain production CSS.
   const input = await page.evaluate(hoverHover=>{

@@ -1,3 +1,4 @@
+import { waitForFonts } from './browser-fixture.mjs';
 // Actual Gmail feedback -> subsequent selection/draft, privacy and ownership controls.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -9,7 +10,7 @@ import puppeteer from 'puppeteer-core';
 const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..');
 const EVIDENCE=process.env.TODAY_GMAIL_EVIDENCE||join(ROOT,'.context/15e-gmail');
 const mime={'.html':'text/html','.js':'text/javascript','.woff2':'font/woff2','.json':'application/json','.png':'image/png'};
-const server=createServer(async(req,res)=>{const path=new URL(req.url,'http://127.0.0.1').pathname;try{const body=await readFile(join(ROOT,path==='/'?'index.html':path));res.writeHead(200,{'Content-Type':mime[extname(path==='/'?'index.html':path)]||'application/octet-stream'});res.end(body);}catch{res.writeHead(404);res.end();}});
+const server=createServer(async(req,res)=>{const path=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);try{const body=await readFile(join(ROOT,path==='/'?'index.html':path));res.writeHead(200,{'Content-Type':mime[extname(path==='/'?'index.html':path)]||'application/octet-stream'});res.end(body);}catch{res.writeHead(404);res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const origin='http://127.0.0.1:'+server.address().port;
 const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:'new',pipe:true,args:['--no-first-run','--disable-extensions']});
@@ -56,6 +57,7 @@ async function fixture(context){
   };
  },{grant,A,B});
  await page.goto(origin,{waitUntil:'domcontentloaded',timeout:15000}).catch(error=>{console.error('Fixture navigation failed:',error.message);throw error;});await page.waitForFunction(()=>typeof window._gmailRenderFocusBlock==='function');
+ await waitForFonts(page);
  // The same explicit hardware model must govern JS guards and CSS. Keep selectors,
  // declarations and actual width/motion conditions; Linux has no native pointer.
  await page.evaluate(()=>{function visit(rules){for(const rule of rules){if(rule.type===CSSRule.MEDIA_RULE)rule.media.mediaText=rule.conditionText.replace(/\((hover|pointer):\s*(hover|none|fine|coarse)\)/g,(_,kind,value)=>((kind==='hover'&&value==='hover')||(kind==='pointer'&&value==='fine'))?'(min-width: 0px)':'(max-width: 0px)');if(rule.cssRules)visit(rule.cssRules);}}for(const sheet of document.styleSheets)visit(sheet.cssRules);});

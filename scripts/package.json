@@ -10,12 +10,16 @@
     "performance": "node performance-test.mjs",
     "performance:write": "node performance-test.mjs --write",
     "visual": "node visual-test.mjs",
-    "visual:update": "node visual-test.mjs --update"
+    "visual:update": "node visual-test.mjs --update",
+    "test:changed": "node test-all.mjs --changed",
+    "test:shadow": "node test-all.mjs --shadow",
+    "test:plan": "node ci-plan.mjs"
   },
   "dependencies": {
+    "@puppeteer/browsers": "3.2.2",
     "axe-core": "^4.13.0",
     "pixelmatch": "^6.0.0",
     "pngjs": "^7.0.0",
-    "puppeteer-core": "^25.10.0"
+    "puppeteer-core": "25.10.0"
   }
 }

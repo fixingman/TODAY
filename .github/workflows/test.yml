@@ -9,23 +9,36 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/dev') }}
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      CHROME_PATH: /usr/bin/google-chrome
+      TZ: UTC
+      LANG: en_US.UTF-8
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 2
+          # Shadow selection needs every commit in a push and the PR merge base.
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: '24.14.0'
           cache: npm
           cache-dependency-path: scripts/package-lock.json
       - name: Install test dependencies
         run: npm ci --prefix scripts
+      - name: Install locked Chrome for Testing
+        run: node scripts/install-ci-browser.mjs
+      - name: Allow the test browser to use its sandbox
+        # Scope the Ubuntu user-namespace exception to this test binary.
+        run: |
+          printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile today-ci-chrome "%s" flags=(unconfined) { userns, }\n' "$CHROME_PATH" | sudo tee /etc/apparmor.d/today-ci-chrome > /dev/null
+          sudo apparmor_parser -r /etc/apparmor.d/today-ci-chrome
       - name: Verify Chrome
         run: |
           test -x "$CHROME_PATH"
@@ -33,7 +46,8 @@ jobs:
       - name: Check payload before browser suites
         run: npm run performance --prefix scripts -- --payload-only
       - name: Run automated gate
-        run: npm test --prefix scripts
+        # Shadow records selection, but executes every functional suite.
+        run: npm test --prefix scripts -- --shadow
       - name: Run performance budgets
         run: npm run performance --prefix scripts -- --no-audit-check --output performance-ci.json --trace-on-failure .context/performance-diagnostics
       - name: Validate memory inventory

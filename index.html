@@ -4724,16 +4724,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '380h';
+const DEV_HOURS     = '381h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.105.2': 'Maintenance: automated checks now verify their coverage and browser setup.',
   '2.105.1': 'Maintenance helps keep observation feedback reliable on small screens.',
   '2.105.0': 'Tell TODAY when an observation is hard to follow or too formal. Your choice guides later readings.',
-  '2.104.0': 'Hide an unhelpful email and ask for another. Optional wording feedback guides later Gmail drafts on this device.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

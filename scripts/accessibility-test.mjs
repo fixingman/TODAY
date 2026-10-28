@@ -1,3 +1,4 @@
+import { waitForFonts } from './browser-fixture.mjs';
 // TODAY — automated accessibility regression audit.
 // Covers reachable page states; manual VoiceOver/PiP checks remain in Test-matrix.md.
 import { createServer } from 'node:http';
@@ -80,6 +81,7 @@ try {
   });
   await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(() => getComputedStyle(document.getElementById('main-app')).opacity === '1', { timeout: 10000 });
+  await waitForFonts(page);
   await injectAxe(page);
 
   await audit(page, 'main page has no WCAG A/AA axe violations');

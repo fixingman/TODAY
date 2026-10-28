@@ -2,6 +2,8 @@
 
 > Test cases for releases. Run critical tests before every deploy.
 
+**CI efficiency phases 1–2 (v2.105.2 dev candidate):** explicit inventory/path/dependency planning, literal-only release metadata and Git range safeguards are implemented. CI is shadow-only and still runs every functional suite plus five performance runs. Unknown/shared/tooling changes broaden coverage; failures/flakes and selection misses remain red. Ubuntu/Node/Chrome are explicit, font readiness and calendar origins are checked, complete logs stream to disk and input changes invalidate results. Clean Linux and two normal candidate shadow results are required before reducing checks; release reuse is phase 3 and remains unimplemented. See `../docs/ci-phase2-audit.md` and `../docs/ci-efficiency-plan.md`.
+
 ---
 
 ## Pre-Release Checklist (REQUIRED)

@@ -1,3 +1,4 @@
+import { installFixtureClock } from './browser-fixture.mjs';
 // TODAY — About/Info panel regression test
 //
 // Flow: toggleInfo opens panel, _poemOfTheDay, renderDailyPoem via toggleInfo,
@@ -15,6 +16,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const FIXTURE_NOW = new Date(2026,9,28,12).getTime();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
@@ -64,11 +66,12 @@ const localISO = (d = new Date()) => {
   return `${Y}-${M}-${D}`;
 };
 const DAY_MS   = 24 * 60 * 60 * 1000;
-const TODAY    = localISO(new Date());
-const YESTERDAY = localISO(new Date(Date.now() - DAY_MS));
+const TODAY    = localISO(new Date(FIXTURE_NOW));
+const YESTERDAY = localISO(new Date(FIXTURE_NOW - DAY_MS));
 
 async function openPage(context = browser) {
   const page = await context.newPage();
+  await installFixtureClock(page,FIXTURE_NOW);
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));

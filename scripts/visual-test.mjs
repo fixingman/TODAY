@@ -1,3 +1,4 @@
+import { waitForFonts } from './browser-fixture.mjs';
 // TODAY — visual regression test
 // Takes repeat screenshots of 6 canonical UI states and diffs against stored PNG baselines.
 // Catches layout, colour, and spacing regressions that DOM assertions cannot.
@@ -105,7 +106,7 @@ async function waitForApp(page) {
     },
     { timeout: 15000 },
   ).catch(() => { throw new Error('app never became ready (add bar never appeared)'); });
-  await page.evaluate(() => document.fonts?.ready || Promise.resolve());
+  await waitForFonts(page);
   // Flush any pending microtasks / rAFs (animations already disabled via reduced-motion)
   await new Promise(r => setTimeout(r, 120));
 }

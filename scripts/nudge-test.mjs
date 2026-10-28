@@ -1,3 +1,4 @@
+import { installFixtureClock } from './browser-fixture.mjs';
 // TODAY — nudge module regression test
 //
 // Tests: checkDayNudge (cached AI, noon hidden, 5s AI wait + fallback, fallback-upgrade,
@@ -15,6 +16,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
+const FIXTURE_NOW = new Date(2026,9,28,12).getTime();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
@@ -40,7 +42,7 @@ await new Promise(resolve => server.listen(0, resolve));
 const URL_BASE = `http://localhost:${server.address().port}`;
 
 // Today in YYYY-MM-DD local time — must match _localISO() in the page.
-const TODAY = new Date().toLocaleDateString('en-CA');
+const TODAY = new Date(FIXTURE_NOW).toLocaleDateString('en-CA');
 
 let browser;
 const ok = message => console.log('  ✓ ' + message);
@@ -67,6 +69,7 @@ browser = await puppeteer.launch({
 // keeping _nudgeRendered=false. skipDismiss=true lets init() render the nudge.
 async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false, context = browser } = {}) {
   const page = await context.newPage();
+  await installFixtureClock(page,FIXTURE_NOW);
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));

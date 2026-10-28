@@ -10,7 +10,7 @@ const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..');
 const performanceSource=await readFile(join(ROOT,'scripts/performance-test.mjs'),'utf8');
 const start=performanceSource.indexOf('async function armInteraction('),end=performanceSource.indexOf('\nasync function ',start+1);
 const armInteraction=vm.runInNewContext('('+performanceSource.slice(start,end)+')');
-const server=createServer(async(req,res)=>{try{const path=new URL(req.url,'http://127.0.0.1').pathname;const file=path==='/'?'index.html':path;res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.json':'application/json','.woff2':'font/woff2','.css':'text/css','.svg':'image/svg+xml'})[extname(file)]||'application/octet-stream');res.end(await readFile(join(ROOT,file)));}catch{res.writeHead(404);res.end();}});
+const server=createServer(async(req,res)=>{try{const path=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);const file=path==='/'?'index.html':path;res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.json':'application/json','.woff2':'font/woff2','.css':'text/css','.svg':'image/svg+xml'})[extname(file)]||'application/octet-stream');res.end(await readFile(join(ROOT,file)));}catch{res.writeHead(404);res.end();}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:'new',args:['--no-first-run','--disable-extensions','--no-sandbox','--autoplay-policy=document-user-activation-required','--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4']});
 async function fixture(mode='fake'){

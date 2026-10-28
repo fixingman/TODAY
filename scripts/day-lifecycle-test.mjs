@@ -1,3 +1,4 @@
+import { installFixtureClock } from './browser-fixture.mjs';
 // TODAY — day-lifecycle module regression test
 //
 // Tests: applyNewDayCleanup (first-open guard, same-day guard, done→PAST graduation,
@@ -15,6 +16,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
+const FIXTURE_NOW = new Date(2026,9,28,12).getTime();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
@@ -40,19 +42,19 @@ const URL_BASE = `http://localhost:${server.address().port}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Matches app's _localISO() — YYYY-MM-DD in local time
 const localISO = d => {
-  if (!d) d = new Date();
+  if (!d) d = new Date(FIXTURE_NOW);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 };
 
 const TODAY_ISO        = localISO();
-const TODAY_DS         = new Date().toDateString();  // _getAppDay() format for stat_last_visit
-const YESTERDAY        = new Date(Date.now() - DAY_MS);
+const TODAY_DS         = new Date(FIXTURE_NOW).toDateString();  // _getAppDay() format for stat_last_visit
+const YESTERDAY        = new Date(FIXTURE_NOW - DAY_MS);
 const YESTERDAY_ISO    = localISO(YESTERDAY);
 const YESTERDAY_DS     = YESTERDAY.toDateString();
-const TWODAYS_DS       = new Date(Date.now() - 2 * DAY_MS).toDateString();
-const DAYS_8_AGO_ISO   = new Date(Date.now() -  8 * DAY_MS).toISOString();
-const DAYS_31_AGO_ISO  = new Date(Date.now() - 31 * DAY_MS).toISOString();
-const NOW_ISO          = new Date().toISOString();
+const TWODAYS_DS       = new Date(FIXTURE_NOW - 2 * DAY_MS).toDateString();
+const DAYS_8_AGO_ISO   = new Date(FIXTURE_NOW -  8 * DAY_MS).toISOString();
+const DAYS_31_AGO_ISO  = new Date(FIXTURE_NOW - 31 * DAY_MS).toISOString();
+const NOW_ISO          = new Date(FIXTURE_NOW).toISOString();
 
 let browser;
 const ok   = msg => console.log('  ✓ ' + msg);
@@ -78,6 +80,7 @@ browser = await puppeteer.launch({
 // so the JS state vars (manualTasks, doneIds, etc.) are already loaded from the seeded data.
 async function openPage({ extraSeed = {} } = {}) {
   const page = await browser.newPage();
+  await installFixtureClock(page,FIXTURE_NOW);
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
@@ -180,6 +183,7 @@ try {
     // local cleanup, then upload. The dismissal must survive every stage.
     {
       const page = await browser.newPage();
+  await installFixtureClock(page,FIXTURE_NOW);
       const errors = [];
       page.on('pageerror', err => errors.push(err.message));
       await page.evaluateOnNewDocument(({ yesterdayDs, todayDs }) => {
@@ -461,8 +465,8 @@ try {
     //     and a changed age bucket eases over 1.2s instead of snapping.
     {
       const D = 86400000;
-      const oldId  = 'manual_' + (Date.now() - 8 * D);   // renders as age bucket "old"
-      const doneId = 'manual_' + (Date.now() - 2 * D);
+      const oldId  = 'manual_' + (FIXTURE_NOW - 8 * D);   // renders as age bucket "old"
+      const doneId = 'manual_' + (FIXTURE_NOW - 2 * D);
       const { page, errors } = await openPage({
         extraSeed: {
           'today_manual': JSON.stringify([{ id: oldId, text: 'Old task' }, { id: doneId, text: 'Done task' }]),

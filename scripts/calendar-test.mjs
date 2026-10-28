@@ -1,3 +1,4 @@
+import { waitForFonts } from './browser-fixture.mjs';
 // Offline contract for 10b: separate consent, bounded reads, transient context.
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -235,7 +236,7 @@ const { extname, join } = await import('node:path');
 const { readFile } = await import('node:fs/promises');
 const puppeteer = (await import('puppeteer-core')).default;
 const server = createServer(async (req, res) => {
-  const pathname = new URL(req.url, 'http://127.0.0.1').pathname;
+  const pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
   const path = pathname === '/' ? '/index.html' : pathname;
   try {
     const body = await readFile(join(root.pathname, path));
@@ -283,6 +284,7 @@ try {
   }, fixtureNow);
   await page.goto(`http://127.0.0.1:${server.address().port}`, { waitUntil: 'load' });
   await page.waitForFunction(() => { try { return Today.use('calendar').context().length === 1; } catch { return false; } });
+  await waitForFonts(page);
   assert.ok(calendarReads > 0, 'Calendar reads must pass the deployed CSP, not a replaced fetch');
   await page.evaluate(() => Today.use('connections').toggleConfig());
   await page.waitForSelector('[data-today-click="connections.calendar-forget"]', { visible: true });

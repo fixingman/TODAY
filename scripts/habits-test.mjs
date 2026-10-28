@@ -1,3 +1,4 @@
+import { installFixtureClock } from './browser-fixture.mjs';
 // TODAY — Habits regression test
 //
 // Full flow invariant suite: 3am rollover, render, toggleHabitDone check/uncheck,
@@ -13,6 +14,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const FIXTURE_NOW = new Date(2026,9,28,12).getTime();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PRE_EXTRACTION = process.argv.includes('--pre-extraction');
@@ -66,14 +68,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Use TWO_DAYS_AGO + YESTERDAY so habit_a shows ≥2 dots regardless of 3am rollover.
 // _getHabitDates() 21-day window always includes both; _getHabitStrength uses real
 // Date.now() and always sees both in the 90-day lookback.
-const TWO_DAYS_AGO = localISO(new Date(Date.now() - 2 * DAY_MS));
-const YESTERDAY    = localISO(new Date(Date.now() - DAY_MS));
+const TWO_DAYS_AGO = localISO(new Date(FIXTURE_NOW - 2 * DAY_MS));
+const YESTERDAY    = localISO(new Date(FIXTURE_NOW - DAY_MS));
 
 const HABIT_A = { id: 'habit_a', name: 'Read', archived: false };
 const HABIT_B = { id: 'habit_b', name: 'Walk', archived: false };
 
 async function openPage() {
   const page = await browser.newPage();
+  await installFixtureClock(page,FIXTURE_NOW);
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
