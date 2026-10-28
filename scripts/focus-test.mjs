@@ -1012,7 +1012,7 @@ try {
       catch (error) {
         console.error('Focus overflow state:',JSON.stringify(await page.evaluate(()=>{
           const answer=document.querySelector('.focus-ai-timer-btn'),range=document.createRange();range.selectNodeContents(answer);
-          return {viewport:innerWidth,client:answer.clientWidth,scroll:answer.scrollWidth,textWidth:range.getBoundingClientRect().width,
+          return {viewport:innerWidth,client:answer.clientWidth,scroll:answer.scrollWidth,textWidth:range.getBoundingClientRect().width,font:getComputedStyle(answer).font,
             reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,classes:answer.className,timer:document.querySelector('.focus-timer').className};
         })));
         throw error;
@@ -1025,11 +1025,19 @@ try {
     });
     {
       const {page,errors} = await feedbackFixture();
-      const first = 'Which exact input reliably reproduces the export crash?';
+      // Long enough to overflow 320px with Linux's proportional fallback too.
+      const first = 'Which original input and export settings reproduce the crash before the file is written?';
       await deliver(page,first);
       await page.waitForFunction(()=>document.body.style.transition==='');
       await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))));
       const closed = await geometry(page);
+      await expectAll('resize fixture starts with readable stationary text',{
+        fits:await page.$eval('.focus-ai-timer-btn',answer=>{
+          const text=document.createRange();text.selectNodeContents(answer);
+          return text.getBoundingClientRect().width<=answer.clientWidth;
+        }),
+        stationary:await page.$eval('.focus-ai-timer-btn',answer=>!answer.classList.contains('question-scroll')),
+      });
       const stored = await page.evaluate(() => JSON.stringify(Object.entries(localStorage).filter(([key]) => key !== 'today_focus_session').sort()));
       await expectAll('feedback starts genuinely hidden',{
         collapsed:await page.$eval('#focusAskFeedback',e=>e.hidden),
