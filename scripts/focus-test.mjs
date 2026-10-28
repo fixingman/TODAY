@@ -50,32 +50,29 @@ const expectAll = async (label, result) => {
   if (failed.length) await fail(label, result);
 };
 
-// CI's headless Linux Chrome reports no pointing device at all — (hover: hover) false,
-// (pointer: fine) false, (pointer: coarse) false — so @media (hover: hover) never matches
-// there and the copy button and hover shimmer never render. Media emulation cannot
-// change hover/pointer (Puppeteer rejects the names; CDP ignores them), but Blink's
-// launch-time input settings can. Declare the desktop these assertions assume:
-// hover=2 (hover), pointer=4 (fine). Verified both directions on macOS 2026-09-06.
-const DESKTOP_INPUT = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
+// Hardware media predicates need the same explicit input model in JS and CSS.
+// Launch flags and CDP media emulation do not reliably override native hover.
 browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: 'new',
-  args: ['--no-first-run', '--disable-extensions', DESKTOP_INPUT],
+  args: ['--no-first-run', '--disable-extensions'],
 });
 
 // openPage — emulates a desktop (hover:hover) or mobile (no hover) environment.
 // Seeds localStorage with a single manual task so the task list renders.
-async function openPage({ hoverHover = true, extraSeed = {}, pip = false } = {}) {
+async function openPage({ hoverHover = true, extraSeed = {}, pip = false, nativeTouch = false } = {}) {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 900 });
+  await page.setViewport({ width: 1280, height: 900, hasTouch: nativeTouch });
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
   await page.evaluateOnNewDocument(({ seed, hoverHover, pip }) => {
     // Stub matchMedia so the hover:hover guard is deterministic in headless Chrome.
     const _orig = window.matchMedia.bind(window);
+    window.__focusNativeHover = _orig('(hover: hover)').matches;
     window.matchMedia = (query) => {
-      if (query === '(hover: hover)') {
-        return { matches: hoverHover, media: query,
+      const hardware={'(hover: hover)':hoverHover,'(hover: none)':!hoverHover,'(pointer: fine)':hoverHover,'(pointer: coarse)':!hoverHover,'(pointer: none)':false};
+      if (Object.hasOwn(hardware,query)) {
+        return { matches: hardware[query], media: query,
           addEventListener: () => {}, removeEventListener: () => {},
           addListener: () => {}, removeListener: () => {},
           dispatchEvent: () => false, onchange: null };
@@ -135,6 +132,29 @@ async function openPage({ hoverHover = true, extraSeed = {}, pip = false } = {})
     for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, v);
   }, { seed: extraSeed, hoverHover, pip });
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+  // Change only hardware predicates in this test page's real stylesheet rules.
+  // Width, motion, selectors and declarations remain production CSS.
+  const input = await page.evaluate(hoverHover=>{
+    const probe=document.createElement('style');
+    probe.textContent='@media (hover: hover) and (pointer: fine) {:root {--focus-fixture-desktop: 1}} @media (hover: none) {:root {--focus-fixture-touch: 1}}';
+    document.head.append(probe);
+    let mapped=0;const before=[],after=[];
+    function visit(rules){for(const rule of rules){
+      if(rule.type===CSSRule.STYLE_RULE)before.push(rule.cssText);
+      if(rule.type===CSSRule.MEDIA_RULE)rule.media.mediaText=rule.conditionText.replace(/\((hover|pointer):\s*(hover|none|fine|coarse)\)/g,(_,kind,value)=>{
+        mapped++;const matches=kind==='hover'?(value==='hover'?hoverHover:!hoverHover):(value==='fine'?hoverHover:value==='coarse'?!hoverHover:false);
+        return matches?'(min-width: 0px)':'(max-width: 0px)';
+      });
+      if(rule.cssRules)visit(rule.cssRules);
+      if(rule.type===CSSRule.STYLE_RULE)after.push(rule.cssText);
+    }}
+    for(const sheet of document.styleSheets)visit(sheet.cssRules);
+    const style=getComputedStyle(document.documentElement);
+    return {mapped:mapped>2,intact:JSON.stringify(before)===JSON.stringify(after),
+      desktop:style.getPropertyValue('--focus-fixture-desktop').trim()===(hoverHover?'1':''),
+      touch:style.getPropertyValue('--focus-fixture-touch').trim()===(hoverHover?'':'1')};
+  },hoverHover);
+  await expectAll('JS/CSS input fixture agrees without changing declarations',input);
   if (hoverHover) {
     await page.waitForFunction(
       () => typeof window._focusOnCheck === 'function' &&
@@ -752,8 +772,8 @@ try {
     }
 
     // Habit requests use the real UI on an isolated origin, with deliberately held replies.
-    const habitFixture = async ({ configured = true, hoverHover = true } = {}) => {
-      const fixture = await openPage({ hoverHover, extraSeed: {
+    const habitFixture = async ({ configured = true, hoverHover = true, nativeTouch = false } = {}) => {
+      const fixture = await openPage({ hoverHover, nativeTouch, extraSeed: {
         today_habits: JSON.stringify([{id:'habit_read',name:'Read',focusSessions:7},{id:'habit_walk',name:'Walk'}]),
         ...(configured ? {today_ai_key_claude:'test-key',today_ai_key_gemini:'test-key'} : {}),
       }});
@@ -976,8 +996,8 @@ try {
     }
 
     // Exact-answer feedback: real controls, next explicit request, no persistent votes.
-    const feedbackFixture = async (owner = 'task') => {
-      const fixture = await habitFixture();
+    const feedbackFixture = async (owner = 'task', options = {}) => {
+      const fixture = await habitFixture(options);
       if (owner === 'habit') await startHabit(fixture.page);
       else {
         await fixture.page.evaluate(() => { manualTasks[0].id = 'manual_1700000000000'; manualTasks[0].text = 'Fix the export crash'; Today.use('connections').renderManual(); document.querySelector('.task-text').click(); });
@@ -1024,14 +1044,15 @@ try {
       return {text:answer.textContent,x:r.x,y:r.y,width:r.width,height:r.height,lineHeight:line.getBoundingClientRect().height};
     });
     {
-      const {page,errors} = await feedbackFixture();
-      // Long enough to overflow 320px with Linux's proportional fallback too.
+      const {page,errors} = await feedbackFixture('task',{nativeTouch:true});
+      // A valid answer that fits on desktop and overflows the 320px answer row.
       const first = 'Which original input and export settings reproduce the crash before the file is written?';
       await deliver(page,first);
       await page.waitForFunction(()=>document.body.style.transition==='');
       await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))));
       const closed = await geometry(page);
       await expectAll('resize fixture starts with readable stationary text',{
+        nativeNoHover:await page.evaluate(()=>!window.__focusNativeHover),
         fits:await page.$eval('.focus-ai-timer-btn',answer=>{
           const text=document.createRange();text.selectNodeContents(answer);
           return text.getBoundingClientRect().width<=answer.clientWidth;
@@ -1068,7 +1089,7 @@ try {
       const clip = await page.$eval('.task.focused',e=>{const r=e.getBoundingClientRect();return {x:r.x-12,y:r.y-12,width:r.width+24,height:190};});
       await page.screenshot({path:join(ROOT,'.context/15d-focus-feedback/implemented-desktop.png'),clip});
       // A reply that fitted before resize must become scrollable after narrowing, without another Ask.
-      await page.setViewport({width:320,height:800});
+      await page.setViewport({...page.viewport(),width:320,height:800});
       await page.waitForFunction(width=>innerWidth===320&&document.querySelector('.focus-ai-timer-btn').clientWidth<width,{},closed.width);
       await waitForAnswerScroll(page);
       await expectAll('existing answer adapts to a narrower viewport',{
@@ -1076,20 +1097,20 @@ try {
         sameReply:await page.$eval('.focus-ai-timer-btn',e=>e.textContent===e.getAttribute('aria-label')),
         ratingKept:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
       });
-      await page.setViewport({width:1280,height:900});
+      await page.setViewport({...page.viewport(),width:1280,height:900});
       await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').clientWidth>400);
       await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
       await expectAll('widening stops unnecessary answer motion',{fits:await page.$eval('.focus-ai-timer-btn',e=>!e.classList.contains('question-scroll'))});
 
       // Native button overflow reporting must not decide whether its clipped text is readable.
       await page.$eval('.focus-ai-timer-btn',e=>Object.defineProperty(e,'scrollWidth',{configurable:true,get(){return this.clientWidth;}}));
-      await page.setViewport({width:320,height:800});await waitForAnswerScroll(page);
+      await page.setViewport({...page.viewport(),width:320,height:800});await waitForAnswerScroll(page);
       await expectAll('text measurement survives incomplete button overflow reporting',{
         reportedClipped:await page.$eval('.focus-ai-timer-btn',e=>e.scrollWidth===e.clientWidth),
         sameReply:await page.$eval('.focus-ai-timer-btn',e=>e.textContent===e.getAttribute('aria-label')),
         ratingKept:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
       });
-      await page.setViewport({width:1280,height:900});
+      await page.setViewport({...page.viewport(),width:1280,height:900});
       await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
       await page.$eval('.focus-ai-timer-btn',e=>{delete e.scrollWidth;});
 
@@ -1120,7 +1141,7 @@ try {
         positiveKept:message.includes(JSON.stringify({reply:first,rating:'landed'})),
         revisedMiss:message.includes(JSON.stringify({reply:second,rating:'not landed'})),
       });
-      await page.setViewport({width:320,height:800});
+      await page.setViewport({...page.viewport(),width:320,height:800});
       const long='Which input and export format reproduce the crash, and does it happen before or after the file appears?';
       await reply(page,third,{content:long});await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},long);
       await openFeedback(page);

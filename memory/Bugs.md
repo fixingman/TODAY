@@ -20,7 +20,8 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 137 | ⏳ Verify | Clean GitHub runs fail Calendar, enrichment screenshots and Focus resize fixtures. | v2.103.4 |
+| 138 | 🔍 Open | Hosting injects a Real User Monitoring SDK outside the repository. | Netlify setting |
+| 137 | ⏳ Verify | Clean GitHub runs fail Calendar, enrichment screenshots and Focus resize fixtures. | v2.103.5 |
 | 136 | ⏳ Verify | Dev service worker installs without the app-shell precache because a listed helper returns 404. | v2.103.0 |
 | 135 | ⏳ Verify | Startup blocking and cold/warm load exceed performance limits. | v2.103.2 |
 | 134 | ⏳ Verify | Sunday treats tied let-go reasons as a majority and generalizes missing reasons. | v2.101.1 |
@@ -40,7 +41,17 @@
 
 ---
 
+## BUG-138 — Hosting appends Real User Monitoring
+
+**Confirmed October 28:** fresh public dev and production v2.103.4 HTML responses append a netlify-rum-container script after the repository HTML. Removing only that identified append produces the exact committed HTML; deployed sound.js and sw.js match byte for byte. No personal account, task content or diagnostic metric history was read. This establishes SDK injection, not what data successfully reached a collector; CSP may constrain its requests.
+
+**Action:** disable Real User Monitoring in Netlify’s today-here project, then verify the script is absent on both origins. Rule 32 excludes analytics SDKs even when anonymous. The [official Netlify instructions](https://docs.netlify.com/manage/monitoring/real-user-monitoring/#disable-real-user-monitoring) warn that disabling removes the RUM dashboard/metrics. The browser connector failed during setup and no Netlify credential/CLI configuration is available here; Can has been asked to change the setting. Do not broaden CSP, normalize the injected SDK into an accepted source baseline, or claim this is fixed before deployed verification.
+
+---
+
 ## BUG-137 — Clean CI fixture failures
+
+**Input-model repair (v2.103.5):** both v2.103.4 hosted runs (40661801217 / 40661801762) still pass 52 suites and fail Focus. Diagnostics reveal 13.333px Arial and wrapping: JS forces desktop while native CSS has no-hover capability, so text length is not the cause. Test-only CSSOM hardware predicates now match the JS fixture; selectors, declarations and width/motion predicates are preserved and checked. The 320px feedback case deliberately uses native no-hover hardware; inconsistent input fails locally before, all 29 groups pass after. Resizing retains native device settings. Production CSS/input guards and all deadlines/assertions remain unchanged. The frozen v2.103.5 candidate passes all 53 functional suites with zero flaky/failed results and all five performance runs with unchanged limits; payload passes at 1201.1 KiB decoded / 340.9 KiB Brotli / 38 eager scripts. All 149 runtime/test fingerprints stay unchanged across the gates. Original failures and no-hover before/after controls remain retained. Exact-commit hosted confirmation and installed acceptance are separate.
 
 **Hosted follow-up (v2.103.4):** both v2.103.2 runs (40612299853 / 40612299919) pass 52 suites and fail the same resize-to-scroll fixture. The original 243.7px answer fits the 284px answer area on Linux; stationary text is correct. A longer 14-word fixture now checks desktop fit/no motion before retaining the narrow-scroll, widening, exact-reply/rating and native-overflow-reporting assertions. No runtime, deadline, retry or budget changes. A proportional-font control passes the revised fixture; it alone did not reproduce the hosted geometry with the original sentence. The actual hosted failure is retained as the negative evidence. The revised isolated gate passes 53 suites with zero flaky/failed results. All five v2.103.4 performance runs pass unchanged budgets: worst cold blocking 67 ms / 200 ms, cold FCP 6712 ms / 7000 ms, warm FCP 124 ms / 500 ms and Focus 38 ms / 300 ms. Payload is 1201.1 KiB decoded / 341.0 KiB Brotli with 38 eager scripts. Hosted results are checked against the exact published commit, separately from installed acceptance.
 
