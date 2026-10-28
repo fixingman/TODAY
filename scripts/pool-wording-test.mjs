@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import puppeteer from 'puppeteer-core';
 const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..'),EVIDENCE=process.env.TODAY_POOL_EVIDENCE||join(ROOT,'.context/15c-wording');
 const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json','.woff2':'font/woff2','.png':'image/png'};
-const server=createServer(async(req,res)=>{const path=new URL(req.url,'http://127.0.0.1').pathname,name=path==='/'?'index.html':path;try{const body=await readFile(join(ROOT,name));res.writeHead(200,{'Content-Type':mime[extname(name)]||'application/octet-stream'});res.end(body);}catch{res.writeHead(404);res.end();}});
+const server=createServer(async(req,res)=>{const path=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname),name=path==='/'?'index.html':path;try{const body=await readFile(join(ROOT,name));res.writeHead(200,{'Content-Type':mime[extname(name)]||'application/octet-stream'});res.end(body);}catch{res.writeHead(404);res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
 const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:'new',pipe:true,args:['--no-first-run','--disable-extensions']});
 let sundaySource,morningSource;
@@ -37,6 +37,7 @@ async function fixture(offset=0,readings=[]){
   };
  },{initial,offset});
  await page.goto(origin,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>typeof window.checkDayNudge==='function'&&typeof window._memoryReactToLine==='function');
+ await page.evaluate(async()=>{await document.fonts.ready;for(const weight of [300,400,500]){const font=weight+' 12px \"DM Mono\"';await document.fonts.load(font);if(!document.fonts.check(font))throw new Error('Pool fixture did not load DM Mono '+weight);}});
  await page.evaluate(readings=>{localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','fictional-key');appMemory.spokenLines=readings;appMemory.kindVerdicts={};appMemory.taskOutcomes=[];appMemory.clearedAt='';delete appMemory.poolWordingClearedAt;__requests.length=0;},readings);
  return{page,context,errors};
 }
