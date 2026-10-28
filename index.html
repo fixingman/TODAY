@@ -250,8 +250,7 @@
       pointer-events: none;
     }
     .focusing .task.focused .task-copy {
-      opacity: 1;
-      color: var(--text);
+      opacity: var(--opacity-copy);
       pointer-events: all;
     }
     .focusing .task.focused .task-copy:hover {
@@ -574,7 +573,9 @@
     display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
   }
   .focus-ask-reaction { min-height: 24px; }
-  .focus-ask-reaction.on { opacity: 1; }
+  .focus-ask-feedback-actions [data-today-click="focus-ask.clear"] { margin-left: auto; }
+  .focus-ask-feedback-actions:has(.on) [data-choice] { color: var(--muted); opacity: 1; }
+  .focus-ask-feedback-actions [data-choice].on { color: var(--text); opacity: 1; }
   .focus-ask-feedback:focus-visible, .focus-ask-reaction:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
@@ -4731,9 +4732,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.105.4': 'Focus feedback simplified: one clear-vote action, landed is white, unselected is muted; copy button is subtler at rest.',
   '2.105.3': 'Maintenance: a clearer release process helps keep updates reliable.',
   '2.105.2': 'Maintenance: automated checks now verify their coverage and browser setup.',
-  '2.105.1': 'Maintenance helps keep observation feedback reliable on small screens.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

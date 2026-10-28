@@ -2,7 +2,7 @@
 (function() {
 'use strict';
 function create(timerEl, answer, hooks) {
-  let scope = null, replies = [], shown = null, undo = null, sequence = 0, poll = null, delivered = null, scrollFrame = 0;
+  let scope = null, replies = [], shown = null, sequence = 0, poll = null, delivered = null, scrollFrame = 0;
   const fields = ['id','habit','name','source','display','date','day','provider','key'];
   const same = (a,b) => a && b && fields.every(key => a[key] === b[key]);
   const toggle = document.createElement('button');
@@ -15,8 +15,7 @@ function create(timerEl, answer, hooks) {
   const controls = '<span class="visually-hidden" id="focusAskFeedbackHelp"></span><div class="focus-ask-feedback-actions" role="group" aria-label="Feedback on this answer">' +
     '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.vote" data-choice="landed" aria-pressed="false">landed</button>' +
     '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.vote" data-choice="missed" aria-pressed="false">not landed</button>' +
-    '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.undo" hidden>undo</button>' +
-    '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.clear" hidden>clear</button></div>';
+    '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.clear" hidden>clear vote</button></div>';
   panel.innerHTML = controls;
   toggle.setAttribute('aria-describedby','focusAskFeedbackHelp');
   timerEl.querySelector('.focus-timer-inner').append(toggle); timerEl.append(panel);
@@ -29,13 +28,13 @@ function create(timerEl, answer, hooks) {
   }
   function reconcile() {
     if (scope && !hooks.sourceCurrent(scope)) {
-      scope = null; replies = []; undo = null; stop(); hooks.invalidate();
+      scope = null; replies = []; stop(); hooks.invalidate();
     }
   }
   function reset(clearHistory = false) {
     const focused = panel.contains(document.activeElement) || document.activeElement === toggle;
     cancelAnimationFrame(scrollFrame); scrollFrame = 0; delivered = null;
-    shown = null; undo = null; toggle.hidden = true; panel.hidden = true;
+    shown = null; toggle.hidden = true; panel.hidden = true;
     toggle.setAttribute('aria-expanded','false'); timerEl.classList.remove('has-focus-answer');
     if (clearHistory) { scope = null; replies = []; stop(); }
     if (!timerEl.hidden && timerEl.classList.contains('open')) {
@@ -49,18 +48,16 @@ function create(timerEl, answer, hooks) {
       const on = shown.row.reaction === button.dataset.choice;
       button.setAttribute('aria-pressed',String(on)); button.classList.toggle('on',on);
     });
-    panel.querySelector('[data-today-click="focus-ask.undo"]').hidden = !undo;
     panel.querySelector('[data-today-click="focus-ask.clear"]').hidden = !shown.row.reaction;
     window._focusExpandTimer();
   }
-  function change(value, undoing = false) {
+  function change(value) {
     if (!current()) { reconcile(); return; }
-    const active = document.activeElement, previous = shown.row.reaction;
+    const active = document.activeElement;
     shown.row.reaction = value;
-    undo = undoing ? null : {row:shown.row,previous};
     paint();
     if (active?.hidden) panel.querySelector('[data-choice="' + (value || 'landed') + '"]').focus();
-    if (window._a11yAnnounce) _a11yAnnounce(value ? 'Marked ' + (value === 'landed' ? 'landed' : 'not landed') + ' for this focus session.' : 'Focus feedback cleared.');
+    if (window._a11yAnnounce) _a11yAnnounce(value ? 'Marked ' + (value === 'landed' ? 'landed' : 'not landed') + ' for this focus session.' : 'Vote cleared for this answer.');
   }
   Today.ui.register('click','focus-ask.toggle',event => {
     event.stopPropagation(); if (!current()) { reconcile(); return; }
@@ -69,9 +66,6 @@ function create(timerEl, answer, hooks) {
   Today.ui.register('click','focus-ask.vote',(event,button) => {
     event.stopPropagation(); if (!current() || !panel.contains(button) || panel.hidden || button.dataset.reply !== String(shown.row.id)) return;
     change(shown.row.reaction === button.dataset.choice ? null : button.dataset.choice);
-  });
-  Today.ui.register('click','focus-ask.undo',(event,button) => {
-    event.stopPropagation(); if (!button.hidden && !panel.hidden && undo && shown?.row === undo.row && panel.contains(button) && button.dataset.reply === String(shown.row.id)) change(undo.previous,true);
   });
   Today.ui.register('click','focus-ask.clear',(event,button) => { event.stopPropagation(); if (!button.hidden && !panel.hidden && shown && panel.contains(button) && button.dataset.reply === String(shown.row.id)) change(null); });
   window.addEventListener('storage',reconcile);
