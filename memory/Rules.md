@@ -1,7 +1,7 @@
 # TODAY — Critical Rules
 > **Read this first.** These rules must never break.
 
-**CI efficiency phases 1–2 (v2.105.2 dev candidate):** explicit inventory/path/dependency planning, literal-only release metadata and Git range safeguards are implemented. CI is shadow-only and still runs every functional suite plus five performance runs. Unknown/shared/tooling changes broaden coverage; failures/flakes and selection misses remain red. Ubuntu/Node/Chrome are explicit, font readiness and calendar origins are checked, complete logs stream to disk and input changes invalidate results. Clean Linux and two normal candidate shadow results are required before reducing checks; release reuse is phase 3 and remains unimplemented. See `../docs/ci-phase2-audit.md` and `../docs/ci-efficiency-plan.md`.
+**CI phase 2 status (October 28):** v2.105.2 is published. Its Linux artifact passes58 suites with zero failures/flakes/selection misses and all five performance runs. One distinct candidate checkpoint remains; dev/master runs of that same SHA count once. The requested CI handoff documentation is the next candidate. Keep the full hosted shadow gate until its result is reviewed; phase3 release reuse remains planned. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
 
 ---
 
@@ -153,6 +153,8 @@ Status symbols used throughout:
 29. **Looping animations → WAAPI (`_breathe`/`_pulseComplete`), never CSS** — `_forceRepaint` display toggles restart CSS animations from keyframe 0 (visible flash, unfixable by suppression — BUG-028 ×4). CSS is fine for one-shots. See `design/Motion.md`.
 
 ## Operating Mode (how routines run)
+
+**CI handoff (Can, October 28): push → share the CI link/status → end the turn.** Do not keep a turn open with polling, background watches or waiting updates. Check results when Can asks; a status question authorizes one check, not continued monitoring. Monitor until completion only when explicitly requested. Details: `Housekeeping.md` → CI handoff. Existing validation and publication gates still apply.
 
 **Discipline runs automatically; commits/pushes are human-gated.** The version bump, *both*
 changelogs, and affected-doc updates are part of any code change — they run unprompted, not

@@ -2,7 +2,7 @@
 
 > Test cases for releases. Run critical tests before every deploy.
 
-**CI efficiency phases 1–2 (v2.105.2 dev candidate):** explicit inventory/path/dependency planning, literal-only release metadata and Git range safeguards are implemented. CI is shadow-only and still runs every functional suite plus five performance runs. Unknown/shared/tooling changes broaden coverage; failures/flakes and selection misses remain red. Ubuntu/Node/Chrome are explicit, font readiness and calendar origins are checked, complete logs stream to disk and input changes invalidate results. Clean Linux and two normal candidate shadow results are required before reducing checks; release reuse is phase 3 and remains unimplemented. See `../docs/ci-phase2-audit.md` and `../docs/ci-efficiency-plan.md`.
+**CI phase 2 status (October 28):** v2.105.2 is published. Its Linux artifact passes58 suites with zero failures/flakes/selection misses and all five performance runs. One distinct candidate checkpoint remains; dev/master runs of that same SHA count once. The requested CI handoff documentation is the next candidate. Keep the full hosted shadow gate until its result is reviewed; phase3 release reuse remains planned. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
 
 ---
 

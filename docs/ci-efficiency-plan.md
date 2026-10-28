@@ -1,6 +1,6 @@
 # CI efficiency implementation plan
 
-Status: phase 1 implemented and locally verified in v2.104.1 (October 28, 2026), not pushed; phases 2–3 remain planned. Can authorized the CI-only dev push on October28; publication will use v2.105.1 on top of the already published v2.105.0. The full release rules remain active and selective CI is not activated. Scope: reduce repeated work and agent log consumption while retaining full Linux release validation. Existing AI work and product changes remain separate.
+Status (October 28): phases 1–2 are published in v2.105.2 (`776dee3e`) on dev/master. The completed dev Linux artifact verifies 58 passes, zero flakes/failures, unchanged inputs, zero selection misses and all five performance runs. This is one candidate checkpoint; the same SHA on master is confirmation, not a second candidate. The requested CI handoff documentation is the next normal candidate. Selective CI stays inactive until its shadow result is reviewed. Phase 3 release-evidence reuse remains planned.
 
 ## Starting point
 
@@ -29,7 +29,7 @@ Implemented locally in the existing runner/workflow, keeping the full test polic
 - Extend `scripts/test-all.mjs` with a machine-readable summary: candidate SHA, selected/executed suites, durations, passed/flaky/failed counts and evidence paths. Keep complete first/retry logs in the existing artifact directory; show only bounded error excerpts and links in the terminal/GitHub summary. Update `scripts/ci-tooling-test.mjs` so bounded excerpts must retain the actual error, including errors preceding long stack traces.
 - Record workflow, runner, Node and Chrome versions with results. Use current run data to establish routine and full-gate duration baselines; do not promise an unmeasured speed target.
 - Cancel superseded routine dev/PR runs using separate concurrency groups per workflow/event/branch or PR. Do not let routine pushes cancel an explicit release check or combine unrelated branches.
-- Agents request one compact completion summary and fetch only failed-suite logs. Use bounded waits without repeated large log downloads; retain short user updates during longer runs.
+- Agents hand off after a push: share the CI link/current status and end the turn. No automatic polling, background watches or waiting updates; inspect status once when Can asks. Monitor until completion only when explicitly requested, using compact summaries and necessary failure logs. Existing validation and publication gates remain required.
 
 Acceptance: synthetic pass/fail/flaky/timeout fixtures preserve exit behavior and complete evidence; summary output stays bounded as log size grows. Measure the reduction in emitted output. Existing full CI still works.
 
@@ -98,3 +98,5 @@ The explicit Node24.14.0/Chrome152 configured-environment comparison passes all 
 Final publication integration: the pool session reserved and published v2.105.1 (05bde9eb), so this CI release is v2.105.2. Compared with the validated58-suite CI integration, only literal release metadata and the published three-line pool font-test strengthening differ in runtime/test inputs. Application code outside supported metadata declarations is byte-identical. Revised pool, metadata/smoke/About/offline and CI invariants are checked locally; hosted Linux runs the full58 checks and unchanged five-run performance on the final committed SHA. Prior full and failed timing evidence stays retained; no automatic release-proof reuse or selective CI activation is introduced.
 
 Final v2.105.2 local integration validation: exact app-shell/SW metadata-normalized equality passes, all other runtime/test inputs match the prior full58-check result except the published pool font fixture. The revised pool suite plus smoke/About/offline/design and CI invariants/planner/tooling pass8/8, zero flakes/failures, with unchanged inputs. The configured Node24/Chrome152 five-run performance evidence applies to identical runtime bytes outside literal metadata; original Node20 failure remains retained. The pushed commit still requires its complete hosted Linux gate.
+
+Current checkpoint evidence and activation criteria: [CI shadow checkpoints](ci-shadow-checkpoints.md). Historical local candidates below/above are retained evidence, not additional completed Linux candidate checkpoints.

@@ -2,7 +2,7 @@
 
 > Routines to keep the codebase and documentation optimized.
 
-**CI efficiency phases 1–2 (v2.105.2 dev candidate):** explicit inventory/path/dependency planning, literal-only release metadata and Git range safeguards are implemented. CI is shadow-only and still runs every functional suite plus five performance runs. Unknown/shared/tooling changes broaden coverage; failures/flakes and selection misses remain red. Ubuntu/Node/Chrome are explicit, font readiness and calendar origins are checked, complete logs stream to disk and input changes invalidate results. Read only completion counts/duration and failed/flaky names from the functional summary, then fetch affected logs; do not rerun unchanged gates for a shorter report. Verify Node in the actual command directory when using an isolated checkout. Clean Linux and two normal candidate shadow results are required before reducing checks; release reuse is phase 3 and remains unimplemented. See `../docs/ci-phase2-audit.md` and `../docs/ci-efficiency-plan.md`.
+**CI phase 2 status (October 28):** v2.105.2 is published. Its Linux artifact passes58 suites with zero failures/flakes/selection misses and all five performance runs. One distinct candidate checkpoint remains; dev/master runs of that same SHA count once. The requested CI handoff documentation is the next candidate. Keep the full hosted shadow gate until its result is reviewed; phase3 release reuse remains planned. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
 
 ---
 
@@ -162,6 +162,8 @@ No hard limits — but when files get large they slow down Tier 1 reads. Use jud
 ## Code Hygiene
 
 ### Before Committing
+
+**CI handoff (Can, October 28):** after an authorized push, confirm the branch/commit, share the CI run link and current status, then end the turn. CI continues independently. Do not poll, run background watches, sleep or send repeated progress messages while waiting for hosted CI. A later status request gets one concise check; continuous monitoring requires an explicit request. When inspecting results, read the compact summary and only necessary failure logs. Existing validation and publication gates remain required.
 - [ ] **Run the full gate and the payload budget** (any push): `npm test --prefix scripts` **and** `node scripts/performance-test.mjs --payload-only`. CI runs both; `test-all` skips performance, so a green local gate can still fail the decoded-shell budget (v2.97.2). Over budget → condense comments (non-comment code byte-identical), don't raise the ceiling.
 - [ ] Run syntax check: `node -e "const fs=require('fs');const c=fs.readFileSync('index.html','utf8');const s=c.slice(c.indexOf('<script>')+8,c.lastIndexOf('</script>'));try{new Function(s);console.log('OK')}catch(e){console.log('ERROR:',e.message)}"`
 - [ ] **Run smoke test** (any change touching index.html/sw.js/assets): `node scripts/smoke-test.mjs` — boots the app headless, splash dismisses, add+check a task, zero uncaught errors. ~10s. First-time setup: `cd scripts && npm install`. Caught a real boot-killing TDZ crash on its first ever run (v2.17.99 dev).
