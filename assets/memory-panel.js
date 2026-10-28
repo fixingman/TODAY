@@ -355,6 +355,7 @@
         appMemory.obligationLanguageTally = { week: '', count: 0, completed: 0, tasks: [] };
         appMemory.obligationHistory = [];
         appMemory.revokedKnownItems = {};
+        Today.use('pool-wording').clear(false);
         appMemory.spokenLines = [];
         appMemory.taskOutcomes = [];
         appMemory.kindVerdicts = {};

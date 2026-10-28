@@ -22,6 +22,7 @@ const SUITE = [
   'trello-test',
   'gmail-test',
   'gmail-feedback-test',
+  'pool-wording-test',
   'calendar-test',
   'calendar-nudge-policy-unit-test',
   'task-enrich-test',

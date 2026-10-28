@@ -98,7 +98,7 @@ window._startNudge = (function() {
       if (text.trim().split(/\s+/).length > 30) return 'rejected-length';
       return 'accepted';
     }
-    async function _requestNudgeAI(body, path, state, canShorten = true) {
+    async function _requestNudgeAI(body, path, state, canShorten = true, current = () => true) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), _REQUEST_TIMEOUT_MS);
       let result, text;
@@ -108,7 +108,8 @@ window._startNudge = (function() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...body, surface: 'daily-nudge' }), signal: controller.signal,
         });
-        if (!res.ok) {
+        if (!current()) result = {status:'stale-request',retryable:false};
+        else if (!res.ok) {
           result = { status: 'http-error', httpStatus: res.status,
             retryable: res.status === 408 || res.status === 429 || res.status >= 500 };
         } else {
@@ -124,13 +125,14 @@ window._startNudge = (function() {
       } catch(e) {
         result = { status: controller.signal.aborted ? 'request-timeout' : 'network-error', retryable: true };
       } finally { clearTimeout(timer); }
+      if (!current()) result = {status:'stale-request',retryable:false};
       _generationEvent(state, path, result.status === 'accepted' ? 'response-valid' : result.status, result.httpStatus);
       if (canShorten && result.status === 'rejected-length' && new Date().getHours() < 12
           && epoch === _nudgeEpoch && state === _generationForToday()) {
         return _requestNudgeAI({ ...body, messages: [...body.messages,
           { role: 'assistant', content: text },
           { role: 'user', content: 'Shorten that same reading to at most 30 words. Preserve its meaning, uncertainty and task references. Add no fact, interpretation or advice. Return only the complete shortened line.' },
-        ] }, path + '-length-repair', state, false);
+        ] }, path + '-length-repair', state, false, current);
       }
       return result;
     }
@@ -158,7 +160,7 @@ window._startNudge = (function() {
         .map(l => String(l.text).slice(0, 200));
     }
 
-    function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow, onLate, isCurrent }) {
+    function _raceAINudge({ cacheKey, cachePrefix, fetchPromise, fallbackMsg, onShow, onLate, isCurrent, onAccept, isAIValid = () => true }) {
       let settled = false;
       const settle = (text, isAI) => {
         if (settled) return;
@@ -173,6 +175,8 @@ window._startNudge = (function() {
         if (!isCurrent()) { settle(_NUDGE_QUIET, false); return; }
         if (text === _NUDGE_QUIET) { settle(_NUDGE_QUIET, false); return; }
         if (!text) { settle(fallbackMsg ?? _NUDGE_QUIET, false); return; }
+        if (!isAIValid()) {settle(fallbackMsg ?? _NUDGE_QUIET,false);return;}
+        onAccept?.(text);
         _pruneLS(cachePrefix, cacheKey);
         localStorage.setItem(cacheKey, text);
         if ($.infoPanel?.classList.contains('open')) Today.use('about').renderInfoStats();
@@ -340,9 +344,10 @@ window._startNudge = (function() {
           reactEl.onclick = null;
           if (spokenToday) {
             const btn = (r, label) => `<button type="button" class="nudge-react-btn${spokenToday.reaction === r ? ' on' : ''}" data-react="${r}" aria-pressed="${spokenToday.reaction === r}">${label}</button>`;
-            reactEl.innerHTML = `<div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}</div>` +
+            reactEl.innerHTML = `<div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}${spokenToday.text === text ? Today.use('pool-wording').button(spokenToday) : ''}</div>` +
               _memoryMissReasonHTML('morning nudge', spokenToday);
             reactEl.onclick = e => {
+              if (e.target.closest('[data-pool-source]')) {clearTimeout(_reasonDismissTimer);_reasonDismissTimer=null;}
               const reason = e.target.closest('.nudge-reason-btn');
               if (reason) {
                 _memorySetReactionReason('morning nudge', _localISO(), reason.dataset.reason);
@@ -417,12 +422,23 @@ window._startNudge = (function() {
         state.status = 'started';
         _generationEvent(state, 'attempt', 'started');
         const epoch = _nudgeEpoch;
+        let poolResult;
         const isCurrent = () => epoch === _nudgeEpoch && state.date === _localISO();
+        const isAIValid = () => {
+          const valid=!poolResult?.current || poolResult.current();
+          if (!valid && isCurrent() && state.status!=='stale-request') {
+            state.status='stale-request';state.terminal=true;state.retryAt=0;
+            _generationEvent(state,'pool','stale-request');
+          }
+          return valid;
+        };
         _raceAINudge({
           cacheKey: _nudgeCacheKey,
           cachePrefix: _AI_SURFACES.find(s => s.key === 'day_nudge_ai').prefix,
           fetchPromise: _fetchDayNudgeAI(review, carriedOver, cards, state).then(result => {
+            poolResult=result;
             if (!isCurrent()) return _NUDGE_QUIET;
+            if (!isAIValid()) return null;
             const adopted = _aiSurfaceGet('day_nudge_ai');
             if (adopted && adopted !== _aiCached) {
               state.status = 'cache-adopted';
@@ -437,9 +453,6 @@ window._startNudge = (function() {
             _generationEvent(state, 'attempt', result.status);
             const text = result.text;
             _nudgeKind = result.kind || null;
-            if (text && text !== _NUDGE_QUIET) {
-              if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge', text, _nudgeKind);
-            }
             return text;
           }).finally(() => {
             if (isCurrent()) {
@@ -448,7 +461,11 @@ window._startNudge = (function() {
             }
           }),
           fallbackMsg: msg,
-          isCurrent,
+          isCurrent, isAIValid,
+          onAccept: text => {
+            if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('morning nudge',text,_nudgeKind);
+            poolResult?.adopt?.();
+          },
           onShow: (text, isAI) => {
             if (!canShow || new Date().getHours() >= 12 || localStorage.getItem(_dismissKey)) return;
             if (_nudgeRendered) return;
@@ -536,7 +553,12 @@ window._startNudge = (function() {
         todayISO,
       })[0];
       if (!winner) return null;
-
+      const wordingAPI=Today.use('pool-wording');
+      const stamp=() => JSON.stringify([_nudgeEpoch,_memoryReady,wordingAPI.source('morning nudge'),
+        _currentMorningTasks().map(row => [row.id,row.text])]);
+      let source=stamp();const current=() => source===stamp();
+      const wording=await wordingAPI.prepare('morning nudge');
+      if (!current()) return {status:'stale-request',retryable:false};
       const result = await _requestNudgeAI({
           provider: Today.use('connections')._aiGetProvider(),
           apiKey: key,
@@ -544,10 +566,10 @@ window._startNudge = (function() {
             'Evidence: ' + winner.evidence + '\n' +
             'Supported insight: ' + winner.insight + '\n\n' +
             'Write the morning line. Preserve the supported insight and leave its implication unresolved — the ' +
-            'person supplies what it means, not you. Add no fact beyond the evidence above.' }],
+            'person supplies what it means, not you. Add no fact beyond the evidence above.' + wording }],
           systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). No exclamation marks, no emoji. Never wrap your reply in quotation marks. Warm, plain, grounded — a friend noticing, not a coach.',
-      }, 'pool', state);
-      return { ...result, kind: result.status === 'accepted' ? winner.kind : null };
+      }, 'pool', state, true, current);
+      return { ...result, current, adopt:() => {source=stamp();}, kind: result.status === 'accepted' ? winner.kind : null };
     }
 
     function _currentMorningTasks() {
@@ -581,7 +603,7 @@ window._startNudge = (function() {
         if (!key || !navigator.onLine) return { status: key ? 'offline' : 'not-configured', retryable: true };
 
         const pooled = allowCalendar ? await _fetchPoolNudge(key, state) : null;
-        if (pooled?.status === 'accepted' || pooled?.retryable || pooled?.status === 'http-error') return pooled;
+        if (pooled?.status === 'accepted' || pooled?.retryable || pooled?.status === 'http-error' || pooled?.status === 'stale-request') return pooled;
 
         const epoch = _nudgeEpoch;
         const [calendar, feedbackPolicy] = await Promise.all([
@@ -721,7 +743,7 @@ window._startNudge = (function() {
     }
     document.addEventListener('today:reflection-evidence-change', _retireStaleStrip);
 
-    // Delivery readout: tap About's "Today" label → one content-free line from this
+
     // device's audit (times, paths, elapsed seconds). Never synced; no prose, keys or votes.
     function _nudgeAuditLine() {
       const a = _generationAudit();
@@ -739,7 +761,7 @@ window._startNudge = (function() {
       const parts = (a.events || []).map(e => { const l = label(e); return l ? hm(e.at) + ' ' + l + sec(e) : null; }).filter(Boolean);
       return parts.length ? parts.slice(-6).join(' · ') : 'no morning activity on this device today';
     }
-    // A plain tap (not long-press: iOS PWAs cancel long presses into text selection).
+
     document.addEventListener('click', e => {
       const label = e.target.closest?.('#todayNudgeBlock .week-label');
       if (!label) return;

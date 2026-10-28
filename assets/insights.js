@@ -1,6 +1,6 @@
 // TODAY — Memory / insights (Roadmap #3 extraction). Owns appMemory and the observation layer
 // (_memoryForAI, _getProactiveObservations). Runs at eval (init IIFE + schema migration) after
-// util.js (safeJSON, _localISO). Not here: applyNewDayCleanup, the mergeRemoteData memory merge,
+
 // cooldown pruning.
 
 const AI_NAMES = ['lu', 'kit', 'em', 'jo', 'pip', 'sol', 'rue', 'finn'];
@@ -10,7 +10,7 @@ const SUGGESTION_REVERSAL_GRACE_MS = 10 * 60 * 1000;
 function _aiCheckObligationLanguage(text) {
   const t = (text || '').trim();
   if (t.split(/\s+/).filter(Boolean).length < 3) return false;
-  // Exclude descriptive "should/must be [adj]" — these describe task difficulty, not obligation framing
+
   if (/\b(should|must)\s+be\s+(quick|easy|fast|simple|fine|short|straightforward|ready|good|ok|done|small|trivial)\b/i.test(t)) return false;
   return /\bhave to\b|\bneed to\b|\bshould\b|\bmust\b|\bought to\b|\bsupposed to\b|\bhave got to\b/i.test(t);
 }
@@ -48,9 +48,9 @@ let appMemory = (() => {
       // AI suggestion cooldowns — prevents repeating the same task suggestion
       suggestionCooldowns: {},    // { taskId: 'YYYY-MM-DD' } — last suggested date
       // AI suggestion history — what was suggested and what action was taken
-      suggestionHistory: [],      // [{ taskId, taskText, suggested: 'YYYY-MM-DD', action: 'break_down'|'move_soon'|'dismiss'|... }]
+      suggestionHistory: [],
       // Post-add inline suggestion outcomes — reason-level learning, newest first
-      suggestionOutcomes: [],     // [{ id, taskId, reason, offeredAt, appliedAt|dismissedAt|ignoredAt, helpedAt?, reversedAt? }]
+      suggestionOutcomes: [],
       // Recent completed task texts — rolling 30-day window for type summarization
       recentCompletedTasks: [],   // [{ text, date }]
       // Typed memory slots — AI-proposed, user-confirmed inferences
@@ -127,12 +127,12 @@ if (!appMemory.spokenLines)                 appMemory.spokenLines = [];
 // contrast, and the pre-existing stores (letgoReasons, soonPulls) are undated lifetime
 // counters — counters cannot produce a contrast.
 if (!appMemory.taskOutcomes)                appMemory.taskOutcomes = [];
-// Retroactive fix: drop any history entries that no longer pass the current (tightened) detection
+
 appMemory.obligationHistory = appMemory.obligationHistory.filter(e => _aiCheckObligationLanguage(e.text));
 
 // 12c: one-time backfill of taskOutcomes from dated history (completions, dated let-go/revive
 // reason counts) so the 30-day pool isn't silent for a month. Backfilled rows carry backfilled:true
-// (focus unknown → excluded from focus candidates) and obligation:null for let-go/revive (unknown,
+
 // never counted as chosen). obligationHistory is not a source: its date is the add date.
 function _memoryBackfillOutcomes() {
   if (appMemory.taskOutcomesBackfilled) return;
@@ -207,6 +207,7 @@ function _memoryOnMeetingAttribution(stats) {
 }
 
 function _saveMemory() {
+  Today.use('sync-merge').normalizePoolWording(appMemory);
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
 }
 
@@ -281,7 +282,7 @@ function _updateReturningTasksMemory(manualArr, trelloArr) {
   _saveMemory();
 }
 
-// 12a: Increment obligation-language tally for the current week and append to rolling history.
+
 // Called by assistant.js when obligation language is detected at task add.
 function _incrementObligationTally(taskText) {
   const now    = new Date();
@@ -304,7 +305,7 @@ function _incrementObligationTally(taskText) {
   _saveMemory();
 }
 
-// 12b: record a line TODAY said on its own initiative (nudge, focus question, Sunday, week theme,
+
 // Monday, Noticed) so surfaces know what was already said. Not chat replies.
 function _memoryRecordSpokenLine(surface, text, kind, policy) {
   if (!surface || !text) return;
@@ -321,7 +322,10 @@ function _memoryRecordSpokenLine(surface, text, kind, policy) {
   if (policy) entry.policy = policy;
   // One entry per surface per day — a regenerated line replaces, never stacks
   const i = lines.findIndex(l => l.surface === surface && l.date === today);
-  if (i >= 0) lines[i] = entry; else lines.push(entry);
+  if (i >= 0) {
+    if (lines[i].wording) entry.wording=Today.use('sync-merge').mergePoolWording(entry,lines[i],entry);
+    lines[i]=entry;
+  } else lines.push(entry);
   // Cap raised from 30 with the gate (v2.80.x): cooldowns reach 21 days, and at one
   // entry per surface per day across five surfaces a 30-entry cap held barely six
   // days of history — a kind would leave cooldown purely by eviction.
@@ -432,8 +436,8 @@ function _memoryRestoreKind(kind) {
   return true;
 }
 
-// 12c Phase 0 — dated record of how each task ended. Events, not conclusions: every pool
-// observation is a windowed contrast that a write-time conclusion would discard. No task text
+
+
 // stored.
 function _memoryFocusSessionsFor(taskId, taskText) {
   const pools = [
@@ -446,7 +450,7 @@ function _memoryFocusSessionsFor(taskId, taskText) {
       for (const t of pool) if (t && t.id === taskId) return parseInt(t.focusSessions) || 0;
     }
   }
-  // Fallback: the let-go and Soon-pull paths receive text only. Same normalized-text match
+
   // obligationHistory already uses for its done-marking.
   const stripped = _stripTag(taskText || '').trim();
   if (!stripped) return 0;
@@ -456,8 +460,8 @@ function _memoryFocusSessionsFor(taskId, taskText) {
   return 0;
 }
 
-// Stable, deterministic, non-crypto hash — used only as a dedup key, and identical across
-// devices for the same text so the sync union works. Keeps the log from becoming a second
+
+
 // 90-day copy of everything the user wrote.
 function _memoryTextKey(text) {
   const t = _stripTag(text || '').trim().toLowerCase();
@@ -497,7 +501,7 @@ function _memoryTaskTexts() {
 // Cannot run at page load: the task lists are not loaded yet, so there is no text to
 // resolve against. Runs where the pool runs (top of _memoryForAI and both pool call
 // sites), only touches rows without a key, and saves only when something changed.
-//   - hash-keyed rows (`txt_…`): the id IS the text identity → key = id, no text needed
+
 //   - live-id rows (`manual_…`, Trello): key = hash of the text, if a list still has it
 //   - backfill rows (`bf_…`): reconstructed from counts, no text ever existed → left alone
 function _memoryStampOutcomeKeys() {
@@ -553,7 +557,7 @@ function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
   const id     = taskId || _memoryTextKey(taskText);
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
   const log = (appMemory.taskOutcomes || []).filter(e => e && e.date && new Date(e.date) >= cutoff);
-  // One record per task per outcome per day — a re-check or a repeated Soon pull on the same
+
   // day is the same event, not two.
   const key = id + '|' + outcome + '|' + date;
   if (!log.some(e => (e.id + '|' + e.outcome + '|' + e.date) === key)) {
@@ -573,7 +577,7 @@ function _memoryRecordOutcome(outcome, taskText, taskId, reason) {
   }
   appMemory.taskOutcomes = log.slice(-300);
   document.dispatchEvent(new Event('today:reflection-evidence-change'));
-  // Saves here rather than relying on callers: _memoryOnTaskLetgo has an early return that
+
   // skips its own _saveMemory() when a task text yields no keywords.
   _saveMemory();
 }
@@ -1135,10 +1139,10 @@ function _memoryForAI(scope) {
     lines.push(`Confirmed patterns (ratified by user):\n${confirmed.map(t => `- ${t}`).join('\n')}`);
   }
 
-  // Returning tasks — waiting 5+ days. Focus avoidance (7+ days, zero sessions) is carried
-  // as an inline marker rather than a second block. Emitting the same task under two headings
-  // ("keep waiting" and "not yet started") made it the most-repeated string in the prompt —
-  // and a model selecting from an unranked list selects on salience, so repetition was doing
+
+
+
+
   // the choosing. Verified in a captured payload 2026-09-01: one task appeared 3 times.
   // Fixes the symptom only; ranking properly is 12c's job.
   const returning = Object.values(m.returningTasks || {}).sort((a, b) => b.dayCount - a.dayCount);
@@ -1180,7 +1184,7 @@ function _memoryForAI(scope) {
       lines.push(`This week: ${oblTally.count} obligation-framed tasks — ${oblCompleted} completed.`);
     }
   }
-  // Long-term completion rate — only surface when statistically meaningful (10+ entries, 30+ days)
+
   const _oblCutoff = new Date(); _oblCutoff.setDate(_oblCutoff.getDate() - 30);
   const _oblRecent = _oblHistory.filter(e => new Date(e.date) >= _oblCutoff);
   if (_oblRecent.length >= 10) {
@@ -1188,7 +1192,7 @@ function _memoryForAI(scope) {
     lines.push(`Over 30 days: ${Math.round(_oblDone / _oblRecent.length * 100)}% of obligation-framed tasks completed (${_oblDone}/${_oblRecent.length}).`);
   }
 
-  // Signal 4: Cognitive weight — tasks sitting 14+ days (ambient load, not just list size)
+
   const _old14 = (m.taskAgeBuckets || {}).d14plus || 0;
   if (_old14 >= 2) {
     lines.push(`${_old14} tasks have been on the list for more than 2 weeks.`);
@@ -1403,9 +1407,9 @@ function _pickObservationToMention(observations) {
 }
 
 // ─── Noticed — surfacing learned patterns (v2.35.0, Personalization.md G3) ────
-// About's Noticed lines: delta-gated, each shown once when something changes; empty → no block. Two
+
 // gates: appMemory.noticed (device-local "shown here", BUG-058 sync reverted v2.39.3) and synced
-// noticedDates (earliest first-fire day; other devices may show it only that same day, v2.39.4).
+
 // Season moments follow the viewer's hemisphere.
 function _noticedEligible(key, todayISO) {
   if (!appMemory.noticedDates) appMemory.noticedDates = {};

@@ -126,6 +126,57 @@
     return out;
   }
 
-  const api = { mergeTaskProgress, mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex, mergeDreamDismissed };
+  // Pool wording events are independent of whole-result votes; no prose is copied.
+  const poolWriters = Object.freeze({'morning nudge':'pool-morning-v1','Sunday reflection':'pool-sunday-v1'});
+  function poolReadingKey(row) {
+    if (!row || !Object.hasOwn(poolWriters,row.surface) || (row.policy != null && (typeof row.policy !== 'string' || row.policy.length > 80)) || typeof row.text !== 'string' || !row.text.trim() || row.text.length > 200
+        || !/^\d{4}-\d\d-\d\d$/.test(row.date || '') || !Number.isFinite(Date.parse(row.date))
+        || new Date(row.date).toISOString().slice(0,10) !== row.date
+        || !['focus-vs-obligation','obligation-completion','letgo-reason','return-finished','soon-pullback','letgo-return',...(row.surface === 'Sunday reflection' ? ['week-shape'] : [])].includes(row.kind)) return null;
+    return JSON.stringify([row.surface,row.date,row.kind,row.policy || '',row.text]);
+  }
+  function poolReadingTag(row) {
+    const key=poolReadingKey(row);if (!key) return '';
+    let value=2166136261;
+    for (let i=0;i<key.length;i++) value=Math.imul(value^key.charCodeAt(i),16777619);
+    return (value>>>0).toString(16).padStart(8,'0');
+  }
+  function poolWordingTime(value, now = Date.now()) {
+    const n = typeof value === 'string' && Date.parse(value);
+    return typeof value === 'string' && value.length === 24 && Number.isFinite(n)
+      && new Date(n).toISOString() === value && n <= now + 60000 ? n : 0;
+  }
+  function poolWordingEvent(row, clearedAt = '', now = Date.now()) {
+    const w = row?.wording;if (!w) return null;
+    const date=new Date(now),localDay=new Date(now-date.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    const age=(Date.parse(localDay)-Date.parse(row?.date))/86400000;
+    if (!(age>=-2 && age<30) || !poolReadingKey(row) || !w || w.policy !== 1 || w.writer !== poolWriters[row.surface]
+        || ![null,'unclear','formal'].includes(w.concern) || typeof w.sourceTag !== 'string' || !/^[a-f0-9]{8}$/.test(w.sourceTag) || typeof w.sourceId !== 'string' || !/^[a-f0-9]{64}$/.test(w.sourceId)
+        || !poolWordingTime(w.at,now) || poolWordingTime(w.at,now) <= poolWordingTime(clearedAt,now)) return null;
+    return {policy:1,sourceId:w.sourceId,sourceTag:w.sourceTag,writer:w.writer,concern:w.sourceTag===poolReadingTag(row) ? w.concern : null,at:w.at};
+  }
+  function mergePoolWording(base, one, two, clearedAt = '', now = Date.now()) {
+    const identity = poolReadingKey(base);
+    const events = [one,two].filter(row => identity && row?.surface===base.surface && row.date===base.date)
+      .map(row => poolWordingEvent(row,clearedAt,now)).filter(Boolean);
+    const selected=events.sort((a,b) => b.at.localeCompare(a.at) || Number(a.concern !== null)-Number(b.concern !== null)
+      || String(a.concern).localeCompare(String(b.concern)) || a.sourceId.localeCompare(b.sourceId))[0];
+    return selected ? {...selected,concern:selected.sourceTag===poolReadingTag(base) ? selected.concern : null} : null;
+  }
+  function normalizePoolWording(memory) {
+    if (!memory || typeof memory !== 'object') return memory;
+    if (!poolWordingTime(memory.poolWordingClearedAt)) delete memory.poolWordingClearedAt;
+    if (poolWordingTime(memory.clearedAt)>=poolWordingTime(memory.poolWordingClearedAt)) delete memory.poolWordingClearedAt;
+    const clear=[memory.clearedAt,memory.poolWordingClearedAt].filter(at => poolWordingTime(at)).sort().at(-1) || '';
+    const rows=Array.isArray(memory.spokenLines) ? memory.spokenLines : [];
+    rows.forEach((row,index) => {
+      if (!row || typeof row !== 'object') return;
+      const w=index>=rows.length-120 ? poolWordingEvent(row,clear) : null;
+      if (w) row.wording=w;else delete row.wording;
+    });
+    return memory;
+  }
+  const api = { mergeTaskProgress, mergeDailyHistory, mergeSuggestionOutcomes, mergeDreamIndex, mergeDreamDismissed,
+    poolWriters, poolReadingKey, poolReadingTag, poolWordingTime, poolWordingEvent, mergePoolWording, normalizePoolWording };
   if (global.Today) global.Today.define('sync-merge', api);
 })(window);

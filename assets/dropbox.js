@@ -610,7 +610,7 @@
         habit_events:         habitEvents,
         deleted_habit_ids:    safeJSON('today_deleted_habit_ids', []),
         // Memory — AI's learned patterns and moments
-        memory:               safeJSON('today_memory', null),
+        memory:               Today.use('sync-merge').normalizePoolWording(safeJSON('today_memory', null)),
         // Triage history — AI learns from past decisions
         triage_history:       safeJSON('today_triage_history', []),
         // Triage dismissed — synced so triage doesn't re-prompt on other devices
@@ -715,7 +715,7 @@
       if (typeof appMemory === 'undefined' || !appMemory) return;
 
       // Clear watermark (BUG-096): max-wins; dated unions drop pre-clear rows on both sides,
-      // compared by day (same-day rows may survive); hypotheses use id tombstones.
+
       const _lc = typeof appMemory.clearedAt === 'string' ? appMemory.clearedAt : '';
       const _rc = typeof remote.clearedAt === 'string' ? remote.clearedAt : '';
       const _clearedAt  = _lc > _rc ? _lc : _rc;
@@ -748,13 +748,13 @@
           }
         }
       }
-      // AI name: remote wins (first device to set it becomes canonical)
+
       if (remote.aiName) appMemory.aiName = remote.aiName;
-      // Merge completionsByHour (max), then re-derive peakHour from merged data
+
       for (const [h, count] of Object.entries(remote.patterns?.completionsByHour || {})) {
         appMemory.patterns.completionsByHour[h] = Math.max(appMemory.patterns.completionsByHour[h] || 0, count);
       }
-      // Dated hour counts: per day, per hour MAX (same shape as taskKeywords days).
+
       if (!appMemory.patterns.completionHourDays || typeof appMemory.patterns.completionHourDays !== 'object') appMemory.patterns.completionHourDays = {};
       // Pre-clear days drop on both sides, like the other dated unions.
       for (const day of Object.keys(appMemory.patterns.completionHourDays)) {
@@ -766,8 +766,8 @@
         for (const [h, c] of Object.entries(hours)) local[h] = Math.max(local[h] || 0, parseInt(c) || 0);
       }
       if (typeof _memoryDerivePeakHour === 'function') _memoryDerivePeakHour();
-      // Merge taskKeywords: per-day MAX so cross-device completions on different days
-      // both survive. Legacy entries (no .days) are migrated to days['_legacy'] as a floor.
+
+
       for (const [word, kd] of Object.entries(remote.patterns?.taskKeywords || {})) {
         if (!appMemory.patterns.taskKeywords[word]) appMemory.patterns.taskKeywords[word] = { days: {} };
         const lkw = appMemory.patterns.taskKeywords[word];
@@ -785,7 +785,7 @@
       appMemory.patterns.bestStreak        = Math.max(appMemory.patterns.bestStreak,        remote.patterns?.bestStreak        || 0);
       appMemory.totalTasksCompleted = Math.max(appMemory.totalTasksCompleted, remote.totalTasksCompleted || 0);
       appMemory.totalDaysActive     = Math.max(appMemory.totalDaysActive,     remote.totalDaysActive     || 0);
-      // Keep the earliest firstSeen across devices — new-device init sets today, Dropbox had the real date
+
       if (remote.firstSeen && (!appMemory.firstSeen || remote.firstSeen < appMemory.firstSeen)) {
         appMemory.firstSeen = remote.firstSeen;
       }
@@ -817,8 +817,8 @@
         }
       }
       if (appMemory.suggestionHistory.length > 50) appMemory.suggestionHistory = appMemory.suggestionHistory.slice(0, 50);
-      // Inline suggestion outcomes are monotonic event records. Merge by stable
-      // offer ID and union each timestamp/result set so an older device cannot
+
+
       // erase later evidence (applied → helped/reversed) with a stale snapshot.
       if (Array.isArray(remote.suggestionOutcomes)) {
         appMemory.suggestionOutcomes = Today.use('sync-merge').mergeSuggestionOutcomes(
@@ -826,7 +826,7 @@
           remote.suggestionOutcomes,
         );
       }
-      // Merge recentCompletedTasks (union by text+date, 30-day window)
+
       if (Array.isArray(remote.recentCompletedTasks)) {
         const cutoff = new Date(Date.now() - 30 * 864e5);
         const existingRCT = new Set((appMemory.recentCompletedTasks || []).map(e => e.text + e.date));
@@ -838,7 +838,7 @@
         }
         appMemory.recentCompletedTasks.sort((a, b) => a.date < b.date ? -1 : 1);
       }
-      // noticedDates: earliest date wins per key (when signal first fired on any device)
+
       if (remote.noticedDates && typeof remote.noticedDates === 'object') {
         if (!appMemory.noticedDates) appMemory.noticedDates = {};
         for (const key of Object.keys(remote.noticedDates)) {
@@ -873,7 +873,7 @@
         }
         const _localLate  = appMemory.patterns.lateAdditions || [];
         const _remoteLate = remote.patterns.lateAdditions    || [];
-        // Union by date:h — preserves entries from both devices; old plain-number entries normalized
+
         { const _lMap = new Map();
           for (const _e of [..._localLate, ..._remoteLate]) {
             const _n = typeof _e === 'number' ? { h: _e, date: '' } : _e;
@@ -899,8 +899,13 @@
         appMemory.recentConversations.sort((a, b) => b.date > a.date ? 1 : -1);
         appMemory.recentConversations = appMemory.recentConversations.slice(0, 5);
       }
-      // 12b spokenLines — union by date+surface (the one-per-surface-per-day invariant),
-      // oldest first, cap 30. Without this the voice memory is per-device: device A's
+      const _poolMerge=Today.use('sync-merge');
+      const _wordClear=[appMemory.poolWordingClearedAt,remote.poolWordingClearedAt]
+        .filter(at => _poolMerge.poolWordingTime(at)).sort().at(-1);
+      if (_wordClear) appMemory.poolWordingClearedAt=_wordClear;
+      const _poolClear=[_clearedAt,_wordClear].filter(at => _poolMerge.poolWordingTime(at)).sort().at(-1) || '';
+
+
       // nudge would happily repeat what device B said this morning.
       if (Array.isArray(remote.spokenLines)) {
         if (!Array.isArray(appMemory.spokenLines)) appMemory.spokenLines = [];
@@ -910,17 +915,22 @@
           if (!l || !l.date || !l.surface) continue;
           const key = l.date + '|' + l.surface;
           if (!seenSpoken.has(key)) { appMemory.spokenLines.push(l); seenSpoken.add(key); continue; }
-          // 12e: same line on both devices — keep whichever changed its verdict last,
+
           // including a cleared one (reactedAt is stamped on clear too). Legacy
           // date-only stamps sort before any same-day timestamp.
           const i = appMemory.spokenLines.findIndex(x => x.date + '|' + x.surface === key);
           const mine = appMemory.spokenLines[i];
-          if (i >= 0 && String(l.reactedAt || '') > String(mine.reactedAt || '')) appMemory.spokenLines[i] = l;
+          const base=String(l.reactedAt || '') > String(mine.reactedAt || '') ? l : mine;
+          const wording=_poolMerge.mergePoolWording(base,mine,l,_poolClear);
+          appMemory.spokenLines[i]={...base};
+          if (wording) appMemory.spokenLines[i].wording=wording;else delete appMemory.spokenLines[i].wording;
         }
         appMemory.spokenLines.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
         appMemory.spokenLines = appMemory.spokenLines.slice(-120);
       }
-      // 12e kindVerdicts (v2.87.0) — per kind, the entry with the newer `updated`
+      _poolMerge.normalizePoolWording(appMemory);
+      document.dispatchEvent(new Event('today:pool-wording-change'));
+
       // wins, so a "bring back" on one device is not undone by the other's stale
       // retirement. Entries updated before the clear watermark are dropped.
       if (remote.kindVerdicts && typeof remote.kindVerdicts === 'object') {
@@ -932,9 +942,9 @@
           if (!mine || String(rv.updated || '') > String(mine.updated || '')) appMemory.kindVerdicts[kind] = rv;
         }
       }
-      // 12c taskOutcomes — union by id+outcome+date. Accumulated dated events; like
-      // obligationHistory it cannot self-heal from current state, so a missing merge entry
-      // would silently split the log per device and make every windowed contrast wrong.
+
+
+
       if (Array.isArray(remote.taskOutcomes)) {
         if (!Array.isArray(appMemory.taskOutcomes)) appMemory.taskOutcomes = [];
         const seenOutcome = new Set(
@@ -952,9 +962,9 @@
           .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
           .slice(-300);
       }
-      // 12a obligationHistory — union by date+text, done flag OR'd (either device
-      // seeing it completed settles it), 90-day window. Accumulated data, so unlike
-      // returningTasks/taskAgeBuckets it cannot self-heal from the current task list.
+
+
+
       if (Array.isArray(remote.obligationHistory)) {
         if (!Array.isArray(appMemory.obligationHistory)) appMemory.obligationHistory = [];
         const oblIndex = new Map(
@@ -996,7 +1006,7 @@
           for (const item of remote.memory[type]) {
             if (!item || !item.id) continue;
             if (existingIds.has(item.id)) {
-              // Same hypothesis re-supported on either device: weeks union, latest sighting wins.
+
               const local = appMemory.memory[type].find(i => i.id === item.id);
               if (local && Array.isArray(item.seenWeeks)) {
                 local.seenWeeks = [...new Set([...(local.seenWeeks || []), ...item.seenWeeks])].sort().slice(-8);
@@ -1023,7 +1033,7 @@
           }
           appMemory.rejectedHypotheses = appMemory.rejectedHypotheses.slice(-60);
         }
-        // _lastAbstractDate: max-wins so whichever device already ran today blocks the other
+
         const remoteAbstractDate = remote.memory._lastAbstractDate;
         if (remoteAbstractDate && (!appMemory.memory._lastAbstractDate || remoteAbstractDate > appMemory.memory._lastAbstractDate)) {
           appMemory.memory._lastAbstractDate = remoteAbstractDate;

@@ -2,20 +2,65 @@
 // Inert until index.html calls window._startAbout() before init().
 (function() {
   'use strict';
-  // Bumps when the evidence contract for the Sunday sentence changes. The dated
-  // companion key prevents a previously cached, less-grounded line from surviving
-  // a policy change or being restored by an older Dropbox backup.
+  // Policy-stamp accepted Sunday caches so stale backups cannot restore older wording.
   const WEEK_REFLECTION_POLICY = 'earned-v5';
   window._weekReflectionPolicy = WEEK_REFLECTION_POLICY;
   let started = false;
   window._startAbout = function() {
     if (started) return;
     started = true;
-    // Reads the existing app globals; startup stays in index.html.
+
     let sundayReady = !localStorage.getItem('dropbox_token');
     document.addEventListener('today:memory-ready', event => {
       sundayReady = !!event.detail?.ready;
       if (sundayReady && $.infoPanel?.classList.contains('open')) renderInfoStats();
+    });
+
+    let _poolWordingUI, _poolWordingLoading;
+    function _poolWordingLoad() {
+      return _poolWordingLoading ||= Promise.all([import('./feedback-policy.js'),import('./pool-wording.js')])
+        .then(() => _poolWordingUI = Today.use('pool-wording-ui').create({
+          memory:() => appMemory,today:_localISO,save:() => {_saveMemory();if (localStorage.getItem('today_memory')!==JSON.stringify(appMemory)) throw new Error('Wording feedback was not saved');try {dropboxAutoSave();} catch (_) {}},
+        })).catch(error => {_poolWordingLoading = null;throw error;});
+    }
+    const _poolWordingAPI = Today.define('pool-wording', {
+      button(line) {
+        const source=Today.use('sync-merge').poolReadingKey(line);
+        return source ? '<button type="button" class="pool-wording-btn" data-today-click="pool-wording.open" data-pool-source="' + esc(source) + '" aria-expanded="false" aria-label="Wording feedback on this ' + (line.surface === 'Sunday reflection' ? 'Sunday reading' : 'morning observation') + '">wording</button>' : '';
+      },
+      source(surface) {
+        return JSON.stringify([_localISO(),appMemory.clearedAt,appMemory.poolWordingClearedAt,
+          (appMemory.taskOutcomes || []).map(row => JSON.stringify(row)).sort(),
+          (appMemory.spokenLines || []).filter(row => row?.kind)
+            .map(row => JSON.stringify([row.date,row.surface,row.kind,row.policy,row.surface===surface ? row.text : null,row.reaction,row.reactedAt,row.surface===surface ? row.wording : null])).sort(),
+          Object.entries(appMemory.kindVerdicts || {}).sort(),
+          Today.use('connections')._aiGetProvider(),Today.use('connections')._aiGetKey()]);
+      },
+      async prepare(surface) {
+        if (!(appMemory.spokenLines || []).some(row => row.surface===surface && row.wording?.concern)) return '';
+        let timer;
+        try { return await Promise.race([_poolWordingLoad().then(ui => ui.guidance(surface)),
+          new Promise(resolve => {timer=setTimeout(() => resolve(''),300);})]); }
+        catch (_) {return '';}
+        finally {clearTimeout(timer);}
+      },
+      retain(block,text) {return !!_poolWordingUI?.retain(block,text);},
+      clear(persist = true) {
+        const before=appMemory.spokenLines,oldClear=appMemory.poolWordingClearedAt;
+        const clock=Today.use('sync-merge').poolWordingTime;
+        const previous=Math.max(0,clock(appMemory.poolWordingClearedAt),...(appMemory.spokenLines || []).slice(-120).map(row => clock(row?.wording?.at)));
+        appMemory.poolWordingClearedAt=new Date(Math.max(Date.now(),previous)).toISOString();
+        appMemory.spokenLines=(appMemory.spokenLines || []).map(({wording,...row}) => row);
+        if (persist) {
+          try {_saveMemory();if (localStorage.getItem('today_memory')!==JSON.stringify(appMemory)) throw new Error('Wording feedback was not cleared');}
+          catch (error) {appMemory.spokenLines=before;if (oldClear) appMemory.poolWordingClearedAt=oldClear;else delete appMemory.poolWordingClearedAt;throw error;}
+          dropboxAutoSave();document.dispatchEvent(new Event('today:pool-wording-change'));
+        }
+      },
+    });
+    Today.ui.register('click','pool-wording.open',(event,button) => {
+      event.preventDefault();event.stopPropagation();
+      _poolWordingLoad().then(ui => ui.open(button)).catch(() => window._a11yAnnounce?.('Wording feedback is unavailable.'));
     });
 
     function _parseAIText(data) {
@@ -39,7 +84,7 @@
       $.memoryPanel?.classList.remove('open');
       Today.use('connections').syncActiveButtons();
       window.scrollTo(0, scrollY); // Restore scroll position
-      // Closing About returns to the list: let an undismissed fallback strip take the line About showed.
+
       if (!isOpening && typeof checkDayNudge === 'function') checkDayNudge(false);
       if (isOpening) {
         renderInfoStats();
@@ -58,8 +103,8 @@
       }
     }
 
-    // ─── Daily poem ──────────────────────────────────────────────────────────────
-    // Daily public-domain poems: deterministic local date, timezone-derived season; poem-utils.js owns selection/rendering.
+
+
     function _poemOfTheDay() { return _poemForDate(); }
 
     function renderDailyPoem() {
@@ -70,7 +115,7 @@
         + `<div class="poem-author">${esc(poem.author)}</div>`;
     }
 
-    // Desktop clicks share after hover reveals the label. Touch uses two taps: reveal, then share.
+
     function _onPoemTap(event) {
       if (event?.detail === 0 || window.matchMedia('(hover: hover)').matches) { _shareDailyPoem(); return; }
       const block = document.getElementById('poemBlock');
@@ -81,7 +126,7 @@
       _shareDailyPoem();
     }
 
-    // Share locally via the native sheet or the task-copy clipboard fallback; no tracking.
+
     function _shareDailyPoem() {
       const poem = _poemOfTheDay();
       if (!poem) return;
@@ -89,7 +134,7 @@
       const poemUrl = 'https://today-here.netlify.app/poem.html?date=' + dateStr;
       const text = poem.text + '\n— ' + poem.author;
       const btn = document.getElementById('poemShareBtn');
-      // Acknowledge the click immediately: navigator.share settles only when its sheet closes, without a usable success signal.
+
       if (btn) {
         btn.classList.add('clicked');
         setTimeout(() => btn.classList.remove('clicked'), 400);
@@ -131,8 +176,8 @@
     }
 
     // Format focus time: "Xh Ym" if >= 60 minutes, "Xm" otherwise
-    // Show a nudge block with a landing animation when transitioning from hidden.
-    // forceAnimate=true re-runs the animation on an already-visible block (fresh async content).
+
+
     function _nudgeBlockShow(el, delayMs, forceAnimate) {
       const wasHidden = el.style.display === 'none';
       el.style.display = '';
@@ -148,18 +193,18 @@
         }, { once: true });
       }
     }
-    // Tap a spoken line to reveal reactions. Fallbacks lack a spoken record and have no reaction controls.
-    function _reactionHTML(surface) {
+
+    function _reactionHTML(surface, wordingText) {
       if (typeof _memoryLineFor !== 'function') return '';
       const line = _memoryLineFor(surface, _localISO());
       if (!line) return '';
       const btn = (r, label) => '<button type="button" class="nudge-react-btn' + (line.reaction === r ? ' on' : '') + '"' +
         ' data-react="' + r + '" data-surface="' + esc(surface) + '" aria-pressed="' + (line.reaction === r) + '">' + label + '</button>';
       return '<div class="nudge-react' + (line.reaction ? ' open' : '') + '" role="group" aria-label="Did this land?">' +
-        btn('landed', 'landed') + btn('missed', 'not really') + '</div>' +
+        btn('landed', 'landed') + btn('missed', 'not really') + (wordingText === line.text ? _poolWordingAPI.button(line) : '') + '</div>' +
         _memoryMissReasonHTML(surface, line);
     }
-    // Delegate sentence/reaction taps; a held reaction keeps its group open on the next visit.
+
     function _wireReactions(panel) {
       if (!panel || panel._reactWired) return;
       panel._reactWired = true;
@@ -208,11 +253,11 @@
       });
     }
     function _summaryHTML(text, surface) {
-      const react = _reactionHTML(surface);
+      const react = _reactionHTML(surface,text);
       return '<div class="week-summary' + (react ? ' reactable' : '') + '">' + esc(text) + '</div>' + react;
     }
 
-    // Animate an element's text landing in place (async resolve — "reflecting…" → real content).
+
     function _nudgeTextResolve(el) {
       el.classList.remove('_nudge-text-resolving');
       void el.offsetWidth;
@@ -227,7 +272,7 @@
       const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
       const streak = parseInt(localStorage.getItem('stat_streak') || '1');
       
-      // Diminishing flow rate: 100 × (1 - 0.8^done); see Rules.md for research and examples.
+
       const totalDone = _doneTodayCount();
       const flowRate = Math.round(100 * (1 - Math.pow(0.8, totalDone)));
 
@@ -254,7 +299,7 @@
         });
       }
 
-      // ── Week grid ───────────────────────────────────────────────────────────────
+
       const _history = safeJSON('today_daily_history', []);
       const _today   = _localISO();
       const _isSun   = new Date().getDay() === 0;
@@ -276,7 +321,7 @@
         const focus = iso === _today
           ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0')
           : (entry ? entry.focusMins : null);
-        // Habit data for the composite "best day" dot — live for today, snapshot for past days
+
         const _activeHabits = habitsList.filter(h => !h.archived);
         const habitsTotal = iso === _today
           ? _activeHabits.length
@@ -304,9 +349,9 @@
 
       const _weekGrid = document.getElementById('weekGrid');
       if (_weekGrid) {
-        // Bar scale (①): height encodes tasks relative to the week's busiest day
+
         const _gMax = Math.max(1, ..._days.map(d => d.tasks || 0));
-        // The best-day dot combines normalized tasks, focus and habits; bars already encode task volume.
+
         const _gTot = _days.reduce((s, d) => s + (d.tasks || 0), 0);
         const _maxT = Math.max(1, ..._days.map(d => d.tasks || 0));
         const _maxF = Math.max(1, ..._days.map(d => d.focus || 0));
@@ -316,7 +361,7 @@
           const h = d.habitsTotal > 0 ? (d.habitsKept || 0) / d.habitsTotal : 0;  // habit consistency
           return 0.4 * t + 0.35 * f + 0.25 * h;
         };
-        // Week must have real activity; pick the single top-scoring day; today reads accent already.
+
         let _yourDay = null;
         if (_gTot >= 4) {
           const _scored   = _days.map(d => ({ iso: d.iso, isToday: d.isToday, s: Math.round(_dayScore(d) * 1000) }));
@@ -329,7 +374,7 @@
           const tStr = d.tasks === null ? '·' : String(d.tasks);
           const fStr = !d.focus ? '' : _formatFocusTime(d.focus);
           const cls  = d.tasks === null || d.tasks === 0 ? 'zero' : (d.isToday ? 'is-today' : '');
-          // Nonzero days get a small floor height so they read; zero/null = empty track
+
           const pct  = (d.tasks || 0) > 0 ? Math.max(14, Math.round((d.tasks / _gMax) * 100)) : 0;
           const fillCls = d.isToday ? 'week-col-bar-fill is-today' : 'week-col-bar-fill';
           const isWin  = d.iso === _yourDay;
@@ -351,7 +396,7 @@
         }).join('');
       }
 
-      // ── Sunday AI reflection (above stats) ─────────────────────────────────────
+
       const _sundayBlock = document.getElementById('sundayBlock');
       if (_sundayBlock) {
         if (_isSun && _history.length > 0) {
@@ -360,7 +405,7 @@
 
           const _week  = _days.filter(d => d.tasks !== null);
           const _reflectionStats = { days: _week, history: _history };
-          // Sunday uses eligible outcome-pool candidates through the novelty gate ({ kind, evidence, insight }).
+
           const _weekInsight = _pickSundayInsight(_reflectionStats);
           _debugSundayAudit(_today);
 
@@ -380,12 +425,12 @@
             _setSundayAuditGeneration('cache-hit', {
               kind: _weekInsight ? _weekInsight.kind : null,
             });
-            _sundayBlock.innerHTML =
+            if (!_poolWordingAPI.retain(_sundayBlock,_cached)) _sundayBlock.innerHTML =
               '<div class="week-label">' + _weekLabel + '</div>' +
               _summaryHTML(_cached, _weekSurface);
           } else if (!_weekInsight) {
             _setSundayAuditGeneration('blocked-no-insight');
-            // An early absence is not a permanent negative cache; evidence may accumulate today.
+
             _sundayBlock.style.display = 'none';
           } else if (!Today.use('connections')._aiGetKey() || !navigator.onLine) {
             _setSundayAuditGeneration(Today.use('connections')._aiGetKey()
@@ -405,7 +450,7 @@
                 const el = _sundayBlock.querySelector('.week-summary');
                 if (el) {
                   el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el);
-                  const react = _reactionHTML(_weekSurface);
+                  const react = _reactionHTML(_weekSurface,text);
                   if (react) { el.classList.add('reactable'); el.insertAdjacentHTML('afterend', react); }
                 }
               } else {
@@ -418,7 +463,7 @@
         }
       }
 
-      // Noticed’s weekly theme uses a tried flag only for genuine absence, avoiding repeated requests.
+
       {
         const _themeKey = _aiCacheKey('week_theme_ai');
         const _weekKey  = _aiWeekKey();
@@ -429,8 +474,8 @@
               _aiSurfaceSet('week_theme_ai', text);
               if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
             } else if (navigator.onLine) {
-              // AI was reachable but had nothing genuine to say — negative-cache for the week.
-              // Don't set tried when offline: a transient failure shouldn't silence Noticed all week.
+
+
               _pruneLS('week_theme_tried_', _themeTriedKey);
               localStorage.setItem(_themeTriedKey, '1');
             }
@@ -444,7 +489,7 @@
         // Same rule as the strip, so the two homes never disagree.
         const _dayLine = Today.use('nudge').currentLine();
         if (_dayLine) {
-          _nudgeBlock.innerHTML =
+          if (!_poolWordingAPI.retain(_nudgeBlock,_dayLine)) _nudgeBlock.innerHTML =
             '<div class="week-label">Today</div>' +
             _summaryHTML(_dayLine, 'morning nudge');
           _nudgeBlockShow(_nudgeBlock, _nudgeStagger++ * 60);
@@ -453,7 +498,7 @@
         }
       }
 
-      // Noticed is delta-gated; its dated cache keeps shown lines available until midnight.
+
       const _noticedEl = document.getElementById('noticedBlock');
       if (_noticedEl && typeof _noticedLines === 'function') {
         const _nKey = 'noticed_lines_' + _today;
@@ -462,10 +507,10 @@
         const _isSeason = e => e && typeof e === 'object' && e._season;
         let _all;
         if (_prior.some(_isSeason)) {
-          // Season already shown today — preserve it, suppress any new fresh lines
+
           _all = _prior.filter(_isSeason);
         } else if (_fresh.some(_isSeason)) {
-          // Season fires now — it owns the full block; ignore prior + other fresh lines
+
           _all = _fresh.filter(_isSeason);
           _pruneLS('noticed_lines_', _nKey);
           localStorage.setItem(_nKey, JSON.stringify(_all));
@@ -487,7 +532,7 @@
               return '<div class=' + _cls + '>' + esc(l) + '</div>';
             }).join('');
           _nudgeBlockShow(_noticedEl, _nudgeStagger++ * 60);
-          // Fresh lines inside an already-visible block: animate just those spans.
+
           if (_fresh.length && !_noticedWasHidden) {
             _noticedEl.querySelectorAll('._nudge-fresh').forEach(el => _nudgeTextResolve(el));
           }
@@ -497,7 +542,7 @@
       }
     }
 
-    // Sunday permits every pool kind; the week-only builder is the fallback if the pool is unavailable.
+
     const SUNDAY_AUDIT_PREFIX = 'sunday_observation_audit_';
 
     function _debugSundayAudit(dateISO) {
@@ -596,11 +641,7 @@
     }
 
     function _sundaySourceKey() {
-      return JSON.stringify([_localISO(), sundayReady, appMemory.clearedAt,
-        (appMemory.taskOutcomes || []).map(row => JSON.stringify(row)).sort(),
-        (appMemory.spokenLines || []).filter(row => row?.kind)
-          .map(row => JSON.stringify([row.date,row.surface,row.kind,row.policy,row.reaction,row.reactedAt])).sort(),
-        Object.entries(appMemory.kindVerdicts || {}).sort()]);
+      return JSON.stringify([sundayReady,_poolWordingAPI.source('Sunday reflection')]);
     }
 
     async function _fetchWeekReflection(stats) {
@@ -627,13 +668,15 @@
           && cache === _aiSurfaceGet('week_reflection')
           && key === Today.use('connections')._aiGetKey()
           && provider === Today.use('connections')._aiGetProvider();
+        const wording=await _poolWordingAPI.prepare('Sunday reflection');
+        if (!current()) return null;
         _setSundayAuditGeneration('requesting', { kind: insight.kind });
         const userContent =
           'Verified observation type: ' + insight.kind + '\n' +
           'Supported insight: ' + insight.insight + '\n\n' +
           'Write the Sunday observation in clear everyday language. Preserve the supported insight instead of summarizing the evidence. ' +
           'Use the app\'s action words literally (for example, "let go" stays "let go"). ' +
-          'Do not introduce any fact or interpretation not present above.';
+          'Do not introduce any fact or interpretation not present above.' + wording;
         const res = await fetch('/.netlify/functions/ai-assist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -671,14 +714,14 @@
       }
     }
 
-    // Noticed’s weekly theme reads behavioral evidence and abstains without a supported pattern.
+
     async function _fetchWeekThemeAI() {
       try {
         const key = Today.use('connections')._aiGetKey();
         if (!key || !navigator.onLine) return null;
 
-        // Build behavioral data — NOT task content (which "This week" already covers).
-        // "Noticed" observes HOW/WHEN they work, not WHAT they worked on.
+
+
         const m = appMemory;
         const dailyHistory = (typeof safeJSON === 'function') ? safeJSON('today_daily_history', []) : [];
         // Migration guard: tasksAdded was cumulative before the fix; convert to per-day deltas if needed.
@@ -728,7 +771,7 @@
           behavioralLines.push(`Completes ${Math.round(_totalDone / _totalAdded * 100)}% of tasks added (${_rateH.length} days)`);
         }
 
-        // Late additions pattern (hours stored on patterns.lateAdditions)
+
         const _lateHours = m.patterns?.lateAdditions || [];
         if (_lateHours.length >= 5) {
           const _latePct = Math.round(_lateHours.filter(h => h >= 14).length / _lateHours.length * 100);
@@ -754,7 +797,7 @@
 
         if (behavioralLines.length < 2) return null; // not enough behavioral signal
 
-        // Pending tasks with age — gives the AI what's actually in flight this week
+
         const _pastIds = new Set((typeof pastTasks !== 'undefined' ? pastTasks : []).map(t => t.id));
         const _agingTasks = (typeof manualTasks !== 'undefined' ? manualTasks : [])
           .filter(t => !doneIds.has(t.id) && !_pastIds.has(t.id))
@@ -804,7 +847,7 @@
       }
     }
 
-    // An outside tap resets the touch reveal so the next poem tap cannot share accidentally.
+
     document.addEventListener('click', function(e) {
       const block = document.getElementById('poemBlock');
       if (block && block.classList.contains('revealed') && !block.contains(e.target)) {
