@@ -70,7 +70,7 @@ Phase 2 is complete only when the full inventory/path classification is reviewed
 
 ## Step 3 — Run full release validation once
 
-Bootstrap implementation: `ci-release-evidence.md` records the proof contract, commands and activation gates. Code and offline acceptance fixtures are implemented; reuse remains disabled. No default-branch publication or branch-protection change is implied.
+Activation candidate: `ci-release-evidence.md` records the real accepted bootstrap proof, resolved branch configuration, actual CLI fallback probe and remaining dispatch/dev-proof/master-reuse gates. Dispatch acceptance is complete; publish activation to dev first and require its new exact-SHA proof before master promotion.
 
 Add an explicit release mode to CI, with a small status/promotion preflight helper. Use GitHub's existing workflow runs and artifacts; no separate result service.
 

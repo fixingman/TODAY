@@ -105,7 +105,19 @@ for (const patch of [{ PROOF: 'failure' }, { CI_RELEASE_REUSE: 'false' }, { GITH
 assert.throws(() => verifyFinal(reuse, null));
 assert.throws(() => verifyFinal({ ...full, PERFORMANCE_REQUIRED: '' }));
 const workflow = readFileSync(join(ROOT, WORKFLOW), 'utf8');
-assert.match(workflow, /CI_RELEASE_REUSE: 'false'/);
+assert.match(workflow, /CI_RELEASE_REUSE: '(?:true|false)'/);
+const proofExpression = workflow.match(/if: (github\.event_name == 'push'[^\n]+)/)[1];
+const proofRuns = (event, ref, flag) => new Function('github', 'env', `return (${proofExpression})`)({ event_name: event, ref }, { CI_RELEASE_REUSE: flag });
+assert.equal(proofRuns('push', 'refs/heads/master', 'true'), true);
+assert.equal(proofRuns('push', 'refs/heads/master', 'false'), false);
+assert.equal(proofRuns('push', 'refs/heads/dev', 'true'), false);
+assert.equal(proofRuns('pull_request', 'refs/pull/1/merge', 'true'), false);
+assert.equal(proofRuns('workflow_dispatch', 'refs/heads/dev', 'true'), false);
+for (const name of ['Install test dependencies', 'Install locked Chrome for Testing', 'Allow the test browser to use its sandbox', 'Verify Chrome']) {
+  const block = workflow.split(`- name: ${name}\n`)[1]?.split(/\n      - name:/)[0];
+  assert.ok(block, name);
+  assert.match(block, /if: steps\.proof\.outputs\.reuse != 'true'/, name + ' is unnecessary after verified reuse');
+}
 assert.match(workflow, /name: Verify required gate dependencies\n\s+if: always\(\)/);
 assert.doesNotMatch(workflow, /continue-on-error: true|paths-ignore:/);
 const perfExpression = workflow.match(/if: (steps\.policy\.outputs\.performance[^\n]+)/)[1];
@@ -125,5 +137,18 @@ try {
   assert.equal(first.inputDigest, digest(Object.fromEntries(['index.html', 'scripts/performance-budgets.json', 'scripts/über tool.mjs'].map(path => [path, sha256(readFileSync(join(root, path)))]))), 'NUL-separated Git paths preserve spaces/non-ASCII names');
   writeFileSync(join(root, 'index.html'), 'modified'); assert.throws(() => describeCandidate(root, candidate), /modified/);
   assert.throws(() => describeCandidate(root, sha), /exact candidate/);
+  // Execute the real CLI fallback/final-check path in a disposable Git checkout.
+  for (const name of ['release-status', 'release-evidence', 'ci-final', 'ci-policy', 'ci-plan'])
+    writeFileSync(join(root, `scripts/${name}.mjs`), readFileSync(join(ROOT, `scripts/${name}.mjs`)));
+  const wrong = '0'.repeat(40), childEnv = { ...process.env, GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/master',
+    GITHUB_SHA: wrong, GITHUB_WORKFLOW_SHA: wrong, CI_RELEASE_REUSE: 'true', GITHUB_OUTPUT: join(root, '.context/outputs.txt') };
+  const refusal = execFileSync(process.execPath, ['scripts/release-status.mjs', 'reuse', wrong], { cwd: root, env: childEnv, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 });
+  assert.match(refusal, /Full master validation required: Check out the exact candidate/);
+  assert.equal(JSON.parse(readFileSync(join(root, '.context/release-proof-check.json'))).reuse, false);
+  assert.throws(() => execFileSync(process.execPath, ['scripts/ci-final.mjs'], { cwd: root,
+    env: { ...childEnv, ...full, REUSE: 'false', FUNCTIONAL: 'skipped', PERFORMANCE: 'skipped' },
+    stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }), error => error.status === 1);
+  assert.equal(git('rev-parse', 'HEAD'), candidate, 'CLI probes never promote or rewrite the fixture');
+  console.log('  ✓ actual CLI refuses stale checkout, requests full validation and rejects skipped fallback gates');
 } finally { rmSync(root, { recursive: true, force: true }); }
 console.log('✓ RELEASE EVIDENCE TEST PASSED');

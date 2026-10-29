@@ -34,8 +34,8 @@ jobs:
       LANG: en_US.UTF-8
       # Rollback switch: false restores full functional + five-run performance gates.
       CI_ROUTINE_SELECTION: 'true'
-      # Keep off until default-branch bootstrap and hosted proof reuse are verified.
-      CI_RELEASE_REUSE: 'false'
+      # Reuse is limited to verified exact-SHA dev evidence; false restores full master gates.
+      CI_RELEASE_REUSE: 'true'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -56,15 +56,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/release-status.mjs reuse "$GITHUB_SHA"
       - name: Install test dependencies
+        if: steps.proof.outputs.reuse != 'true'
         run: npm ci --prefix scripts
       - name: Install locked Chrome for Testing
+        if: steps.proof.outputs.reuse != 'true'
         run: node scripts/install-ci-browser.mjs
       - name: Allow the test browser to use its sandbox
+        if: steps.proof.outputs.reuse != 'true'
         # Scope the Ubuntu user-namespace exception to this test binary.
         run: |
           printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile today-ci-chrome "%s" flags=(unconfined) { userns, }\n' "$CHROME_PATH" | sudo tee /etc/apparmor.d/today-ci-chrome > /dev/null
           sudo apparmor_parser -r /etc/apparmor.d/today-ci-chrome
       - name: Verify Chrome
+        if: steps.proof.outputs.reuse != 'true'
         run: |
           test -x "$CHROME_PATH"
           "$CHROME_PATH" --version
