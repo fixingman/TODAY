@@ -52,7 +52,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
     _splashAnimDone = true;
     _appLoadDone = true;
     // Enable wake detection after load settles (no splash path — _appReady never set otherwise)
-    window.addEventListener('load', () => { _appReady = true; }, { once: true });
+    Today.ready('load', () => { _appReady = true; }, { once: true });
     return;
   }
   localStorage.setItem(splashKey, Date.now().toString());

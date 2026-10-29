@@ -2,6 +2,8 @@
 
 Activation dev candidate v2.105.7, October 30. The9888bf51 bootstrap and explicit release dispatch are verified. This new candidate must obtain its own full Linux dev proof before identical-SHA master promotion. Verified reuse skips duplicate functional/performance work and npm/browser setup; missing proof keeps the full gate. The helper never promotes branches or changes repository protection.
 
+**Current integration:** v2.106.0 carries the v2.105.7 activation forward with Focus/startup changes. Its new dev SHA supersedes the earlier activation candidate and requires its own full hosted proof; old candidate evidence cannot promote this integration.
+
 ## Commands
 
 Run from a clean checkout of the exact candidate, using the supported Node version. SHA means a full 40-character commit ID, never a version number or moving branch name.

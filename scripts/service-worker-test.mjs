@@ -205,6 +205,7 @@ try {
   console.log('  ✓ optional web/Trello context feedback loads from the service-worker cache offline');
   assert.equal(await page.evaluate(async()=>{await import('/assets/gmail-feedback.js');return typeof Today.use('gmail-feedback').create;}),'function');
   assert.equal(await page.evaluate(async()=>{await import('/assets/pool-wording.js');return typeof Today.use('pool-wording-ui').create;}),'function');
+  assert.equal(await page.evaluate(async()=>{await import('/assets/focus-wording.js');return typeof Today.use('focus-wording-ui').create;}),'function');
   console.log('  ✓ Gmail context/wording controls load from the service-worker cache offline');
 
   await page.setOfflineMode(false);

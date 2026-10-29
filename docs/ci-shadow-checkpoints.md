@@ -18,3 +18,5 @@ Both checkpoint reviews are complete. Activation updates workflow/package/Rules/
 After a push, record the run link and end the agent turn. A pending result is not a pass. Do not create a dummy commit or rerun an unchanged SHA just to fill this ledger. BUG-135 and original failed measurements remain open evidence.
 
 Local activation validation:58/58 suites pass with zero flakes/failures in342.9s; all runtime/test/workflow fingerprints unchanged. All five performance runs pass unchanged budgets; worst cold TBT53ms /200ms. Node24.14.0 / Chrome152.0.7977.75. Hosted exact-commit confirmation remains pending; deployed BUG-135 is separate.
+
+Hosted activation confirmation: [v2.105.5 · 1b550336](https://github.com/fixingman/TODAY/actions/runs/40872255422) completed successfully. Can also confirmed the pass on October 29. This settles the activation candidate CI result; it does not validate subsequent local v2.106.0 inputs or the independent deployed performance result.

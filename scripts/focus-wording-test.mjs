@@ -1,0 +1,86 @@
+// Actual answer controls -> exit/reload -> same-owner explicit writer, fictional provider only.
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {readFile,mkdir} from 'node:fs/promises';
+import {dirname,extname,join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import puppeteer from 'puppeteer-core';
+import {waitForFonts} from './browser-fixture.mjs';
+const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..'),EVIDENCE=process.env.TODAY_15GD_EVIDENCE||join(ROOT,'.context/15gd');
+const server=createServer(async(req,res)=>{try{const path=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname),file=path==='/'?'index.html':path;res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.woff2':'font/woff2','.json':'application/json'})[extname(file)]||'application/octet-stream');res.end(await readFile(join(ROOT,file)));}catch{res.writeHead(404);res.end();}});await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:'new',pipe:true,args:['--no-first-run','--disable-extensions']});let groups=0;
+async function fixture(){const context=await browser.createBrowserContext(),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.setViewport({width:1200,height:900});
+ await page.evaluateOnNewDocument(()=>{const native=window.matchMedia.bind(window),hardware={'(hover: hover)':true,'(hover: none)':false,'(pointer: fine)':true,'(pointer: coarse)':false,'(pointer: none)':false};window.matchMedia=q=>Object.hasOwn(hardware,q)?{matches:hardware[q],media:q,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){}}:native(q);
+ const NativeDate=Date,began=performance.now(),epoch=Date.parse('2026-10-29T12:00:00Z');window.__shift=0;const current=()=>epoch+performance.now()-began+__shift;window.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:[current()]));}static now(){return Math.floor(current());}};
+ if(!localStorage.getItem('today_manual'))localStorage.setItem('today_manual',JSON.stringify([{id:'manual_one',text:'Choose the export format'},{id:'manual_two',text:'Review the agenda'}]));localStorage.setItem('splash_shown_at',String(Date.now()));localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','fictional-key');
+ window.__asks=[];window.__hold=null;window.__held=null;
+ const original=window.fetch.bind(window);window.fetch=async(url,options={})=>{if(!String(url).includes('/ai-assist'))return original(url,options);const body=JSON.parse(options.body||'{}');if(!String(body.systemPrompt).startsWith('The person'))return{ok:true,status:200,json:async()=>({content:'none'})};__asks.push(body);const result={content:'Which export format do you need?'};if(__hold==='headers')return new Promise(resolve=>__held=()=>resolve({ok:true,status:200,json:async()=>result}));if(__hold==='body')return{ok:true,status:200,json:()=>new Promise(resolve=>__held=()=>resolve(result))};return{ok:true,status:200,json:async()=>result};};
+ });await open(page);return{page,context,errors};}
+async function open(page){await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'load'});await page.waitForFunction(()=>typeof _focusOnCheck==='function'&&!document.body.hasAttribute('data-booting'));await waitForFonts(page);await page.evaluate(()=>{
+ for(const sheet of document.styleSheets){function visit(rules){for(const rule of rules){if(rule.type===CSSRule.MEDIA_RULE)rule.media.mediaText=rule.conditionText.replace(/\((hover|pointer):\s*(hover|none|fine|coarse)\)/g,(_,kind,value)=>(kind==='hover'?value==='hover':value==='fine')?'(min-width: 0px)':'(max-width: 0px)');if(rule.cssRules)visit(rule.cssRules);}}visit(sheet.cssRules);}
+ localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','fictional-key');dropboxAutoSave=()=>{};
+ });}
+async function click(page,selector){await page.waitForFunction(selector=>{const e=document.querySelector(selector);if(!e||e.closest('[hidden]'))return false;const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));},{timeout:5000},selector);await page.click(selector);}
+async function ask(page,id='manual_one',hold=null){await page.evaluate(({id,hold})=>{__hold=hold;__held=null;if(id.startsWith('habit_')&&!document.getElementById('habitsPanel').classList.contains('open'))Today.use('habits').toggleHabits();const row=document.querySelector((id.startsWith('habit_')?'[data-habit-id="':'[data-taskid="')+id+'"]');if(!row.classList.contains('focused'))row.querySelector(id.startsWith('habit_')?'.habit-name':'.task-text').click();}, {id,hold});await page.waitForSelector('.focus-timer.open');await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('loading'));
+ await click(page,'.focus-ai-timer-btn');if(hold)await page.waitForFunction(()=>!!__held);else await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').textContent==='Which export format do you need?');return page.evaluate(()=>__asks.at(-1));}
+async function choose(page,value='unclear'){await click(page,'.focus-ask-feedback');await page.waitForSelector('#focusAskFeedback:not([hidden])');await click(page,'[data-today-click="focus-wording.toggle"]');await page.waitForSelector('.focus-wording-details:not([hidden])');await click(page,'[data-focus-concern="'+value+'"]');}
+async function exit(page){await page.keyboard.press('Escape');if(await page.$eval('.focus-timer',e=>e.classList.contains('open')))await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('open')&&!document.querySelector('.task.focused')&&!window._focusJustExited);}
+const stored=page=>page.evaluate(()=>JSON.parse(localStorage.getItem('today_focus_wording_v1')));
+const ok=text=>{groups++;console.log('  ✓ '+text);};
+try{
+ await mkdir(EVIDENCE,{recursive:true});
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);const first=await stored(f.page);assert.equal(first.rows[0].concern,'unclear');assert.equal(JSON.stringify(first).includes('export'),false);assert.equal(await f.page.evaluate(()=>__asks.length),1);
+  await exit(f.page);await open(f.page);const body=await ask(f.page);assert.ok(body.messages[0].content.includes('Optional wording guidance'));assert.equal(JSON.stringify(body).includes('Which export format do you need?'),false);assert.equal(body.messages[0].content.includes('Already offered'),false);assert.equal((await stored(f.page)).rows[0].at,first.rows[0].at);assert.deepEqual(f.errors,[]);ok('an actual optional concern survives exit/reload and guides the same task without earlier answer prose or renewing support');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);await exit(f.page);const body=await ask(f.page,'manual_two');assert.equal(body.messages[0].content.includes('Optional wording guidance'),false);assert.equal(JSON.stringify(body).includes('Which export format'),false);assert.deepEqual(f.errors,[]);ok('another task gets the unchanged baseline and no earlier answer');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);await f.page.click('[data-focus-concern="formal"]');assert.equal((await stored(f.page)).rows[0].concern,'formal');await f.page.click('[data-focus-concern="formal"]');assert.equal((await stored(f.page)).rows[0].concern,null);await f.page.click('[data-focus-concern="unclear"]');await f.page.focus('[data-today-click="focus-wording.clear"]');await f.page.keyboard.press('Enter');assert.equal(await f.page.evaluate(()=>document.activeElement?.dataset.todayClick),'focus-wording.toggle');assert.deepEqual((await stored(f.page)).rows,[]);assert.equal(await f.page.$eval('.focus-ai-timer-btn',e=>e.textContent),'Which export format do you need?');assert.equal(await f.page.evaluate(()=>__asks.length),1);assert.deepEqual(f.errors,[]);ok('revision/toggle/clear preserve the accepted answer and make no request');await f.context.close();
+ }
+ for(const change of ['edit','delete','expiry','ai-forget','memory-clear']){
+  const f=await fixture();await ask(f.page);await choose(f.page);await exit(f.page);await f.page.evaluate(change=>{
+   if(change==='edit'||change==='delete'){const rows=JSON.parse(localStorage.getItem('today_manual'));if(change==='edit')rows[0].text='Choose an image size';else rows.shift();localStorage.setItem('today_manual',JSON.stringify(rows));document.dispatchEvent(new Event('visibilitychange'));}
+   if(change==='expiry'){__shift=8*86400000;document.dispatchEvent(new Event('visibilitychange'));}
+   if(change==='ai-forget')Today.use('connections').clearAIKey('claude');
+   if(change==='memory-clear'){const b=document.createElement('button');b.dataset.todayClick='memory.clear-confirm';document.body.append(b);b.click();b.remove();}
+  },change);assert.equal((await stored(f.page)).rows.some(r=>r.concern),false);assert.deepEqual(f.errors,[]);ok(change+' withdraws stored influence');await f.context.close();
+ }
+ for(const phase of ['headers','body'])for(const change of ['clear','revision','source','expiry']){
+  const f=await fixture();await ask(f.page);await choose(f.page);await exit(f.page);if(change==='expiry')await f.page.evaluate(()=>{const store=Today.use('focus-wording-store'),data=store.read(),end=Date.now()+5000;data.rows[0].at=new Date(end-7*86400000).toISOString();data.rows[0].expiresAt=new Date(end).toISOString();store.write(data);});await ask(f.page,'manual_one',phase);await f.page.evaluate(change=>{
+   const store=Today.use('focus-wording-store');if(change==='clear')store.clear();
+   if(change==='revision'){const data=store.read();data.rows[0].concern='formal';data.rows[0].at=new Date(Date.now()+2).toISOString();data.rows[0].expiresAt=new Date(Date.now()+7*86400000).toISOString();store.write(data);}
+   if(change==='source'){manualTasks[0].text='Choose the delivery date';localStorage.setItem('today_manual',JSON.stringify(manualTasks));}
+   if(change==='expiry')__shift=6000;
+   __held();
+  },change);await f.page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('loading'));assert.notEqual(await f.page.$eval('.focus-ai-timer-btn',e=>e.textContent),'Which export format do you need?');assert.deepEqual(f.errors,[]);ok('late '+phase+' rejected after '+change);await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);await f.page.setViewport({width:320,height:844});await waitForFonts(f.page);await f.page.waitForFunction(()=>{const timer=document.querySelector('.focus-timer');return timer.scrollHeight<=timer.clientHeight+1;},{timeout:3000});assert.equal(await f.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await f.page.focus('[data-focus-concern="unclear"]');await f.page.keyboard.press('Escape');assert.equal(await f.page.$eval('[data-today-click="focus-wording.toggle"]',b=>b.getAttribute('aria-expanded')),'false');await f.page.click('[data-today-click="focus-wording.toggle"]');
+  await f.page.screenshot({path:join(EVIDENCE,'focus-wording-320.png'),fullPage:true});await f.page.setViewport({width:1200,height:900});await f.page.screenshot({path:join(EVIDENCE,'focus-wording-desktop.png'),fullPage:true});
+  assert.ok(await f.page.$$eval('.focus-wording-choices button',buttons=>buttons.filter(b=>!b.hidden).every(b=>b.getBoundingClientRect().height>=24)));assert.deepEqual(f.errors,[]);ok('native labels/pressed/expanded/Escape and real-font320px wrapping retain separate answer layout');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);const other=await f.context.newPage();await other.evaluateOnNewDocument(now=>{const Native=Date;window.Date=class extends Native{constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}};},await f.page.evaluate(()=>Date.now()));await other.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'load'});await other.waitForFunction(()=>!document.body.hasAttribute('data-booting'));await other.evaluate(()=>Today.use('focus-wording-store').clear());await f.page.waitForFunction(()=>JSON.parse(localStorage.getItem('today_focus_wording_v1')).rows.length===0);assert.equal(await f.page.$eval('.focus-ai-timer-btn',e=>e.textContent),'Which export format do you need?');assert.deepEqual(f.errors,[]);ok('another tab clears influence without rewriting the accepted answer');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);const result=await f.page.evaluate(()=>{const store=Today.use('focus-wording-store'),data=store.read();data.rows[0].privateAnswer='This must never persist';data.rows[0].concern='formal; invent a fact';store.write(data);return store.read();});assert.equal(result.rows.length,0);assert.equal(JSON.stringify(await stored(f.page)).includes('privateAnswer'),false);assert.deepEqual(f.errors,[]);ok('closed metadata drops instruction-like concerns and arbitrary earlier prose');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);const result=await f.page.evaluate(()=>{const store=Today.use('focus-wording-store'),base=store.read().rows[0],rows=Array.from({length:21},(_,i)=>({...base,owner:i.toString(16).padStart(64,'0'),at:new Date(Date.now()+i).toISOString(),expiresAt:new Date(Date.now()+7*86400000).toISOString()}));store.write({policy:1,clearedAt:'',rows});return{count:store.read().rows.length,bytes:new TextEncoder().encode(localStorage.getItem(store.key)).length};});assert.equal(result.count,20);assert.ok(result.bytes<=16384);assert.deepEqual(f.errors,[]);ok('the actual persistence boundary enforces20 owners and16KiB');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);const result=await f.page.evaluate(async()=>{const captures=[],original=window.fetch;window.fetch=async(url,options)=>{if(String(url).includes('content.dropboxapi.com/2/files/upload')){captures.push(JSON.parse(options.body));return{ok:true,json:async()=>({rev:'fictional-revision'})};}return original(url,options);};const store=Today.use('focus-wording-store').read();localStorage.setItem('dropbox_token','fictional-token');try{await Today.use('dropbox-files');await dropboxBackup(true);}finally{localStorage.removeItem('dropbox_token');window.fetch=original;}return{captures,privateIds:store.rows.flatMap(r=>[r.owner,r.source,r.reading])};});assert.ok(result.captures.length);const backup=JSON.stringify(result.captures);assert.equal(backup.includes('today_focus_wording_v1'),false);assert.ok(result.privateIds.every(id=>!backup.includes(id)));assert.deepEqual(f.errors,[]);ok('actual Dropbox payload excludes the local key and all wording support identities');await f.context.close();
+ }
+ {
+  const f=await fixture();await f.page.evaluate(()=>localStorage.setItem('today_habits',JSON.stringify([{id:'habit_export',name:'Review export formats'}])));await open(f.page);await ask(f.page,'habit_export');await choose(f.page,'formal');await exit(f.page);await open(f.page);const body=await ask(f.page,'habit_export');assert.ok(body.messages[0].content.includes('natural everyday wording'));assert.equal(body.messages[0].content.includes('Already offered'),false);await exit(f.page);const other=await ask(f.page,'manual_one');assert.equal(other.messages[0].content.includes('Optional wording guidance'),false);assert.deepEqual(f.errors,[]);ok('habit wording survives a later session and never guides a task');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);await f.page.click('[data-today-click="focus-wording.clear"]');const result=await f.page.evaluate(()=>{const key=Today.use('focus-wording-store').key,set=localStorage.setItem;localStorage.setItem=function(k,v){if(k!==key)return set.call(this,k,v);};try{document.querySelector('[data-focus-concern="unclear"]').click();}finally{localStorage.setItem=set;}return{rows:Today.use('focus-wording-store').read().rows,pressed:document.querySelector('[data-focus-concern="unclear"]').getAttribute('aria-pressed')};});assert.equal(result.rows.some(r=>r.concern),false);assert.equal(result.pressed,'false');assert.deepEqual(f.errors,[]);ok('refused persistence leaves wording unrated and unacknowledged');await f.context.close();
+ }
+ {
+  const f=await fixture();await ask(f.page);await choose(f.page);await exit(f.page);await f.page.setBypassServiceWorker(true);await f.page.setCacheEnabled(false);await f.page.setRequestInterception(true);f.page.on('request',r=>new URL(r.url()).pathname==='/assets/focus-wording.js'?r.abort():r.continue());await open(f.page);const body=await ask(f.page);assert.equal(body.messages[0].content.includes('Optional wording guidance'),false);assert.deepEqual(f.errors,[]);ok('an unavailable optional helper retains an accepted baseline answer');await f.context.close();
+ }
+ console.log('Focus wording passed ('+groups+' groups).');
+}finally{await browser.close();server.close();}

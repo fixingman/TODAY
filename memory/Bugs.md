@@ -23,9 +23,9 @@
 | 138 | 🔍 Open | Hosting injects a Real User Monitoring SDK outside the repository. | Netlify setting |
 | 137 | ⏳ Verify | Clean GitHub runs fail Calendar, enrichment screenshots and Focus resize fixtures. | v2.103.5 |
 | 136 | ⏳ Verify | Dev service worker installs without the app-shell precache because a listed helper returns 404. | v2.103.0 |
-| 135 | ⏳ Verify | Startup blocking and cold/warm load exceed performance limits. | v2.103.2 |
+| 135 | 🔍 Open | Startup blocking and cold/warm load exceed performance limits. | v2.106.0 |
 | 134 | ⏳ Verify | Sunday treats tied let-go reasons as a majority and generalizes missing reasons. | v2.101.1 |
-| 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.100.1 |
+| 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.106.0 |
 | 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
 | 127 | ⏳ Verify | Web/Trello context outlives its task, source or focus view. | v2.99.1 |
 | 120 | ↪ Merged | Daily-nudge delivery follow-up; tracked with the strip/About mismatch. | BUG-118 |
@@ -84,6 +84,12 @@
 
 ## BUG-135 — Startup performance exceeds release budgets
 
+**Configured comparison (same frozen source):** Node24.14.0 / Chrome for Testing152.0.7977.75 also fails its five-run gate: cold blocking511ms/200ms, FCP7148ms/7000ms, interactive7155.5ms/7000ms and warm FCP/LCP1348ms/500ms. Original attribution includes284.7ms in sound.js and other frame/layout work; it does not justify assigning every miss to audio. A post-run machine snapshot shows load averages20.03/13.80/9.36; this does not causally clear the benchmark. Neither browser/process settings nor limits were changed. Both failed measurements remain retained, and the dev candidate requires fresh clean Linux CI evidence; no master promotion/reuse activation.
+
+**v2.106.0 publication, original local run:** all 61 integrated functional checks pass on Node24.14.0 / machine Chrome156.0.8078.49. The retained five-run benchmark fails cold TBT381ms/200ms (381/27/20/0/11), cold FCP7044ms/7000ms and cold interactive7007.3ms/7000ms. Original-run attribution records416.1ms in unchanged sound.js, within a419ms long task. CI locks Chrome for Testing152.0.7977.75; a separately labelled configured-browser comparison is required, without replacing this failure or claiming a new audio fix. Evidence: .context/15gd/publication/performance-failed.json.
+
+**v2.106.0 dev continuation:** retained original deployed run 40861300900 records 397 ms cold blocking: sound.js accounts for a 200 ms long task and the main inline script 297 ms. The startup composition now yields between ordered owners, seals interaction until readiness, and preserves late load/DOMContentLoaded hooks and initial Dropbox ordering. A controlled coalesced-before / yielded-after browser check retains the same 200 ms limit; it establishes the grouping mechanism, not deployed recovery. Native audio initialization and all budgets remain unchanged. Final local gate evidence is recorded with the release; deployed/installed confirmation is still required.
+
 **v2.105.1 CI integration, October28:** the original five-run local benchmark on Chrome152/Node20 fails cold TBT at244ms/200ms (runs244/0/0/0/0). Original-run attribution records225.5ms in unchanged sound.js and116.5ms in the page script. All58 functional suites passed on Node24 with zero failures/flakes. The benchmark shell selected unsupported Node20 in the isolated directory; a separately labelled explicit-Node24 comparison is retained without replacing this original or claiming it explains/fixes the browser stall. Published runtime bytes are unchanged; BUG-135 remains open. The explicit Node24.14.0/Chrome152 configured-environment comparison passes all five runs, worst cold TBT141ms/200ms. This does not erase the original Node20 failure or establish that Node caused or fixed the browser stall. All170 runtime/test inputs remain unchanged through both benchmarks; BUG-135 stays open.
 
 **15G local repair (v2.103.2):** supported browsers first prepare a silent audio sink and asynchronously attach the system default; no device enumeration, permission request, tone shape or autoplay-policy change. Legacy/refused-option paths preserve existing behavior. A pending default-output connection cannot block Focus input; only the latest cue may wait, for at most one second, and closed/replaced contexts discard late work. The controlled 340 ms synchronous-default constructor fails the startup guard before and passes after; first-input and real native/default-output tests pass. A one-run diagnostic has cold TBT 81 ms and warm TBT 0 ms, but it is not the required five-run release result. Final verification: 53 functional suites passed with zero flaky/failed results; all five performance runs pass unchanged budgets (worst cold blocking59ms/200, coldFCP6748ms/7000, warmFCP124ms/500, focus35.9ms/300; medianfocus33ms). Payload1201.1KiB decoded/341.0KiB Brotli/38scripts. The About-history-only copy correction has identical version/executable behavior and passes subsequent syntax/smoke/design/payload checks. Original failures and causal negative controls are retained. Published as a2357665; both v2.103.2 hosted runs passed 52 suites and exposed the overflow-fixture assumption followed up in v2.103.4. Original failed evidence remains below.
@@ -108,6 +114,8 @@
 ---
 
 ## BUG-131 — Post-add splitting loses valid actions and can apply an obsolete offer
+
+**v2.106.0 dev publication:** include the pending confirmed `oil` imperative correction and its policy/actual Add → proxy → explicit Split checks. Existing tasks are still not automatically reconsidered; unsupported syntax/languages and actual installed usefulness remain open. Earlier v2.100.1 ownership and source-index fixes stay intact.
 
 **15F audit/reproduction (October 27):** the fixed English verb guard rejects the explicitly written “Install the shelves and paint the wall” and “Translate the document and send it”. The earlier fictional probe is retained in `.context/post-add-split-review-2026-10-26.json`. Requiring the model to repeat every source phrase also makes paraphrases ineligible; the frequency of that behavior on Can’s account is unmeasured. A new actual-component fixture shows an accepted split can remove a task after its text changes, recording application against the obsolete source. This is separate from BUG-129 transport recovery and does not explain every historical missing offer.
 

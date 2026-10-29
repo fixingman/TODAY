@@ -4,9 +4,50 @@ window._startFocus = (function() {
   return function() {
     if (started) return; started = true;
 
-  // Desktop-only guard
-  // matchMedia hover:hover = device has a true pointer (mouse/trackpad).
-  // Touch-primary devices (mobile) return false — bail entirely.
+  const wordingKey='today_focus_wording_v1', wordingLife=7*86400000;
+  let wordingExpiry;
+  const wordTag=value=>{let n=2166136261;for(let i=0;i<value.length;i++)n=Math.imul(n^value.charCodeAt(i),16777619);return(n>>>0).toString(16).padStart(8,'0');};
+  function wordingOwners(){
+    const list=value=>Array.isArray(value)?value:[];
+    const tasks=[...list(safeJSON('today_manual',[])),...list(safeJSON('today_trello_cache',{})?.tasks)],storedDone=new Set(list(safeJSON('today_done',[]))),storedHabits=safeJSON('today_habit_completions',{})||{};
+    return [...tasks.filter(r=>!doneIds.has(r.id)&&!storedDone.has(r.id)).map(r=>({id:r.id,source:r.text,habit:false})),
+      ...list(safeJSON('today_habits',[])).filter(r=>!r.archived&&!(habitCompletions[r.id]||[]).includes(_habitTodayISO())&&!(storedHabits[r.id]||[]).includes(_habitTodayISO())).map(r=>({id:r.id,source:r.name,habit:true}))]
+      .filter(r=>typeof r.id==='string'&&typeof r.source==='string');
+  }
+  const wordTime=value=>typeof value==='string'&&value.length===24&&Number.isFinite(Date.parse(value))&&new Date(Date.parse(value)).toISOString()===value?Date.parse(value):0;
+  function wordingRead(input){
+    const raw=input===undefined?localStorage.getItem(wordingKey):input;let data;
+    try{data=raw&&raw.length<=16384?JSON.parse(raw):null;}catch(_){data=null;}
+    const now=Date.now(),clearedAt=wordTime(data?.clearedAt)>0&&wordTime(data?.clearedAt)<=now+60000?data.clearedAt:'';
+    const live=wordingOwners().map(r=>[wordTag(JSON.stringify([r.habit,r.id])),wordTag(JSON.stringify([r.habit,r.id,r.source]))]);
+    const byOwner=new Map();
+    for(const row of Array.isArray(data?.rows)?data.rows:[]){
+      if(data.policy!==1||!row||!['owner','source','reading'].every(k=>/^[a-f0-9]{64}$/.test(row[k]||''))||!['ownerTag','sourceTag'].every(k=>/^[a-f0-9]{8}$/.test(row[k]||''))||!['focus-task-v1','focus-habit-v1'].includes(row.writer)||![null,'unclear','formal'].includes(row.concern))continue;
+      const at=wordTime(row.at),end=wordTime(row.expiresAt);
+      if(!at||at>now+60000||at<=wordTime(clearedAt)||end<=now||end>at+wordingLife||end<=at)continue;
+      const clean={owner:row.owner,source:row.source,reading:row.reading,ownerTag:row.ownerTag,sourceTag:row.sourceTag,writer:row.writer,concern:live.some(([id,source])=>id===row.ownerTag&&source===row.sourceTag)?row.concern:null,at:row.at,expiresAt:row.expiresAt};
+      const old=byOwner.get(clean.owner);if(!old||clean.at>old.at||clean.at===old.at&&clean.concern===null)byOwner.set(clean.owner,clean);
+    }
+    return{policy:1,clearedAt,rows:[...byOwner.values()].sort((a,b)=>b.at.localeCompare(a.at)||a.owner.localeCompare(b.owner)).slice(0,20)};
+  }
+  function wordingWrite(data){
+    const text=JSON.stringify(wordingRead(JSON.stringify(data)));if(new TextEncoder().encode(text).length>16384)throw new Error('Focus wording limit');
+    localStorage.setItem(wordingKey,text);if(localStorage.getItem(wordingKey)!==text)throw new Error('Focus wording was not saved');
+    document.dispatchEvent(new Event('today:focus-wording-change'));
+  }
+  const wordingStore=Today.define('focus-wording-store',{key:wordingKey,read:wordingRead,write:wordingWrite,owners:wordingOwners,tag:wordTag,supports:request=>wordingOwners().some(r=>r.habit===request.habit&&r.id===request.id&&r.source===request.source),
+    clear(){const current=wordingRead();wordingWrite({policy:1,clearedAt:new Date(Math.max(Date.now(),wordTime(current.clearedAt),...current.rows.map(r=>wordTime(r.at)))).toISOString(),rows:[]});}});
+  function pruneWording(){
+    clearTimeout(wordingExpiry);if(!localStorage.getItem(wordingKey))return;
+    const data=wordingRead(),text=JSON.stringify(data);if(localStorage.getItem(wordingKey)!==text)wordingWrite(data);
+    if(data.rows.length)wordingExpiry=setTimeout(pruneWording,Math.min(2147483647,Math.max(1,Math.min(...data.rows.map(r=>wordTime(r.expiresAt)))-Date.now())));
+  }
+  pruneWording();window.addEventListener('storage',pruneWording);document.addEventListener('visibilitychange',pruneWording);
+  new MutationObserver(pruneWording).observe(document.getElementById('main-app'),{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class']});
+
+
+
+
   if (!window.matchMedia('(hover: hover)').matches) return;
 
   const TOTAL  = 25 * 60;
@@ -18,29 +59,29 @@ window._startFocus = (function() {
     return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
   }
 
-  // Checkbox intercept hook
-  // Called before toggleDone. Returns true if focus mode handled the check
-  // (stops normal toggleDone from firing). Registers partial session,
-  // collapses focus UI, then lets the task complete normally.
+
+
+
+
   window._focusOnCheck = function(taskId) {
-    // Only intercept if this task is currently focused
+
     if (taskId !== uiTaskId && (!taskStates[taskId] || taskStates[taskId].rem >= TOTAL)) return false;
     if (taskId !== uiTaskId && !taskStates[taskId]) return false;
 
     const st = getState(taskId);
-    const sessionStarted = st.rem < TOTAL; // only log if session actually began
+    const sessionStarted = st.rem < TOTAL;
 
-    // Stop the timer
+
     clearTimeout(tickHandle);
     st.running   = false;
     st.paused    = false;
     st.wallStart = null;
 
-    // Log partial session if any time was spent
+
     if (sessionStarted) _logSession(taskId);
 
-    // Collapse focus UI cleanly — handle both task (taskid) and habit (habitId)
-    // Note: closeUI(true) will call _trackFocusTime, so no need to call it here
+
+
     const isUiEl = uiTaskEl && (
       uiTaskEl.dataset.taskid  === taskId ||
       uiTaskEl.dataset.habitId === taskId
@@ -48,36 +89,36 @@ window._startFocus = (function() {
     if (isUiEl) {
       closeUI(true);
     } else {
-      // Not the UI task — track time manually before clearing
+
       _trackFocusTime(taskId);
       clearState(taskId);
       appEl.classList.remove('focusing');
-      document.body.style.overflow = ''; // Unlock scroll
+      document.body.style.overflow = '';
     }
 
-    // Return false — let toggleDone run normally to mark task done
+
     return false;
   };
 
-  // Re-anchor timer bar after DOM rebuild (e.g. renderManual from sync)
-  // Finds the new task element by ID and re-positions timerEl after it.
-  // Called by Today.use('connections').renderManual() and renderTrello() after tasks are in the DOM.
-  // If localStorage has a persisted session: re-open the timer with remaining
-  // time, or silently record the full 25 min if it would already have completed.
+
+
+
+
+
   window._tryRestoreFocusSession = function() {
-    // One decision per page load. Today.use('connections').renderManual()/renderTrello() call this on every
-    // render (7s sync tick included) — without this gate, leaving focus by any route
-    // that is not "check the task off" leaves a session in localStorage and the very
+
+
+
     // next render silently re-opens focus mode on it. (BUG-065)
     if (_restoreAttempted) return;
-    if (uiTaskId) { _restoreAttempted = true; return; } // session already active
+    if (uiTaskId) { _restoreAttempted = true; return; }
     const saved = safeJSON('today_focus_session', null);
     if (!saved || !saved.taskId) { _restoreAttempted = true; return; }
 
     const { taskId, rem, savedAt, paused } = saved;
     const taskEl = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
-    if (!taskEl) return; // task not in DOM yet (Trello may not be loaded) — retry later
-    _restoreAttempted = true; // element found: this is the one real attempt
+    if (!taskEl) return;
+    _restoreAttempted = true;
 
     if (taskEl.classList.contains('done')) {
       localStorage.removeItem('today_focus_session');
@@ -92,12 +133,12 @@ window._startFocus = (function() {
     const adjustedRem = restored.rem;
 
     if (!paused && adjustedRem <= 0) {
-      // Session completed while the app was away — silently record it, no UI
+
       _recordFocusComplete(taskId);
       return;
     }
 
-    // Restore timer state and re-open UI
+
     const st = getState(taskId);
     Object.assign(st, restored);
 
@@ -116,8 +157,8 @@ window._startFocus = (function() {
     const newTaskEl = document.querySelector('.task[data-taskid="' + CSS.escape(uiTaskId) + '"]');
     if (!newTaskEl) return;
 
-    // Re-attach if: element reference changed (full re-render) OR
-    // timer is no longer immediately after the task (element was repositioned by patch)
+
+
     const timerDetached = timerEl.previousElementSibling !== newTaskEl;
 
     if (newTaskEl !== uiTaskEl || timerDetached) {
@@ -129,10 +170,10 @@ window._startFocus = (function() {
     }
   };
 
-  // Per-task pause state (in-memory, session-scoped)
-  // Stores { rem, running } keyed by taskId.
-  // Survives UI dismiss. Cleared when a new task starts.
-  // NOT persisted to localStorage — resets on page reload intentionally.
+
+
+
+
   const taskStates = {};
 
   function getState(taskId) {
@@ -141,15 +182,15 @@ window._startFocus = (function() {
   }
   function clearState(taskId) { delete taskStates[taskId]; _focusHelp?.forget(taskId); }
 
-  // DOM: kbd hint + timer block
+
   const kbdHint = document.createElement('div');
   kbdHint.className = 'focus-kbd-hint';
   kbdHint.setAttribute('role', 'listitem');
   kbdHint.hidden = true;
   kbdHint.setAttribute('aria-hidden', 'true');
   kbdHint.innerHTML = '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>';
-  let focusAIBtn;   // assigned after timerEl is created (button lives in the timer bar)
-  let _thinkAnim = null; // WAAPI animation for thinking\u2026 pulse \u2014 stored so it can be cancelled in both paths
+  let focusAIBtn;
+  let _thinkAnim = null;
   let _focusAIRequest = null;
   let _focusHelp = null, _focusHelpLoading = null;
 
@@ -169,7 +210,7 @@ window._startFocus = (function() {
       focusAIBtn.classList.remove('loading', 'question-scroll');
       focusAIBtn.textContent = '\u2726\ufe0e ask';
       focusAIBtn.setAttribute('aria-label', 'Ask for focus help');
-      // Block hover for one frame so dismissing insight doesn't leave btn in hover state
+
       focusAIBtn.style.pointerEvents = 'none';
       requestAnimationFrame(() => { if (focusAIBtn) focusAIBtn.style.pointerEvents = ''; });
     }
@@ -199,6 +240,7 @@ window._startFocus = (function() {
   }
 
   function _focusSourceCurrent(request) {
+    if (request.wordingFrame && !request.delivered && !_focusHelp?.wordingCurrent(request)) return false;
     if (uiTaskId !== request.id || !uiTaskEl?.isConnected || !uiTaskEl.classList.contains('focused') || timerEl.classList.contains('complete') ||
         request.date !== _localISO() || request.day !== (request.habit ? _habitTodayISO() : _localISO())) return false;
     if (Today.use('connections')._aiGetProvider() !== request.provider ||
@@ -216,11 +258,11 @@ window._startFocus = (function() {
   async function _focusAskAI() {
     if (timerEl.classList.contains('ai-active')) { _focusResetAI(); return; }
 
-    // Enrichment shortcuts — don't require local AI key (ai-assist uses server key fallback)
+
     const _gmailBlock = document.getElementById('focusGmailBlock');
     if (_gmailBlock && !_gmailBlock.hidden) {
       const _draftBtn = _gmailBlock.querySelector('.focus-gmail-draft-btn:not([hidden])');
-      // A booking thread has no draft: Ask asks about the task instead.
+
       if (_draftBtn) { _draftBtn.click(); return; }
     }
     const _agentBlock = document.getElementById('focusAgentBlock');
@@ -247,7 +289,7 @@ window._startFocus = (function() {
     timeEl.inert = true; timeEl.setAttribute('aria-hidden','true');
     focusAIBtn.textContent = 'thinking…';
     focusAIBtn.classList.add('loading');
-    // Preserve the existing loading motion, but bind its delayed start to this request.
+
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       request.thinkDelay = setTimeout(function() {
         if (!_focusRequestCurrent(request) || !focusAIBtn.classList.contains('loading')) return;
@@ -258,7 +300,7 @@ window._startFocus = (function() {
       _focusFailAI(request);
     }, 25000);
     try {
-      _focusHelpLoading ||= import('/assets/focus-ask.js').then(() => {
+      _focusHelpLoading ||= Promise.all([import('/assets/focus-ask.js'),Promise.race([Promise.all([import('/assets/feedback-policy.js'),import('/assets/focus-wording.js')]).catch(()=>null),new Promise(resolve=>setTimeout(resolve,300))])]).then(() => {
         _focusHelp = Today.use('focus-ask').create(timerEl,focusAIBtn,{
           current:_focusRequestCurrent, sourceCurrent:_focusSourceCurrent,
           invalidate:() => { if (uiTaskEl && !uiTaskEl.isConnected) closeUI(true); else _focusResetAI(true); }
@@ -345,9 +387,9 @@ window._startFocus = (function() {
   const timeEl   = timerEl.querySelector('#focusTime');
   const pausedEl = timerEl.querySelector('#focusPaused');
 
-  // Pre-warm WAAPI compositor thread — first el.animate() initializes compositor
-  // infrastructure lazily, causing a one-time 50-200ms stall on mobile. Running a
-  // no-op animation at idle time moves that cost before the first user tap.
+
+
+
   (function() {
     function _wapiWarm() { fillEl.animate([{opacity:1},{opacity:1}], {duration:100, fill:'none'}); }
     if (window.requestIdleCallback) {
@@ -366,15 +408,15 @@ window._startFocus = (function() {
   });
 
   // BUG-028 (final): the completed-bar pulse is driven by the Web Animations API,
-  // not a CSS animation. CSS animations restart from keyframe 0 on every
-  // display:none/block repaint pass in _onWake — a visible jump whenever the bar
-  // was mid-pulse. A WAAPI timeline is unaffected by display toggles, so the
-  // pulse needs no suppress/restore at wake (and cannot flash).
+
+
+
+
   function _pulseComplete(el, on) {
     if (!el) return;
     if (el._pulseAnim) {
       if (!on) {
-        // Capture current WAAPI-driven opacity before cancel so it doesn't snap to CSS base.
+
         const cur = parseFloat(getComputedStyle(el).opacity);
         el._pulseAnim.cancel();
         el._pulseAnim = null;
@@ -405,13 +447,13 @@ window._startFocus = (function() {
     }
   }
 
-  // Click on timer bar to restart when complete
+
   timerEl.addEventListener('click', function(e) {
     if (!uiTaskId) return;
     const st = getState(uiTaskId);
     if (st.rem <= 0) {
-      // Timer complete — restart session
-      e.stopPropagation(); // don't bubble to task click handler
+
+      e.stopPropagation();
       fillEl.classList.remove('complete');
       _pulseComplete(fillEl, false);
       timeEl.classList.remove('complete');
@@ -423,22 +465,22 @@ window._startFocus = (function() {
       setPaused(false);
       syncDisplay(uiTaskId, uiTaskEl);
       playStartSound();
-      // Don't log session here — session is logged when it completes (completeFor)
-      // or when user checks the task mid-session (_focusOnCheck). Logging on start
-      // caused the counter to jump to 2 before the second session ran.
+
+
+
       tickFor(uiTaskId);
     }
   });
 
-  // Active UI state — which task is currently showing the timer bar
+
   let uiTaskEl = null;
   let uiTaskId = null;
   let tickHandle = null;
-  // Generation counter — bumped by every openUI and closeUI. closeUI defers its DOM
-  // teardown by 200ms (CSS transition); if a newer session opened in that window, the
+
+
   // stale teardown must not rip the timer out from under it. (BUG-065)
   let focusGen = 0;
-  // Cold-start only: _tryRestoreFocusSession exists for "iOS killed the PWA", not for
+
   // every render. Without this it re-opens focus on any render after you leave. (BUG-065)
   let _restoreAttempted = false;
 
@@ -456,9 +498,9 @@ window._startFocus = (function() {
     const st = getState(taskId);
     const p  = 1 - st.rem / TOTAL;
     setProgress(p, taskEl);
-    setPaused(st.paused);   // show paused only if user explicitly paused
+    setPaused(st.paused);
     if (window._pipSync) window._pipSync(st.rem, TOTAL);
-    // Session complete — re-apply done state in case DOM was rebuilt by sync/renderManual.
+
     // Do NOT overwrite "again?" with fmt(0)="00:00" here. (BUG-025 extension)
     if (st.rem === 0 && !st.running) {
       fillEl.classList.add('complete');
@@ -493,8 +535,8 @@ window._startFocus = (function() {
         el.removeAttribute('aria-hidden');
       }
     });
-    // sticky-header is intentionally left interactive during focus — its buttons
-    // (logo, habits, connections, about) exit focus and open their panel on click.
+
+
   }
 
   function _clearFocusWave() {
@@ -536,9 +578,9 @@ window._startFocus = (function() {
     copyButton.classList.remove('copied');
   }
 
-  // Open UI on a task
+
   function openUI(taskEl, taskId) {
-    // If showing a different task's UI, close it first (no state change)
+
     if (uiTaskEl && uiTaskEl !== taskEl) closeUI(false);
     // Supersede the prior close callback before reusing the timer (BUG-065).
     focusGen++;
@@ -558,11 +600,11 @@ window._startFocus = (function() {
     const _priorSt = getState(taskId);
     if (_priorSt.rem === 0 && !_priorSt.running) clearState(taskId);
 
-    // Measure before the fixed header leaves flow, or exit drift is overcorrected.
+
     const originalScrollY = window.scrollY;
     const originalTaskTop = taskEl.getBoundingClientRect().top;
 
-    // Compute the scroll nudge while the header is still sticky.
+
     const rect = taskEl.getBoundingClientRect();
     const viewportH = window.innerHeight;
     const timerHeight = 260;
@@ -577,19 +619,19 @@ window._startFocus = (function() {
     }
     const _targetScrollY = Math.max(0, originalScrollY + _enterDelta);
 
-    // Stage the receding wave before focus changes geometry.
+
     _stageFocusWave(taskEl);
 
-    // Begin the header fade before expensive focus setup.
+
     const _hdr = document.getElementById('sticky-header');
-    if (_hdr) _hdr.style.transition = ''; // clear splash's inline transition
+    if (_hdr) _hdr.style.transition = '';
     document.body.classList.add('focus-locked');
 
     appEl.classList.add('focusing');
     taskEl.classList.add('focused');
     _setFocusInert(true, taskEl);
     taskEl.after(timerEl);
-    timerEl.after(kbdHint); // kbd hint follows timer bar
+    timerEl.after(kbdHint);
 
     syncDisplay(taskId, taskEl);
 
@@ -606,12 +648,12 @@ window._startFocus = (function() {
       timerEl.classList.add('open');
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
       if (_enterDelta !== 0 && document.body.style.position === 'fixed') {
-        // Animate the precomputed nudge with blur-in.
+
         document.body.style.transition = 'top 200ms cubic-bezier(0.16, 1, 0.3, 1)';
         document.body.style.top = `-${_targetScrollY}px`;
         setTimeout(() => { document.body.style.transition = ''; }, 210);
       } else if (document.body.style.position === 'fixed') {
-        // No nudge — run normal overflow correction for edge cases
+
         const rect = timerEl.getBoundingClientRect();
         const _addRow = document.querySelector('.add-task-row');
         const _footerH = _addRow ? _addRow.getBoundingClientRect().height : 70;
@@ -628,7 +670,7 @@ window._startFocus = (function() {
       _a11yAnnounce(`Focus started for ${focusName}.`);
     }
 
-    // Lock scroll immediately at current position; animation to target fires in the rAF above.
+
     document.body.style.position = 'fixed';
     document.body.style.top = `-${originalScrollY}px`;
     document.body.style.left = '0';
@@ -641,28 +683,28 @@ window._startFocus = (function() {
     }
   }
 
-  // Track actual focus time spent (not just completed sessions)
+
   function _trackFocusTime(taskId) {
     if (!taskId) return;
     const st = taskStates[taskId];
     if (!st) return;
-    
-    // Skip if already tracked (e.g., session completed naturally)
+
+
     if (st.tracked) return;
-    
-    // Calculate actual time spent: TOTAL - remaining time
+
+
     const timeSpentSecs = TOTAL - st.rem;
     if (timeSpentSecs <= 0) return;
-    
+
     const timeSpentMins = Math.floor(timeSpentSecs / 60);
     if (timeSpentMins <= 0) return;
-    
-    // Mark as tracked
+
+
     st.tracked = true;
-    
-    // Add to today's focus minutes.
-    // Guard: if stat_focus_mins_date is from a previous day, a day boundary was
-    // crossed mid-session. Snapshot the pre-midnight total for cleanup to use as
+
+
+
+
     // yesterday's history, then start fresh for today. (BUG-063)
     const _tfDate = localStorage.getItem('stat_focus_mins_date') || '';
     if (_tfDate && _tfDate !== _getAppDay()) {
@@ -672,14 +714,14 @@ window._startFocus = (function() {
     const prevMins = _tfDate === _getAppDay() ? parseInt(localStorage.getItem('stat_focus_mins_today') || '0') : 0;
     localStorage.setItem('stat_focus_mins_today', prevMins + timeSpentMins);
     localStorage.setItem('stat_focus_mins_date', _getAppDay());
-    
-    // Update memory with focus time
+
+
     _memoryOnFocusComplete(timeSpentMins);
-    
+
     updateStats();
   }
 
-  // Close UI — preserves task state unless clearState=true
+
   function closeUI(doResetState) {
     clearTimeout(tickHandle);
     _resetCopyFeedback(uiTaskEl);
@@ -688,7 +730,7 @@ window._startFocus = (function() {
     kbdHint.classList.remove('show');
     _setFocusInert(false, uiTaskEl);
     _focusResetAI(true);
-    _updateBreatheOverlay(false); // Clear breathe overlay
+    _updateBreatheOverlay(false);
     _breatheRun(fillEl, false);
     const _gmailBlock = document.getElementById('focusGmailBlock');
     if (_gmailBlock) Today.use('gmail').closeFocus();
@@ -702,10 +744,10 @@ window._startFocus = (function() {
       _clearFocusWave();
     }
 
-    // Unlock at the focus-adjusted Y; compensate list-reorder drift below.
+
     const scrollY      = parseInt(document.body.dataset.scrollY || '0');
     const lockY        = Math.abs(parseInt(document.body.style.top || '0'));
-    const _driftAnchor = uiTaskEl; // capture before uiTaskEl is cleared below
+    const _driftAnchor = uiTaskEl;
     const _savedTaskTop = parseFloat(document.body.dataset.focusTaskTop || '-1');
 
     function _doUnfix() {
@@ -715,7 +757,7 @@ window._startFocus = (function() {
       document.body.style.left = '';
       document.body.style.right = '';
       document.body.style.paddingTop = '';
-      document.body.classList.remove('focus-locked'); // header back to sticky, in flow
+      document.body.classList.remove('focus-locked');
       window.scrollTo(0, lockY);
       if (_savedTaskTop >= 0 && _driftAnchor) {
         const _expectedY = _savedTaskTop - (lockY - scrollY);
@@ -731,10 +773,10 @@ window._startFocus = (function() {
     // End every session before delayed DOM cleanup (BUG-044/065).
     const closingTask   = uiTaskEl;
     const closingTaskId = uiTaskId;
-    
+
     if (closingTaskId) {
       const _st      = getState(closingTaskId);
-      const _hadTime = _st.rem < TOTAL; // any focus time was spent
+      const _hadTime = _st.rem < TOTAL;
       _trackFocusTime(closingTaskId);
       _st.running   = false;
       _st.paused    = false;
@@ -804,12 +846,12 @@ window._startFocus = (function() {
     if (!timerEl || !timerEl.classList.contains('open')) return;
     timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
 
-    // If scroll is locked (position:fixed during focus), shift the lock offset
-    // so the newly-expanded block stays inside the viewport.
-    // Use scrollHeight for the final bottom — rect.bottom is mid-transition and wrong.
-    // The fixed add-task-row footer sits at the bottom of the viewport (measured live
-    // so zoom/resize changes are respected). Without accounting for it the timer can
-    // slide 50px behind the footer even after overflow correction.
+
+
+
+
+
+
     if (document.body.style.position === 'fixed') {
       const rect = timerEl.getBoundingClientRect();
       const _addRow = document.querySelector('.add-task-row');
@@ -822,18 +864,18 @@ window._startFocus = (function() {
     }
   };
 
-  // Start fresh session on a task
+
   function start(taskEl) {
     const taskId = taskEl.dataset.taskid || taskEl.dataset.habitId;
 
     // Warm up the shared AudioContext on this user gesture so it stays
-    // alive and can play sounds even when the tab loses focus later.
+
     _primeAudio();
 
-    // Stop any existing tick
+
     clearTimeout(tickHandle);
 
-    // If switching tasks, reset the previous task's state
+
     if (uiTaskId && uiTaskId !== taskId) clearState(uiTaskId);
 
     const st      = getState(taskId);
@@ -841,7 +883,7 @@ window._startFocus = (function() {
     st.running    = true;
     st.paused     = false;
     st.wallStart  = Date.now();
-    st.tracked    = false;  // Reset tracked flag for new session
+    st.tracked    = false;
     playStartSound();
 
     openUI(taskEl, taskId);
@@ -849,14 +891,14 @@ window._startFocus = (function() {
     tickFor(taskId);
   }
 
-  // Pause the active task
+
   function pause() {
     if (!uiTaskId) return;
     const st = getState(uiTaskId);
     if (!st.running) return;
     clearTimeout(tickHandle);
     st.running   = false;
-    st.paused    = true;   // explicit user pause — survives UI dismiss
+    st.paused    = true;
     st.wallStart = null;
     _saveSession(uiTaskId, st);
     setPaused(true);
@@ -864,7 +906,7 @@ window._startFocus = (function() {
     if (window._a11yAnnounce) _a11yAnnounce('Focus paused.');
   }
 
-  // Resume the active task
+
   function resume() {
     if (!uiTaskId) return;
     const st = getState(uiTaskId);
@@ -883,22 +925,22 @@ window._startFocus = (function() {
     if (!uiTaskId) return;
     getState(uiTaskId).running ? pause() : resume();
   }
-  
+
   function _updateBreatheOverlay(paused) {
     const overlay = document.getElementById('breatheOverlay');
     if (overlay) overlay.classList.toggle('active', paused);
   }
 
-  // Session persistence — survive iOS PWA reload when backgrounded
-  // Saved to localStorage on every tick and on pause, cleared on complete/close.
-  // On reload, _tryRestoreFocusSession re-opens the timer or silently records.
+
+
+
   function _saveSession(taskId, st) {
     try {
       localStorage.setItem('today_focus_session', JSON.stringify(FocusSession.serialize(taskId, st)));
-    } catch (e) { /* quota — skip */ }
+    } catch (e) {                    }
   }
 
-  // Shared recording logic used by completeFor() and _tryRestoreFocusSession()
+
   // (background auto-complete). Handles the BUG-063 day-boundary guard.
   function _recordFocusComplete(taskId) {
     const _rDate = localStorage.getItem('stat_focus_mins_date') || '';
@@ -917,7 +959,7 @@ window._startFocus = (function() {
     updateStats();
   }
 
-  // Tick for a specific taskId
+
   function tickFor(taskId) {
     const st = getState(taskId);
     if (!st.running) return;
@@ -1177,9 +1219,10 @@ window._startFocus = (function() {
 
   // Keyboard — guarded against accidental input-field triggers
   document.addEventListener('keydown', function(e) {
+    if (e.defaultPrevented) return;
     // Allow native OS shortcuts (Cmd+H to hide, Cmd+Q to quit, etc.)
     if (e.metaKey || e.ctrlKey) return;
-    
+
     if (!uiTaskId) return;
     const active  = document.activeElement;
     const inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');

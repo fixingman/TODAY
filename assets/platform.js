@@ -14,7 +14,7 @@
 const SW_ALLOWED_HOSTS = ['today-here.netlify.app', 'dev--today-here.netlify.app', 'localhost', '127.0.0.1'];
 const canRegisterSW = SW_ALLOWED_HOSTS.some(h => location.hostname === h || location.hostname.endsWith('.' + h));
 if ('serviceWorker' in navigator && canRegisterSW) {
-  window.addEventListener('load', () => {
+  Today.ready('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
         // Poll for updates every 30 minutes while app is open
@@ -263,7 +263,7 @@ window.addEventListener('appinstalled', () => {
 // Also hide install button if already in standalone mode (already installed)
 if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
   console.log('[PWA] Running in standalone mode — already installed');
-  document.addEventListener('DOMContentLoaded', () => {
+  Today.ready('DOMContentLoaded', () => {
     const btn = document.getElementById('installBtn');
     if (btn) btn.style.display = 'none';
   });

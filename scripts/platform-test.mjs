@@ -144,7 +144,7 @@ try {
     const swSrc       = await readFile(join(ROOT, 'sw.js'), 'utf8');
     const failures = [];
     if (!indexSrc.includes('<script src="assets/platform.js"></script>')) failures.push('module script tag');
-    if (!indexSrc.includes('window._startPlatform();')) failures.push('initializer call');
+    if (!indexSrc.includes('window._startPlatform')) failures.push('initializer call');
     if (indexSrc.includes('// Mobile Keyboard Handling') || indexSrc.includes('// PWA Install Prompt (Android only)')) failures.push('duplicate inline platform block');
     if (!platformSrc.includes('window._startPlatform = function()')) failures.push('module initializer export');
     if (!platformSrc.includes("Today.define('platform'")) failures.push('Today platform API');

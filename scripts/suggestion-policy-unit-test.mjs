@@ -22,10 +22,13 @@ assert.equal(policy.groundedBreakdown('docs: Write the outline and fill in the d
 // Confirmed eligibility omissions, plus source-index responses that cannot rewrite tasks.
 assert.equal(policy.groundedBreakdown('Install the shelves and paint the wall',['Install the shelves','Paint the wall']),true);
 assert.equal(policy.groundedBreakdown('Translate the document and send it',['Translate the document','Send it']),true);
+assert.deepEqual(Array.from(policy.splitActions('Buy bicycle oil and oil the chain')),['Buy bicycle oil','oil the chain']);
+assert.equal(policy.groundedBreakdown('Buy bicycle oil and oil the chain',['Buy bicycle oil','Oil the chain']),true);
 const indexed={action_indices:[0,1]};
+assert.deepEqual(Array.from(policy.resolveBreakdown('Buy bicycle oil and oil the chain',indexed)),['Buy bicycle oil','oil the chain']);
 assert.deepEqual(Array.from(policy.resolveBreakdown('work: Install  the shelves and paint the wall.',indexed)),['Install  the shelves','paint the wall.']);
 assert.deepEqual(Array.from(policy.resolveBreakdown('Scan the contract, sign it, and send it',{action_indices:[0,1,2]})),['Scan the contract','sign it','send it']);
-for(const task of ['Bake protein bars','Buy milk and fresh eggs','Prepare the annual exhibition','Call Research and Development','Call Sam and Lee']) {
+for(const task of ['Bake protein bars','Buy milk and fresh eggs','Buy bicycle oil','Buy oil and grease','Oil the chain','Prepare the annual exhibition','Call Research and Development','Call Sam and Lee']) {
   assert.equal(policy.resolveBreakdown(task,indexed),null,task);
 }
 for(const indexes of [[1,0],[0,0],[0],[0,1,2],[-1,0],[0,2],[0,1.1],['0',1],Array(2),null]) {

@@ -671,6 +671,7 @@ try {
     for (const fixture of [
       {task:'Install  the shelves and paint the wall.',parts:['Install  the shelves','paint the wall.']},
       {task:'Translate the document and send it',parts:['Translate the document','send it']},
+      {task:'Buy bicycle oil and oil the chain',parts:['Buy bicycle oil','oil the chain']},
       {task:'docs: Scan the contract, sign it, and send it',parts:['docs: Scan the contract','docs: sign it','docs: send it']},
     ]) {
       const {page,errors}=await recoveryPage({width:390,height:844,isMobile:true,hasTouch:true});
@@ -688,7 +689,7 @@ try {
         const input=requests[0].messages[0].content;
         await expectAll('source-index task-only input',{oneCall:requests.length===1,
           taskOnly:input.includes(JSON.stringify(fixture.task))&&!input.includes('Second task')&&!input.includes('Existing tasks:'),
-          candidates:input.includes('Candidate action clauses'),
+          candidates:input.includes('Candidate action clauses (same task, source order): '+JSON.stringify(fixture.parts.map(text=>text.replace(/^[a-z0-9]{1,12}:\s+/i,'')))),
           noOriginalMutation:await page.evaluate(()=>manualTasks.some(t=>t.id===window.__recoveryTaskId)),
         });
       }

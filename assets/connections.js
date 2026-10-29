@@ -54,7 +54,7 @@
       </div>`;
     }
     // Opt-in only; never add an eager script or delay startup for Calendar.
-    window.addEventListener('load', () => {
+    Today.ready('load', () => {
       if (localStorage.getItem('calendar_refresh_token')) _loadCalendar().then(calendar => calendar.init()).catch(() => {});
     }, { once: true });
     // All other state (manualTasks, doneIds, soonTasks, pastTasks, trelloTasks, $)
@@ -798,6 +798,7 @@
       if (provider === 'claude') Today.use('task-enrich').clearFeedback();
       Today.use('gmail').clearFeedback(true);
       Today.use('pool-wording').clear();
+      Today.use('focus-wording-store').clear();
       // If we just cleared the default, switch default to the other provider if it has a key
       const other = provider === 'gemini' ? 'claude' : 'gemini';
       if (_aiGetProvider() === provider) {

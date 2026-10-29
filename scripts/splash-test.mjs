@@ -86,12 +86,14 @@ try {
     });
     try {
       await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
       const populated = await page.$eval('#splash-poem .splash-poem-text', el => !!el.innerHTML.trim()).catch(() => false);
       if (!populated) await fail('recent pre-midnight open suppressed the new day\'s poem', { mobile });
       await page.waitForFunction(() => document.getElementById('splash-poem')?.classList.contains('visible')
         && localStorage.getItem('poem_splash_date') === '2026-10-22', { timeout: CODA_CEILING_MS });
       await waitForSplashGone(page);
       await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
       await page.waitForFunction(() => !document.getElementById('splash')
         && document.getElementById('main-app')?.style.opacity === '1', { timeout: 3000 });
       if (errors.length) await fail('uncaught JS errors across midnight poem/restart', errors);
@@ -111,12 +113,14 @@ try {
     // test left splash_shown_at intact, so both animation passes silently tested only
     // the cooldown shortcut.
     await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
     await page.evaluate(() => {
       localStorage.setItem('poem_splash_date', _localISO());
       localStorage.removeItem('splash_shown_at');
     });
     const reloadT0 = Date.now();
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
 
     if (!await page.$('#splash'))
       await fail('no-coda pass took the cooldown shortcut instead of running the splash');
@@ -143,6 +147,7 @@ try {
     // Prime localStorage via a first load, then force a fresh splash with an unseen
     // poem date. The corpus always returns a poem for a valid local day.
     await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
     await page.evaluate(() => {
       localStorage.setItem('poem_splash_date', '1900-01-01');
       localStorage.removeItem('splash_shown_at');
@@ -150,6 +155,7 @@ try {
 
     const t0 = Date.now();
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
 
     // Pre-population happens synchronously at splash start, before the delayed fade-in.
     const hasCoda = await page.evaluate(() => {
@@ -179,10 +185,12 @@ try {
     page.on('pageerror', e => errors.push(e.message));
 
     await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
     await page.evaluate(() => localStorage.setItem('splash_shown_at', Date.now().toString()));
 
     const t0 = Date.now();
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
     await page.waitForFunction(() => {
       const main = document.getElementById('main-app');
       const bar  = document.getElementById('addTaskBar');
@@ -215,6 +223,7 @@ try {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
 
     for (let run = 0; run < 3; run++) {
       await page.evaluate(() => {
@@ -222,6 +231,7 @@ try {
         localStorage.removeItem('splash_shown_at');
       });
       await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting'));
       await page.waitForFunction(() => {
         const logo = document.getElementById('splash-logo');
         return logo

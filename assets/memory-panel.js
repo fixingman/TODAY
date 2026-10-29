@@ -356,6 +356,7 @@
         appMemory.obligationHistory = [];
         appMemory.revokedKnownItems = {};
         Today.use('pool-wording').clear(false);
+        Today.use('focus-wording-store').clear();
         appMemory.spokenLines = [];
         appMemory.taskOutcomes = [];
         appMemory.kindVerdicts = {};

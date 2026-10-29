@@ -48,9 +48,19 @@
     }
   }
 
+  function ready(type, handler) {
+    const run = () => {
+      if (document.body?.hasAttribute('data-booting')) document.addEventListener('today:boot-ready',handler,{once:true});
+      else queueMicrotask(handler);
+    };
+    if (type === 'boot' || (type === 'load' ? document.readyState === 'complete' : document.readyState !== 'loading')) run();
+    else (type === 'load' ? global : document).addEventListener(type,run,{once:true});
+  }
+
   global.Today = Object.freeze({
     define,
     use,
+    ready,
     ui: Object.freeze({ register }),
   });
 })(window);

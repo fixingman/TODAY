@@ -3,6 +3,8 @@
 'use strict';
 function create(timerEl, answer, hooks) {
   let scope = null, replies = [], shown = null, sequence = 0, poll = null, delivered = null, scrollFrame = 0;
+  let wording;
+  function getWording(){if(!wording)try{wording=Today.use('focus-wording-ui').create(panel,hooks);}catch(_){}return wording;}
   const fields = ['id','habit','name','source','display','date','day','provider','key'];
   const same = (a,b) => a && b && fields.every(key => a[key] === b[key]);
   const toggle = document.createElement('button');
@@ -34,6 +36,7 @@ function create(timerEl, answer, hooks) {
   function reset(clearHistory = false) {
     const focused = panel.contains(document.activeElement) || document.activeElement === toggle;
     cancelAnimationFrame(scrollFrame); scrollFrame = 0; delivered = null;
+    wording?.close();
     shown = null; toggle.hidden = true; panel.hidden = true;
     toggle.setAttribute('aria-expanded','false'); timerEl.classList.remove('has-focus-answer');
     if (clearHistory) { scope = null; replies = []; stop(); }
@@ -71,9 +74,10 @@ function create(timerEl, answer, hooks) {
   window.addEventListener('storage',reconcile);
   const layout = new ResizeObserver(() => {
     if (!toggle.hidden) timerEl.style.setProperty('--focus-feedback-width',toggle.getBoundingClientRect().width + 'px');
+    window._focusExpandTimer();
     if (delivered && hooks.current(delivered.request)) scroll(delivered.request,delivered.text);
   });
-  layout.observe(toggle); layout.observe(answer);
+  layout.observe(toggle); layout.observe(answer); layout.observe(panel);
   function build(request) {
     if (!same(scope,request)) { replies = []; scope = Object.fromEntries(fields.map(key => [key,request[key]])); }
     watch();
@@ -102,6 +106,8 @@ Stay with the task's own action, object or constraint. No mood or motivation che
       messages = [{ role: 'user', content: 'Task: ' + JSON.stringify(request.name) + suffix }];
     }
 
+    const guidance=getWording()?.prepare(request)||'';
+    if(guidance)messages=messages.map(message=>({...message,content:message.content+guidance}));
     return {messages,systemPrompt};
   }
   function scroll(request,q) {
@@ -145,9 +151,10 @@ Stay with the task's own action, object or constraint. No mood or motivation che
     panel.querySelector('#focusAskFeedbackHelp').textContent = 'Optional feedback on this exact answer. It guides the next Ask for this ' + (request.habit ? 'habit' : 'task') + ' in this focus session. Leaving focus clears it.';
     toggle.hidden = false; timerEl.classList.add('has-focus-answer');
     timerEl.style.setProperty('--focus-feedback-width',toggle.getBoundingClientRect().width + 'px');
+    request.delivered=true;getWording()?.offered(request,text);
     paint();
   }
-  return {build,offered,reset,forget(id) { if (scope?.id === id) reset(true); }};
+  return {build,offered,reset,wordingCurrent:request=>!wording||wording.current(request),forget(id) { if (scope?.id === id) reset(true); }};
 }
 Today.define('focus-ask',{create});
 })();

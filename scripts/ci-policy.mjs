@@ -31,6 +31,7 @@ export const SUITE = [
   "ci-tooling-test",
   "performance-harness-test",
   "sound-test",
+  "startup-test",
   "zones-test",
   "task-actions-test",
   "task-bounce-test",
@@ -56,6 +57,7 @@ export const SUITE = [
   "day-lifecycle-test",
   "drag-test",
   "focus-test",
+  "focus-wording-test",
   "focus-session-unit-test",
   "insights-test",
   "noticed-model-unit-test"
@@ -96,6 +98,7 @@ export const GROUPS = {
     ],
     "suites": [
       "sound-test",
+      "startup-test",
       "splash-test"
     ],
     "full": true,
@@ -196,10 +199,12 @@ export const GROUPS = {
     "files": [
       "assets/focus.js",
       "assets/focus-ask.js",
+      "assets/focus-wording.js",
       "assets/focus-session.js"
     ],
     "suites": [
       "focus-test",
+      "focus-wording-test",
       "focus-session-unit-test"
     ],
     "dependents": [

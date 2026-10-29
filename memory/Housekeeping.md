@@ -189,3 +189,5 @@ No hard limits — but when files get large they slow down Tier 1 reads. Use jud
 - CSS tokens: `--kebab-case`
 - localStorage keys: `snake_case` with `today_` prefix
 - IDs: `type_timestamp` (e.g., `manual_1234567890`)
+
+**v2.106.0 release integration:** retain the published release-evidence.mjs, release-status.mjs and ci-final.mjs ownership. Retain the separately published v2.105.7 activation; this candidate requires its own verified full dev proof before master promotion. The default branch already contains the v2.105.6 workflow. No automatic branch promotion or post-push monitoring; unavailable proof requests full validation. The parallel unpublished CI alternative is archived under .context/15gd.

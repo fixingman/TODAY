@@ -23,7 +23,7 @@
     'add', 'apply', 'arrange', 'ask', 'bake', 'book', 'build', 'buy', 'call', 'cancel',
     'check', 'clean', 'collect', 'compare', 'confirm', 'contact', 'create',
     'deliver', 'design', 'draft', 'draw', 'edit', 'email', 'export', 'file', 'fill', 'finish', 'fix', 'gather', 'get',
-    'install', 'invite', 'make', 'message', 'order', 'organize', 'pack', 'paint', 'pay', 'pick',
+    'install', 'invite', 'make', 'message', 'oil', 'order', 'organize', 'pack', 'paint', 'pay', 'pick',
     'plan', 'prepare', 'print', 'read', 'register', 'renew', 'reply', 'research',
     'remove', 'repair', 'replace', 'reserve', 'return', 'review', 'scan', 'schedule', 'send', 'set', 'shop', 'sign', 'sort',
     'submit', 'text', 'translate', 'update', 'upload', 'visit', 'wash', 'write',

@@ -2144,7 +2144,7 @@
       {
         // Defer heavy sync work to avoid blocking first interaction
         // Use setTimeout(0) to yield to the event loop after initial paint
-        setTimeout(async () => {
+        Today.ready('boot', async () => {
           // Sync bookkeeping that doesn't change what's on screen (rev seed + push-back
           // of local-only changes) is deferred until AFTER the splash gate fires — it
           // was adding 1–2 awaited round-trips (3 when the merged push ran) to every

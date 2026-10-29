@@ -654,9 +654,10 @@ try {
       const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
       const swSrc    = await readFile(join(ROOT, 'sw.js'), 'utf8');
       const modSrc   = await readFile(join(ROOT, 'assets/focus.js'), 'utf8');
-      const splashIdx = indexSrc.indexOf('window._startSplash();');
-      const focusIdx  = indexSrc.indexOf('window._startFocus();');
-      const initIdx   = indexSrc.indexOf('\ninit();');
+      const composition = indexSrc;
+      const splashIdx = composition.indexOf('window._startSplash();');
+      const focusIdx  = composition.indexOf('window._startFocus();');
+      const initIdx   = composition.indexOf('\ninit();');
       await expectAll('static wiring', {
         scriptTag:           indexSrc.includes('<script src="/assets/focus.js"></script>'),
         startupCall:         focusIdx !== -1,
@@ -1076,7 +1077,7 @@ try {
       await expectAll('landed does not disturb the answer or add a row',{
         sameAnswer:JSON.stringify(closed)===JSON.stringify(opened)&&JSON.stringify(opened)===JSON.stringify(selected),
         selected:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
-        oneActionRow:await page.$eval('#focusAskFeedback',e=>e.children.length===2&&e.querySelectorAll('.focus-ask-feedback-actions').length===1),
+        oneActionRow:await page.$eval('#focusAskFeedback',e=>[...e.children].filter(child=>!child.hidden).length===2&&e.querySelectorAll('.focus-ask-feedback-actions').length===1),
         noGeneration:await page.evaluate(()=>window.__asks.length===1),
         notPaused:await page.evaluate(()=>!JSON.parse(localStorage.getItem('today_focus_session')).paused),
         notPersisted:stored===await page.evaluate(()=>JSON.stringify(Object.entries(localStorage).filter(([key])=>key!=='today_focus_session').sort())),
@@ -1169,7 +1170,7 @@ try {
       await waitForAnswerScroll(page);
       const narrow=await page.evaluate(()=>{
         const text=document.querySelector('.focus-ai-timer-btn').getBoundingClientRect(),toggle=document.querySelector('.focus-ask-feedback').getBoundingClientRect();
-        const buttons=[...document.querySelectorAll('#focusAskFeedback button:not([hidden])')].map(e=>e.getBoundingClientRect());
+        const buttons=[...document.querySelectorAll('#focusAskFeedback button:not([hidden])')].filter(e=>!e.closest('[hidden]')).map(e=>e.getBoundingClientRect());
         const clear=document.querySelector('#focusAskFeedback [data-today-click="focus-ask.clear"]').getBoundingClientRect(),group=document.querySelector('.focus-ask-feedback-actions').getBoundingClientRect();
         return {separate:text.right<=toggle.left,fit:buttons.every(r=>r.left>=0&&r.right<=innerWidth&&r.height>=24),noOverflow:document.body.scrollWidth<=innerWidth,clearAtRight:Math.abs(clear.right-group.right)<2};
       });

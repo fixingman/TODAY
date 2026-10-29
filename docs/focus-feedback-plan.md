@@ -1,0 +1,17 @@
+# 15D — optional Focus wording across sessions
+
+Requested and explicitly approved by Can October 29. Existing whole-answer landed/not-landed ratings remain active-session context; they do not imply a style cause. Preserve Ask turning into the answer, the isolated answer line, right-edge feedback, one reaction row and no added row after landed. Answer dismissal returns to counter/progress.
+
+## Approved scope
+
+Add an optional wording disclosure inside existing Focus feedback, offering hard to follow / too formal. An explicit concern guides the next explicit Ask for the same unchanged task or habit on this device, including a later Focus session. Task and habit identities remain separate. No automatic request, regeneration, cross-owner inference or raw historical answer context across sessions. Only fixed code-owned clarity/formality instructions enter the writer; earlier answers, task names, ids, digests and votes never enter this wording projection.
+
+Store optional fixed concerns locally for at most 7 days from explicit choice, at most 20 supported owners and 16 KiB aggregate metadata. A new versioned local feedback key is excluded from Dropbox/backup and cleared by full Memory clear / AI Forget. Store SHA-256 owner/source digests plus bounded synchronous checksums, closed concern enum, policy/writer id, canonical event time/expiry and clear watermark; no previous answer/task prose. Source names and task/habit existence are checked against current app data. Source edit, deletion/completion/archive, expiry and consent/clear changes withdraw influence. Clear/revision and cross-tab events fence preparation, headers/body and final display. Future task recreation cannot inherit another owner's concern. Old session-only ratings are not migrated.
+
+Native optional controls explain7-day/same-owner/device scope before the first choice. Revision/toggle clear and clear-all wording operate independently of whole-answer votes. Clear never makes another request. Keep feedback away from moving answer text; preserve keyboard focus and native expanded/pressed semantics, Escape,24 px targets and 320 px wrapping. Extra wording controls appear only after the explicit disclosure, never just because landed was selected. Actual component review and source/clear/retention/late-response coverage precede release.
+
+## Verification and acceptance
+
+Exercise actual vote -> exit/reload -> same-owner explicit Ask, other-owner and task/habit isolation, baseline equality without eligible feedback, invalid stored metadata/caps/expiry, owner/source deletion/edits, AI/Memory clear and cross-tab/late-response races. Earlier prose stays private; whole votes never infer style. Native keyboard/axe and real-font 320 px/desktop review must pass. Use affected checks during development, then one frozen full functional and five-run release gate. Live writing usefulness remains a normal-use check; no model critic, credential extraction or claimed taste learning.
+
+Rollback: use clear all wording before returning to an older client; older builds ignore the new local key and cannot maintain its withdrawal guarantees. No feedback migration to older stores or backup.
