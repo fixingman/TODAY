@@ -26,6 +26,7 @@ export const SUITE = [
   "error-monitor-unit-test",
   "console-probe-test",
   "ci-plan-test",
+  "release-evidence-test",
   "browser-fixture-test",
   "ci-tooling-test",
   "performance-harness-test",
@@ -449,6 +450,7 @@ export const GROUPS = {
     "files": [],
     "suites": [
       "ci-plan-test",
+      "release-evidence-test",
       "browser-fixture-test",
       "ci-tooling-test",
       "console-probe-test",

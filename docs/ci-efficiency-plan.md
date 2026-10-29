@@ -1,6 +1,6 @@
 # CI efficiency implementation plan
 
-Status (October 29): both distinct full Linux shadow checkpoints are reviewed: 58 passes each, zero flakes/failures/selection misses, unchanged inputs and all five performance runs passing. Phase-2 activation is implemented for routine dev work; master/release/shadow checks remain full. See `ci-shadow-checkpoints.md`. Phase 3 release-evidence reuse remains unimplemented; no full release proof is reused by this change.
+Status (October 29): both distinct full Linux shadow checkpoints are reviewed: 58 passes each, zero flakes/failures/selection misses, unchanged inputs and all five performance runs passing. Phase-2 activation is implemented for routine dev work; master/release/shadow checks remain full. See `ci-shadow-checkpoints.md`. Phase 3 proof tooling is implemented in a bootstrap release with reuse disabled; no full release proof is reused by this change.
 
 ## Starting point
 
@@ -62,13 +62,15 @@ Phase 2 is complete only when the full inventory/path classification is reviewed
 - Routine local work: `npm run test:changed --prefix scripts`; include a committed candidate with `-- --base origin/dev`. This includes working-tree changes. `npm run test:plan --prefix scripts` explains selection without executing browser suites.
 - Ordinary dev push / dev-targeting PR: `test:policy` records `.context/ci-execution.json`; `test:ci` runs the selected suites with existing full fallbacks. The existing `test` job still runs on every configured event, without workflow path skips. A failed/flaky check or failed policy step fails the job.
 - Performance-sensitive/unknown changes run the unchanged five-run benchmark. Other routine changes skip it; payload checks always run. A selected/full-fallback routine pass is not release approval.
-- Explicit full release: `gh workflow run test.yml --repo fixingman/TODAY --ref dev -f mode=release`. The workflow must first exist on the default branch before dispatch is available. Until then use the unchanged local full gate and existing full master gate. Manual runs do not cancel or get cancelled by routine dev runs.
+- Explicit full release: `npm run release:dispatch --prefix scripts -- SHA`. The workflow must first exist on the default branch before dispatch is available. Until then use the unchanged local full gate and existing full master gate. Manual runs do not cancel or get cancelled by routine dev runs.
 - Master push and master-targeting PR: all suites plus all five performance runs. The existing full local/release requirements remain until phase 3 proves exact-SHA reuse; this phase does not remove them.
 - Optional full shadow: dispatch with `-f mode=shadow`; every suite and performance run executes, and missed selections are reported. Default `npm test --prefix scripts` remains full functional validation; `npm run test:release --prefix scripts` adds the unchanged five-run performance gate.
 - Rollback: set workflow `CI_ROUTINE_SELECTION` to `'false'`. It restores full functional and five-run performance checks without changing budgets or deleting failure history.
 - After an authorized push: share commit/link/status and end the turn. Do not wait/poll for CI. Later review one compact completion report and only necessary failing logs.
 
 ## Step 3 — Run full release validation once
+
+Bootstrap implementation: `ci-release-evidence.md` records the proof contract, commands and activation gates. Code and offline acceptance fixtures are implemented; reuse remains disabled. No default-branch publication or branch-protection change is implied.
 
 Add an explicit release mode to CI, with a small status/promotion preflight helper. Use GitHub's existing workflow runs and artifacts; no separate result service.
 

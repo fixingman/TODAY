@@ -2,7 +2,9 @@
 
 > Routines to keep the codebase and documentation optimized.
 
-**CI phase 2 activation (October 29, dev):** both distinct Linux shadow checkpoints are verified: 58 suites each, zero failed/flaky results or selection misses, unchanged inputs and five passing performance runs. The workflow makes routine dev pushes/dev-targeting PRs use the affected-suite planner; master pushes, master-targeting PRs and explicit release/shadow dispatches retain full validation. Unknown/shared/tooling paths still broaden to full. Selected passes are not release approval; phase 3 proof reuse remains unimplemented. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
+**CI phase 2 activation (October 29, dev/master):** both distinct Linux shadow checkpoints are verified: 58 suites each, zero failed/flaky results or selection misses, unchanged inputs and five passing performance runs. The workflow makes routine dev pushes/dev-targeting PRs use the affected-suite planner; master pushes, master-targeting PRs and explicit release/shadow dispatches retain full validation. Unknown/shared/tooling paths still broaden to full. Selected passes are not release approval; phase 3 proof reuse remains unimplemented. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
+
+**CI phase 3 bootstrap (v2.105.6, reuse off):** exact-SHA evidence writer, artifact verifier, read-only promotion preflight and explicit candidate dispatch are implemented with reuse disabled. Existing full master/release gates and local release requirements stay active until default-branch bootstrap, hosted proof/fallback/final-check behavior and required-check configuration are verified. See [release evidence](../docs/ci-release-evidence.md).
 
 ---
 

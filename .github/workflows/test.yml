@@ -12,9 +12,14 @@ on:
         type: choice
         options: [release, shadow]
         default: release
+      candidate:
+        description: Exact current dev SHA (required for release mode)
+        type: string
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
@@ -29,9 +34,12 @@ jobs:
       LANG: en_US.UTF-8
       # Rollback switch: false restores full functional + five-run performance gates.
       CI_ROUTINE_SELECTION: 'true'
+      # Keep off until default-branch bootstrap and hosted proof reuse are verified.
+      CI_RELEASE_REUSE: 'false'
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.sha }}
           # Selection needs every commit in a push and the PR merge base.
           fetch-depth: 0
       - uses: actions/setup-node@v7
@@ -39,6 +47,14 @@ jobs:
           node-version: '24.14.0'
           cache: npm
           cache-dependency-path: scripts/package-lock.json
+      - name: Validate recorded release candidate
+        run: node scripts/release-status.mjs candidate "$GITHUB_SHA"
+      - name: Verify reusable dev release proof
+        id: proof
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && env.CI_RELEASE_REUSE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-status.mjs reuse "$GITHUB_SHA"
       - name: Install test dependencies
         run: npm ci --prefix scripts
       - name: Install locked Chrome for Testing
@@ -53,26 +69,55 @@ jobs:
           test -x "$CHROME_PATH"
           "$CHROME_PATH" --version
       - name: Check payload before browser suites
+        id: payload
         run: npm run performance --prefix scripts -- --payload-only
       - name: Plan validation
         id: policy
         run: npm run test:policy --prefix scripts
       - name: Run automated gate
+        id: functional
+        if: steps.proof.outputs.reuse != 'true'
         # Routine dev runs select affected suites; master/release still run all.
         run: npm run test:ci --prefix scripts
       - name: Run performance budgets
-        if: steps.policy.outputs.performance == 'true'
+        id: performance
+        if: steps.policy.outputs.performance == 'true' && steps.proof.outputs.reuse != 'true'
         run: npm run performance --prefix scripts -- --no-audit-check --output performance-ci.json --trace-on-failure .context/performance-diagnostics
       - name: Validate memory inventory
+        id: memory
         run: bash memory/validate-files.sh
       - name: Check patch whitespace
+        id: whitespace
         run: git diff-tree --check --root -r HEAD
+      - name: Check invariants for reused release
+        id: invariants
+        if: steps.proof.outputs.reuse == 'true'
+        run: node scripts/ci-invariants.mjs
+      - name: Verify required gate dependencies
+        if: always()
+        env:
+          REUSE: ${{ steps.proof.outputs.reuse }}
+          PROOF: ${{ steps.proof.outcome }}
+          POLICY: ${{ steps.policy.outcome }}
+          PAYLOAD: ${{ steps.payload.outcome }}
+          MEMORY: ${{ steps.memory.outcome }}
+          WHITESPACE: ${{ steps.whitespace.outcome }}
+          INVARIANTS: ${{ steps.invariants.outcome }}
+          FUNCTIONAL: ${{ steps.functional.outcome }}
+          PERFORMANCE: ${{ steps.performance.outcome }}
+          PERFORMANCE_REQUIRED: ${{ steps.policy.outputs.performance }}
+        run: node scripts/ci-final.mjs
+      - name: Record complete dev release evidence
+        if: success() && steps.proof.outputs.reuse != 'true'
+        run: node scripts/release-evidence.mjs
       - name: Retain CI evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: ci-evidence-${{ github.run_id }}
+          name: ci-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            .context/release-evidence.json
+            .context/release-proof-check.json
             .context/ci-execution.json
             .context/ci-test-results/
             performance-ci.json

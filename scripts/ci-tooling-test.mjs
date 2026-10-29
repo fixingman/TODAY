@@ -142,7 +142,9 @@ try {
   assert.equal(new Set([dev.group, master.group, pr.group, otherPR.group, release.group]).size, 5);
   assert.match(workflow, /run: npm run test:policy --prefix scripts/);
   assert.match(workflow, /run: npm run test:ci --prefix scripts/);
-  assert.match(workflow, /if: steps\.policy\.outputs\.performance == 'true'/);
+  assert.match(workflow, /if: steps\.policy\.outputs\.performance == 'true' && steps\.proof\.outputs\.reuse != 'true'/);
+  assert.match(workflow, /CI_RELEASE_REUSE: 'false'/);
+  assert.match(workflow, /name: Verify required gate dependencies\n\s+if: always\(\)/);
   assert.match(workflow, /CI_ROUTINE_SELECTION: 'true'/);
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /options: \[release, shadow\]/);
