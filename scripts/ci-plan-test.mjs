@@ -6,9 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { SUITE, GROUPS, DOC_BASE } from './ci-policy.mjs';
 import { auditPolicy, auditConsumers, trackedPaths, metadata, planChanges, collectChanges, createRepoPlan } from './ci-plan.mjs';
+import { executionPolicy } from './ci-execution.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 assert.deepEqual(auditPolicy(trackedPaths(ROOT)), [], 'every tracked path and suite has a reviewed classification');
 assert.deepEqual(auditPolicy(), []);
+execFileSync(process.execPath, ['--input-type=module', '-'], { input: `await import(${JSON.stringify(new URL('./ci-plan.mjs', import.meta.url).href)}); await import(${JSON.stringify(new URL('./ci-execution.mjs', import.meta.url).href)});`, stdio: ['pipe', 'pipe', 'pipe'] });
 assert.deepEqual(auditConsumers(ROOT), [], 'every literal module consumer has reviewed suite coverage');
 const change = path => ({ path });
 for (const group of Object.values(GROUPS)) for (const path of group.files) {
@@ -65,6 +67,33 @@ for(const [name,group] of Object.entries(GROUPS)) for(const suite of group.suite
    assert.ok(result.suites.includes(dependentSuite),`${suite}: reviewed dependent ${dependentSuite}`);
 }
 console.log('  ✓ full inventory/dependencies and literal-only metadata guards');
+
+// Event boundaries must keep selected passes distinct from full release evidence.
+const lightPlan = planChanges([change('docs/ci-efficiency-plan.md')]);
+const devEnv = { CI_ROUTINE_SELECTION: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/dev' };
+assert.deepEqual(executionPolicy(lightPlan, devEnv).runnerArgs, ['--changed']);
+assert.equal(executionPolicy(lightPlan, devEnv).performance, false);
+assert.equal(executionPolicy(planChanges([change('assets/sound.js')]), devEnv).performance, true);
+assert.equal(executionPolicy(planChanges([], { fallback: ['unsafe history'] }), devEnv).performance, true);
+assert.deepEqual(executionPolicy(lightPlan, { ...devEnv, GITHUB_EVENT_NAME: 'pull_request' }, { pull_request: { base: { ref: 'dev' } } }).runnerArgs, ['--changed']);
+for (const [env, event] of [
+  [{ ...devEnv, GITHUB_REF: 'refs/heads/master' }, {}],
+  [{ ...devEnv, GITHUB_EVENT_NAME: 'pull_request' }, { pull_request: { base: { ref: 'master' } } }],
+  [{ ...devEnv, GITHUB_EVENT_NAME: 'pull_request' }, {}],
+  [{ ...devEnv, GITHUB_EVENT_NAME: 'workflow_dispatch' }, { inputs: { mode: 'release' } }],
+  [{ ...devEnv, GITHUB_EVENT_NAME: 'workflow_dispatch' }, {}],
+  [{ ...devEnv, GITHUB_EVENT_NAME: 'schedule' }, {}],
+  [{ ...devEnv, CI_ROUTINE_SELECTION: 'false' }, {}],
+  [{ ...devEnv, CI_ROUTINE_SELECTION: undefined }, {}],
+  [{}, {}],
+]) {
+  const policy = executionPolicy(lightPlan, env, event);
+  assert.equal(policy.mode, 'full'); assert.deepEqual(policy.runnerArgs, []); assert.equal(policy.performance, true);
+}
+const shadowPolicy = executionPolicy(lightPlan, { ...devEnv, GITHUB_EVENT_NAME: 'workflow_dispatch' }, { inputs: { mode: 'shadow' } });
+assert.deepEqual(shadowPolicy.runnerArgs, ['--shadow']); assert.equal(shadowPolicy.performance, true);
+assert.throws(() => executionPolicy(lightPlan, { ...devEnv, GITHUB_EVENT_NAME: 'workflow_dispatch' }, { inputs: { mode: 'typo' } }), /Unknown/);
+console.log('  ✓ routine selection, master/PR/release full gates, performance triggers, rollback and shadow dispatch');
 
 const root=mkdtempSync(join(tmpdir(),'today-ci-plan-'));
 const git=(...args)=>execFileSync('git',['-C',root,...args],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();

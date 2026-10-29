@@ -1,6 +1,6 @@
 # CI phase 2 coverage and fixture audit
 
-Implementation audit, October 28, 2026. This records reviewed dependency boundaries and known fixture hazards, not a claim that CI-only failures are eliminated. The workflow remains in shadow mode and executes the full inventory. Activation requires clean Linux results and two normal candidate shadow runs; local synthetic controls do not count as those two checkpoints.
+Implementation audit, October 28, 2026. This records reviewed dependency boundaries and known fixture hazards, not a claim that CI-only failures are eliminated. Two distinct full Linux shadow artifacts are reviewed in `ci-shadow-checkpoints.md`. Phase-2 activation selects routine dev checks through an explicit event policy; master/release/shadow checks remain full. Local synthetic controls do not count as hosted checkpoints. Original failures and pending product/fixture repairs remain visible.
 
 ## Path and consumer policy
 

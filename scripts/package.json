@@ -12,6 +12,9 @@
     "visual": "node visual-test.mjs",
     "visual:update": "node visual-test.mjs --update",
     "test:changed": "node test-all.mjs --changed",
+    "test:ci": "node ci-execution.mjs --run",
+    "test:policy": "node ci-execution.mjs",
+    "test:release": "node test-all.mjs && node performance-test.mjs --no-audit-check",
     "test:shadow": "node test-all.mjs --shadow",
     "test:plan": "node ci-plan.mjs"
   },

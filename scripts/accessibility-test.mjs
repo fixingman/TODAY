@@ -31,7 +31,8 @@ const BASE = `http://localhost:${server.address().port}`;
 // launch-time input settings can. Declare the desktop these assertions assume:
 // hover=2 (hover), pointer=4 (fine). Verified both directions on macOS 2026-09-06.
 const DESKTOP_INPUT = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions', DESKTOP_INPUT] });
+// Match smoke-test's pipe transport; avoid discovering the WebSocket URL from stdout.
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', pipe: true, args: ['--no-first-run', '--disable-extensions', DESKTOP_INPUT] });
 const fail = message => { throw new Error(message); };
 const ok = message => console.log('  ✓ ' + message);
 
@@ -201,7 +202,11 @@ try {
   await waitForFiniteMotion(page, '#dayNudgeReact');
   const reactionOpacity = await page.evaluate(() => parseFloat(getComputedStyle(document.getElementById('dayNudgeReact')).opacity));
   if (reactionOpacity > 0.1) fail('opened nudge reactions did not recede with the nudge during focus');
-  await audit(page, 'focus mode passes axe');
+  // Can restored the original dim Copy treatment (2026-10-28). Its resting
+  // contrast is a documented product exception; audit its highlighted state.
+  await page.hover('.task.focused .task-copy');
+  await waitForFiniteMotion(page, '.task.focused .task-copy');
+  await audit(page, 'focus mode with highlighted Copy passes axe');
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.querySelector('.focus-timer').hidden);
   const triageRestored = await page.evaluate(() => {

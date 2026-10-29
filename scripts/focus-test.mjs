@@ -1081,6 +1081,14 @@ try {
         notPaused:await page.evaluate(()=>!JSON.parse(localStorage.getItem('today_focus_session')).paused),
         notPersisted:stored===await page.evaluate(()=>JSON.stringify(Object.entries(localStorage).filter(([key])=>key!=='today_focus_session').sort())),
       });
+      const voteLayout=await page.evaluate(()=>{
+        const group=document.querySelector('.focus-ask-feedback-actions'),landed=group.querySelector('[data-choice="landed"]'),missed=group.querySelector('[data-choice="missed"]'),clear=group.querySelector('[data-today-click="focus-ask.clear"]');
+        const rgb=el=>getComputedStyle(el).color.match(/\d+/g).slice(0,3).map(Number);
+        return {selectedWhite:Math.min(...rgb(landed))>=215,otherGray:Math.max(...rgb(missed))<180&&Math.max(...rgb(missed))-Math.min(...rgb(missed))<30,
+          clearAtRight:Math.abs(clear.getBoundingClientRect().right-group.getBoundingClientRect().right)<2,
+          oneClearAction:!group.querySelector('[data-today-click="focus-ask.undo"]')&&clear.textContent==='clear vote'};
+      });
+      await expectAll('vote colors and one right-aligned clear action',voteLayout);
       await page.evaluate(()=>{window.__answerNode=document.querySelector('.focus-ai-timer-btn');window.__ratingNode=document.querySelector('#focusAskFeedback [data-choice="landed"]');Today.use('connections').renderManual();});
       await page.evaluate(()=>new Promise(requestAnimationFrame));
       await expectAll('unchanged list refresh preserves the exact answer and reaction controls',{
@@ -1133,13 +1141,19 @@ try {
       const second='Which export format triggers it?';await reply(page,next,{content:second});
       await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},second);
       await openFeedback(page);await rate(page,'missed');
+      await rate(page,'landed');await rate(page,'missed');
       await page.click('#focusAskFeedback [data-today-click="focus-ask.clear"]');
-      await page.click('#focusAskFeedback [data-today-click="focus-ask.undo"]');
-      await rate(page,'landed');await page.click('#focusAskFeedback [data-today-click="focus-ask.undo"]');
+      await expectAll('clear vote removes only this answer rating',{
+        neutral:await page.$$eval('#focusAskFeedback [data-choice]',buttons=>buttons.every(button=>button.getAttribute('aria-pressed')==='false')),
+        clearHidden:await page.$eval('#focusAskFeedback [data-today-click="focus-ask.clear"]',button=>button.hidden),
+        focusKept:await page.evaluate(()=>document.activeElement.dataset.choice==='landed'),
+        noGeneration:await page.evaluate(()=>window.__asks.length===2),
+      });
+      await rate(page,'missed');
       await page.evaluate(()=>{window.__oldVote=document.querySelector('#focusAskFeedback [data-choice="landed"]');});
       await dismiss(page);const third=await ask(page);
       const message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,third);
-      await expectAll('revision clear and Undo stay tied to exact wording',{
+      await expectAll('direct revision and clear stay tied to exact wording',{
         positiveKept:message.includes(JSON.stringify({reply:first,rating:'landed'})),
         revisedMiss:message.includes(JSON.stringify({reply:second,rating:'not landed'})),
       });
@@ -1156,7 +1170,8 @@ try {
       const narrow=await page.evaluate(()=>{
         const text=document.querySelector('.focus-ai-timer-btn').getBoundingClientRect(),toggle=document.querySelector('.focus-ask-feedback').getBoundingClientRect();
         const buttons=[...document.querySelectorAll('#focusAskFeedback button:not([hidden])')].map(e=>e.getBoundingClientRect());
-        return {separate:text.right<=toggle.left,fit:buttons.every(r=>r.left>=0&&r.right<=innerWidth&&r.height>=24),noOverflow:document.body.scrollWidth<=innerWidth};
+        const clear=document.querySelector('#focusAskFeedback [data-today-click="focus-ask.clear"]').getBoundingClientRect(),group=document.querySelector('.focus-ask-feedback-actions').getBoundingClientRect();
+        return {separate:text.right<=toggle.left,fit:buttons.every(r=>r.left>=0&&r.right<=innerWidth&&r.height>=24),noOverflow:document.body.scrollWidth<=innerWidth,clearAtRight:Math.abs(clear.right-group.right)<2};
       });
       await expectAll('320px feedback and long-answer marquee',{...narrow});
       const narrowClip=await page.$eval('.task.focused',e=>{const r=e.getBoundingClientRect();return {x:0,y:r.y-12,width:320,height:220};});
@@ -1168,7 +1183,7 @@ try {
       await page.evaluate(()=>document.querySelector('.task-text').click());
       const restarted=await ask(page);
       await expectAll('leaving focus erases session influence',{fresh:await page.evaluate(i=>window.__asks[i].body.messages[0].content==='Task: "Fix the export crash"',restarted)});
-      await page.close();ok('15D exact-answer feedback: keyboard, next-use, Undo/clear, neutral dismissal, isolated layout, 320px and exit reset');
+      await page.close();ok('15D exact-answer feedback: keyboard, next-use, clear vote, neutral dismissal, isolated layout, 320px and exit reset');
     }
     for (const change of ['edit','delete','sync-delete','day','key']) {
       console.log('  · Focus feedback source case: '+change);
@@ -1207,7 +1222,7 @@ try {
     {
       const {page,errors}=await feedbackFixture();
       const offers=['Which file reproduces it?', 'Which format triggers it?', 'Which input differs?', 'Which export succeeds?'];
-      for(const text of offers){await deliver(page,text);await openFeedback(page);await rate(page,'landed');await rate(page,'landed');await dismiss(page);}
+      for(const [i,text] of offers.entries()){await deliver(page,text);await openFeedback(page);await rate(page,'landed');if(i%2)await rate(page,'landed');else await clickFeedbackControl(page,'#focusAskFeedback [data-today-click="focus-ask.clear"]');await dismiss(page);}
       const next=await ask(page),message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,next);
       await expectAll('bounded neutral history after clears',{
         cap:!message.includes(JSON.stringify(offers[0]))&&offers.slice(1).every(text=>message.includes(JSON.stringify(text))),

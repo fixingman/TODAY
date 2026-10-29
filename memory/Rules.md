@@ -1,7 +1,7 @@
 # TODAY — Critical Rules
 > **Read this first.** These rules must never break.
 
-**CI phase 2 status (October 28):** v2.105.2 is published. Its Linux artifact passes58 suites with zero failures/flakes/selection misses and all five performance runs. One distinct candidate checkpoint remains; dev/master runs of that same SHA count once. The requested CI handoff documentation is the next candidate. Keep the full hosted shadow gate until its result is reviewed; phase3 release reuse remains planned. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
+**CI phase 2 activation (October 29, dev):** both distinct Linux shadow checkpoints are verified: 58 suites each, zero failed/flaky results or selection misses, unchanged inputs and five passing performance runs. The workflow makes routine dev pushes/dev-targeting PRs use the affected-suite planner; master pushes, master-targeting PRs and explicit release/shadow dispatches retain full validation. Unknown/shared/tooling paths still broaden to full. Selected passes are not release approval; phase 3 proof reuse remains unimplemented. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
 
 ---
 

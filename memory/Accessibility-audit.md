@@ -38,6 +38,10 @@ Pointer reordering still requires a dragging movement. No visible move buttons, 
 
 Keyboard users have an alternative through Option+Up/Down, but that does not satisfy the criterion's required single-pointer alternative. The product must not be described as fully WCAG-conformant while these exceptions remain.
 
+### Dim Focus Copy (Can, October 28, 2026)
+
+Can explicitly requested restoration of the historical focused Copy appearance: inherited muted text at 45% opacity, highlighted to full-opacity primary text on hover. This intentionally falls below criterion 1.4.3 at rest. Its accessible name, keyboard operation and copied acknowledgement remain. The focused-state axe audit covers the highlighted Copy state and keeps all other contrast checks enabled. This exception does not apply to the Ask rating buttons, whose voted states retain readable white/muted text.
+
 ## Automated verification
 
 `node scripts/accessibility-test.mjs` uses axe-core with Puppeteer and checks representative desktop/mobile states, all reachable header disclosures, focus mode, triage, meeting review, and the poem page. It also asserts accessible names/state, dialog focus containment/restoration, skip navigation, hidden UI exclusion, keyboard reorder persistence and boundary announcements, zoom-capable viewport metadata, contrast tokens, 24px targets, and 320px reflow. Contrast audits wait for finite entrance motion to settle; the focus check forces an evening triage bar and opens a spoken morning nudge's reactions regardless of clock, then verifies both leave and return to keyboard navigation.

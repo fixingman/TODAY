@@ -10,10 +10,11 @@ const DIR = dirname(fileURLToPath(import.meta.url));
 const fixture = mkdtempSync(join(tmpdir(), 'today-ci-'));
 const scripts = join(fixture, 'scripts');
 mkdirSync(scripts); mkdirSync(join(fixture, 'fonts'));
-const run = (file, args = []) => spawnSync(process.execPath, [join(scripts, file), ...args], {
+const run = (file, args = [], extraEnv = {}) => spawnSync(process.execPath, [join(scripts, file), ...args], {
   encoding: 'utf8', timeout: 10000, env: { ...process.env,
     CHROME_PATH: '/nonexistent/test-only-chrome', GITHUB_SHA: 'a'.repeat(40),
     GITHUB_STEP_SUMMARY: join(fixture, 'step-summary.md'), GITHUB_WORKFLOW: 'fixture',
+    ...extraEnv,
   },
 });
 try {
@@ -88,6 +89,20 @@ try {
   assert.equal(run('test-all.mjs',['--suites','fixture-test']).status,1);
   for(const args of [['--suites','unknown'],['--suites',''],['--changed','--shadow'],['--base','HEAD'],['--changed','--changed']])
     assert.notEqual(run('test-all.mjs',args).status,0,JSON.stringify(args));
+  writeFileSync(join(scripts, 'ci-execution.mjs'), readFileSync(join(DIR, 'ci-execution.mjs')));
+  const eventPath = join(fixture, 'event.json');
+  const routineEnv = { CI_ROUTINE_SELECTION: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/dev', GITHUB_EVENT_PATH: eventPath };
+  writeFileSync(eventPath, '{}');
+  assert.equal(run('ci-execution.mjs', ['--run'], routineEnv).status, 0, 'routine entry point runs the selection');
+  assert.equal(run('ci-execution.mjs', ['--run'], { ...routineEnv, GITHUB_REF: 'refs/heads/master' }).status, 1, 'master cannot skip the failing suite');
+  assert.equal(run('ci-execution.mjs', ['--run'], { ...routineEnv, CI_ROUTINE_SELECTION: 'false' }).status, 1, 'rollback restores full execution');
+  for (const mode of ['release', 'shadow']) {
+    writeFileSync(eventPath, JSON.stringify({ inputs: { mode } }));
+    assert.equal(run('ci-execution.mjs', ['--run'], { ...routineEnv, GITHUB_EVENT_NAME: 'workflow_dispatch' }).status, 1, mode + ' retains the original suite failure');
+  }
+  assert.notEqual(run('ci-execution.mjs', ['--typo']).status, 0);
+  rmSync(eventPath);
+  console.log('  ✓ actual CI entry point propagates failures; master, release, shadow and rollback execute the full inventory');
   writeFileSync(join(scripts, 'ci-plan.mjs'), readFileSync(join(DIR, 'ci-plan.mjs')));
   console.log('  ✓ selected execution is explicit; shadow executes all and retains failures outside selection; invalid modes fail');
 
@@ -125,8 +140,14 @@ try {
   assert.equal(master.cancel, false); assert.equal(release.cancel, false);
   assert.equal(policy('push', 'refs/heads/other').cancel, false);
   assert.equal(new Set([dev.group, master.group, pr.group, otherPR.group, release.group]).size, 5);
-  assert.match(workflow, /run: npm test --prefix scripts -- --shadow/);
-  assert.doesNotMatch(workflow, /test --prefix scripts -- --changed/);
+  assert.match(workflow, /run: npm run test:policy --prefix scripts/);
+  assert.match(workflow, /run: npm run test:ci --prefix scripts/);
+  assert.match(workflow, /if: steps\.policy\.outputs\.performance == 'true'/);
+  assert.match(workflow, /CI_ROUTINE_SELECTION: 'true'/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /options: \[release, shadow\]/);
+  assert.match(workflow, /\.context\/ci-execution\.json/);
+  assert.doesNotMatch(workflow, /continue-on-error: true|paths-ignore:|paths:/);
   assert.match(workflow,/fetch-depth: 0/);
   assert.match(workflow,/runs-on: ubuntu-24\.04/);
   assert.match(workflow,/node-version: '24\.14\.0'/);

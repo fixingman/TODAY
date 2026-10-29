@@ -1,6 +1,6 @@
 // Deterministic change selection. The full runner remains the release authority.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, writeFileSync, mkdirSync, lstatSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, lstatSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SUITE, EXCLUDED, GROUPS, BASE, DOC_BASE } from './ci-policy.mjs';
@@ -206,7 +206,7 @@ export function createRepoPlan(root = ROOT, env = process.env, baseRef) {
 export function trackedPaths(root = ROOT) {
   return git(root, ['ls-files','-z']).split('\0').filter(Boolean);
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && existsSync(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   for (let i=0;i<args.length;i+=2) {
     if (!['--out','--base'].includes(args[i]) || !args[i+1] || args[i+1].startsWith('--') || args.indexOf(args[i]) !== i)

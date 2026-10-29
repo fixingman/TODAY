@@ -2,7 +2,7 @@
 
 > Test cases for releases. Run critical tests before every deploy.
 
-**CI phase 2 status (October 28):** v2.105.2 is published. Its Linux artifact passes58 suites with zero failures/flakes/selection misses and all five performance runs. One distinct candidate checkpoint remains; dev/master runs of that same SHA count once. The requested CI handoff documentation is the next candidate. Keep the full hosted shadow gate until its result is reviewed; phase3 release reuse remains planned. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
+**CI phase 2 activation (October 29, dev):** both distinct Linux shadow checkpoints are verified: 58 suites each, zero failed/flaky results or selection misses, unchanged inputs and five passing performance runs. The workflow makes routine dev pushes/dev-targeting PRs use the affected-suite planner; master pushes, master-targeting PRs and explicit release/shadow dispatches retain full validation. Unknown/shared/tooling paths still broaden to full. Selected passes are not release approval; phase 3 proof reuse remains unimplemented. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
 
 ---
 
@@ -27,7 +27,7 @@ test suites, including the content-free error-monitor unit test, Calendar founda
 queue/day/grounding/file-format unit test (`dreambank-unit-test`) and the `meeting-extract` handler unit
 test. `dropbox-test` and `meeting-test` also cover on-demand retrieval of a pruned dream on a second device: the selected file must reopen without entering synced/local storage, preserve older saved notes, and show retryable offline/missing-file states. The live `scripts/ai-test.mjs`, the live `scripts/dream-live-test.mjs`, and five-run
 `scripts/performance-test.mjs` are explicit exclusions: the first two require API keys and real
-provider calls; the last runs as its own push/nightly gate. `ai-test` uses fixed historical synthetic prompts and tests provider transport/response shape, not current production prompt fidelity, daily thinking or usefulness. `dream-live-test` (macOS: `say` +
+provider calls; the last runs for explicit releases, master validation, performance-sensitive changes and nightly deployment checks. `ai-test` uses fixed historical synthetic prompts and tests provider transport/response shape, not current production prompt fidelity, daily thinking or usefulness. `dream-live-test` (macOS: `say` +
 ffmpeg) speaks scripted clips — English and Turkish dreams, a dream plus a real commitment, a
 plain one-sentence dream (BUG-110), dreams told late ("the night before last", "dün gece", "years
 ago" — still recognised as dreams), plain planning, figurative "bad dream" talk — through the real `meeting-extract` and
@@ -47,8 +47,7 @@ inventory and the explicitly registered non-test check before execution. A check
 only on its diagnostic retry is reported as flaky and fails the gate; each attempt is capped at
 120 seconds. Every attempt retains its full stdout/stderr and exit/signal in `.context/ci-test-results/`; failure summaries include the complete error and both failed attempts, rather than only the tail of a stack. Push/PR CI uploads these logs, the benchmark JSON and any diagnostic traces for 30 days, including when earlier steps fail. `ci-tooling-test` exercises clean, flaky and failed runs against synthetic suites and payload limits without Chrome; it also regenerates launch images in a dependency-free fixture and compares decoded dimensions/pixels, and stubs the live-provider smoke to ensure full `content` is checked before a truncated `message`. `splash-test` reads its coda ceiling from the existing `cold.splashDismissed` performance budget (23s), avoiding a separate obsolete 20s cap. Two-device nudge fixtures await initial sync and response state, and fake retry timers honor cancellation; meeting/voice rollover, retry, recording, PiP and cleanup use observable state instead of short sleeps. Both use 150ms simulated latency. The smoke browser uses a DevTools pipe so startup does not depend on discovering a WebSocket URL in process output; startup/app failures still fail. Tooling requires Node >=22.12 and Puppeteer 25. The last dual-runtime assurance
 pass was clean on Node 22.23.2 and 24.14.0; current measured performance evidence is in
-`Performance-audit.md`. GitHub Actions runs the same gate plus `npm run performance --prefix scripts`
-on pushes and pull requests to `dev`/`master`. A scheduled workflow measures the deployed dev
+`Performance-audit.md`. GitHub Actions selects affected suites for routine dev pushes/dev-targeting PRs, with full fallbacks. Master/master-targeting PRs and explicit releases run every suite plus all five performance runs; performance-sensitive routine changes also run the benchmark. A scheduled workflow measures the deployed dev
 URL and retains its JSON for 30 days. Run
 `memory/validate-files.sh` separately; it remains outside `test-all.mjs`.
 
@@ -683,3 +682,5 @@ Completed task rows intentionally use 25% opacity, so WCAG 2.2 criteria 1.4.3 an
 W1: optional fixed concerns can address a concrete expression problem on the next otherwise eligible reading, with no invented taste/claim. W2: existing signal-gated sentence and hidden reaction disclosure; no automatic call, mandatory vote or new surface. W3 remains release+14days in Backlog Watching. Manual VoiceOver, installed phone/desktop behavior and normal-use writing usefulness remain separate; mocked providers do not establish prose improvement. A live comparison, if an approved workspace key is supplied, uses the existing handler/model and at most 16 calls / three minutes, retaining original/blind arms. Automatic critic remains off.
 
 **v2.105.1 fixture correction:** decode percent-encoded font paths and explicitly load/check DM Mono 300/400/500 before any pool assertions. The old server with that font check fails; the fixed 52 groups pass with the actual typeface. Earlier fallback-font screenshots/results stay diagnostic, not real-font visual proof.
+
+**Focus fixture alignment (v2.105.5):** the actual clear-vote control replaces the removed Undo expectation; direct revision, clearing only the current rating, neutral history, unchanged requests, keyboard focus and 320px alignment remain asserted. Focused Copy’s deliberately dim resting treatment is the documented product exception in `Accessibility-audit.md`; axe checks its highlighted state and all other contrast rules remain enabled.

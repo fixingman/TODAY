@@ -1,6 +1,6 @@
 # CI efficiency implementation plan
 
-Status (October 28): phases 1–2 are published in v2.105.2 (`776dee3e`) on dev/master. The completed dev Linux artifact verifies 58 passes, zero flakes/failures, unchanged inputs, zero selection misses and all five performance runs. This is one candidate checkpoint; the same SHA on master is confirmation, not a second candidate. The requested CI handoff documentation is the next normal candidate. Selective CI stays inactive until its shadow result is reviewed. Phase 3 release-evidence reuse remains planned.
+Status (October 29): both distinct full Linux shadow checkpoints are reviewed: 58 passes each, zero flakes/failures/selection misses, unchanged inputs and all five performance runs passing. Phase-2 activation is implemented for routine dev work; master/release/shadow checks remain full. See `ci-shadow-checkpoints.md`. Phase 3 release-evidence reuse remains unimplemented; no full release proof is reused by this change.
 
 ## Starting point
 
@@ -9,7 +9,7 @@ Status (October 28): phases 1–2 are published in v2.105.2 (`776dee3e`) on dev/
 - `.github/workflows/performance.yml` independently measures deployed dev each night. The October 28 v2.103.5 result still fails worst cold TBT at 425ms / 200ms; CI efficiency does not resolve BUG-135.
 - `memory/Housekeeping.md` currently requires the full local gate on every push. Change that rule only when the corresponding workflow replacement is activated.
 
-## Intended check policy
+## Intended final check policy (release reuse requires phase 3)
 
 | Event | Required work |
 |---|---|
@@ -57,6 +57,17 @@ Acceptance fixtures: multi-commit push, PR base, first/force push, rename/delete
 
 Phase 2 is complete only when the full inventory/path classification is reviewed, selector edge cases pass, confirmed fixture repairs have causal regression coverage, and clean Linux plus shadow results establish both coverage and reproducibility. Report selected/executed suites, duration, output bytes and remaining unexplained CI-only failures separately. Do not claim reliability improvement from checks that simply stopped running. The two normal full runs are integration checkpoints, not a reason to limit the scope or perform repeated full rerolls.
 
+## Activated phase-2 commands and boundaries
+
+- Routine local work: `npm run test:changed --prefix scripts`; include a committed candidate with `-- --base origin/dev`. This includes working-tree changes. `npm run test:plan --prefix scripts` explains selection without executing browser suites.
+- Ordinary dev push / dev-targeting PR: `test:policy` records `.context/ci-execution.json`; `test:ci` runs the selected suites with existing full fallbacks. The existing `test` job still runs on every configured event, without workflow path skips. A failed/flaky check or failed policy step fails the job.
+- Performance-sensitive/unknown changes run the unchanged five-run benchmark. Other routine changes skip it; payload checks always run. A selected/full-fallback routine pass is not release approval.
+- Explicit full release: `gh workflow run test.yml --repo fixingman/TODAY --ref dev -f mode=release`. The workflow must first exist on the default branch before dispatch is available. Until then use the unchanged local full gate and existing full master gate. Manual runs do not cancel or get cancelled by routine dev runs.
+- Master push and master-targeting PR: all suites plus all five performance runs. The existing full local/release requirements remain until phase 3 proves exact-SHA reuse; this phase does not remove them.
+- Optional full shadow: dispatch with `-f mode=shadow`; every suite and performance run executes, and missed selections are reported. Default `npm test --prefix scripts` remains full functional validation; `npm run test:release --prefix scripts` adds the unchanged five-run performance gate.
+- Rollback: set workflow `CI_ROUTINE_SELECTION` to `'false'`. It restores full functional and five-run performance checks without changing budgets or deleting failure history.
+- After an authorized push: share commit/link/status and end the turn. Do not wait/poll for CI. Later review one compact completion report and only necessary failing logs.
+
 ## Step 3 — Run full release validation once
 
 Add an explicit release mode to CI, with a small status/promotion preflight helper. Use GitHub's existing workflow runs and artifacts; no separate result service.
@@ -100,3 +111,5 @@ Final publication integration: the pool session reserved and published v2.105.1 
 Final v2.105.2 local integration validation: exact app-shell/SW metadata-normalized equality passes, all other runtime/test inputs match the prior full58-check result except the published pool font fixture. The revised pool suite plus smoke/About/offline/design and CI invariants/planner/tooling pass8/8, zero flakes/failures, with unchanged inputs. The configured Node24/Chrome152 five-run performance evidence applies to identical runtime bytes outside literal metadata; original Node20 failure remains retained. The pushed commit still requires its complete hosted Linux gate.
 
 Current checkpoint evidence and activation criteria: [CI shadow checkpoints](ci-shadow-checkpoints.md). Historical local candidates below/above are retained evidence, not additional completed Linux candidate checkpoints.
+
+Local activation validation:58/58 suites pass with zero flakes/failures in342.9s; all runtime/test/workflow fingerprints unchanged. All five performance runs pass unchanged budgets; worst cold TBT53ms /200ms. Node24.14.0 / Chrome152.0.7977.75. Hosted exact-commit confirmation remains pending; deployed BUG-135 is separate.

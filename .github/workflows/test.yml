@@ -5,6 +5,13 @@ on:
     branches: [dev, master]
   pull_request:
     branches: [dev, master]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Full release validation or a full shadow checkpoint
+        type: choice
+        options: [release, shadow]
+        default: release
 
 permissions:
   contents: read
@@ -20,10 +27,12 @@ jobs:
     env:
       TZ: UTC
       LANG: en_US.UTF-8
+      # Rollback switch: false restores full functional + five-run performance gates.
+      CI_ROUTINE_SELECTION: 'true'
     steps:
       - uses: actions/checkout@v7
         with:
-          # Shadow selection needs every commit in a push and the PR merge base.
+          # Selection needs every commit in a push and the PR merge base.
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
@@ -45,10 +54,14 @@ jobs:
           "$CHROME_PATH" --version
       - name: Check payload before browser suites
         run: npm run performance --prefix scripts -- --payload-only
+      - name: Plan validation
+        id: policy
+        run: npm run test:policy --prefix scripts
       - name: Run automated gate
-        # Shadow records selection, but executes every functional suite.
-        run: npm test --prefix scripts -- --shadow
+        # Routine dev runs select affected suites; master/release still run all.
+        run: npm run test:ci --prefix scripts
       - name: Run performance budgets
+        if: steps.policy.outputs.performance == 'true'
         run: npm run performance --prefix scripts -- --no-audit-check --output performance-ci.json --trace-on-failure .context/performance-diagnostics
       - name: Validate memory inventory
         run: bash memory/validate-files.sh
@@ -60,6 +73,7 @@ jobs:
         with:
           name: ci-evidence-${{ github.run_id }}
           path: |
+            .context/ci-execution.json
             .context/ci-test-results/
             performance-ci.json
             .context/performance-diagnostics/
