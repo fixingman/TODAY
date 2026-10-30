@@ -2,9 +2,7 @@
 
 > Routines to keep the codebase and documentation optimized.
 
-**CI phase 2 activation (October 29, dev/master):** both distinct Linux shadow checkpoints are verified: 58 suites each, zero failed/flaky results or selection misses, unchanged inputs and five passing performance runs. The workflow makes routine dev pushes/dev-targeting PRs use the affected-suite planner; master pushes, master-targeting PRs and explicit release/shadow dispatches retain full validation. Unknown/shared/tooling paths still broaden to full. Selected passes are not release approval; phase 3 proof tooling is bootstrapped; activation is tracked below. [Checkpoint ledger](../docs/ci-shadow-checkpoints.md).
-
-**CI phase 3 activation (v2.105.7, dev candidate):** the real9888bf51 automatic and explicit-dispatch proofs pass preflight. Repository metadata confirms no branch protections/rulesets or required contexts; the existing test check is retained. This new candidate requires its own full Linux dev proof before identical-SHA master promotion. Verified master reuse skips duplicate suites, benchmark and browser/dependency setup, while running cheap invariants and the explicit final dependency check. Missing/incompatible proof restores the full gate. See [release evidence](../docs/ci-release-evidence.md).
+**CI efficiency complete (October 30, v2.106.0 dev/master):** routine dev work uses affected-suite selection with full fallbacks. Exact-SHA full Linux dev proof passed 61 suites, zero failures/flakes and all five performance runs; master verified reuse in 15 seconds, skipping duplicate suites/benchmark and dependency/browser setup while running cheap invariants and the final dependency check. Missing/incompatible proof restores the full gate; master-targeting PRs remain full. Local work stays targeted; after pushing, share the link/status and end the turn. [Accepted proof and operating contract](../docs/ci-release-evidence.md); [phase-2 shadow checkpoints](../docs/ci-shadow-checkpoints.md). Deployed/installed BUG-135 and RUM BUG-138 remain open.
 
 ---
 
@@ -150,6 +148,17 @@ No hard limits — but when files get large they slow down Tier 1 reads. Use jud
 | `Changelog.md` | Keep last ~20 versions. Older entries → `Changelog-archive.md` |
 | Architecture docs | Split if over 200 lines |
 | Research docs | Keep concise — decided research should be < 50 lines |
+
+---
+
+## Research and session conventions
+
+| Context | Use |
+|---------|-----|
+| Searching Coda | `/browse` skill — not raw WebFetch or grep |
+| Poem display in chat | Real line breaks, one per line, in a blockquote. Never `/` as an inline separator. |
+
+**Poem curation search process:** Broaden discovery before narrowing candidates — national libraries, university digital collections, regional/bilingual anthologies, oral-literature archives, historical journals, author/translator archives. Generic poetry sites only as leads or cross-checks; Gutenberg, Wikisource, and Internet Archive for exact text and PD verification. WebSearch to identify a specific poem or collection → targeted fetch of the relevant page only; no bulk-fetching. Work inline in the main conversation, not via agents.
 
 ---
 

@@ -1,15 +1,15 @@
 # CI efficiency implementation plan
 
-Status (October 29): both distinct full Linux shadow checkpoints are reviewed: 58 passes each, zero flakes/failures/selection misses, unchanged inputs and all five performance runs passing. Phase-2 activation is implemented for routine dev work; master/release/shadow checks remain full. See `ci-shadow-checkpoints.md`. Phase 3 bootstrap and dispatch are verified; v2.105.7 publishes guarded reuse activation on dev. Each new candidate still requires its own full hosted proof before master promotion.
+**Complete — October 30, v2.106.0 on dev/master.** All three phases are activated and verified. Full Linux dev proof passed 61 suites and all five performance runs; same-SHA master reuse passed in 15 seconds. See [accepted release proof](ci-release-evidence.md) and [phase-2 checkpoints](ci-shadow-checkpoints.md). The next four ordinary release measurements are maintenance, not unfinished implementation. BUG-135 deployed/installed startup and BUG-138 hosting RUM remain open.
 
-## Starting point
+## Starting point (historical)
 
 - `.github/workflows/test.yml` runs the complete suite plus five-run performance on every dev/master push and matching PR. The current inventory is 54 functional suites; derive that inventory rather than hardcoding its count in new tooling.
 - `scripts/test-all.mjs` already retains every attempt, caps suite execution and treats a diagnostic retry pass as flaky/failing. Preserve those semantics.
 - `.github/workflows/performance.yml` independently measures deployed dev each night. The October 28 v2.103.5 result still fails worst cold TBT at 425ms / 200ms; CI efficiency does not resolve BUG-135.
 - `memory/Housekeeping.md` currently requires the full local gate on every push. Change that rule only when the corresponding workflow replacement is activated.
 
-## Intended final check policy (release reuse requires phase 3)
+## Active check policy
 
 | Event | Required work |
 |---|---|
@@ -70,7 +70,7 @@ Phase 2 is complete only when the full inventory/path classification is reviewed
 
 ## Step 3 — Run full release validation once
 
-Activation candidate: `ci-release-evidence.md` records the real accepted bootstrap proof, resolved branch configuration, actual CLI fallback probe and remaining dispatch/dev-proof/master-reuse gates. Dispatch acceptance is complete; publish activation to dev first and require its new exact-SHA proof before master promotion.
+Implemented and verified: [release evidence](ci-release-evidence.md) records accepted bootstrap/dispatch, resolved branch configuration, fallback checks, the v2.106.0 exact-SHA dev proof and hosted master reuse.
 
 Add an explicit release mode to CI, with a small status/promotion preflight helper. Use GitHub's existing workflow runs and artifacts; no separate result service.
 
@@ -99,6 +99,10 @@ Rollback is a full-run mode/workflow switch that restores the existing policy, w
 - [Workflow concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency): cancellation must use separate groups for independent work.
 - [Manual workflows](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow): dispatch requires the workflow on the default branch; branch selection is explicit.
 - [Required checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks): latest/integration SHA matters; dispatch checks alone do not satisfy PR rules; workflow path skips and skipped dependent jobs need explicit handling.
+
+## Historical implementation and publication checkpoints
+
+These snapshots preserve original failures and then-pending gates. Current rollout status is complete as recorded above; they do not reopen promotion work.
 
 Local CI-only candidate evidence:57/57 checks pass, zero flakes/failures in308.5s; full shadow fallback selects/executes57 with zero misses. All five performance runs pass unchanged budgets (1200.4KiB decoded /340.8KiB Brotli /38 scripts; median cold FCP6672ms and Focus40ms). All168 runtime/test fingerprints remain unchanged through functional and performance gates. Complete child output77,356 bytes; runner terminal output1,941 bytes. The eight-check runtime invariant set totals8.488s in this macOS run; the docs subset totals2.703s. These are local measurements, not Linux promises or evidence of activated selection savings. Actual raw-font-path before controls and initial inventory failure are retained. Clean hosted Linux and two normal candidate shadow checkpoints remain pending; this local run does not count as either checkpoint.
 

@@ -1,8 +1,6 @@
 # CI phase 3 — exact-candidate release evidence
 
-Activation dev candidate v2.105.7, October 30. The9888bf51 bootstrap and explicit release dispatch are verified. This new candidate must obtain its own full Linux dev proof before identical-SHA master promotion. Verified reuse skips duplicate functional/performance work and npm/browser setup; missing proof keeps the full gate. The helper never promotes branches or changes repository protection.
-
-**Current integration:** v2.106.0 carries the v2.105.7 activation forward with Focus/startup changes. Its new dev SHA supersedes the earlier activation candidate and requires its own full hosted proof; old candidate evidence cannot promote this integration.
+**Complete — October 30, v2.106.0 on dev/master (`2b5f229cb4f50d2d30559b62698d691aacbbb7c1`).** [Dev40962438500](https://github.com/fixingman/TODAY/actions/runs/40962438500) supplies accepted exact-SHA Linux proof: 61 suites, zero failures/flakes and all five performance runs. [Master40964846722](https://github.com/fixingman/TODAY/actions/runs/40964846722) verified `reuse=true` and passed in 15 seconds. Duplicate functional/performance work and npm/browser setup were skipped; cheap invariants and the final dependency check passed. Source artifact12937236095 and master artifact12937971159 digests/provenance were verified. Missing/incompatible proof keeps the full gate. The helper never promotes branches or changes repository protection.
 
 ## Commands
 
@@ -33,27 +31,27 @@ Verification checks:
 - The pinned Linux/Node/Chrome environment, local-source benchmark, original CPU/network profile, current app version, current budgets, byte/script limits and every worst-of-five timing. Measurements are checked against budgets rather than trusting the stored `pass` label.
 - Artifact run/attempt/SHA, expiry and GitHub's SHA256 archive digest. Downloaded archive bytes must match; only the fixed proof JSON member is read, with bounded size. Downloaded code is never executed.
 
-The final `test` job step runs with `always()` and validates explicit dependency outcomes. With reuse off, full master checks keep running. If reuse is later enabled for master pushes, the proof verifier either permits cheap invariants or falls back to the complete gate. A missing proof cannot cause a green skipped job. Master-targeting PRs remain full because head-only proof cannot approve a different integration SHA.
+The final `test` job step runs with `always()` and validates explicit dependency outcomes. With reuse off, full master checks keep running. Reuse is enabled for master pushes: the proof verifier either permits cheap invariants or falls back to the complete gate. A missing proof cannot cause a green skipped job. Master-targeting PRs remain full because head-only proof cannot approve a different integration SHA.
 
-## Activation evidence and remaining gates
+## Completed activation evidence
 
 - Bootstrap dev40877228706 and master40877229222 passed on9888bf51. The default-branch workflow is available.
 - Real dev preflight accepted artifact12898179670 (`ci-evidence-40877228706-1`), archive digest `sha256:a4fa7d5968b906537b363b6e6a816da5d6e3259be65e4044b1a8ba77772fdbbb`, policy digest `e722714c0419de0478717fe3de4e42e5caa12cf03eafb26d0be0e0afd1e1b67a`. Candidate/dev/master refs matched exactly.
-- A local integration probe used that real hosted proof: reuse accepted, cheap invariants passed and the final check accepted skipped duplicate suites/benchmark. An actual wrong-checkout CLI invocation returned `reuse=false`; skipped fallback gates were rejected. This is not a claim that the master workflow has exercised hosted reuse yet.
+- A local integration probe used that real hosted proof: reuse accepted, cheap invariants passed and the final check accepted skipped duplicate suites/benchmark. An actual wrong-checkout CLI invocation returned `reuse=false`; skipped fallback gates were rejected. This historical local probe preceded the accepted hosted master reuse above.
 - Branch metadata on October30 confirms dev/master `protected=false`, no required status contexts, and zero repository/parent rulesets. The protection-details endpoint still returns403, but the branch/ruleset endpoints resolve the earlier configuration uncertainty. Existing `test` check is retained; no protection was added or removed.
 - The candidate's offline CLI fixtures now execute fallback and final-check scripts in a disposable Git checkout, so future hosted full validation also exercises that refusal path. Rollback configuration must pass tooling tests; tests accept an explicit true or false switch rather than requiring bootstrap false forever.
 
-Remaining sequence:
+Completed sequence:
 
-1. Recorded-SHA release dispatch [40958666191](https://github.com/fixingman/TODAY/actions/runs/40958666191) passed for9888bf51, and its actual artifact12935645833 is accepted by preflight. The API credential can read Actions evidence but dispatch returns403, so routine dispatch needs the authenticated UI or a credential explicitly authorized for Actions write. No access was expanded. This is a bootstrap acceptance run, not routine duplicate validation. Hand off immediately; do not poll or wait. The dev ref must remain9888bf51 until it finishes.
-2. With dispatch acceptance complete, publish this activation candidate to **dev first**. Its new SHA/policy cannot reuse the9888bf51 report. Local affected checks precede one authoritative full Linux suite/five-run result on that exact dev commit.
-3. When that dev result passes, run exact-SHA preflight and recheck refs immediately before the authorized identical-SHA master fast-forward. Do not add metadata commits during promotion.
-4. Confirm the hosted master receipt says `reuse=true`, duplicate functional/performance steps were skipped, and cheap invariants/final dependency checks passed. If proof is missing/incompatible, full master validation must execute. Only then close phase3 and measure the first five releases.
+1. Recorded-SHA release dispatch [40958666191](https://github.com/fixingman/TODAY/actions/runs/40958666191) passed for bootstrap9888bf51; artifact12935645833 was accepted by preflight. The API credential can read Actions evidence but dispatch returns403, so dispatch used the authenticated UI. No access was expanded.
+2. v2.105.7 enabled reuse; v2.106.0 superseded that activation candidate and received its own complete hosted dev proof. The cancelled older dev run is not used as evidence.
+3. Exact-SHA preflight accepted v2.106.0 before its authorized identical-SHA master promotion. No metadata commit was added during promotion.
+4. The hosted master receipt verified reuse from dev40962438500/artifact12937236095, with duplicate setup/suites/benchmark skipped and cheap invariants/final dependency checks passing.
 
-Once the activation is published, ordinary local work stays targeted; promotion relies on the authoritative hosted dev proof rather than repeating full local/dev/master validation. Pending results never approve promotion. Rollback is `CI_RELEASE_REUSE: 'false'`, restoring full master functional and five-run performance checks; routine phase2 selection is independent. Keep original failures and deployed BUG-135 visible.
+All three CI-efficiency phases are complete. The first-of-five release measurement is retained locally in `.context/ci-phase3-enable/.context/release-metrics.json`; record the next four during normal releases, without creating extra runs. Ordinary local work stays targeted; promotion relies on authoritative hosted dev proof. Pending results never approve promotion. After dispatch/push, share the link/status and end the turn; review a compact completion report when asked, without polling. Rollback is `CI_RELEASE_REUSE: 'false'`, restoring full master functional and five-run performance checks; routine phase2 selection is independent. Keep original failures and deployed/installed BUG-135 and hosting BUG-138 open.
 
 ## GitHub references
 
-GitHub documents [workflow dispatch and default-branch availability](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch), [executing workflow variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables), and [artifact metadata, expiry and digest](https://docs.github.com/en/rest/actions/artifacts). These constraints explain the bootstrap and provenance checks; they are not evidence that this bootstrap has passed hosted activation.
+GitHub documents [workflow dispatch and default-branch availability](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch), [executing workflow variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables), and [artifact metadata, expiry and digest](https://docs.github.com/en/rest/actions/artifacts). These references explain the workflow and provenance constraints; actual activation evidence is recorded above.
 
-Activation local validation:11 affected/invariant/metadata checks passed with zero flakes/failures in96.9s; runtime/test/workflow inputs unchanged. Reuse-path policy, payload and invariants also pass with node_modules removed and CHROME_PATH pointing to a missing browser. The new commit still requires a full hosted Linux dev proof before master promotion.
+Historical activation local validation:11 affected/invariant/metadata checks passed with zero flakes/failures in96.9s; runtime/test/workflow inputs unchanged. Reuse-path policy, payload and invariants also pass with node_modules removed and CHROME_PATH pointing to a missing browser. This local check preceded the accepted hosted proof and master reuse above.
