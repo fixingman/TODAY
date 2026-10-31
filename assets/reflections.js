@@ -718,7 +718,7 @@
           const accepted = _usableReflectionText(text, candidate);
           if (accepted) {
             const reading = await _feedbackPolicy.makeReading(candidate, evidence.versions, accepted, evidence.generation,
-              _feedbackStamp(localStorage.getItem(FEEDBACK_CLEAR_KEY) || ''));
+              _feedbackStamp(localStorage.getItem(FEEDBACK_CLEAR_KEY) || ''), !!guidance);
             if (isCurrent()) { _reflectResult = accepted; _currentReading = reading; }
           }
         }

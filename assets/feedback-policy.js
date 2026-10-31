@@ -106,9 +106,10 @@ function support(c, versions) {
 }
 const supportKey = s => key(s);
 const body = r => [1, r.generation, r.claim, r.support, r.text, r.seenThrough];
-async function makeReading(candidate, versions, text, generation, now) {
+async function makeReading(candidate, versions, text, generation, now, wordingGuided) {
   const record = { generation, claim: claimKey(candidate), support: support(candidate, versions),
-    text, seenThrough: Object.keys(versions).sort().at(-1) || '', createdAt: now, reaction: null, reactedAt: '' };
+    text, seenThrough: Object.keys(versions).sort().at(-1) || '', createdAt: now,
+    ...(wordingGuided ? {wordingGuided:true} : {}), reaction: null, reactedAt: '' };
   record.id = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key(body(record)))))]
     .map(byte => byte.toString(16).padStart(2,'0')).join('');
   return record;
@@ -118,7 +119,8 @@ function validRecord(r) {
       || typeof r.claim !== 'string' || r.claim.length > 600 || !Number.isFinite(day(r.seenThrough))
       || (r.votedThrough !== undefined && !Number.isFinite(day(r.votedThrough)))
       || !stamp(r.createdAt) || ![null, 'landed', 'missed'].includes(r.reaction)
-      || (r.reactedAt !== '' && !stamp(r.reactedAt)) || (r.reaction !== null && !r.reactedAt)) return false;
+      || (r.reactedAt !== '' && !stamp(r.reactedAt)) || (r.reaction !== null && !r.reactedAt)
+      || (r.wordingGuided !== undefined && r.wordingGuided !== true)) return false;
   if (r.expired === true) return !!r.reactedAt && !r.text && !r.support;
   if (typeof r.text !== 'string' || !r.text.trim() || r.text.length > 700) return false;
   const s = r.support;
@@ -147,6 +149,7 @@ function mergeRecords(local, remote, { today, generation, clearedAt = '', versio
       ...(expired ? { expired:true } : { support:JSON.parse(key(r.support)), text:r.text }), seenThrough:r.seenThrough,
       createdAt:r.createdAt, reaction:r.reaction, reactedAt:r.reactedAt,
       ...(r.votedThrough ? {votedThrough:r.votedThrough} : {}),
+      ...(!expired && r.wordingGuided ? {wordingGuided:true} : {}),
       ...(!expired && Date.parse(r.wordingAt) < now+86400000 && wordingEvent(r) || {}) };
     const old = map.get(row.id);
     if (!old) map.set(row.id, row);
@@ -155,9 +158,10 @@ function mergeRecords(local, remote, { today, generation, clearedAt = '', versio
         (row.reaction === null || (old.reaction !== null && String(row.reaction) > String(old.reaction)))) ? row : old;
       const merged = { ...winning, createdAt: row.createdAt < old.createdAt ? row.createdAt : old.createdAt };
       Object.assign(merged, latestWording([old,row]) || {});
+      if (row.wordingGuided || old.wordingGuided) merged.wordingGuided = true;
       if (row.expired || old.expired) {
         delete merged.text; delete merged.support; merged.expired = true;
-        delete merged.wordingAt; delete merged.wordingReaction;
+        delete merged.wordingAt; delete merged.wordingReaction; delete merged.wordingGuided;
       }
       map.set(row.id, merged);
     }
