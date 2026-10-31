@@ -349,8 +349,10 @@ window._startNudge = (function() {
           if (!reactEl.classList.contains('open')) {
             _syncMorningReactionControls();
             reactEl.classList.add('open');
+            nudgeEl.classList.add('react-open');
           } else {
             reactEl.classList.remove('open');
+            nudgeEl.classList.remove('react-open');
             const reasonRow = reactEl.querySelector('.nudge-reason');
             if (reasonRow) reasonRow.hidden = true;
           }
