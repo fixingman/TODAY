@@ -250,7 +250,11 @@
         const line = e.target.closest('.week-summary');
         if (!line) return;
         const group = line.parentElement && line.parentElement.querySelector('.nudge-react');
-        if (group) group.classList.toggle('open');
+        if (group) {
+          group.classList.toggle('open');
+          const reasons = group.nextElementSibling;
+          if (reasons?.classList.contains('nudge-reason') && !group.classList.contains('open')) reasons.hidden = true;
+        }
       });
     }
     function _summaryHTML(text, surface) {
