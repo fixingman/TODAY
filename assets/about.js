@@ -212,10 +212,6 @@
       panel.addEventListener('click', e => {
         const reasonBtn = e.target.closest('.nudge-reason-btn');
         const reasonRow = e.target.closest('.nudge-reason');
-        if (reasonRow && e.target.closest('.nudge-reason-skip')) {
-          reasonRow.hidden = true;
-          return;
-        }
         if (reasonBtn && reasonRow) {
           const selected = _memorySetReactionReason(reasonRow.dataset.surface, _localISO(), reasonBtn.dataset.reason);
           reasonRow.querySelectorAll('.nudge-reason-btn').forEach(b => {
@@ -223,6 +219,7 @@
             b.classList.toggle('on', on);
             b.setAttribute('aria-pressed', String(on));
           });
+          reasonRow.hidden = true;
           if (typeof _haptic === 'function') _haptic();
           return;
         }

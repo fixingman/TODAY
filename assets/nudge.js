@@ -331,14 +331,12 @@ window._startNudge = (function() {
                 _dismiss();
                 return;
               }
-              if (e.target.closest('.nudge-reason-skip')) { _dismiss(); return; }
               const b = e.target.closest('.nudge-react-btn');
               if (!b) return;
               const choice = _memoryReactToLine('morning nudge', _localISO(), b.dataset.react);
               if (typeof _haptic === 'function') _haptic();
               if (choice === 'missed') {
                 reactEl.querySelector('.nudge-reason').hidden = false;
-                _reasonDismissTimer = setTimeout(_dismiss, 8000);
                 return;
               }
               _dismiss();
@@ -347,12 +345,15 @@ window._startNudge = (function() {
         }
         nudgeEl.onpointerdown = () => { _nudgeTouched = true; };
         nudgeEl.onclick = () => {
-          if (spokenToday && reactEl && !reactEl.classList.contains('open')) {
+          if (!spokenToday || !reactEl) { _dismiss(); return; }
+          if (!reactEl.classList.contains('open')) {
             _syncMorningReactionControls();
             reactEl.classList.add('open');
-            return;
+          } else {
+            reactEl.classList.remove('open');
+            const reasonRow = reactEl.querySelector('.nudge-reason');
+            if (reasonRow) reasonRow.hidden = true;
           }
-          _dismiss();
         };
       };
 

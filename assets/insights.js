@@ -356,8 +356,7 @@ function _memoryMissReasonHTML(surface, line) {
   ).join('');
   return '<div class="nudge-reason" data-surface="' + esc(surface) + '" role="group" aria-label="Why did this not land? Optional"' +
     (line.reaction === 'missed' ? '' : ' hidden') + '>' +
-    '<span class="nudge-reason-label">why? · optional</span>' + buttons +
-    '<button type="button" class="nudge-reason-skip">done</button></div>';
+    '<span class="nudge-reason-label">why? · optional</span>' + buttons + '</div>';
 }
 function _memoryReactionStamp(previous) {
   const prior = Date.parse(previous || '') || 0;
