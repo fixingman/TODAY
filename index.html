@@ -573,10 +573,9 @@
     display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
   }
   .focus-ask-reaction { min-height: 24px; }
-  .focus-wording-help { margin: var(--space-2) 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
-  .focus-wording-toggle, .focus-wording-choices .focus-ask-reaction { color: var(--muted); opacity: 1; }
-  .focus-wording-choices [aria-pressed="true"] { color: var(--text); }
-  .focus-wording-choices { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+  .focus-wording-toggle.on { color: var(--text); opacity: 1; }
+  .focus-wording-choices [aria-pressed="true"] { color: var(--text); opacity: 1; }
+  .focus-wording-choices { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding-top: var(--space-2); }
   .focus-ask-feedback-actions [data-today-click="focus-ask.clear"] { margin-left: auto; }
   .focus-ask-feedback-actions:has(.on) [data-choice] { color: var(--muted); opacity: 1; }
   .focus-ask-feedback-actions [data-choice].on { color: var(--text); opacity: 1; }
@@ -4738,9 +4737,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.106.8': 'Focus wording feedback: consistent tokens, no help text, no "clear all", auto-collapses after choice, toggle shows active state.',
   '2.106.7': 'Morning reading reaction row fades in smoothly; tapping the reading again collapses it; selecting a reason auto-dismisses; "done" removed.',
   '2.106.6': 'Unified voted / not-really buttons: same font, size, letter-spacing and lowercase everywhere across Focus, morning reading and reflections.',
-  '2.106.5': 'Tapping the morning reading in About now collapses the full feedback row, including the reason chips.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
