@@ -6,10 +6,9 @@
 
 | Status | Meaning |
 |---|---|
-| ✅ Verified | Fixed and verified by Can, including an accepted reproduction-equivalent simulator run |
-| ⏳ Verify | Fix pushed; awaiting Can’s verification |
+| ✅ Verified | Reported defect verified fixed by Can, deployed checks, or an authorized reproduction-equivalent automated check; separate account/usefulness acceptance is not implied |
+| ⏳ Verify | Fix pushed; reported behavior still requires verification |
 | 🔧 Local | Fix implemented locally; not pushed |
-| 🔍 Investigating | Cause or remaining fix is still under investigation |
 | ↪ Merged | Tracked under the bug shown in the Reference column |
 | ⚠️ Stale | Old, unverified report that needs a fresh reproduction |
 | 🚫 Rejected | Platform limitation or deliberately not being fixed |
@@ -20,14 +19,9 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 138 | 🔍 Open | Hosting injects a Real User Monitoring SDK outside the repository. | Netlify setting |
-| 137 | ⏳ Verify | Clean GitHub runs fail Calendar, enrichment screenshots and Focus resize fixtures. | v2.103.5 |
-| 136 | ⏳ Verify | Dev service worker installs without the app-shell precache because a listed helper returns 404. | v2.103.0 |
+| 139 | ⏳ Verify | Accepted daily reading disappears from About after a completion shares a word with its prose. | v2.106.2 |
+| 137 | ⏳ Verify | Hosted regression gate fails pool feedback clearing and configured reflection display. Earlier Calendar/enrichment/Focus fixture repairs are verified. | v2.106.1 |
 | 135 | 🔍 Open | Startup blocking and cold/warm load exceed performance limits. | v2.106.0 |
-| 134 | ⏳ Verify | Sunday treats tied let-go reasons as a majority and generalizes missing reasons. | v2.101.1 |
-| 131 | ⏳ Verify | Supported split actions are rejected; an old offer can replace a changed task. | v2.106.0 |
-| 128 | ⏳ Verify | Gmail reuses old queries or caches replies after a task changes or disappears. | v2.99.1 |
-| 127 | ⏳ Verify | Web/Trello context outlives its task, source or focus view. | v2.99.1 |
 | 120 | ↪ Merged | Daily-nudge delivery follow-up; tracked with the strip/About mismatch. | BUG-118 |
 | 118 | ⏳ Verify | Daily nudge can be missing or disagree between the task list and About. | v2.97.8 |
 | 117 | ⏳ Verify | Gmail context includes automated booking and calendar notifications. | v2.93.20 |
@@ -37,21 +31,29 @@
 
 ---
 
-*BUG-001–087 (all), verified BUG-088–119, 121–126, 129–130, 132–133 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+*BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
 
 ---
 
-## BUG-138 — Hosting appends Real User Monitoring
+## BUG-139 — A completed-task word hides the accepted daily reading
 
-**Confirmed October 28:** fresh public dev and production v2.103.4 HTML responses append a netlify-rum-container script after the repository HTML. Removing only that identified append produces the exact committed HTML; deployed sound.js and sw.js match byte for byte. No personal account, task content or diagnostic metric history was read. This establishes SDK injection, not what data successfully reached a collector; CSP may constrain its requests.
+**Report (Can, October 30):** a daily reading arrived after midnight, was voted on, then disappeared from About on all devices. Strip dismissal after voting is understood and is not this report. A subsequent task completion is a possible explanation; the exact historical task/reading relationship has not been inspected or established. No private reading, vote ledger or task was copied into the repository.
 
-**Action:** disable Real User Monitoring in Netlify’s today-here project, then verify the script is absent on both origins. Rule 32 excludes analytics SDKs even when anonymous. The [official Netlify instructions](https://docs.netlify.com/manage/monitoring/real-user-monitoring/#disable-real-user-monitoring) warn that disabling removes the RUM dashboard/metrics. The browser connector failed during setup and no Netlify credential/CLI configuration is available here; Can has been asked to change the setting. Do not broaden CSP, normalize the injected SDK into an accepted source baseline, or claim this is fixed before deployed verification.
+**Confirmed defect:** `_dayLineNamesDoneTask()` accepted any eligible shared word as proof that an accepted reading referred to a completed task. An unrelated completed task “Buy a library card” therefore hid a fictional reading about choosing a library book. Synced completions/recent-completion records apply the same inference on other devices. Voting in About itself does not dismiss the reading. The real-startup desktop before-control fails `complete-overlap: accepted reading remains in About`; original log: `.context/nudge-retention-fix/before.log`.
+
+**Fix (v2.106.2 dev candidate):** both existing homes use the dated accepted cache without word-based completion retirement. Until a verified task relationship exists, local/synced completions cannot hide, replace or regenerate an accepted sentence; its existing feedback remains available. Writer selection, context, prompts, requests and model response format are unchanged; no forced task wording, model-reported task IDs, added metadata, new AI call, sync field or schema. Strip voting/dismissal/noon, actual day rollover, current-date sync adoption and explicit clear/data-loss boundaries retain their existing meaning. Completion still affects future generation's current task evidence. Future retirement needs an unchanged task/source identity plus evidence completion invalidates that reading; uncertain associations preserve it.
+
+**Verification:** the original-code shared-word failure is retained. Updated regressions cover a single shared word, a literal task mention without a verified link, unrelated completion, local/synced completion, About vote survival, no replacement request, accepted cache at noon and next local day. Eight affected suites (`nudge-delivery`, `nudge`, `nudge-feedback`, `dropbox`, `about`, component contract, smoke and day lifecycle) plus design lint and CI invariants pass on Node24.14.0 / Chrome152.0.7977.75. The delivery suite covers56 desktop/touch cases; runtime/test/workflow inputs remain unchanged throughout. Current writer bytes match the original. Two intermediate new-test input failures are retained separately: the fixture clicked a closed/moving feedback row; a focused hit-test control shows the moving button centre hit a DIV, then the same real click after its existing animation settles records the vote. Production timing/deadlines were not changed. Full receipts and logs: `.context/nudge-retention-fix/verification.json`, `checks/`, `before.log` and `feedback-input-control.mjs`. This is targeted local verification, not full release approval; the dev candidate still requires hosted proof and installed pickup. General midnight delivery/real-use writing acceptance stays separate under BUG-118 and Backlog #15A.
 
 ---
 
 ## BUG-137 — Clean CI fixture failures
 
-**Current verification (October 30):** v2.106.0 full hosted dev run40962438500 passed all 61 suites with zero failures/flakes and all five performance runs. The original CI failures and causal controls below are historical evidence; current hosted confirmation is complete. Existing installed acceptance remains open; no Can verdict is inferred.
+**Status: ⏳ v2.106.1 — shipped; verification is failing.**
+
+**Failed verification (October 30):** [master41042013402](https://github.com/fixingman/TODAY/actions/runs/41042013402) on `946dc046` ends with 59 passing suites, one flaky and one failed. `pool-wording-test` fails `sunday incoming-clear` on its first attempt and passes only the diagnostic retry; it correctly fails the gate. `reflections-test` fails “configured AI + 16 reflections → reflection shown” on both attempts. The earlier Calendar/enrichment/Focus fixture failures no longer fail this run, but these two current failures are unresolved. No fixture/runtime/environment cause is assumed. Failure log retained in `.context/independent-bug-review/master-failures.log`; no passing reroll replaces it. BUG-137 therefore still awaits an accepted verification pass; CI-efficiency implementation remains complete.
+
+**Current verification (October 30):** v2.106.0 full hosted dev run40962438500 passed all 61 suites with zero failures/flakes and all five performance runs. The original Calendar/enrichment/Focus CI failures and causal controls below are historical evidence; that earlier hosted confirmation is complete. The later pool/reflection failures above remain unresolved. Physical-device acceptance is not needed to diagnose this hosted regression gate.
 
 **Phase-2 local follow-up:** Calendar/Gmail-feedback/Sound static servers decode encoded font paths; layout checks require all six shipped font faces. Node-seeded About/day/habit/nudge date keys share a fictional browser origin while elapsed deadlines advance. Pinned-browser and clean-checkout verification are separate from hosted Linux and installed acceptance; retain historical failures.
 
@@ -68,19 +70,6 @@
 **Confirmed run:** dev 40605616074 / commit 9f012a5e reports 50 passed, zero flaky, three failed. Enrichment tries to write a screenshot below a directory absent from a fresh checkout. Calendar builds an event ten minutes from wall-clock now, which falls outside today near midnight; its expected one-event context then never arrives. Focus waits for a button narrower than 250px although a valid resized answer can be wider on another platform. The source/user-input contracts are unchanged. Original logs: .context/15g-reliability/dev-ci-failure.log.
 
 **Local repair (v2.103.2):** create the artifact directory before screenshot; freeze the integration fixture at UTC noon and build its token/event dates from that clock; compare Focus width with the actual desktop width while retaining scrolling/reply/rating assertions and deadlines. Final local verification: 53 functional suites passed with zero flaky/failed results; all five performance runs pass unchanged budgets (worst cold blocking59ms/200, coldFCP6748ms/7000, warmFCP124ms/500, focus35.9ms/300; medianfocus33ms). Payload1201.1KiB decoded/341.0KiB Brotli/38scripts. The About-history-only copy correction has identical version/executable behavior and passes subsequent syntax/smoke/design/payload checks. Original failures and causal negative controls are retained. Published as a2357665; both v2.103.2 hosted runs passed 52 suites and exposed the overflow-fixture assumption followed up in v2.103.4. No timeout or budget raised.
-
----
-
-## BUG-136 — Dev app-shell precache lists an unpublished helper
-
-**Automated deployed verification (October 28):** fresh anonymous browser contexts on both dev and production return 200 for the actual helper; all 69 declared shell resources plus branded fallback are cached. Offline reload shows the app/add field and imports the actual helper. No personal account, tasks or installed device was accessed. Deployed v2.103.0 repairs the missing file; accepted real-device verification remains separate. Local v2.103.2 additionally rejects incomplete updates and removes their partial caches, preserving the old worker/cache for both missing-file and network failures. Those new regression cases fail before and pass after; healthy update and offline/fallback paths pass.
-
-
-**Discovery (October 28):** origin/dev 5d97baa1 includes /assets/enrichment-feedback.js in sw.js, but that commit does not contain the file. Direct dev fetch returned HTTP 404. The parallel metadata push included a prepared entry before the enrichment runtime was committed.
-
-**Impact:** cache.addAll rejects the missing resource. Its install handler catches the error, so installation can complete without the full app-shell cache; this is an offline-precache defect, not proof that update installation stops.
-
-**Fix (v2.103.0):** include the actual lazy helper already named in the shell. The real service-worker suite confirms all shell resources cache and the actual helper imports offline; full 53-suite gate passes. Can requested dev/master publication October 28; deployed/offline acceptance remains pending. Performance failure is separately BUG-135.
 
 ---
 
@@ -104,48 +93,6 @@
 **Attribution/control:** the original first cold run records 434.8 ms in unchanged sound.js initialization. Chrome is 156.0.8078.49, compared with .48 in the prior passing baseline. One separate diagnostic run of published 512bc7b2 / v2.101.5 under the same current Chrome/Node also fails cold TBT 301 ms, with 338.6 ms sound initialization. This demonstrates a wider startup issue; it does not establish the browser update as cause, explain every load failure or clear the candidate. No enrichment/sound/harness/threshold workaround or successful reroll was substituted.
 
 **15E publication status (historical):** investigating. Can requested publication to dev and master on October 28 after that failure was reported; it did not establish a performance pass. The subsequent v2.103.2 repair has the passing local evidence above. Preserve original failed benchmark in memory/performance-baseline.json and .context/15e-adaptation/isolated-final-performance.json, plus the single-run control, logs and 149 source fingerprints. In-progress parallel Focus changes are excluded from this candidate. A causal startup repair must preserve first-input behavior and satisfy unchanged five-run budgets; technical loop completion and actual writing usefulness remain separate.
-
----
-
-## BUG-134 — Let-go reason selection overstates its evidence
-
-**Discovery (15C review, October 27):** the existing builder selects a reason shared by three of six reasoned releases as a majority. Input order decides which tied reason wins. Four relevance reasons out of seven also produce an unsupported claim that competing energy reasons were rare. With three energy reasons, one relevance reason and twenty unreasoned releases, the selected insight generalizes across all releases rather than the four supplied reasons. Fictional controls reproduce these defects; no particular historical reading or quiet Sunday is diagnosed.
-
-**Fix (v2.101.1 dev release):** require >50% of recorded reasons while retaining minimum four reasoned releases and three matching reasons. The aggregate audit uses the same boundary. Scope the four supported insights to reasons given/stated and remove the unsupported rare-competing-reason assertion. Unknown reasons remain unknown; no new coverage threshold. Kind identity, ranks, votes, retirement, cooldowns, material-change reopening, dated caches, existing writer and request count stay unchanged. Existing cached/spoken readings are preserved; the correction applies to new selections.
-
-**Verification:** five new policy regressions and six relevant real-browser assertions fail before the fix. Afterward, all 130 policy checks and the complete About/Sunday browser suite pass in the working tree and against published dev 83aa057f plus only this patch. Coverage includes tie order, valid/narrow majority, plurality, missing reasons in all supported insights, competing candidates, fallback retirement, actual scoped writer input, no raw-record leakage and one existing call. Existing source/readiness/late-response and two-store sync controls still pass. Lint and unchanged payload budgets pass. Evidence: `.context/15c-reason-majority/`. Integrated gate: 53 passed, zero flaky/failed; all five performance runs and payload pass unchanged budgets, recorded in `combined-gate.log` and `integrated-performance.json` in that directory. Real-use usefulness remains iterate.
-
----
-
-## BUG-131 — Post-add splitting loses valid actions and can apply an obsolete offer
-
-**v2.106.0 dev publication:** include the pending confirmed `oil` imperative correction and its policy/actual Add → proxy → explicit Split checks. Existing tasks are still not automatically reconsidered; unsupported syntax/languages and actual installed usefulness remain open. Earlier v2.100.1 ownership and source-index fixes stay intact.
-
-**15F audit/reproduction (October 27):** the fixed English verb guard rejects the explicitly written “Install the shelves and paint the wall” and “Translate the document and send it”. The earlier fictional probe is retained in `.context/post-add-split-review-2026-10-26.json`. Requiring the model to repeat every source phrase also makes paraphrases ineligible; the frequency of that behavior on Can’s account is unmeasured. A new actual-component fixture shows an accepted split can remove a task after its text changes, recording application against the obsolete source. This is separate from BUG-129 transport recovery and does not explain every historical missing offer.
-
-**Fix (v2.100.1 dev release):** expand supported English imperatives and ask the writer to confirm the complete zero-based source-clause index sequence. The client, not the model, supplies the child task wording. The same 2–3 complete verb-led clause guard remains; broad tasks, joined objects, unfamiliar/ambiguous syntax and unsupported languages stay conservative. Invalid indices or mixed invented text are rejected, with exact legacy-copy compatibility. No fuzzy semantic matching, inferred prep or unrelated task input. Applying the explicit offer rechecks its current identity, unchanged source and undone Today owner, revalidates the clauses, then preserves source text/tag inheritance. Stale application quietly dismisses the offer without a false miss or losing the owner.
-
-**Verification:** policy regressions fail before and pass after for the confirmed verbs. The real browser reproduces stale edit/application before the fix. Actual Add → real proxy → fictional index-only provider → mobile keyboard Split covers two/three actions, exact spacing/case/punctuation/tags and one applied outcome. Reversed/duplicate/out-of-range/missing/sparse/wrong-type indices, invented mixed responses, legacy paraphrases, single activity/objects, and edit/check/move before Apply remain rejected. Existing offline/transient/deadline/terminal/owner recovery tests pass unchanged. Evidence is retained under `.context/15f-splitting/`. Final automated validation: 52/52 suites, zero flaky/failed; all five performance runs and payload pass unchanged budgets (1203.9 KiB decoded / 343.2 KiB Brotli / 38 scripts). Runtime/test source stayed unchanged. Installed acceptance and live model selection/usefulness are not established by mocked fixtures.
-
----
-
-## BUG-128 — Gmail classifier and late lookup are not bound to the current task
-
-**Audit (October 26, 15E):** isolated fictional actual-component probe (`.context/phase4-15e/gmail-audit-probe.mjs` / `.log`) seeds an earlier classification for a changed task. `_classifyTask()` reuses the AI-sourced query without matching task text; Gmail receives `from:previous-person` while the task now names Gaia. A held email-thread body is then released after removing the current manual owner; `_gmailEnrichTask()` still writes its selected email cache. No live mail/account or production incidence was inspected.
-
-**Implementation (v2.99.1 dev release):** both existing caches bind exact retained task wording, ownership policy and a device-local origin-scoped digest of the current refresh grant. This is a sensitive connection marker, not an email address or proof of account identity; it never enters AI, diagnostics or backup. Access-token refresh stays within the same grant; reconnect/Forget and changed credentials fence old work. Late refresh/code-exchange responses cannot restore forgotten tokens. Requests require the current unchanged, undone Today owner, current AI configuration, cache adoption and request identity, with a 26s deadline. Focus-origin lookup/draft work is visit-bound and cancels on exit/switch; valid capture-origin lookups can still cache for their unchanged task. Current task text also governs indicators. Coalesced zone saves retain unchanged owners through moves and prune true deletion/edits; selected caches expire after 24h. No new scope, mail feedback, model instruction, collection or backup schema.
-
-**Verification:** the original fictional audit shows old-query reuse and deleted-owner cache writes before, both fenced after. `gmail-test` uses real owners and preserves prior retrieval assertions, adding 24 classification/list/body races, visit/draft/cache-adoption guards, actual Focus Escape, real sync, token refresh versus Forget, cross-tab source changes, lookup/draft deadlines and Copy without regeneration. Final local validation: 41 Gmail checks, 37 enrichment checks and all 52 suites pass with zero flaky/failed tests. Five-run performance and payload pass unchanged budgets (1202.6 KiB decoded / 343.1 KiB Brotli / 38 scripts); audit refreshed. Final combined source hashes, 52-suite logs and five-run performance evidence are retained in `.context/dev-release-evidence/`; earlier Gmail failures remain in `.context/gmail-128/`. Dev release approved; installed-account and usefulness verification remain open. The stale-tab cache-pruning regression is reproduced/fixed; cache arrival preserves newer context from another tab. Existing booking/no-draft, MiniSearch ambiguity/calendar filtering and Apple Mail behavior remain covered. Actual connected-account/mobile acceptance and BUG-117 relevance stay separately open.
-
----
-
-## BUG-127 — Web/Trello enrichment outlives its task/source and focus view
-
-**Reproduced (October 26):** the real browser shows an old “white paint” card after the same owner is now “blue paint”. `_getCache()` ignored task text/source and successful cache policy. In-flight lookups can write after owner deletion/rename/connection change; cached focus visits fail to restamp ownership and close leaves the request’s dataset owner intact. Network/exhausted/malformed server results can become HTTP200 null cards and poison a permanent negative cache.
-
-**Local v2.99.0:** v3 cache validates retained manual owner/exact text across Today/Soon/Past, source board, policy and 30-day age; limits the prefix to 60 entries / 200,000 UTF-8 bytes. Pending headers/body check source/credentials/cache adoption and request identity, with 26s abort and safe supersession. Focus has independent view ownership and synchronous close invalidation. Failures are retryable 502; only explicit no-result is cached. Existing card gains exact-card local withholding/Undo/show context with neutral link semantics. Hidden state is authoritative and success-ineligible in the previous client as well; unchanged zone moves retain it and true deletion removes it. No preference inference, new prompt, extra feedback call, new synced data or Gmail controls.
-
-**Verification:** before-fix browser fixture fails; targeted real-component tests pass for source/policy/expiry, pending races, keyboard/Undo/retained hiding, closed focus and 320px wrapping. Focused Claude review completed and its reproduced Undo-focus/label/hidden-state findings are corrected. Earlier slice 52-suite runs pass; cleanup passes 37 component checks including axe/real zone transitions, plus zones/drag/Focus/smoke and payload. Final integrated v2.99.0 checks now pass 52/52 suites (zero flaky), all six visual scenes, accessibility and five-run performance/payload with unchanged budgets. Memory targets and absent-insight feedback access were repaired while retaining the parallel styling; commit/release remains pending. No installed-account/usefulness acceptance claimed.
 
 ---
 
@@ -271,4 +218,4 @@ Consolidated with BUG-118 at Can’s request, 2026-10-22. The strip/About agreem
 
 ---
 
-**Dev release checkpoint (October 26):** BUG-127/128 are included in the approved v2.99.1 dev release; their earlier local implementation/verification notes above are historical checkpoints. Installation and accepted verification remain open.
+**Independent verification (October 30):** technical BUG-127/128 ownership defects are verified and archived. Real connected-account relevance and writing usefulness remain under Backlog #15E and the still-open Gmail reports; they are not prerequisites for closing a reproduced stale-owner defect.

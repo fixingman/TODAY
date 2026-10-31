@@ -1,25 +1,32 @@
 # Bugs Archive
 
-> Verified fixed bugs, including reproduction-equivalent simulator runs accepted by Can. Full root cause + fix detail preserved here.
+> Verified fixed bugs, including user-authorized deployed and reproduction-equivalent automated checks. Each record states its verification scope; full root cause + fix detail is preserved here.
 > Active / awaiting bugs → `Bugs.md`
 > **Ordering rule:** newest first (highest BUG number on top, BUG-001 at the bottom).
 
 ---
 
-## Status Summary — BUG-001 to BUG-087; verified BUG-088–133 (excl. open/pending 131, 134)
+## Status Summary — archived bugs (newest first)
 
 > BUG-001–055 moved from `Bugs.md` 2026-09-01; BUG-056–087 moved 2026-09-27; verified BUG-088–119 moved 2026-10-25; verified BUG-122/126/129 moved 2026-10-27; BUG-121/123/124/125/132/133 archived after Can accepted their browser reproductions on 2026-10-27; BUG-106/130 table rows archived 2026-10-27. `Bugs.md`
 > now carries open, awaiting-verification, rejected, and merge-pointer rows only. Three rows in 001–087 are not verified fixes: BUG-061 is ⚠️ Stale
 > (needs a fresh-device Sunday/habit badge check) and BUG-062/069 are 🚫 Rejected.
+> BUG-138 closed/archived October 30 after Can disabled Netlify RUM and all four public HTML checks confirmed removal. BUG-136/134/131/128/127 were independently verified and archived the same day at Can’s request; their unrelated real-use/account verdicts remain separate.
 > Newest first, matching the ordering rule above. Not every row has a detail section —
 > the earliest fixes were summarised only.
 
 | # | Description | Status |
 |---|---|---|
+| 138 | Hosting appends an unwanted Real User Monitoring SDK | ✅ Netlify setting disabled; deployed removal verified 2026-10-30 |
+| 136 | Dev app-shell precache lists an unpublished helper | ✅ Deployed/offline and update-rejection checks, 2026-10-30 |
+| 134 | Sunday overstates tied or missing let-go reasons | ✅ Policy and real-component verification, 2026-10-30 |
 | 133 | A reordered new task jumps to the bottom as sync and an AI tip arrive | ✅ v2.101.0 |
 | 132 | Long desktop task edits cannot visually scroll back to the beginning | ✅ v2.100.2 |
+| 131 | Supported split actions rejected or obsolete offer applied | ✅ Confirmed verbs/source-index and stale-Apply verification, 2026-10-30 |
 | 130 | Completed tasks can reach other devices late after a failed read or overlapping write | ✅ v2.98.6 |
 | 129 | Split suggestions disappear after a temporary failure or offline capture | ✅ v2.99.1 |
+| 128 | Gmail classifier and late lookup outlive their task | ✅ Request/cache ownership verification, 2026-10-30 |
+| 127 | Web/Trello context outlives its task/source or focus | ✅ Request/cache/view ownership verification, 2026-10-30 |
 | 126 | Sunday fallback bypasses feedback and overstates weekly evidence | ✅ v2.99.1 |
 | 125 | Temporary Trello failures show a disconnected icon | ✅ v2.98.5 |
 | 124 | Manual-task pomodoro counts revert after syncing | ✅ v2.98.5 |
@@ -157,6 +164,53 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 
 Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. All five are now ✅. Remaining open from the 2026-09-04 batch: BUG-091 (real Gmail), BUG-089 (native Mail handoff), and BUG-061 (stale, Sunday/habit badge).
 
+## BUG-138 — Hosting appends Real User Monitoring
+
+**Status: ✅ Verified October 30, 2026.** Can reported disabling Real User Monitoring in Netlify. Fresh no-cache requests at 11:54 UTC returned HTTP 200 for `/` and `/index.html` on both production and dev, with neither `netlify-rum-container` nor the injected `/.netlify/scripts/rum` script present. All four response bodies match committed HTML exactly: production v2.106.1 (`946dc046`), dev v2.106.0 (`2b5f229c`). Content-free receipt: `.context/bug138-verification/deployed.json`.
+
+**Resolution:** hosting-setting change; no application-code, CSP, provider or CI workflow change. Keep RUM disabled under Rule 32. This closes the confirmed injection defect; it makes no retrospective claim about what data reached Netlify or why/when the setting was enabled. The separate BUG-135 performance investigation remains open; no post-removal performance recovery is claimed.
+
+**Confirmed October 28:** fresh public dev and production v2.103.4 HTML responses append a netlify-rum-container script after the repository HTML. Removing only that identified append produces the exact committed HTML; deployed sound.js and sw.js match byte for byte. No personal account, task content or diagnostic metric history was read. This establishes SDK injection, not what data successfully reached a collector; CSP may constrain its requests.
+
+**Historical required action:** disable Real User Monitoring in Netlify’s today-here project, then verify the script is absent on both origins. Rule 32 excludes analytics SDKs even when anonymous. The [official Netlify instructions](https://docs.netlify.com/manage/monitoring/real-user-monitoring/#disable-real-user-monitoring) warn that disabling removes the RUM dashboard/metrics. The browser connector failed during setup and no Netlify credential/CLI configuration is available here; Can has been asked to change the setting. Do not broaden CSP, normalize the injected SDK into an accepted source baseline, or claim this is fixed before deployed verification.
+
+---
+
+## BUG-136 — Dev app-shell precache lists an unpublished helper
+
+**Verified independently October 30, 2026, under Can’s request for checks that do not require his device.** Eight targeted suites pass (seven in the bounded runner plus the assistant integration suite), zero failures/flakes; no full-release approval is inferred. Node24.14.0 / Chrome152.0.7977.75. Runtime/test/workflow inputs match published `946dc046` and remained unchanged during the run. The assistant integration runs from an isolated checkout of that exact commit. Evidence: `.context/independent-bug-review/verification.json`, `targeted-results/summary.json`, `assistant-test.log`, `deployed-offline.json` and `published-assets.json`. Existing causal before-fix failures below are retained.
+
+**Verification scope:** Fresh anonymous browser contexts on both deployed origins return HTTP 200 for the previously missing helper, cache all 72 declared shell resources plus the fallback, then reload the app/add field and import the helper offline. `service-worker-test` passes install/update/offline coverage, including failed/missing-resource update rejection that preserves the old worker/cache. This verifies the reported precache defect without access to Can’s installed PWA.
+
+**Historical implementation and release record:** earlier local/pending statements below are snapshots superseded by this verification.
+
+**Automated deployed verification (October 28):** fresh anonymous browser contexts on both dev and production return 200 for the actual helper; all 69 declared shell resources plus branded fallback are cached. Offline reload shows the app/add field and imports the actual helper. No personal account, tasks or installed device was accessed. Deployed v2.103.0 repairs the missing file; accepted real-device verification remains separate. Local v2.103.2 additionally rejects incomplete updates and removes their partial caches, preserving the old worker/cache for both missing-file and network failures. Those new regression cases fail before and pass after; healthy update and offline/fallback paths pass.
+
+
+**Discovery (October 28):** origin/dev 5d97baa1 includes /assets/enrichment-feedback.js in sw.js, but that commit does not contain the file. Direct dev fetch returned HTTP 404. The parallel metadata push included a prepared entry before the enrichment runtime was committed.
+
+**Impact:** cache.addAll rejects the missing resource. Its install handler catches the error, so installation can complete without the full app-shell cache; this is an offline-precache defect, not proof that update installation stops.
+
+**Fix (v2.103.0):** include the actual lazy helper already named in the shell. The real service-worker suite confirms all shell resources cache and the actual helper imports offline; full 53-suite gate passes. Can requested dev/master publication October 28; deployed/offline acceptance remains pending. Performance failure is separately BUG-135.
+
+---
+
+## BUG-134 — Let-go reason selection overstates its evidence
+
+**Verified independently October 30, 2026, under Can’s request for checks that do not require his device.** Eight targeted suites pass (seven in the bounded runner plus the assistant integration suite), zero failures/flakes; no full-release approval is inferred. Node24.14.0 / Chrome152.0.7977.75. Runtime/test/workflow inputs match published `946dc046` and remained unchanged during the run. The assistant integration runs from an isolated checkout of that exact commit. Evidence: `.context/independent-bug-review/verification.json`, `targeted-results/summary.json`, `assistant-test.log`, `deployed-offline.json` and `published-assets.json`. Existing causal before-fix failures below are retained.
+
+**Verification scope:** `observation-pool-test` and `about-test` pass the strict-majority, both tie orders, plurality, missing-reason scope and actual Sunday writer/component checks. Production `week-reflection-policy.js` matches the tested commit. This verifies evidence-counting/grounding correctness; pool/Sunday usefulness remains iterate under Backlog #15C.
+
+**Historical implementation and release record:** earlier local/pending statements below are snapshots superseded by this verification.
+
+**Discovery (15C review, October 27):** the existing builder selects a reason shared by three of six reasoned releases as a majority. Input order decides which tied reason wins. Four relevance reasons out of seven also produce an unsupported claim that competing energy reasons were rare. With three energy reasons, one relevance reason and twenty unreasoned releases, the selected insight generalizes across all releases rather than the four supplied reasons. Fictional controls reproduce these defects; no particular historical reading or quiet Sunday is diagnosed.
+
+**Fix (v2.101.1 dev release):** require >50% of recorded reasons while retaining minimum four reasoned releases and three matching reasons. The aggregate audit uses the same boundary. Scope the four supported insights to reasons given/stated and remove the unsupported rare-competing-reason assertion. Unknown reasons remain unknown; no new coverage threshold. Kind identity, ranks, votes, retirement, cooldowns, material-change reopening, dated caches, existing writer and request count stay unchanged. Existing cached/spoken readings are preserved; the correction applies to new selections.
+
+**Verification:** five new policy regressions and six relevant real-browser assertions fail before the fix. Afterward, all 130 policy checks and the complete About/Sunday browser suite pass in the working tree and against published dev 83aa057f plus only this patch. Coverage includes tie order, valid/narrow majority, plurality, missing reasons in all supported insights, competing candidates, fallback retirement, actual scoped writer input, no raw-record leakage and one existing call. Existing source/readiness/late-response and two-store sync controls still pass. Lint and unchanged payload budgets pass. Evidence: `.context/15c-reason-majority/`. Integrated gate: 53 passed, zero flaky/failed; all five performance runs and payload pass unchanged budgets, recorded in `combined-gate.log` and `integrated-performance.json` in that directory. Real-use usefulness remains iterate.
+
+---
+
 ## BUG-133 — Sync sends a newly reordered task back to the bottom
 
 **Verified (2026-10-27):** Can explicitly accepted the reproduction-equivalent local browser tests as sufficient verification. The verified fix is included in the combined v2.101.0 dev/master release.
@@ -182,6 +236,24 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 **Fix (v2.100.2 dev release):** restrict the existing canvas fallback to iOS, including touch-capable iPad desktop identity. Desktop always uses the native offset, including zero. No task data, save, selection, animation or sync change.
 
 **Verification:** the new `task-actions-test` regression fails before the fix and passes after; it uses actual Delete/Edit controls, verifies start/end overlay alignment with the caret retained at the end, and types/saves a leading edit. All 12 task-action checks, 36 bounce wiring checks, smoke, service-worker, design lint and payload budgets pass. Evidence: `.context/task-edit-scroll-before.log`, `.context/task-edit-scroll-after.log`, `.context/task-edit-*.log`. Can accepted the desktop browser reproduction as sufficient verification; no physical iOS verification is claimed.
+
+---
+
+## BUG-131 — Post-add splitting loses valid actions and can apply an obsolete offer
+
+**Verified independently October 30, 2026, under Can’s request for checks that do not require his device.** Eight targeted suites pass (seven in the bounded runner plus the assistant integration suite), zero failures/flakes; no full-release approval is inferred. Node24.14.0 / Chrome152.0.7977.75. Runtime/test/workflow inputs match published `946dc046` and remained unchanged during the run. The assistant integration runs from an isolated checkout of that exact commit. Evidence: `.context/independent-bug-review/verification.json`, `targeted-results/summary.json`, `assistant-test.log`, `deployed-offline.json` and `published-assets.json`. Existing causal before-fix failures below are retained.
+
+**Verification scope:** `suggestion-policy-unit-test`, `suggestion-outcomes-test` and the actual Add → proxy → mobile Split cases in `assistant-test` pass, including the confirmed oil imperative, exact source-index copying, invalid replies and stale edit/delete/check/move application fences. Production policy/assistant files match the tested commit. This closes the confirmed verb and obsolete-Apply defects; unsupported syntax/languages, live model selection and useful offer frequency remain separate #15F acceptance.
+
+**Historical implementation and release record:** earlier local/pending statements below are snapshots superseded by this verification.
+
+**v2.106.0 dev publication:** include the pending confirmed `oil` imperative correction and its policy/actual Add → proxy → explicit Split checks. Existing tasks are still not automatically reconsidered; unsupported syntax/languages and actual installed usefulness remain open. Earlier v2.100.1 ownership and source-index fixes stay intact.
+
+**15F audit/reproduction (October 27):** the fixed English verb guard rejects the explicitly written “Install the shelves and paint the wall” and “Translate the document and send it”. The earlier fictional probe is retained in `.context/post-add-split-review-2026-10-26.json`. Requiring the model to repeat every source phrase also makes paraphrases ineligible; the frequency of that behavior on Can’s account is unmeasured. A new actual-component fixture shows an accepted split can remove a task after its text changes, recording application against the obsolete source. This is separate from BUG-129 transport recovery and does not explain every historical missing offer.
+
+**Fix (v2.100.1 dev release):** expand supported English imperatives and ask the writer to confirm the complete zero-based source-clause index sequence. The client, not the model, supplies the child task wording. The same 2–3 complete verb-led clause guard remains; broad tasks, joined objects, unfamiliar/ambiguous syntax and unsupported languages stay conservative. Invalid indices or mixed invented text are rejected, with exact legacy-copy compatibility. No fuzzy semantic matching, inferred prep or unrelated task input. Applying the explicit offer rechecks its current identity, unchanged source and undone Today owner, revalidates the clauses, then preserves source text/tag inheritance. Stale application quietly dismisses the offer without a false miss or losing the owner.
+
+**Verification:** policy regressions fail before and pass after for the confirmed verbs. The real browser reproduces stale edit/application before the fix. Actual Add → real proxy → fictional index-only provider → mobile keyboard Split covers two/three actions, exact spacing/case/punctuation/tags and one applied outcome. Reversed/duplicate/out-of-range/missing/sparse/wrong-type indices, invented mixed responses, legacy paraphrases, single activity/objects, and edit/check/move before Apply remain rejected. Existing offline/transient/deadline/terminal/owner recovery tests pass unchanged. Evidence is retained under `.context/15f-splitting/`. Final automated validation: 52/52 suites, zero flaky/failed; all five performance runs and payload pass unchanged budgets (1203.9 KiB decoded / 343.2 KiB Brotli / 38 scripts). Runtime/test source stayed unchanged. Installed acceptance and live model selection/usefulness are not established by mocked fixtures.
 
 ---
 
@@ -212,6 +284,38 @@ Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. Al
 **Implementation (included in v2.99.1 dev release):** retain only the latest capture in memory for two minutes; keep the two-second debounce; bound request plus body to twelve seconds. Network/timeout/408/429/5xx failures may retry once after five seconds. Offline/hidden deferral consumes no provider attempt; online/foreground can resume after the same backoff. Before a request or result, require the same existing, unchanged, undone manual task and AI credentials. Edit/delete/complete/move/new capture/expiry/config change cancels recovery; stale queued callbacks cannot start a newer capture early. A model abstention, malformed/ungrounded response, reason suppression or permanent HTTP error is terminal. Existing prompt, exact-copy/verb guard, frequency policy, viewport delivery and explicit application remain unchanged. Failed attempts do not create offers or negative outcomes. No persistent queue, telemetry, extra UI, provider/model/routing or backup change.
 
 **Verification:** `assistant-test` adds real Add → real proxy → fictional provider recovery and actual offline reconnect; whole-body timeout/late reply; terminal-result/two-attempt cap; and source/credential/age/supersession fences. No personal task wording enters fixtures. Assistant capture/recovery/fence tests, suggestion policy/outcomes, smoke, component contract, design lint and payload checks pass. The combined v2.99.0 gate now passes 52/52 suites with zero flaky tests, plus all five performance runs and unchanged payload budgets; both release changelogs include this fix. Commit/release, installed behavior and the precise cause of each past missed offer remain open. W1 useful capture-time help survives a brief outage; W2 only the still-current recent capture can recover, with existing frequency and viewport limits.
+
+---
+
+## BUG-128 — Gmail classifier and late lookup are not bound to the current task
+
+**Verified independently October 30, 2026, under Can’s request for checks that do not require his device.** Eight targeted suites pass (seven in the bounded runner plus the assistant integration suite), zero failures/flakes; no full-release approval is inferred. Node24.14.0 / Chrome152.0.7977.75. Runtime/test/workflow inputs match published `946dc046` and remained unchanged during the run. The assistant integration runs from an isolated checkout of that exact commit. Evidence: `.context/independent-bug-review/verification.json`, `targeted-results/summary.json`, `assistant-test.log`, `deployed-offline.json` and `published-assets.json`. Existing causal before-fix failures below are retained.
+
+**Verification scope:** All 42 `gmail-test` checks pass against the current component: task/text/source/grant/cache/visit identity, held request bodies, edit/delete/move/check/config changes, refresh/Forget, cross-tab changes and deadlines. Production Gmail code matches the tested commit. This closes reproduced stale classification/cache/late-write ownership defects. Actual Gmail relevance, the original booking source and historical missed-thread outcomes remain open under BUG-117/105/091 and Backlog #15E.
+
+**Historical implementation and release record:** earlier local/pending statements below are snapshots superseded by this verification.
+
+**Audit (October 26, 15E):** isolated fictional actual-component probe (`.context/phase4-15e/gmail-audit-probe.mjs` / `.log`) seeds an earlier classification for a changed task. `_classifyTask()` reuses the AI-sourced query without matching task text; Gmail receives `from:previous-person` while the task now names Gaia. A held email-thread body is then released after removing the current manual owner; `_gmailEnrichTask()` still writes its selected email cache. No live mail/account or production incidence was inspected.
+
+**Implementation (v2.99.1 dev release):** both existing caches bind exact retained task wording, ownership policy and a device-local origin-scoped digest of the current refresh grant. This is a sensitive connection marker, not an email address or proof of account identity; it never enters AI, diagnostics or backup. Access-token refresh stays within the same grant; reconnect/Forget and changed credentials fence old work. Late refresh/code-exchange responses cannot restore forgotten tokens. Requests require the current unchanged, undone Today owner, current AI configuration, cache adoption and request identity, with a 26s deadline. Focus-origin lookup/draft work is visit-bound and cancels on exit/switch; valid capture-origin lookups can still cache for their unchanged task. Current task text also governs indicators. Coalesced zone saves retain unchanged owners through moves and prune true deletion/edits; selected caches expire after 24h. No new scope, mail feedback, model instruction, collection or backup schema.
+
+**Verification:** the original fictional audit shows old-query reuse and deleted-owner cache writes before, both fenced after. `gmail-test` uses real owners and preserves prior retrieval assertions, adding 24 classification/list/body races, visit/draft/cache-adoption guards, actual Focus Escape, real sync, token refresh versus Forget, cross-tab source changes, lookup/draft deadlines and Copy without regeneration. Final local validation: 41 Gmail checks, 37 enrichment checks and all 52 suites pass with zero flaky/failed tests. Five-run performance and payload pass unchanged budgets (1202.6 KiB decoded / 343.1 KiB Brotli / 38 scripts); audit refreshed. Final combined source hashes, 52-suite logs and five-run performance evidence are retained in `.context/dev-release-evidence/`; earlier Gmail failures remain in `.context/gmail-128/`. Dev release approved; installed-account and usefulness verification remain open. The stale-tab cache-pruning regression is reproduced/fixed; cache arrival preserves newer context from another tab. Existing booking/no-draft, MiniSearch ambiguity/calendar filtering and Apple Mail behavior remain covered. Actual connected-account/mobile acceptance and BUG-117 relevance stay separately open.
+
+---
+
+## BUG-127 — Web/Trello enrichment outlives its task/source and focus view
+
+**Verified independently October 30, 2026, under Can’s request for checks that do not require his device.** Eight targeted suites pass (seven in the bounded runner plus the assistant integration suite), zero failures/flakes; no full-release approval is inferred. Node24.14.0 / Chrome152.0.7977.75. Runtime/test/workflow inputs match published `946dc046` and remained unchanged during the run. The assistant integration runs from an isolated checkout of that exact commit. Evidence: `.context/independent-bug-review/verification.json`, `targeted-results/summary.json`, `assistant-test.log`, `deployed-offline.json` and `published-assets.json`. Existing causal before-fix failures below are retained.
+
+**Verification scope:** `task-enrich-test` passes source/text/policy/expiry, pending owner/view races, failure-cache behavior, hide/Undo and zone/keyboard/accessibility controls against the current component. Production enrichment files match the tested commit. This closes the reproduced stale-card/cache/view ownership defects; connected-source relevance and actual writing usefulness remain under Backlog #15E.
+
+**Historical implementation and release record:** earlier local/pending statements below are snapshots superseded by this verification.
+
+**Reproduced (October 26):** the real browser shows an old “white paint” card after the same owner is now “blue paint”. `_getCache()` ignored task text/source and successful cache policy. In-flight lookups can write after owner deletion/rename/connection change; cached focus visits fail to restamp ownership and close leaves the request’s dataset owner intact. Network/exhausted/malformed server results can become HTTP200 null cards and poison a permanent negative cache.
+
+**Local v2.99.0:** v3 cache validates retained manual owner/exact text across Today/Soon/Past, source board, policy and 30-day age; limits the prefix to 60 entries / 200,000 UTF-8 bytes. Pending headers/body check source/credentials/cache adoption and request identity, with 26s abort and safe supersession. Focus has independent view ownership and synchronous close invalidation. Failures are retryable 502; only explicit no-result is cached. Existing card gains exact-card local withholding/Undo/show context with neutral link semantics. Hidden state is authoritative and success-ineligible in the previous client as well; unchanged zone moves retain it and true deletion removes it. No preference inference, new prompt, extra feedback call, new synced data or Gmail controls.
+
+**Verification:** before-fix browser fixture fails; targeted real-component tests pass for source/policy/expiry, pending races, keyboard/Undo/retained hiding, closed focus and 320px wrapping. Focused Claude review completed and its reproduced Undo-focus/label/hidden-state findings are corrected. Earlier slice 52-suite runs pass; cleanup passes 37 component checks including axe/real zone transitions, plus zones/drag/Focus/smoke and payload. Final integrated v2.99.0 checks now pass 52/52 suites (zero flaky), all six visual scenes, accessibility and five-run performance/payload with unchanged budgets. Memory targets and absent-insight feedback access were repaired while retaining the parallel styling; commit/release remains pending. No installed-account/usefulness acceptance claimed.
 
 ---
 

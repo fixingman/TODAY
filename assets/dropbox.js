@@ -1639,8 +1639,6 @@
 
       // Full appMemory merge: patterns, inferences, moments, keywords
       _mergeAppMemory(data.memory);
-      // A completion synced from another device can retire the line the strip shows.
-      try { Today.use('nudge').retireStaleStrip(); } catch (_e) { /* nudge not started yet */ }
 
       // Day review + AI nudge
       // day_review: fill-if-empty (local is the authoritative current-session record)

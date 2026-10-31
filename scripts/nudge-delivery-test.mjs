@@ -107,6 +107,7 @@ async function state(page) {
       about:about.textContent, aboutShown:about.style.display !== 'none',
       cached:localStorage.getItem('day_nudge_ai_' + date),
       spoken:appMemory.spokenLines.filter(line => line.surface === 'morning nudge' && line.date === date).map(line => line.text),
+      reaction:_memoryLineFor('morning nudge',date)?.reaction || null,
       calls:window.__dailyRequests.length,
       feedback:!!document.querySelector('#dayNudgeReact [data-react="landed"]') };
   });
@@ -340,10 +341,14 @@ try {
   const OTHER = 'The quiet hour suits the plant watering more than the book.';
   for (const mobile of [false, true]) {
     const device = mobile ? 'mobile' : 'desktop';
-    for (const scenario of ['complete-named', 'complete-unrelated', 'sync-line', 'sync-done']) {
+    for (const scenario of ['complete-overlap', 'complete-named', 'complete-unrelated',
+      'sync-line', 'sync-done', 'sync-overlap', 'voted-sync-done', 'noon-cache', 'next-day-cache']) {
       const { context, page, errors } = await fixture(mobile);
       try {
-        await page.evaluate(() => Today.use('task-actions').addTaskFromText('Water the plants'));
+        await page.evaluate(() => {
+          Today.use('task-actions').addTaskFromText('Water the plants');
+          Today.use('task-actions').addTaskFromText('Buy a library card');
+        });
         if (scenario === 'sync-line') {
           await page.evaluate(() => window.__expireDisplayWait());
           await page.waitForFunction(() => document.getElementById('dayNudge').classList.contains('visible'));
@@ -354,39 +359,59 @@ try {
           await resolve(page);
           await page.waitForFunction(line => document.querySelector('#dayNudge .nudge-text')?.textContent === line, {}, LINE);
         }
-        const id = await page.evaluate(text => manualTasks.find(t => t.text.startsWith(text))?.id,
-          scenario === 'complete-unrelated' ? 'Water' : 'Choose');
-        if (scenario === 'complete-named' || scenario === 'complete-unrelated') {
-          await page.click(`button.task-check[data-taskid="${id}"]`);
+        if (scenario === 'voted-sync-done') {
+          await page.click('#infoBtn');
+          await page.click('#todayNudgeBlock .week-summary');
+          await page.waitForSelector('#todayNudgeBlock .nudge-react.open');
+          await page.$eval('#todayNudgeBlock .nudge-react',async el=>{
+            await Promise.all(el.getAnimations().map(animation=>animation.finished.catch(()=>{})));
+          });
+          await page.click('#todayNudgeBlock [data-react="landed"]');
+          assert.equal((await state(page)).reaction,'landed');
+          await page.click('#infoBtn');
         }
-        if (scenario === 'sync-done') {
-          await page.evaluate((id, iso) => mergeRemoteData({ manual_tasks: manualTasks, done_ids: [...doneIds, id], deleted_ids: [],
-            unchecked_ids: [], checked_ids: [{ id, date: iso }], soon_tasks: [], past_tasks: [], habits: [],
-            memory: { recentCompletedTasks: [{ text: 'Choose a library book', date: iso }] } }), id, '2026-10-18');
+        const prefix=scenario.includes('overlap') ? 'Buy a library card' : scenario==='complete-unrelated' ? 'Water' : 'Choose';
+        const id=await page.evaluate(text=>manualTasks.find(t=>t.text.startsWith(text))?.id,prefix);
+        if (scenario.startsWith('complete-')) await page.click(`button.task-check[data-taskid="${id}"]`);
+        if (['sync-done','sync-overlap','voted-sync-done'].includes(scenario)) {
+          await page.evaluate((id,text,iso)=>mergeRemoteData({manual_tasks:manualTasks,done_ids:[...doneIds,id],deleted_ids:[],
+            unchecked_ids:[],checked_ids:[{id,date:iso}],soon_tasks:[],past_tasks:[],habits:[],
+            memory:{recentCompletedTasks:[{text,date:iso}]}}),id,
+            scenario==='sync-overlap' ? 'Buy a library card' : 'Choose a library book','2026-10-18');
         }
-        await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+        if (scenario==='noon-cache' || scenario==='next-day-cache') {
+          await page.evaluate(ms=>window.__advance(ms),scenario==='noon-cache' ? 3*60*60*1000 : 24*60*60*1000);
+          await wake(page,mobile ? 'visibility' : 'focus');
+        }
+        await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
         await page.click('#infoBtn');
-        const open = await state(page);
-        const lineNamesDone = scenario === 'complete-named' || scenario === 'sync-done';
-        if (lineNamesDone) {
-          assert.ok(!open.text.includes('library book') || !open.visible, `${scenario}: a line naming a completed task leaves the strip`);
-          assert.ok(!open.about.includes(LINE), `${scenario}: and leaves About too`);
-        } else if (scenario === 'complete-unrelated') {
-          assert.equal(open.text, LINE, 'an unrelated completion keeps the strip line');
-          assert.ok(open.about.includes(LINE), 'and the About line');
-        } else assert.ok(open.about.includes(OTHER), 'a synced line reaches About');
-        agree(open, `${scenario} with About open`);
+        const open=await state(page);
+        if (scenario==='next-day-cache') {
+          assert.equal(open.aboutShown,false,'yesterday’s reading is not presented as today’s');
+          assert.equal(open.cached,null,'new local date does not adopt yesterday’s cache');
+        } else {
+          const expected=scenario==='sync-line' ? OTHER : LINE;
+          assert.ok(open.aboutShown && open.about.includes(expected),`${scenario}: accepted reading remains in About`);
+          assert.equal(open.cached,expected,`${scenario}: accepted cache stays unchanged`);
+          assert.equal(open.calls,1,`${scenario}: completion/voting/noon does not request a replacement`);
+          if (scenario==='noon-cache') assert.equal(open.visible,false,'noon still hides the task-list strip');
+          else assert.equal(open.text,expected,'strip and About retain the same accepted wording');
+          if (scenario==='voted-sync-done') assert.equal(open.reaction,'landed','sync/completion retains the vote');
+        }
+        agree(open,`${scenario} with About open`);
         await page.click('#infoBtn');
-        agree(await state(page), `${scenario} after About close`);
-        await wake(page, mobile ? 'visibility' : 'focus');
-        await page.evaluate(() => new Promise(r => setTimeout(r, 50)));
-        agree(await state(page), `${scenario} after returning to the app`);
-        assert.deepEqual(errors, []);
-        console.log(`  ✓ ${device} agreement / ${scenario}: strip and About show the same line`);
-      } finally { await context.close(); }
+        agree(await state(page),`${scenario} after About close`);
+        await wake(page,mobile ? 'visibility' : 'focus');
+        await page.evaluate(()=>new Promise(r=>setTimeout(r,50)));
+        const returned=await state(page);
+        agree(returned,`${scenario} after returning to the app`);
+        if (scenario==='voted-sync-done') assert.equal(returned.reaction,'landed','wake retains the vote');
+        assert.deepEqual(errors,[]);
+        console.log(`  ✓ ${device} agreement / ${scenario}: accepted reading, votes and lifecycle`);
+      } finally {await context.close();}
     }
   }
-  console.log('\nNudge delivery integration passed (46 lifecycle cases; mocked AI, no live data).');
+  console.log('\nNudge delivery integration passed (56 lifecycle cases; mocked AI, no live data).');
 } finally {
   if (browser) await browser.close();
   await new Promise(resolve => server.close(resolve));

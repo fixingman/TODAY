@@ -186,35 +186,11 @@ window._startNudge = (function() {
       }).catch(() => settle(fallbackMsg ?? _NUDGE_QUIET, false));
     }
 
-    // One rule for today's saved line, asked by both the strip and About: it retires
-    const _NUDGE_MENTION_STOP = new Set(['about','after','also','back','been','before','call','check','done',
-      'email','find','from','have','into','just','look','make','more','need','next','order','pick','read',
-      'send','some','start','take','task','tasks','than','that','them','then','they','this','today','update',
-      'week','were','what','when','will','with','write','your']);
-    function _doneTaskTextsToday() {
-      const today = _localISO();
-      const texts = [];
-      const pools = [typeof manualTasks !== 'undefined' ? manualTasks : [],
-        typeof trelloTasks !== 'undefined' ? trelloTasks : []];
-      for (const pool of pools) for (const t of pool) if (t && t.text && doneIds.has(t.id)) texts.push(t.text);
-      for (const e of (appMemory?.recentCompletedTasks || [])) if (e && e.text && e.date === today) texts.push(e.text);
-      return texts;
-    }
-    function _dayLineNamesDoneTask(line) {
-      const hay = String(line || '').toLowerCase();
-      return _doneTaskTextsToday().some(text => {
-        const words = (typeof _stripTag === 'function' ? _stripTag(text) : text).toLowerCase().match(/[a-zÀ-ɏ']+/g) || [];
-        let keys = words.filter(w => w.length >= 4 && !_NUDGE_MENTION_STOP.has(w));
-        if (!keys.length) keys = words.filter(w => w.length >= 3 && !_NUDGE_MENTION_STOP.has(w));
-        return keys.some(w => {
-          const stem = w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w;
-          return new RegExp('(^|[^a-zÀ-ɏ])' + stem.replace(/'/g, "'?") + "(s|es|'s)?($|[^a-zÀ-ɏ])").test(hay);
-        });
-      });
-    }
+    // A generated sentence has no verified link to an individual task. Keep the
+    // accepted local-day reading stable; completion or shared words are not proof
+    // that it became invalid. The strip and About read the same dated cache.
     function _currentDayLine() {
-      const line = _aiSurfaceGet('day_nudge_ai');
-      return line && !_dayLineNamesDoneTask(line) ? line : null;
+      return _aiSurfaceGet('day_nudge_ai') || null;
     }
 
     function checkDayNudge(allowGenerate = true, background = false) {
@@ -380,7 +356,7 @@ window._startNudge = (function() {
         };
       };
 
-      // An AI line on screen stays unless the shared rule has retired or replaced it.
+      // An accepted AI line stays while its dated cache is current; task completion cannot retire it.
       if (_nudgeRendered && !_nudgeIsFallback && _nudgeShownText === _aiCurrent) { _clearNudgeRetry(); return; }
       const _retired = _nudgeRendered && !_nudgeIsFallback && !_aiCurrent;
       if (_retired) {
@@ -487,7 +463,7 @@ window._startNudge = (function() {
           },
         });
       }
-      // A retired line never lingers when no replacement is being written.
+      // A line whose dated cache is absent never lingers when no replacement is being written.
       if (_retired && !_nudgeRendered && !_nudgeRacing) _showNudge(msg, false);
     }
 
@@ -735,15 +711,8 @@ window._startNudge = (function() {
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;
-    Today.define('nudge', { generationAudit: _generationAudit, currentLine: _currentDayLine, retireStaleStrip: () => _retireStaleStrip(), auditLine: () => _nudgeAuditLine() });
+    Today.define('nudge', { generationAudit: _generationAudit, currentLine: _currentDayLine, auditLine: () => _nudgeAuditLine() });
     window.addEventListener('online', () => checkDayNudge());
-    // Completing a task the visible line names (here or synced in) retires it on the spot, as About does.
-    function _retireStaleStrip() {
-      if (_nudgeRendered && !_nudgeIsFallback && _nudgeShownText && _dayLineNamesDoneTask(_nudgeShownText)) checkDayNudge();
-    }
-    document.addEventListener('today:reflection-evidence-change', _retireStaleStrip);
-
-
     // device's audit (times, paths, elapsed seconds). Never synced; no prose, keys or votes.
     function _nudgeAuditLine() {
       const a = _generationAudit();

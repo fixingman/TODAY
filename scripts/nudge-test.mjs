@@ -2,7 +2,7 @@ import { installFixtureClock } from './browser-fixture.mjs';
 // TODAY — nudge module regression test
 //
 // Tests: checkDayNudge (cached AI, noon hidden, 5s AI wait + fallback, fallback-upgrade,
-//        stale-done keep-until-replaced, dismiss, already-dismissed, offline/no-key),
+//        accepted-reading retention after completion, dismiss, already-dismissed, offline/no-key),
 //        scheduled bounded recovery, two-device dismissal/votes, diagnostics, About, midnight,
 //        checkVersionNudge, checkSundayNudge, checkHabitNudge, static wiring.
 //
@@ -1094,73 +1094,47 @@ try {
       await page.close();
     }
 
-    // 5. One staleness rule for strip and About: a saved line retires only when it names
-    //    a task completed today. An unrelated completion keeps it in both homes; a named
-    //    one retires it in both, the stored key survives a failed retry (Dropbox reads
-    //    it), and a successful retry replaces it everywhere.
+    // 5. Accepted prose has no verified task link. Shared words, an exact mention,
+    //    and unrelated completions cannot hide or regenerate the saved daily reading.
     {
-      const seedFor = line => ({
-        ['day_nudge_ai_' + TODAY]: line,
-        'today_done':   JSON.stringify(['task_1']),
-        'today_manual': JSON.stringify([
-          { id: 'task_1', text: 'Buy stamps' },
-          { id: 'task_2', text: 'Renew the passport' },
-        ]),
-      });
-      const both = () => {
-        Today.use('about').renderInfoStats();
-        const block = document.getElementById('todayNudgeBlock');
-        return { strip: document.getElementById('dayNudge').textContent,
-          about: block.style.display === 'none' ? '' : block.textContent };
-      };
-      const unrelated = await openPage({ extraSeed: seedFor('The passport renewal has waited longest.') });
-      const kept = await unrelated.page.evaluate(async both => {
-        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        checkDayNudge(false);
-        const v = (new Function('return ' + both))()();
-        return { stripKeeps: v.strip.includes('passport renewal'), aboutKeeps: v.about.includes('passport renewal') };
-      }, both.toString());
-      await expectAll('unrelated completion keeps the line in strip and About', { ...kept, noErrors: unrelated.errors.length === 0 });
-      await unrelated.page.close();
-
-      const named = await openPage({ extraSeed: seedFor('Stamps first, then the passport.') });
-      const retired = await named.page.evaluate(async both => {
-        const key = 'day_nudge_ai_' + _localISO();
-        const read = (new Function('return ' + both))();
-        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        checkDayNudge(false);
-        const first = read();
-        localStorage.setItem('today_ai_key_claude', 'test-key');
-        localStorage.setItem('today_ai_provider', 'claude');
-        window.fetch = async () => ({ ok: false, json: async () => ({}) });
-        checkDayNudge();
-        await new Promise(r => setTimeout(r, 150));
-        const failed = read();
-        return {
-          stripRetired: !first.strip.includes('Stamps first'), aboutRetired: !first.about.includes('Stamps first'),
-          keptForSync: localStorage.getItem(key) === 'Stamps first, then the passport.',
-          fallbackShown: failed.strip.includes('still here from yesterday'), aboutStillHidden: failed.about === '',
-        };
-      }, both.toString());
-      await expectAll('named completion retires the line in strip and About', { ...retired, noErrors: named.errors.length === 0 });
-      await named.page.close();
-
-      const second = await openPage({ extraSeed: seedFor('Stamps first, then the passport.') });
-      const replaced = await second.page.evaluate(async both => {
-        const read = (new Function('return ' + both))();
-        localStorage.removeItem('day_nudge_dismissed_' + _localISO());
-        localStorage.setItem('today_ai_key_claude', 'test-key');
-        localStorage.setItem('today_ai_provider', 'claude');
-        window.fetch = async () => ({ ok: true, json: async () => ({ content: 'The passport renewal deserves the quiet hour.' }) });
-        checkDayNudge();
-        await new Promise(r => setTimeout(r, 150));
-        const v = read();
-        return { replacedOnSuccess: localStorage.getItem('day_nudge_ai_' + _localISO()) === 'The passport renewal deserves the quiet hour.',
-          stripFresh: v.strip.includes('quiet hour'), aboutFresh: v.about.includes('quiet hour') };
-      }, both.toString());
-      await expectAll('retired line replaced everywhere on success', { ...replaced, noErrors: second.errors.length === 0 });
-      ok('checkDayNudge: one staleness rule — unrelated completions keep the line, a named completion retires it in strip and About alike');
-      await second.page.close();
+      const cases = [
+        { name:'one shared word', completed:'Buy stamps for the exhibition',
+          line:'An exhibition draft can wait for a quieter hour.' },
+        { name:'a literal task mention without a verified relationship', completed:'Buy stamps',
+          line:'Buy stamps first, then leave room for the passport.' },
+        { name:'an unrelated completion', completed:'Buy stamps',
+          line:'The passport renewal has waited longest.' },
+      ];
+      for (const fixture of cases) {
+        const { page, errors } = await openPage({ extraSeed: {
+          ['day_nudge_ai_' + TODAY]: fixture.line,
+          today_done: JSON.stringify(['task_1']),
+          today_manual: JSON.stringify([
+            { id:'task_1', text:fixture.completed },
+            { id:'task_2', text:'Renew the passport' },
+          ]),
+        } });
+        const result = await page.evaluate(async line => {
+          localStorage.removeItem('day_nudge_dismissed_' + _localISO());
+          localStorage.setItem('today_ai_key_claude','test-key');
+          localStorage.setItem('today_ai_provider','claude');
+          let requests = 0;
+          window.fetch = async () => { requests++; return {ok:false,json:async()=>({})}; };
+          checkDayNudge();
+          Today.use('about').renderInfoStats();
+          await new Promise(r => setTimeout(r, 100));
+          const block=document.getElementById('todayNudgeBlock');
+          return {
+            stripKeeps:document.getElementById('dayNudge').textContent.includes(line),
+            aboutKeeps:block.style.display!=='none' && block.textContent.includes(line),
+            cacheUnchanged:localStorage.getItem('day_nudge_ai_'+_localISO())===line,
+            noRegeneration:requests===0,
+          };
+        },fixture.line);
+        await expectAll('accepted reading survives '+fixture.name,{...result,noErrors:errors.length===0});
+        await page.close();
+      }
+      ok('accepted readings stay stable after completion without inferred task links or new requests');
     }
 
     // 6. Dismiss: clicking nudge hides it and writes the dismiss key.

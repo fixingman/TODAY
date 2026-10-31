@@ -4730,16 +4730,16 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 // AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '384h';
+const DEV_HOURS     = '385h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.106.2': 'Your daily reading stays available in About after tasks are completed.',
   '2.106.1': 'Unified selection colour: landed, not-landed, and reason chips now all use the same active token across Focus feedback and reflections.',
   '2.106.0': 'Tell Focus when an answer is hard to follow or too formal. Your choice guides later Ask replies for that task or habit.',
-  '2.105.7': 'Maintenance: preparation to avoid repeating completed release checks.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

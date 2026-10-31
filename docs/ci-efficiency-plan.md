@@ -1,6 +1,6 @@
 # CI efficiency implementation plan
 
-**Complete — October 30, v2.106.0 on dev/master.** All three phases are activated and verified. Full Linux dev proof passed 61 suites and all five performance runs; same-SHA master reuse passed in 15 seconds. See [accepted release proof](ci-release-evidence.md) and [phase-2 checkpoints](ci-shadow-checkpoints.md). The next four ordinary release measurements are maintenance, not unfinished implementation. BUG-135 deployed/installed startup and BUG-138 hosting RUM remain open.
+**Complete — October 30, v2.106.0 on dev/master.** All three phases are activated and verified. Full Linux dev proof passed 61 suites and all five performance runs; same-SHA master reuse passed in 15 seconds. See [accepted release proof](ci-release-evidence.md) and [phase-2 checkpoints](ci-shadow-checkpoints.md). The next four ordinary release measurements are maintenance, not unfinished implementation. BUG-135 deployed/installed startup remains open. BUG-138 hosting RUM was verified closed October 30 after Can disabled it and deployed removal was checked on both origins.
 
 ## Starting point (historical)
 

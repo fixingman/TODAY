@@ -2,7 +2,7 @@
 
 > Routines to keep the codebase and documentation optimized.
 
-**CI efficiency complete (October 30, v2.106.0 dev/master):** routine dev work uses affected-suite selection with full fallbacks. Exact-SHA full Linux dev proof passed 61 suites, zero failures/flakes and all five performance runs; master verified reuse in 15 seconds, skipping duplicate suites/benchmark and dependency/browser setup while running cheap invariants and the final dependency check. Missing/incompatible proof restores the full gate; master-targeting PRs remain full. Local work stays targeted; after pushing, share the link/status and end the turn. [Accepted proof and operating contract](../docs/ci-release-evidence.md); [phase-2 shadow checkpoints](../docs/ci-shadow-checkpoints.md). Deployed/installed BUG-135 and RUM BUG-138 remain open.
+**CI efficiency complete (October 30, v2.106.0 dev/master):** routine dev work uses affected-suite selection with full fallbacks. Exact-SHA full Linux dev proof passed 61 suites, zero failures/flakes and all five performance runs; master verified reuse in 15 seconds, skipping duplicate suites/benchmark and dependency/browser setup while running cheap invariants and the final dependency check. Missing/incompatible proof restores the full gate; master-targeting PRs remain full. Local work stays targeted; after pushing, share the link/status and end the turn. [Accepted proof and operating contract](../docs/ci-release-evidence.md); [phase-2 shadow checkpoints](../docs/ci-shadow-checkpoints.md). Deployed/installed BUG-135 remains open. Hosting RUM BUG-138 is verified closed October 30 after Can disabled the setting and both origins stopped injecting the script.
 
 ---
 
@@ -30,7 +30,7 @@ Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
 
 ## Post-Session Checklist
 
-> **Ownership:** The agent maintains the docs and runs local automated/browser checks. Can verifies flows that require his live accounts, installed PWA, or real-device experience.
+> **Ownership:** The agent maintains docs and performs independent verification. A reported technical defect may close with deployed checks or reproduction-equivalent actual-component tests when those cover its symptom and withdrawal/failure paths. Can verifies flows that depend on his live accounts, installed PWA or real-device experience; those product/account verdicts stay separate from a technically verified bug. Do not close an unresolved hosted failure from a different local pass.
 
 ### 1. Update both Changelogs (per version bump — not just at session end)
 **The two changelogs have different audiences — write them differently:**
@@ -175,6 +175,7 @@ No hard limits — but when files get large they slow down Tier 1 reads. Use jud
 ### Before Committing
 
 **CI handoff (Can, October 28):** after an authorized push, confirm the branch/commit, share the CI run link and current status, then end the turn. CI continues independently. Do not poll, run background watches, sleep or send repeated progress messages while waiting for hosted CI. A later status request gets one concise check; continuous monitoring requires an explicit request. When inspecting results, read the compact summary and only necessary failure logs. Existing validation and publication gates remain required.
+- [ ] **Hosting privacy check after hosting/analytics-setting changes:** keep Netlify RUM disabled. Verify fresh `/` and `/index.html` responses on dev and production contain no injected `netlify-rum-container` or `/.netlify/scripts/rum` script. BUG-138 was verified closed October 30; this external setting is independent of CI proof and performance budgets.
 - [ ] **Run affected checks for routine dev work:** `npm run test:changed --prefix scripts` (use `-- --base origin/dev` for a committed candidate). Inspect the plan/summary; shared or unknown inputs still run everything. Payload and invariants remain included. Selected passes are not release approval.
 - [ ] **After phase3 activation, release/master gate:** run affected local checks, then require one successful full Linux functional/five-run report for the exact committed dev candidate. Check `release:preflight` immediately before an authorized identical-SHA master fast-forward. Reuse a qualifying automatic full dev result; dispatch only when proof is missing. Master verifies proof plus cheap invariants, with full fallback. Do not repeat full local/dev/master gates by habit. Until activation is published, the existing full local/release gate remains in force. Payload limits and all timing budgets stay unchanged.
 - [ ] Run syntax check: `node -e "const fs=require('fs');const c=fs.readFileSync('index.html','utf8');const s=c.slice(c.indexOf('<script>')+8,c.lastIndexOf('</script>'));try{new Function(s);console.log('OK')}catch(e){console.log('ERROR:',e.message)}"`
