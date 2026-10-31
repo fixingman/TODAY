@@ -1495,7 +1495,7 @@
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     width: 100%;
     max-width: var(--panel-max-width);
-    max-height: 70vh;
+    max-height: 90vh;
     overflow-x: hidden;
     overflow-y: auto;
     padding: var(--space-4);
@@ -3212,7 +3212,7 @@
     to   { opacity: 1; transform: translateY(0); }
   }
   ._nudge-entering {
-    animation: _nudgeBlockIn 300ms ease-out both;
+    animation: _nudgeBlockIn var(--dur-slow) ease-out both;
   }
   ._nudge-text-resolving {
     animation: _nudgeTextIn 260ms ease-out both;
@@ -4737,9 +4737,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.106.9': 'Triage sheet taller to fit the feeling grid without scrolling.',
   '2.106.8': 'Focus wording feedback: consistent tokens, no help text, no "clear all", auto-collapses after choice, toggle shows active state.',
   '2.106.7': 'Morning reading reaction row fades in smoothly; tapping the reading again collapses it; selecting a reason auto-dismisses; "done" removed.',
-  '2.106.6': 'Unified voted / not-really buttons: same font, size, letter-spacing and lowercase everywhere across Focus, morning reading and reflections.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
