@@ -20,7 +20,7 @@
 | # | Status | Description | Reference |
 |---|---|---|---|
 | 139 | ⏳ Verify | Accepted daily reading disappears from About after a completion shares a word with its prose. | v2.106.2 |
-| 137 | ⏳ Verify | Hosted regression gate fails pool feedback clearing and configured reflection display. Earlier Calendar/enrichment/Focus fixture repairs are verified. | v2.106.1 |
+| 137 | ⏳ Verify | Hosted regression gate fails pool feedback clearing and configured reflection display. Root causes fixed locally; hosted proof pending. | v2.106.4 |
 | 135 | 🔍 Open | Startup blocking and cold/warm load exceed performance limits. | v2.106.0 |
 | 120 | ↪ Merged | Daily-nudge delivery follow-up; tracked with the strip/About mismatch. | BUG-118 |
 | 118 | ⏳ Verify | Daily nudge can be missing or disagree between the task list and About. | v2.97.8 |
@@ -49,7 +49,9 @@
 
 ## BUG-137 — Clean CI fixture failures
 
-**Status: ⏳ v2.106.1 — shipped; verification is failing.**
+**Status: ⏳ v2.106.4 — root causes fixed; hosted verification pending.**
+
+**Root causes (October 31):** both failures are timing-dependent, not timezone-dependent: the same SHA passes and fails at different wall-clock moments. (1) `reflections-test`: each case replaces `window.fetch` and keeps the last body. The startup morning reading ("You are the quiet companion…") normally fires ~75ms after load, before the stub. On a slow runner it lands after, overwrites the reflection request (CI signature `resultShown:true`, `aggregateOnly:false`, `insightPrompt:false`) or counts against `noAIRequest` (the v2.106.3 `dominant feeling → silence` failure). An injected late request reproduces the exact signature on the old fixture. Fix: `openPage` routes only reflection requests to test stubs. (2) `pool-wording-test` (`sunday incoming-clear` / `wording-revision` / `memory-clear`): a runtime defect. Every Sunday About render without a cache started a new request. On a slow runner the panel rendered twice; the duplicate got an unheld response and cached before the change, so the late-body fence was never reached. Fix: `about.js` reuses the in-flight request for the same source key. A source change still starts a new fenced request. At 4× CPU throttle the old code fails 3/3 and the fix passes 3/3 (52 groups). A new group counts 3 requests for three renders on old code and 1 with the fix.
 
 **Failed verification (October 30):** [master41042013402](https://github.com/fixingman/TODAY/actions/runs/41042013402) on `946dc046` ends with 59 passing suites, one flaky and one failed. `pool-wording-test` fails `sunday incoming-clear` on its first attempt and passes only the diagnostic retry; it correctly fails the gate. `reflections-test` fails “configured AI + 16 reflections → reflection shown” on both attempts. The earlier Calendar/enrichment/Focus fixture failures no longer fail this run, but these two current failures are unresolved. No fixture/runtime/environment cause is assumed. Failure log retained in `.context/independent-bug-review/master-failures.log`; no passing reroll replaces it. BUG-137 therefore still awaits an accepted verification pass; CI-efficiency implementation remains complete.
 

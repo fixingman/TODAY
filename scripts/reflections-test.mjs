@@ -67,6 +67,16 @@ async function openPage(extraSeed) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.evaluateOnNewDocument(({ extra }) => {
+    // Test fetch stubs see only reflection requests. Startup AI (the morning reading) can land after a stub is
+    // installed on a slow runner and would otherwise overwrite the captured request or count as a reflection call.
+    const realFetch = window.fetch.bind(window);
+    let stub = null;
+    const isReflection = options => { try { return JSON.parse(options.body).systemPrompt.includes('evening reflections'); } catch { return false; } };
+    Object.defineProperty(window, 'fetch', {
+      configurable: true,
+      get: () => (url, options) => (stub && isReflection(options) ? stub(url, options) : realFetch(url, options)),
+      set: fn => { stub = fn; },
+    });
     localStorage.clear();
     localStorage.setItem('splash_shown_at', String(Date.now()));
     localStorage.setItem('today_manual', JSON.stringify([{ id: 'task_1', text: 'Test task' }]));

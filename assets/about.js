@@ -11,6 +11,7 @@
     started = true;
 
     let sundayReady = !localStorage.getItem('dropbox_token');
+    let _sundayPending = null; // source key of the in-flight Sunday request; a re-render reuses it instead of paying twice
     document.addEventListener('today:memory-ready', event => {
       sundayReady = !!event.detail?.ready;
       if (sundayReady && $.infoPanel?.classList.contains('open')) renderInfoStats();
@@ -442,21 +443,25 @@
               '<div class="week-summary loading">reflecting…</div>';
             localStorage.setItem(_weekPolicyKey, WEEK_REFLECTION_POLICY);
             _pruneLS('week_policy_', _weekPolicyKey);
-            const clear = appMemory.clearedAt;
-            _fetchWeekReflection({ ..._reflectionStats, insight: _weekInsight }).then(text => {
-              if (_today !== _localISO() || clear !== appMemory.clearedAt) return;
-              if (text) {
-                _aiSurfaceSet('week_reflection', text);
-                const el = _sundayBlock.querySelector('.week-summary');
-                if (el) {
-                  el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el);
-                  const react = _reactionHTML(_weekSurface,text);
-                  if (react) { el.classList.add('reactable'); el.insertAdjacentHTML('afterend', react); }
+            const clear = appMemory.clearedAt, source = _sundaySourceKey();
+            if (_sundayPending !== source) {
+              _sundayPending = source;
+              _fetchWeekReflection({ ..._reflectionStats, insight: _weekInsight }).then(text => {
+                if (_sundayPending === source) _sundayPending = null;
+                if (_today !== _localISO() || clear !== appMemory.clearedAt) return;
+                if (text) {
+                  _aiSurfaceSet('week_reflection', text);
+                  const el = _sundayBlock.querySelector('.week-summary');
+                  if (el) {
+                    el.textContent = text; el.classList.remove('loading'); _nudgeTextResolve(el);
+                    const react = _reactionHTML(_weekSurface,text);
+                    if (react) { el.classList.add('reactable'); el.insertAdjacentHTML('afterend', react); }
+                  }
+                } else {
+                  if (!_aiSurfaceGet('week_reflection')) _sundayBlock.style.display = 'none';
                 }
-              } else {
-                if (!_aiSurfaceGet('week_reflection')) _sundayBlock.style.display = 'none';
-              }
-            });
+              });
+            }
           }
         } else {
           _sundayBlock.style.display = 'none';

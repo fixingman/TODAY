@@ -36,7 +36,7 @@ async function fixture(offset=0,readings=[]){
    return response(next);
   };
  },{initial,offset});
- await page.goto(origin,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>typeof window.checkDayNudge==='function'&&typeof window._memoryReactToLine==='function');
+ await page.goto(origin,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>typeof window.checkDayNudge==='function'&&typeof window._memoryReactToLine==='function'&&typeof $!=='undefined'&&!!$.habitsPanel);
  await page.evaluate(async()=>{await document.fonts.ready;for(const weight of [300,400,500]){const font=weight+' 12px \"DM Mono\"';await document.fonts.load(font);if(!document.fonts.check(font))throw new Error('Pool fixture did not load DM Mono '+weight);}});
  await page.evaluate(readings=>{localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','fictional-key');appMemory.spokenLines=readings;appMemory.kindVerdicts={};appMemory.taskOutcomes=[];appMemory.clearedAt='';delete appMemory.poolWordingClearedAt;__requests.length=0;},readings);
  return{page,context,errors};
@@ -171,6 +171,12 @@ try{
   const result=await f.page.evaluate(({writer})=>({cached:localStorage.getItem((writer==='sunday'?'week_reflection_':'day_nudge_ai_')+_localISO()),newReading:appMemory.spokenLines.some(r=>r.date===_localISO()&&r.kind==='soon-pullback')}),{writer});
   assert.equal(result.cached==='Some things you put in Soon keep coming back.',false,writer+' '+change);assert.equal(result.newReading,false,writer+' '+change);
   assert.deepEqual(f.errors,[]);ok(writer+' late body is fenced after '+change);await f.context.close();
+ }
+ {
+  const f=await fixture(7*86400000,[sundaySource]);await sunday(f.page,{hold:'body'});
+  const result=await f.page.evaluate(async()=>{Today.use('about').renderInfoStats();Today.use('about').renderInfoStats();await new Promise(r=>setTimeout(r,400));const during=__requests.filter(r=>r.writer==='sunday').length;
+   __held.release();await new Promise(r=>setTimeout(r,50));return{during,cached:localStorage.getItem('week_reflection_'+_localISO())};});
+  assert.deepEqual(result,{during:1,cached:'Some things you put in Soon keep coming back.'});assert.deepEqual(f.errors,[]);ok('a Sunday re-render while the reading is in flight reuses it instead of sending a second request');await f.context.close();
  }
  {
   const f=await fixture(),block=await mount(f.page);await choose(f.page,block,'formal');
