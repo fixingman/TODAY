@@ -201,7 +201,7 @@
       if (!line) return '';
       const btn = (r, label) => '<button type="button" class="nudge-react-btn' + (line.reaction === r ? ' on' : '') + '"' +
         ' data-react="' + r + '" data-surface="' + esc(surface) + '" aria-pressed="' + (line.reaction === r) + '">' + label + '</button>';
-      return '<div class="nudge-react' + (line.reaction ? ' open' : '') + '" role="group" aria-label="Did this land?">' +
+      return '<div class="nudge-react" role="group" aria-label="Did this land?">' +
         btn('landed', 'landed') + btn('missed', 'not really') + (wordingText === line.text ? _poolWordingAPI.button(line) : '') + '</div>' +
         _memoryMissReasonHTML(surface, line);
     }
@@ -250,7 +250,13 @@
         if (group) {
           group.classList.toggle('open');
           const reasons = group.nextElementSibling;
-          if (reasons?.classList.contains('nudge-reason') && !group.classList.contains('open')) reasons.hidden = true;
+          if (reasons?.classList.contains('nudge-reason')) {
+            if (!group.classList.contains('open')) {
+              reasons.hidden = true;
+            } else {
+              reasons.hidden = !group.querySelector('[data-react="missed"]')?.classList.contains('on');
+            }
+          }
         }
       });
     }

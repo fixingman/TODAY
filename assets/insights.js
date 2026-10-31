@@ -354,8 +354,7 @@ function _memoryMissReasonHTML(surface, line) {
     '<button type="button" class="nudge-reason-btn' + (line.reactionReason === value ? ' on' : '') +
     '" data-reason="' + value + '" aria-pressed="' + (line.reactionReason === value) + '">' + label + '</button>'
   ).join('');
-  return '<div class="nudge-reason" data-surface="' + esc(surface) + '" role="group" aria-label="Why did this not land? Optional"' +
-    (line.reaction === 'missed' ? '' : ' hidden') + '>' +
+  return '<div class="nudge-reason" data-surface="' + esc(surface) + '" role="group" aria-label="Why did this not land? Optional" hidden>' +
     '<span class="nudge-reason-label">why? · optional</span>' + buttons + '</div>';
 }
 function _memoryReactionStamp(previous) {
