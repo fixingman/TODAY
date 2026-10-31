@@ -16,7 +16,7 @@ function create(timerEl, answer, hooks) {
   panel.id = 'focusAskFeedback'; panel.className = 'focus-ask-feedback-panel'; panel.hidden = true;
   const controls = '<span class="visually-hidden" id="focusAskFeedbackHelp"></span><div class="focus-ask-feedback-actions" role="group" aria-label="Feedback on this answer">' +
     '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.vote" data-choice="landed" aria-pressed="false">landed</button>' +
-    '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.vote" data-choice="missed" aria-pressed="false">not landed</button>' +
+    '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.vote" data-choice="missed" aria-pressed="false">not really</button>' +
     '<button type="button" class="focus-ask-reaction" data-today-click="focus-ask.clear" hidden>clear vote</button></div>';
   panel.innerHTML = controls;
   toggle.setAttribute('aria-describedby','focusAskFeedbackHelp');
@@ -60,7 +60,7 @@ function create(timerEl, answer, hooks) {
     shown.row.reaction = value;
     paint();
     if (active?.hidden) panel.querySelector('[data-choice="' + (value || 'landed') + '"]').focus();
-    if (window._a11yAnnounce) _a11yAnnounce(value ? 'Marked ' + (value === 'landed' ? 'landed' : 'not landed') + ' for this focus session.' : 'Vote cleared for this answer.');
+    if (window._a11yAnnounce) _a11yAnnounce(value ? 'Marked ' + (value === 'landed' ? 'landed' : 'not really') + ' for this focus session.' : 'Vote cleared for this answer.');
   }
   Today.ui.register('click','focus-ask.toggle',event => {
     event.stopPropagation(); if (!current()) { reconcile(); return; }
