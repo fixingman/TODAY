@@ -216,7 +216,7 @@
 
     function _triageDecisionAnim(el, decision) {
       if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      const spring = 'cubic-bezier(0.34,1.56,0.64,1)';
+      const spring = _motionEasing('--ease-spring');
       const frames = {
         kept:  [{ transform: 'translateX(0)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }],
         soon:  [{ transform: 'translateX(0)' }, { transform: 'translateX(-10px)' }, { transform: 'translateX(0)' }],
@@ -226,9 +226,10 @@
         letgo: [{ transform: 'scale(1)', opacity: '1' },
                 { transform: 'scale(0.96)', opacity: '0.55' }],
       };
-      const dur  = { kept: 150, soon: 150, done: 180, letgo: 130 };
+      const fast = _motionDuration('--dur-fast');
+      const dur  = { kept: fast, soon: fast, done: _motionDuration('--dur-base'), letgo: 130 };
       const ease = { kept: spring, soon: spring, done: spring, letgo: 'ease-in' };
-      el.animate(frames[decision] || [], { duration: dur[decision] || 150, easing: ease[decision] || 'ease-out', fill: 'none' });
+      el.animate(frames[decision] || [], { duration: dur[decision] || fast, easing: ease[decision] || 'ease-out', fill: 'none' });
     }
 
     function triageShowReason(id) {

@@ -19,6 +19,7 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 140 | ⏳ Verify | Morning-reading reason chips and wording panel cut off on phones after "not really". | v2.106.11 |
 | 139 | ⏳ Verify | Accepted daily reading disappears from About after a completion shares a word with its prose. | v2.106.2 |
 | 137 | ✅ Verified | Hosted regression gate fails pool feedback clearing and configured reflection display. Fixed; hosted dev run 41194963071 green. | v2.106.4 |
 | 135 | 🔍 Open | Startup blocking and cold/warm load exceed performance limits. | v2.106.0 |
@@ -46,6 +47,14 @@
 **Verification:** the original-code shared-word failure is retained. Updated regressions cover a single shared word, a literal task mention without a verified link, unrelated completion, local/synced completion, About vote survival, no replacement request, accepted cache at noon and next local day. Eight affected suites (`nudge-delivery`, `nudge`, `nudge-feedback`, `dropbox`, `about`, component contract, smoke and day lifecycle) plus design lint and CI invariants pass on Node24.14.0 / Chrome152.0.7977.75. The delivery suite covers56 desktop/touch cases; runtime/test/workflow inputs remain unchanged throughout. Current writer bytes match the original. Two intermediate new-test input failures are retained separately: the fixture clicked a closed/moving feedback row; a focused hit-test control shows the moving button centre hit a DIV, then the same real click after its existing animation settles records the vote. Production timing/deadlines were not changed. Full receipts and logs: `.context/nudge-retention-fix/verification.json`, `checks/`, `before.log` and `feedback-input-control.mjs`. This is targeted local verification, not full release approval; the dev candidate still requires hosted proof and installed pickup. General midnight delivery/real-use writing acceptance stays separate under BUG-118 and Backlog #15A.
 
 ---
+
+## BUG-140 — Strip reason chips clipped on phones
+
+**Status: ⏳ v2.106.11 — fixed; hosted and phone verification pending.**
+
+**Cause:** v2.106.7 replaced `display` toggling on `#dayNudgeReact` with a `max-height: 0 → 80px` fade. After "not really" the row holds landed / not really / wording plus four reason chips; measured content is 128px at 320/375/390px and 92px at 430px, so the bottom chips (and the wording panel, which opens in the same row) were clipped by `overflow: hidden`. Found when hosted CI on v2.106.7–.10 failed `pool-wording-test` at 51/53; bisected to `d92c2c28`.
+
+**Fix:** `0fr → 1fr` grid reveal on a body wrapper, so the row opens to its content height with the same `--dur-fast` fade; collapsed controls are `visibility: hidden`. Measured unclipped at all four widths; `pool-wording-test` passes 53/53 without test changes.
 
 ## BUG-137 — Clean CI fixture failures
 

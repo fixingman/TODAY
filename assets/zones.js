@@ -101,7 +101,7 @@
       const str = String(newVal);
       if (el.textContent === str) return;
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = str; return; }
-      const spring = 'cubic-bezier(0.34,1.56,0.64,1)';
+      const spring = _motionEasing('--ease-spring');
       const exit = el.animate(
         [{ transform: 'translateY(0)', opacity: '1' }, { transform: 'translateY(-8px)', opacity: '0' }],
         { duration: 120, easing: 'ease-in', fill: 'forwards' }
@@ -111,7 +111,7 @@
         el.textContent = str;
         el.animate(
           [{ transform: 'translateY(8px)', opacity: '0' }, { transform: 'translateY(0)', opacity: '1' }],
-          { duration: 150, easing: spring, fill: 'none' }
+          { duration: _motionDuration('--dur-fast'), easing: spring, fill: 'none' }
         );
       };
     }

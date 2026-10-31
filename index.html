@@ -3196,11 +3196,13 @@
   }
   .nudge-reason-btn.on { color: var(--text); border-color: var(--text); }
   .nudge-reason-btn:hover, .nudge-reason-btn:focus-visible { color: var(--text); }
+  /* 0fr→1fr opens to the content's own height: reasons and the wording panel wrap taller on phones. */
   .morning-nudge-react {
-    max-height: 0; opacity: 0; overflow: hidden; padding: 0 var(--space-4);
-    transition: max-height var(--dur-fast), opacity var(--dur-fast);
+    display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; padding: 0 var(--space-4);
+    transition: grid-template-rows var(--dur-fast), opacity var(--dur-fast), visibility 0s var(--dur-fast);
   }
-  .morning-nudge-react.open { max-height: 80px; opacity: 1; }
+  .morning-nudge-react.open { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; }
+  .morning-nudge-react-body { min-height: 0; overflow: hidden; }
   .morning-nudge-react .nudge-react { max-height: none; opacity: 1; margin-top: 0; }
   .noticed-term { display: block; font-size: var(--text-xs); color: var(--muted); margin-bottom: 2px; }
   @keyframes _nudgeBlockIn {
@@ -4737,9 +4739,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.106.11': 'Reason chips under the morning reading are no longer cut off on phones.',
   '2.106.10': 'About voted nudge starts collapsed; expanding restores reason-chip selection if "not really" was picked.',
   '2.106.9': 'Triage sheet taller to fit the feeling grid without scrolling.',
-  '2.106.8': 'Focus wording feedback: consistent tokens, no help text, no "clear all", auto-collapses after choice, toggle shows active state.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG

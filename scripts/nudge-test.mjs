@@ -1205,7 +1205,7 @@ try {
       await page.close();
     }
 
-    // The follow-up is never required: Done closes the strip and keeps the vote.
+    // The follow-up is never required: tapping the reading again collapses the row and keeps the vote.
     {
       const { page, errors } = await openPage({ skipDismiss: true });
       await page.evaluate(() => {
@@ -1215,17 +1215,21 @@ try {
       });
       await page.waitForFunction(() => document.getElementById('dayNudge')?.classList.contains('visible'));
       await page.click('#dayNudge');
+      await page.waitForFunction(() => !document.getElementById('dayNudgeReact').getAnimations().length);
       await page.click('#dayNudgeReact [data-react="missed"]');
-      await page.click('#dayNudgeReact .nudge-reason-skip');
+      await page.click('#dayNudge');
       const result = await page.evaluate(() => {
         const line = appMemory.spokenLines.find(l => l.surface === 'morning nudge');
         return {
           voteKeptWithoutReason: line?.reaction === 'missed' && !line.reactionReason,
-          dismissed: !!localStorage.getItem('day_nudge_dismissed_' + _localISO()),
+          rowCollapsed: !document.getElementById('dayNudgeReact').classList.contains('open')
+            && document.querySelector('#dayNudgeReact .nudge-reason')?.hidden === true,
+          stripStays: document.getElementById('dayNudge').classList.contains('visible')
+            && !localStorage.getItem('day_nudge_dismissed_' + _localISO()),
         };
       });
       await expectAll('optional reason skip', { ...result, noErrors: errors.length === 0 });
-      ok('checkDayNudge: Done skips the optional reason without undoing the vote');
+      ok('checkDayNudge: a second tap collapses the row, skips the optional reason and keeps the vote');
       await page.close();
     }
 

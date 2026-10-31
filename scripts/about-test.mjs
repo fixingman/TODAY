@@ -725,15 +725,30 @@ try {
       const reasonOffered = block.querySelector('.nudge-reason')?.hidden === false
         && block.querySelectorAll('.nudge-reason-btn').length === 4;
       block.querySelector('[data-reason="not_useful"]').click();
+      // Choosing a reason saves it and closes the reason row; the vote stays.
       const reasonSaved = line().reactionReason === 'not_useful'
+        && block.querySelector('[data-reason="not_useful"]')?.getAttribute('aria-pressed') === 'true'
+        && block.querySelector('.nudge-reason')?.hidden === true && line().reaction === 'missed';
+      // Collapsing and re-expanding restores the reason row with the saved choice.
+      const summary = () => block.querySelector('.week-summary');
+      summary().click();
+      const collapsedKeepsVote = !group.classList.contains('open') && block.querySelector('.nudge-reason')?.hidden === true
+        && line().reaction === 'missed';
+      summary().click();
+      const reasonRestored = group.classList.contains('open') && block.querySelector('.nudge-reason')?.hidden === false
         && block.querySelector('[data-reason="not_useful"]')?.getAttribute('aria-pressed') === 'true';
       block.querySelector('[data-reason="not_useful"]').click();
       const reasonRevised = !line().reactionReason
         && block.querySelector('[data-reason="not_useful"]')?.getAttribute('aria-pressed') === 'false';
-      block.querySelector('.nudge-reason-skip').click();
-      const reasonDismissed = block.querySelector('.nudge-reason')?.hidden === true
-        && line().reaction === 'missed';
-      block.querySelector('[data-react="missed"]').click();
+      // A voted reading renders collapsed on the next About visit.
+      line().reaction = 'missed';
+      Date.prototype.getDay = () => 0;
+      Today.use('about').renderInfoStats();
+      Date.prototype.getDay = orig;
+      const block2 = document.getElementById('sundayBlock');
+      const votedStartsCollapsed = !!block2.querySelector('.nudge-react') && !block2.querySelector('.nudge-react').classList.contains('open');
+      block2.querySelector('.week-summary').click();
+      block2.querySelector('[data-react="missed"]').click();
       const cleared = !line().reaction && !line().reactionReason;
       const todayBlock = document.getElementById('todayNudgeBlock');
       const noControlWithoutSpokenLine = !!todayBlock.querySelector('.week-summary') && !todayBlock.querySelector('.nudge-react');
@@ -746,12 +761,12 @@ try {
       const todayReasonWorks = appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reactionReason === 'wrong_moment';
       return {
         collapsedAtFirst, reasonHiddenAtFirst, revealed, recorded, reasonOffered, reasonSaved,
-        reasonRevised, reasonDismissed, cleared,
+        collapsedKeepsVote, reasonRestored, reasonRevised, votedStartsCollapsed, cleared,
         noControlWithoutSpokenLine, todayReasonWorks,
       };
     });
     await expectAll('Sunday reaction', { ...result, noErrors: errors.length === 0 });
-    ok('About Today and Sunday: optional reasons save privately; repeat clears; unspoken lines get no control');
+    ok('About Today and Sunday: a reason saves and closes its row; re-expanding restores it; voted lines start collapsed; repeat clears');
     await page.close();
   }
 

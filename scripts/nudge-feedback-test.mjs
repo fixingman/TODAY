@@ -143,6 +143,7 @@ try {
       initialMemory=await page.evaluate(()=>JSON.parse(localStorage.getItem('today_memory')));
       await page.waitForFunction(line => document.querySelector('#dayNudge .nudge-text')?.textContent === line, {}, LINE);
       await page.click('#dayNudge');
+      await page.waitForFunction(() => !document.getElementById('dayNudgeReact').getAnimations().length);
       await page.click('#dayNudgeReact [data-react="landed"]');
       assert.equal(await page.evaluate(() => __dailyRequests.length), 1, 'voting does not request a replacement');
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('today_memory')).spokenLines.find(r => r.surface === 'morning nudge').reaction), 'landed');

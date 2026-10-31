@@ -339,7 +339,7 @@
         if (isNowDone && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
           dot.animate(
             [{ transform: 'scale(0.4)', opacity: '0.5' }, { transform: 'scale(1.5)', opacity: '1' }, { transform: 'scale(1)', opacity: '1' }],
-            { duration: 200, easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'none' }
+            { duration: _motionDuration('--dur-mid'), easing: _motionEasing('--ease-spring'), fill: 'none' }
           );
         }
       });
@@ -351,7 +351,7 @@
         const newTxt = strength > 0 ? strength + '%' : '—';
         streakEl.className = 'streak-label' + (strength >= 80 ? ' hot' : '');
         if (newTxt !== streakEl.textContent && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          const spring = 'cubic-bezier(0.34,1.56,0.64,1)';
+          const spring = _motionEasing('--ease-spring');
           const exitAnim = streakEl.animate(
             [{ transform: 'translateY(0)', opacity: '1' }, { transform: 'translateY(-6px)', opacity: '0' }],
             { duration: 100, easing: 'ease-in', fill: 'forwards' }
@@ -410,7 +410,7 @@
           const svg = check.querySelector('svg');
           if (svg && svg.animate) svg.animate(
             [{ opacity: 0, transform: 'scale(0.5)' }, { opacity: 1, transform: 'scale(1)' }],
-            { duration: 150, easing: 'cubic-bezier(0.16,1,0.3,1)', fill: 'none' }
+            { duration: _motionDuration('--dur-fast'), easing: _motionEasing('--ease-out'), fill: 'none' }
           );
         }
 

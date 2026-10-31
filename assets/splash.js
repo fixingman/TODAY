@@ -288,7 +288,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         _appReady = true;
 
         const stickyHdr = document.getElementById('sticky-header');
-        if (stickyHdr) { stickyHdr.style.transition = 'opacity 300ms ease'; stickyHdr.style.opacity = '1'; }
+        if (stickyHdr) { stickyHdr.style.transition = 'opacity var(--dur-slow) ease'; stickyHdr.style.opacity = '1'; }
         mainApp.style.opacity = '1';
         const children = Array.from(mainApp.children);
         children.forEach((el, i) => {
@@ -296,7 +296,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
           el.style.transform = 'translateY(-8px)';
           el.style.transition = 'none';
           setTimeout(() => {
-            el.style.transition = 'opacity 300ms ease, transform 300ms cubic-bezier(0.16,1,0.3,1)';
+            el.style.transition = 'opacity var(--dur-slow) ease, transform var(--dur-slow) var(--ease-out)';
             el.style.opacity = '1';
             el.style.transform = 'translateY(0)';
           }, i * 80);
@@ -304,7 +304,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
 
         const addTaskBar = document.getElementById('addTaskBar');
         const triageBar  = document.getElementById('triageBar');
-        if (addTaskBar) { addTaskBar.style.transition = 'opacity 300ms ease'; addTaskBar.style.opacity = '1'; }
+        if (addTaskBar) { addTaskBar.style.transition = 'opacity var(--dur-slow) ease'; addTaskBar.style.opacity = '1'; }
         if (triageBar)  triageBar.classList.add('visible');
         const _mtgPill = document.getElementById('meetingPill');
         const _mtgOvl  = document.getElementById('meetingOverlay');
@@ -353,7 +353,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       slogo.style.visibility = 'visible';
       slogo.style.opacity = '1';
       // Star immediate on ceiling path (no logo fade to sync with)
-      star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
+      star.style.transition='opacity var(--dur-slow) ease, transform .45s var(--ease-spring)';
       star.style.opacity='1';
       star.style.transform='scale(1)';
     } else if (slogo) {
@@ -367,7 +367,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         // When star was set outside this rAF, WebKit created its compositing
         // layer before the logo's opacity:0 baseline was established, causing the
         // star's white inner path to briefly flash visible (BUG-041 second pass).
-        star.style.transition='opacity .3s ease, transform .45s cubic-bezier(0.34,1.56,0.64,1)';
+        star.style.transition='opacity var(--dur-slow) ease, transform .45s var(--ease-spring)';
         star.style.opacity='1';
         star.style.transform='scale(1)';
       });

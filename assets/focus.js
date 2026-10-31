@@ -649,7 +649,7 @@ window._startFocus = (function() {
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
       if (_enterDelta !== 0 && document.body.style.position === 'fixed') {
 
-        document.body.style.transition = 'top 200ms cubic-bezier(0.16, 1, 0.3, 1)';
+        document.body.style.transition = 'top var(--dur-mid) var(--ease-out)';
         document.body.style.top = `-${_targetScrollY}px`;
         setTimeout(() => { document.body.style.transition = ''; }, 210);
       } else if (document.body.style.position === 'fixed') {

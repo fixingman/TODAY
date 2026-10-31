@@ -194,3 +194,4 @@ colour split; individual letters own no animation.
 2. **Meaningful, not decorative** — every motion communicates state
 3. **Calm, not urgent** — prefer slow fades over snappy transitions
 4. **Respect reduced-motion** — check `prefers-reduced-motion`
+5. **Height reveals fit their content** — open with `grid-template-rows: 0fr → 1fr` on a `min-height: 0; overflow: hidden` child, never a fixed `max-height` cap: wrapped content is clipped on phones (BUG-140, an 80px cap hid the strip's reason chips). Hide the collapsed state with `visibility` so its controls leave the tab order.

@@ -20,7 +20,7 @@ window._startTaskActions = (function() {
 
     function _applyDoneStyles(el, isDone) {
       // Fade concurrent with focus-mode scroll-back; without this the task snaps to 0.25 while the viewport is still moving.
-      el.style.transition = 'opacity 200ms ease-out';
+      el.style.transition = 'opacity var(--dur-mid) ease-out';
       setTimeout(() => { if (el) el.style.transition = ''; }, 220);
       el.style.opacity = isDone ? '0.25' : '';
       const textEl = el.querySelector('.task-text');
@@ -149,7 +149,7 @@ window._startTaskActions = (function() {
           const svg = el.querySelector('.task-check svg');
           if (svg && svg.animate) svg.animate(
             [{ opacity: 0, transform: 'scale(0.5)' }, { opacity: 1, transform: 'scale(1)' }],
-            { duration: 150, easing: 'cubic-bezier(0.16,1,0.3,1)', fill: 'none' }
+            { duration: _motionDuration('--dur-fast'), easing: _motionEasing('--ease-out'), fill: 'none' }
           );
         }
         // Uncheck: brief neutral pulse on the checkbox
