@@ -19,7 +19,7 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 140 | ⏳ Verify | Morning-reading reason chips and wording panel cut off on phones after "not really". | v2.106.11 |
+| 140 | ✅ Verified | Morning-reading reason chips and wording panel cut off on phones after "not really". | v2.106.11 |
 | 139 | ⏳ Verify | Accepted daily reading disappears from About after a completion shares a word with its prose. | v2.106.2 |
 | 137 | ✅ Verified | Hosted regression gate fails pool feedback clearing and configured reflection display. Fixed; hosted dev run 41194963071 green. | v2.106.4 |
 | 135 | 🔍 Open | Startup blocking and cold/warm load exceed performance limits. | v2.106.0 |
@@ -50,7 +50,7 @@
 
 ## BUG-140 — Strip reason chips clipped on phones
 
-**Status: ⏳ v2.106.11 — fixed; hosted and phone verification pending.**
+**Status: ✅ v2.106.11 — verified.** Hosted CI green on dev (41229774117) and master (41230671193); Can confirmed on phone, October 31.
 
 **Cause:** v2.106.7 replaced `display` toggling on `#dayNudgeReact` with a `max-height: 0 → 80px` fade. After "not really" the row holds landed / not really / wording plus four reason chips; measured content is 128px at 320/375/390px and 92px at 430px, so the bottom chips (and the wording panel, which opens in the same row) were clipped by `overflow: hidden`. Found when hosted CI on v2.106.7–.10 failed `pool-wording-test` at 51/53; bisected to `d92c2c28`.
 
