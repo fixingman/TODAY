@@ -194,11 +194,11 @@
       document.getElementById('shareImgBtn').style.display = '';
     }
 
-    // Share image (1080×1350). Up to three rendered lines: a centred poster; longer
-    // poems: one left axis. A small lime star leads the poem, the TODAY wordmark signs
-    // off at the foot. Type fits the longest line; wrapped lines are balanced and never
-    // strand one word (the _poemHTML widow rule). Colours are the app tokens.
-    const IMG = { W: 1080, H: 1350, M: 120, bg: '#0e0e10', text: '#e8e8ec', muted: '#80808d', accent: '#c8f060' };
+    // Share image — card-proportional. Canvas width = rendered poem card width × DPR,
+    // so mobile and desktop each produce a crisp image that matches their reading
+    // experience. Height is derived from content; nothing is hardcoded upfront.
+    // Up to three rendered lines: centred poster; longer poems: left axis.
+    const IMG  = { bg: '#0e0e10', text: '#e8e8ec', muted: '#80808d', accent: '#c8f060' };
     const MONO = '"DM Mono","Courier New",monospace';
 
     // Fewest segments that fit, balanced so the longest is as short as possible.
@@ -232,15 +232,15 @@
       return best;
     }
 
-    function _layoutPoem(ctx, text, maxW) {
+    function _layoutPoem(ctx, text, maxW, maxSize = 52, minSize = 32) {
       const authored = text.split('\n');
-      for (let size = 52; size >= 32; size--) {
+      for (let size = maxSize; size >= minSize; size--) {
         ctx.font = '400 ' + size + 'px ' + MONO;
         if (authored.every(l => ctx.measureText(l).width <= maxW)) {
           return { size, rows: authored.map(l => ({ text: l, cont: false, gap: l.trim() === '' })) };
         }
       }
-      const size = 32;
+      const size = minSize;
       ctx.font = '400 ' + size + 'px ' + MONO;
       const indent = ctx.measureText('  ').width;
       const rows = [];
@@ -290,25 +290,42 @@
         document.fonts.load('800 40px Syne'),
       ]).catch(() => {});
 
-      const { W, H, M } = IMG;
+      // Canvas width = rendered poem card width × DPR (capped at 3× to keep files sane).
+      // This makes mobile and desktop each export an image that matches their screen.
+      // Height is derived from content so the image is never padded with empty space.
+      const dpr    = Math.min(window.devicePixelRatio || 1, 3);
+      const cardEl = document.getElementById('poemCard');
+      const cssW   = cardEl ? Math.round(cardEl.getBoundingClientRect().width) : 400;
+      const W      = Math.max(600, Math.round(cssW * dpr));
+      const scale  = W / 1080;
+      const M      = Math.round(120 * scale);
+
+      // Probe canvas: measure text layout at this width with proportionally scaled fonts.
+      const probe = document.createElement('canvas');
+      probe.width = W; probe.height = 10;
+      const pctx  = probe.getContext('2d');
+      const { size, rows } = _layoutPoem(pctx, poem.text, W - M * 2, Math.round(52 * scale), Math.round(32 * scale));
+      const centred  = rows.length <= 3;
+      const lead     = Math.round(size * (centred ? 1.6 : 1.55));
+      const contLead = Math.round(size * 1.35);
+      const step     = (r, i) => (i === 0 ? 0 : r.gap ? lead * 1.8 : r.cont ? contLead : lead);
+      const AUTHOR_GAP = Math.round(64 * scale);
+      const contentH   = size * 0.72 + rows.reduce((h, r, i) => h + step(r, i), 0) + AUTHOR_GAP;
+      const TOP_PAD    = Math.round(160 * scale);
+      const BOTTOM_PAD = Math.round(180 * scale);
+      const H = Math.round(contentH + TOP_PAD + BOTTOM_PAD);
+
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = IMG.bg;
       ctx.fillRect(0, 0, W, H);
 
-      const { size, rows } = _layoutPoem(ctx, poem.text, W - M * 2);
-      const centred = rows.length <= 3;
-      const lead = Math.round(size * (centred ? 1.6 : 1.55)), contLead = Math.round(size * 1.35);
-      const step = (r, i) => (i === 0 ? 0 : r.gap ? lead * 1.8 : r.cont ? contLead : lead);
-      const AUTHOR_GAP = 64;
-      const height = size * 0.72 + rows.reduce((h, r, i) => h + step(r, i), 0) + AUTHOR_GAP;
-      // Optically centred, kept inside the 1080×1080 centre crop.
-      const top = Math.min(Math.max(Math.round((H - height) / 2) - 35, 200), 1190 - height);
-      const x = centred ? W / 2 : M;
+      const x   = centred ? W / 2 : M;
+      const top = TOP_PAD;
       ctx.textAlign = centred ? 'center' : 'left';
 
-      _drawStar(ctx, centred ? W / 2 : M + 11, top - 46, 22);
+      _drawStar(ctx, centred ? W / 2 : M + Math.round(11 * scale), top - Math.round(46 * scale), Math.round(22 * scale));
 
       let y = top + Math.round(size * 0.72);
       ctx.font = '400 ' + size + 'px ' + MONO;
@@ -317,24 +334,24 @@
         y += step(r, i);
         if (r.text) ctx.fillText(r.text, x + (!centred && r.cont ? r.indent : 0), y);
       });
-      ctx.font = '400 26px ' + MONO;
+      ctx.font = '400 ' + Math.round(26 * scale) + 'px ' + MONO;
       ctx.fillStyle = IMG.muted;
       ctx.fillText('— ' + poem.author, x, y + AUTHOR_GAP);
 
       // Signature follows the layout: centred under a centred poem, split under a left one.
       if (centred) {
-        _drawWordmark(ctx, W / 2, H - 118, 36, true);
-        ctx.font = '400 20px ' + MONO;
+        _drawWordmark(ctx, W / 2, H - Math.round(118 * scale), Math.round(36 * scale), true);
+        ctx.font = '400 ' + Math.round(20 * scale) + 'px ' + MONO;
         ctx.fillStyle = IMG.muted;
         ctx.textAlign = 'center';
-        ctx.fillText(fmtDate(dateParam) + '  ·  today-here.netlify.app', W / 2, H - 72);
+        ctx.fillText(fmtDate(dateParam) + '  ·  today-here.netlify.app', W / 2, H - Math.round(72 * scale));
       } else {
-        _drawWordmark(ctx, M, H - 108, 40, false);
-        ctx.font = '400 22px ' + MONO;
+        _drawWordmark(ctx, M, H - Math.round(108 * scale), Math.round(40 * scale), false);
+        ctx.font = '400 ' + Math.round(22 * scale) + 'px ' + MONO;
         ctx.fillStyle = IMG.muted;
         ctx.textAlign = 'right';
-        ctx.fillText(fmtDate(dateParam), W - M, H - 140);
-        ctx.fillText('today-here.netlify.app', W - M, H - 108);
+        ctx.fillText(fmtDate(dateParam), W - M, H - Math.round(140 * scale));
+        ctx.fillText('today-here.netlify.app', W - M, H - Math.round(108 * scale));
       }
 
       canvas.toBlob(async blob => {
