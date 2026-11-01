@@ -534,8 +534,8 @@
   .focus-ask-reaction:hover { opacity: 1; }
   .focus-gmail-draft-btn:disabled { opacity: var(--opacity-dim); cursor: default; }
   .focus-gmail-block .focus-ask-reaction { color: var(--muted); opacity: 1; }
-  .focus-gmail-block .focus-ask-reaction:hover,
-  .focus-gmail-block .focus-ask-reaction[aria-pressed="true"] { color: var(--text); }
+  .focus-gmail-block .focus-ask-reaction:hover { color: var(--text); }
+  .focus-gmail-block .focus-ask-reaction[aria-pressed="true"] { color: var(--accent); }
   .gmail-wording-panel { flex-basis: 100%; min-width: 0; }
   .focus-gmail-thread, .focus-gmail-draft { min-width: 0; overflow-wrap: anywhere; }
   .focus-gmail-actions .focus-gmail-draft-btn,
@@ -573,12 +573,12 @@
     display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
   }
   .focus-ask-reaction { min-height: 24px; }
-  .focus-wording-toggle.on { color: var(--text); opacity: 1; }
-  .focus-wording-choices [aria-pressed="true"] { color: var(--text); opacity: 1; }
+  .focus-wording-toggle.on { color: var(--accent); opacity: 1; }
+  .focus-wording-choices [aria-pressed="true"] { color: var(--accent); opacity: 1; }
   .focus-wording-choices { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding-top: var(--space-2); }
   .focus-ask-feedback-actions [data-today-click="focus-ask.clear"] { margin-left: auto; }
   .focus-ask-feedback-actions:has(.on) [data-choice] { color: var(--muted); opacity: 1; }
-  .focus-ask-feedback-actions [data-choice].on { color: var(--text); opacity: 1; }
+  .focus-ask-feedback-actions [data-choice].on { color: var(--accent); opacity: 1; }
   .focus-ask-feedback:focus-visible, .focus-ask-reaction:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
@@ -3136,10 +3136,11 @@
     transition: color var(--dur-fast);
   }
   .nudge-react-btn:hover, .nudge-react-btn:focus-visible { color: var(--text); }
-  .nudge-react-btn.on { color: var(--text); }
+  .nudge-react-btn.on { color: var(--accent); }
   .pool-wording-btn { background: none; border: 0; padding: 6px 0; min-height: 28px; font: inherit; color: var(--muted); cursor: pointer; }
   .nudge-react > .pool-wording-btn { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; }
-  .pool-wording-btn:hover, .pool-wording-btn[aria-pressed="true"] { color: var(--text); }
+  .pool-wording-btn:hover { color: var(--text); }
+  .pool-wording-btn[aria-pressed="true"] { color: var(--accent); }
   .pool-wording-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .pool-wording-panel { margin-top: var(--space-1); font-size: var(--text-xs); }
   .pool-wording-help { color: var(--muted); line-height: 1.5; }
@@ -3153,7 +3154,7 @@
   }
   .reflection-reaction .nudge-react-btn:hover,
   .reflection-reaction .nudge-react-btn:focus-visible { border-color: var(--border); }
-  .reflection-reaction .nudge-react-btn.on { border-color: var(--border); }
+  .reflection-reaction .nudge-react-btn.on { border-color: var(--accent); }
   .reflection-feedback-manage { margin-top: var(--space-4); }
   .reflection-wording .reflection-reaction { flex-wrap: wrap; }
   .reflection-feedback-manage .memory-item-text { overflow-wrap: anywhere; }
@@ -3171,7 +3172,7 @@
     color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs);
     cursor: pointer;
   }
-  .nudge-reason-btn.on { color: var(--text); border-color: var(--text); }
+  .nudge-reason-btn.on { color: var(--accent); border-color: var(--accent); }
   .nudge-reason-btn:hover, .nudge-reason-btn:focus-visible { color: var(--text); }
   /* 0fr→1fr opens to the content's own height: reasons and the wording panel wrap taller on phones. */
   .morning-nudge-react {
@@ -4702,9 +4703,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.106.16': 'Selected state for all reaction and wording buttons uses the accent green token consistently across the app.',
   '2.106.15': 'Poem "save as image" exports at the card\'s rendered width × device pixel ratio instead of a fixed 1080×1350.',
   '2.106.14': 'Tasks you remove ease out and the rows below glide up; all motion now runs on one shared set of timings.',
-  '2.106.13': '"wording" button in Sunday reflection uses unified mono xs tokens, not uppercase micro.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
