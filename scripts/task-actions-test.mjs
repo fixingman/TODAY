@@ -281,7 +281,7 @@ try {
         window.__deleteHaptic = null;
         window._haptic = type => { window.__deleteHaptic = type; };
         document.querySelector('.task[data-taskid="task_1"] .task-delete')?.click();
-        await new Promise(resolve => setTimeout(resolve, 280));
+        await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-slow') + 100)); // row exit, then state update
         return {
           taskRemoved: !manualTasks.some(task => task.id === 'task_1'),
           warningHaptic: window.__deleteHaptic === 'warning',
@@ -293,14 +293,14 @@ try {
     }
 
     // 7+8. deleteManual + undo toast + _undoDelete restore.
-    //   deleteManual removes task after 180ms setTimeout; toast shows at same time.
+    //   deleteManual removes the task when its row exit finishes (--dur-slow); the toast shows then.
     //   _undoDelete restores the task to manualTasks.
     {
       const { page, errors } = await openPage();
       const result = await page.evaluate(async () => {
         Today.use('connections').renderManual(); // ensure DOM has .task[data-taskid="task_1"]
         Today.use('task-actions').deleteManual('task_1');
-        await new Promise(r => setTimeout(r, 280)); // wait for 180ms removal + buffer
+        await new Promise(r => setTimeout(r, _motionDuration('--dur-slow') + 100)); // row exit + buffer
         const toastShows  = document.getElementById('undoToast').classList.contains('show');
         const taskGone    = !manualTasks.find(t => t.id === 'task_1');
         Today.use('task-actions')._undoDelete();

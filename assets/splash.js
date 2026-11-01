@@ -186,7 +186,8 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         dateTxt.textContent = dateStr.slice(0, ++tidx);
       } else {
         cursor.className = 'on';
-        cursor.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, easing: 'step-end', iterations: Infinity });
+        if (!_motionReduced()) cursor.animate( // motion-literal: typewriter cursor blink
+          [{ opacity: 1 }, { opacity: 0 }], { duration: 500, easing: 'step-end', iterations: Infinity });
         setTimeout(() => {
           cursor.className = 'off';
           if (_splashPoemHold) _runPoemCoda(); else window._onSplashAnimDone();
@@ -278,7 +279,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       if (!splash || !mainApp) return;
 
       const FADE_OUT = 420;
-      splash.style.transition = `opacity ${FADE_OUT}ms ease`;
+      splash.style.transition = `opacity ${FADE_OUT}ms var(--ease-std)`; // motion-literal: splash choreography (Motion.md)
       splash.style.opacity    = '0';
 
       setTimeout(() => {
@@ -288,7 +289,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
         _appReady = true;
 
         const stickyHdr = document.getElementById('sticky-header');
-        if (stickyHdr) { stickyHdr.style.transition = 'opacity var(--dur-slow) ease'; stickyHdr.style.opacity = '1'; }
+        if (stickyHdr) { stickyHdr.style.transition = 'opacity var(--dur-slow) var(--ease-std)'; stickyHdr.style.opacity = '1'; }
         mainApp.style.opacity = '1';
         const children = Array.from(mainApp.children);
         children.forEach((el, i) => {
@@ -296,7 +297,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
           el.style.transform = 'translateY(-8px)';
           el.style.transition = 'none';
           setTimeout(() => {
-            el.style.transition = 'opacity var(--dur-slow) ease, transform var(--dur-slow) var(--ease-out)';
+            el.style.transition = 'opacity var(--dur-slow) var(--ease-std), transform var(--dur-slow) var(--ease-out)';
             el.style.opacity = '1';
             el.style.transform = 'translateY(0)';
           }, i * 80);
@@ -304,7 +305,7 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
 
         const addTaskBar = document.getElementById('addTaskBar');
         const triageBar  = document.getElementById('triageBar');
-        if (addTaskBar) { addTaskBar.style.transition = 'opacity var(--dur-slow) ease'; addTaskBar.style.opacity = '1'; }
+        if (addTaskBar) { addTaskBar.style.transition = 'opacity var(--dur-slow) var(--ease-std)'; addTaskBar.style.opacity = '1'; }
         if (triageBar)  triageBar.classList.add('visible');
         const _mtgPill = document.getElementById('meetingPill');
         const _mtgOvl  = document.getElementById('meetingOverlay');
@@ -353,21 +354,21 @@ setTimeout(() => { if (!_splashAnimDone) window._onSplashAnimDone && window._onS
       slogo.style.visibility = 'visible';
       slogo.style.opacity = '1';
       // Star immediate on ceiling path (no logo fade to sync with)
-      star.style.transition='opacity var(--dur-slow) ease, transform .45s var(--ease-spring)';
+      star.style.transition='opacity var(--dur-slow) var(--ease-std), transform .45s var(--ease-spring)'; // motion-literal: splash star settle (Motion.md)
       star.style.opacity='1';
       star.style.transform='scale(1)';
     } else if (slogo) {
       slogo.style.visibility = 'visible';   // still opacity:0 — nothing paints visibly
       void slogo.offsetWidth;               // commit the opacity:0 baseline
       requestAnimationFrame(() => {
-        slogo.style.transition = 'opacity .5s var(--ease-out)';
+        slogo.style.transition = 'opacity .5s var(--ease-out)'; // motion-literal: splash logo reveal (Motion.md)
         slogo.style.opacity = '1';          // whole logo fades in as one unit
         // Star starts in the same frame as the logo fade — iOS composites it
         // inside the logo's opacity layer rather than promoting it independently.
         // When star was set outside this rAF, WebKit created its compositing
         // layer before the logo's opacity:0 baseline was established, causing the
         // star's white inner path to briefly flash visible (BUG-041 second pass).
-        star.style.transition='opacity var(--dur-slow) ease, transform .45s var(--ease-spring)';
+        star.style.transition='opacity var(--dur-slow) var(--ease-std), transform .45s var(--ease-spring)'; // motion-literal: splash star settle (Motion.md)
         star.style.opacity='1';
         star.style.transform='scale(1)';
       });

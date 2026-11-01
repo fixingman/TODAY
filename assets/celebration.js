@@ -19,7 +19,7 @@ function _flashAccentGlow() {
     z-index: 9999;
     background: radial-gradient(ellipse at center, var(--accent) 0%, transparent 70%);
     opacity: 0;
-    animation: accentGlowPulse 1.2s ease-out forwards;
+    animation: accentGlowPulse calc(var(--dur-emphasis) * 2) var(--ease-out) forwards;
   `;
   document.body.appendChild(overlay);
 

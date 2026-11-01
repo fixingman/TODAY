@@ -248,10 +248,6 @@ window._startDayLifecycle = (function() {
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches
         || typeof Element.prototype.animate !== 'function';
     }
-    function _settleToken(name, fallback) {
-      const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
-      return isNaN(v) ? fallback : v * 1000;
-    }
     function _settleEase() {
       return getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
     }
@@ -262,27 +258,16 @@ window._startDayLifecycle = (function() {
       });
       return rows;
     }
-    // Rows in the snapshot that are no longer in manualTasks are graduating. Fade and
-    // collapse them, then hand back to the caller for the real re-render. The rows are
-    // about to be replaced wholesale, so fill:forwards is fine — nothing to clean up.
+    // Rows in the snapshot that are no longer in manualTasks are graduating. They leave
+    // with the shared row exit (util.js _rowExit), then hand back to the caller for the
+    // real re-render.
     function _newDayCollapse(snapshot, then) {
       const live = new Set((typeof manualTasks !== 'undefined' ? manualTasks : []).map(t => t.id));
       const leaving = Object.keys(snapshot || {}).filter(id => !live.has(id)).map(id => snapshot[id].el)
         .filter(el => el && el.isConnected);
-      if (!leaving.length || _settleReduced()) { then(); return; }
-      const dur = _settleToken('--dur-slow', 300), ease = _settleEase();
+      if (!leaving.length) { then(); return; }
       let pending = leaving.length;
-      leaving.forEach(el => {
-        const cs = getComputedStyle(el);
-        el.style.overflow = 'hidden';
-        el.style.pointerEvents = 'none';
-        const a = el.animate(
-          [{ opacity: cs.opacity, height: el.getBoundingClientRect().height + 'px', paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom },
-           { opacity: 0, height: '0px', paddingTop: '0px', paddingBottom: '0px' }],
-          { duration: dur, easing: ease, fill: 'forwards' }
-        );
-        a.onfinish = a.oncancel = () => { if (--pending === 0) then(); };
-      });
+      leaving.forEach(el => _rowExit(el, () => { if (--pending === 0) then(); }));
     }
     // After the re-render: rows whose bucket changed ease to the new opacity. The old
     // value is read from the stylesheet by briefly restoring the old bucket, so the
@@ -303,7 +288,7 @@ window._startDayLifecycle = (function() {
         const to = getComputedStyle(el).opacity;
         el.style.transition = '';
         if (from === to) return;
-        el.animate([{ opacity: from }, { opacity: to }], { duration: 1200, easing: ease, fill: 'none' });
+        el.animate([{ opacity: from }, { opacity: to }], { duration: _motionDuration('--dur-emphasis') * 2, easing: ease, fill: 'none' });
       });
     }
 

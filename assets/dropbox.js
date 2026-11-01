@@ -421,8 +421,6 @@
       // Removing the class cancels cleanly; the animation will re-play on next trigger.
       const _wakeEl = document.getElementById('main-app');
       if (_wakeEl) {
-        _wakeEl.querySelectorAll('.task-slide-in').forEach(el => el.classList.remove('task-slide-in'));
-        _wakeEl.querySelectorAll('.task.removing').forEach(el => el.classList.remove('removing'));
         _wakeEl.querySelectorAll('.just-checked').forEach(el => el.classList.remove('just-checked'));
         _wakeEl.querySelectorAll('.milestone-pulse').forEach(el => el.classList.remove('milestone-pulse'));
         _wakeEl.querySelectorAll('.dot-ripple').forEach(el => el.classList.remove('dot-ripple'));
@@ -1407,7 +1405,7 @@
       manualTasks.forEach(t => {
         if (!mergedTaskIds.has(t.id)) {
           const el = document.querySelector(`.task[data-taskid="${CSS.escape(t.id)}"]`);
-          if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 180); }
+          if (el) _rowExit(el);
         }
       });
 
@@ -1418,7 +1416,9 @@
         brandNew.forEach(t => {
           const tmp = document.createElement('div');
           tmp.innerHTML = Today.use('connections').taskHTML(t, 'manual');
-          listEl.appendChild(tmp.firstElementChild);
+          const row = tmp.firstElementChild;
+          listEl.appendChild(row);
+          _rowEnter(row);
         });
         if (empty) empty.style.display = 'none';
       }

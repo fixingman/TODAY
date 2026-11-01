@@ -288,7 +288,7 @@
       _saveHabits(); renderHabits();
       // Animate only the newly added row — not every row on every renderHabits call
       const newRow = document.querySelector('.habit[data-habit-id="' + newId + '"]');
-      if (newRow) newRow.classList.add('habit-new');
+      _rowEnter(newRow);
       input.value = '';
       document.getElementById('habitAddRow').classList.remove('open');
       document.getElementById('habitNewBtn').classList.remove('active');
@@ -299,9 +299,9 @@
     // is fine here (Rule 29 applies to looping animations only). Shared by the
     // habit and task uncheck paths.
     function _pulseCheck(check) {
-      check.style.transition = 'opacity 80ms ease';
+      check.style.transition = 'opacity var(--dur-exit) var(--ease-std)';
       check.style.opacity = '0.4';
-      setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, 160);
+      setTimeout(() => { check.style.opacity = ''; check.style.transition = ''; }, _motionDuration('--dur-exit') * 2);
     }
 
     function toggleHabitDone(id) {
@@ -339,7 +339,7 @@
         if (isNowDone && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
           dot.animate(
             [{ transform: 'scale(0.4)', opacity: '0.5' }, { transform: 'scale(1.5)', opacity: '1' }, { transform: 'scale(1)', opacity: '1' }],
-            { duration: _motionDuration('--dur-mid'), easing: _motionEasing('--ease-spring'), fill: 'none' }
+            { duration: _motionDuration('--dur-base'), easing: _motionEasing('--ease-spring'), fill: 'none' }
           );
         }
       });
@@ -354,14 +354,14 @@
           const spring = _motionEasing('--ease-spring');
           const exitAnim = streakEl.animate(
             [{ transform: 'translateY(0)', opacity: '1' }, { transform: 'translateY(-6px)', opacity: '0' }],
-            { duration: 100, easing: 'ease-in', fill: 'forwards' }
+            { duration: _motionDuration('--dur-exit'), easing: _motionEasing('--ease-in'), fill: 'forwards' }
           );
           exitAnim.onfinish = function() {
             exitAnim.cancel(); // clear fill:forwards so it can't re-assert after enter finishes
             streakEl.textContent = newTxt;
             streakEl.animate(
               [{ transform: 'translateY(6px)', opacity: '0' }, { transform: 'translateY(0)', opacity: '1' }],
-              { duration: 130, easing: spring, fill: 'none' }
+              { duration: _motionDuration('--dur-fast'), easing: spring, fill: 'none' }
             );
           };
         } else {
@@ -408,7 +408,7 @@
         // each call, so rapid back-to-back checks never share state or drop each other.
         if (check) {
           const svg = check.querySelector('svg');
-          if (svg && svg.animate) svg.animate(
+          if (svg && !_motionReduced()) svg.animate(
             [{ opacity: 0, transform: 'scale(0.5)' }, { opacity: 1, transform: 'scale(1)' }],
             { duration: _motionDuration('--dur-fast'), easing: _motionEasing('--ease-out'), fill: 'none' }
           );

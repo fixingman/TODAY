@@ -432,8 +432,7 @@ function renderTrello() {
   // 1. Remove tasks no longer in the list — animate each out individually
   list.querySelectorAll('.task[data-taskid]').forEach(el => {
     if (!incomingSet.has(el.dataset.taskid)) {
-      el.classList.add('removing');
-      setTimeout(() => el.remove(), 200);
+      _rowExit(el);
     }
   });
 
@@ -509,12 +508,11 @@ function renderTrello() {
       tmp.innerHTML = Today.use('connections').taskHTML(task, 'trello');
       el = tmp.firstElementChild;
       _applyDoneStyles(el, doneIds.has(id));
-      el.classList.add('task-slide-in');
-      el.addEventListener('animationend', () => el.classList.remove('task-slide-in'), { once: true });
       // Task rows only — exclude focus timer / kbd hint nodes (BUG-027, see above)
       const stableChildren = [...list.children].filter(c => c.matches('.task[data-taskid]') && !c.classList.contains('removing'));
       const sibling = stableChildren[index];
       list.insertBefore(el, sibling || null);
+      _rowEnter(el);
     }
   });
   // Re-anchor focus timer if active — Trello patch may have replaced the focused task element

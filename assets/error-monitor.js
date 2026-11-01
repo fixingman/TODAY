@@ -21,7 +21,20 @@ function _fmtErrTime() {
 }
 function _showErrorDot() {
   const el = document.getElementById('errorIndicator');
-  if (el) { el.style.display = 'block'; el.dataset.count = _errorLog.length; }
+  if (!el) return;
+  el.style.display = 'block'; el.dataset.count = _errorLog.length;
+  _errorDotPulse(el, !el.classList?.contains?.('open'));
+}
+// WAAPI, not CSS: the dot is display-toggled and repainted on wake (BUG-028).
+function _errorDotPulse(el, on) {
+  if (!on) { el._pulse?.cancel(); el._pulse = null; return; }
+  if (el._pulse || typeof el.animate !== 'function' || typeof _loopPulse !== 'function') return;
+  const ring = window.matchMedia('(min-width: 640px)').matches ? '2px' : '4px';
+  el._pulse = _loopPulse(el, [
+    { boxShadow: '0 0 0 0 ' + _cssToken('--color-danger-pulse') },
+    { boxShadow: '0 0 0 ' + ring + ' transparent' },
+    { boxShadow: '0 0 0 0 ' + _cssToken('--color-danger-pulse') },
+  ], 2000);
 }
 function _logSyncError(source, msg) {
   const entry = _fmtErrTime() + ' [' + source + '] ' + (msg || 'unknown error');
@@ -125,12 +138,14 @@ function _toggleErrorPanel() {
     dot.setAttribute('aria-expanded', 'false');
     dot.setAttribute('aria-label', 'Open error log');
     _errorLog.length = 0;
+    _errorDotPulse(dot, false);
     dot.style.display = 'none';
     dot.dataset.count = 0;
   } else {
     // Open — render entries
     _errorPanelOpen = true;
     dot.classList.add('open');
+    _errorDotPulse(dot, false);
     dot.setAttribute('aria-expanded', 'true');
     dot.setAttribute('aria-label', 'Close and clear error log');
     panel.innerHTML = _errorLog.map(entry => {

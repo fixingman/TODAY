@@ -259,9 +259,72 @@ function _playEnrichmentArrival(el) {
     { opacity: 0, color: muted },
   ], {
     // Seven mid-duration beats preserve the established 1.4s arrival cue.
-    duration: _motionDuration('--dur-mid') * 7,
+    duration: _motionDuration('--dur-base') * 7,
   });
   animation.finished.then(() => animation.cancel(), () => {});
+}
+
+// One vocabulary for list rows (Motion.md → Rows). Entry fades in while rising
+// --motion-rise; exit fades while height, padding and margin close, so the rows
+// below glide up. WAAPI: the PWA's wake repaints neither replay nor cancel them,
+// and removal follows the animation's own finish instead of a copied duration.
+function _motionReduced() {
+  return typeof Element === 'undefined' || typeof Element.prototype.animate !== 'function'
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+function _rowEnter(el) {
+  if (!el || _motionReduced()) return;
+  el.animate([
+    { opacity: 0, transform: 'translateY(' + _cssToken('--motion-rise') + ')' },
+    { opacity: 1, transform: 'translateY(0)' },
+  ], { duration: _motionDuration('--dur-slow'), easing: _motionEasing('--ease-out') });
+}
+// Marks the row .removing at once (callers and tests skip leaving rows), removes it
+// when the exit finishes, then calls `then`. Reduced motion removes immediately.
+function _rowExit(el, then) {
+  let finished = false;
+  const done = () => { if (finished) return; finished = true; el?.remove(); if (then) then(); };
+  if (!el) { done(); return; }
+  el.classList.add('removing');
+  if (_motionReduced() || !el.isConnected) { done(); return; }
+  const cs = getComputedStyle(el);
+  el.style.overflow = 'hidden';
+  el.animate([
+    { opacity: cs.opacity, height: el.getBoundingClientRect().height + 'px',
+      paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginTop: cs.marginTop, marginBottom: cs.marginBottom },
+    { opacity: 0, height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '0px', marginBottom: '0px' },
+  ], { duration: _motionDuration('--dur-slow'), easing: _motionEasing('--ease-out'), fill: 'forwards' })
+    .finished.then(done, done);
+}
+
+// Attention/status pulses: the CSS keyframe shape (ease-in-out between each step),
+// on a WAAPI timeline so display-toggling repaints cannot restart it.
+function _loopPulse(el, keyframes, duration) {
+  if (!el || typeof el.animate !== 'function' || _motionReduced()) return null;
+  const frames = keyframes.map((f, i) => (i < keyframes.length - 1 ? { ...f, easing: _motionEasing('--ease-in-out') } : f));
+  return el.animate(frames, { duration, iterations: Infinity });
+}
+// The header buttons pulse while they carry an attention class. Several modules
+// toggle those classes; one observer keeps the pulse in step with them.
+const _ATTENTION_CLASSES = ['btn-icon-week', 'btn-icon-habits', 'btn-icon-version', 'btn-icon-attention'];
+function _syncAttentionPulse(btn) {
+  const on = _ATTENTION_CLASSES.some(c => btn.classList.contains(c));
+  if (on && !btn._attentionPulse) {
+    btn._attentionPulse = _loopPulse(btn,
+      [{ color: _cssToken('--color-muted') }, { color: _cssToken('--color-accent') }, { color: _cssToken('--color-muted') }], 2400);
+  } else if (!on && btn._attentionPulse) {
+    btn._attentionPulse.cancel();
+    btn._attentionPulse = null;
+  }
+}
+if (typeof MutationObserver === 'function' && typeof document !== 'undefined') {
+  const observer = new MutationObserver(records => records.forEach(r => _syncAttentionPulse(r.target)));
+  ['habitsBtn', 'trelloBtn', 'infoBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    _syncAttentionPulse(btn);
+    observer.observe(btn, { attributes: true, attributeFilter: ['class'] });
+  });
 }
 
 // Looping animations must be WAAPI, never CSS: _forceRepaint's display toggles
@@ -272,7 +335,7 @@ function _playEnrichmentArrival(el) {
 // in the focus IIFE — it's a closure there, not a leaf.)
 function _breathe(el, keyframes, duration, delay) {
   if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  el.animate(keyframes, { duration, delay: delay || 0, easing: 'ease-in-out', iterations: Infinity });
+  el.animate(keyframes, { duration, delay: delay || 0, easing: _motionEasing('--ease-in-out'), iterations: Infinity });
 }
 const _KF_BLINK = [{ opacity: 0.2 }, { opacity: 1, offset: 0.4 }, { opacity: 0.2, offset: 0.8 }, { opacity: 0.2 }];
 // Small-element breathe (Motion.md: elements ≤ ~10px pair opacity with scale — opacity

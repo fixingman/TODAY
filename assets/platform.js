@@ -278,6 +278,7 @@ function _pwaShowSteps(btn, key) {
   btn.textContent = _PWA_STEPS[key] || '';
   btn.classList.add('_pwa-revealed');
   btn.disabled = true;
+  if (!btn._pulse) btn._pulse = _loopPulse(btn, [{ opacity: 0.45 }, { opacity: 1 }, { opacity: 0.45 }], 2500);
 }
 function _pwaCopyLink(btn) {
   navigator.clipboard.writeText(window.location.href).then(() => {

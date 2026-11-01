@@ -237,7 +237,7 @@
 
       const fast   = _motionDuration('--dur-fast');
       const base   = _motionDuration('--dur-base');
-      const mid    = _motionDuration('--dur-mid');
+      const mid    = _motionDuration('--dur-base');
       const out    = _motionEasing('--ease-out');
       const spring = _motionEasing('--ease-spring');
       const exits  = [...el.querySelectorAll('.reflection-feeling-btn:not(.selected), .reflection-question')]

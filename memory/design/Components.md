@@ -380,7 +380,7 @@ Active requests are session-bound to the canonical evidence snapshot: local date
 
 ## Button Nudges (v2.20.0–2.21.0)
 
-Header buttons breathe (shared `icon-colour-pulse` keyframe: `color` muted→accent, 2.4s ease-in-out, colour-only — no scale, no badge) when something is waiting inside. Clears on panel open via a per-day localStorage key; never re-fires the same day.
+Header buttons breathe (`_syncAttentionPulse` in `util.js`, WAAPI: `color` muted→accent, 2.4s ease-in-out, colour-only — no scale, no badge) when something is waiting inside; reduced motion holds the accent. Clears on panel open via a per-day localStorage key; never re-fires the same day.
 
 | Button | Class | When | Clear key |
 |---|---|---|---|

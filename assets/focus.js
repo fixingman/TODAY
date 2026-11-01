@@ -293,7 +293,7 @@ window._startFocus = (function() {
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       request.thinkDelay = setTimeout(function() {
         if (!_focusRequestCurrent(request) || !focusAIBtn.classList.contains('loading')) return;
-        _thinkAnim = focusAIBtn.animate([{ opacity: 0.25 }, { opacity: 0.65 }, { opacity: 0.25 }], { duration: 2400, easing: 'ease-in-out', iterations: Infinity });
+        _thinkAnim = focusAIBtn.animate([{ opacity: 0.25 }, { opacity: 0.65 }, { opacity: 0.25 }], { duration: 2400, easing: _motionEasing('--ease-in-out'), iterations: Infinity } /* motion-literal: thinking breath */);
       }, 150);
     }
     request.timeout = setTimeout(() => {
@@ -391,7 +391,7 @@ window._startFocus = (function() {
 
 
   (function() {
-    function _wapiWarm() { fillEl.animate([{opacity:1},{opacity:1}], {duration:100, fill:'none'}); }
+    function _wapiWarm() { fillEl.animate([{opacity:1},{opacity:1}], {duration:100, fill:'none'}); } // motion-literal: invisible compositor warm-up
     if (window.requestIdleCallback) {
       requestIdleCallback(_wapiWarm, { timeout: 2000 });
     } else {
@@ -421,7 +421,7 @@ window._startFocus = (function() {
         el._pulseAnim.cancel();
         el._pulseAnim = null;
         if (isFinite(cur) && cur < 0.98) {
-          el.animate([{ opacity: cur }, { opacity: 1 }], { duration: 120, easing: 'ease-out' });
+          el.animate([{ opacity: cur }, { opacity: 1 }], { duration: _motionDuration('--dur-exit'), easing: _motionEasing('--ease-out') });
         }
         return;
       }
@@ -431,7 +431,7 @@ window._startFocus = (function() {
     if (on && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       el._pulseAnim = el.animate(
         [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
-        { duration: 1800, easing: 'ease-in-out', iterations: Infinity }
+        { duration: 1800, easing: _motionEasing('--ease-in-out'), iterations: Infinity } // motion-literal: completion pulse rhythm
       );
     }
   }
@@ -442,7 +442,7 @@ window._startFocus = (function() {
     if (on && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       el._breatheAnim = el.animate(
         [{ opacity: 1 }, { opacity: 0.88 }, { opacity: 1 }],
-        { duration: 6000, easing: 'ease-in-out', iterations: Infinity }
+        { duration: 6000, easing: _motionEasing('--ease-in-out'), iterations: Infinity } // motion-literal: focus breathing rhythm
       );
     }
   }
@@ -649,7 +649,7 @@ window._startFocus = (function() {
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
       if (_enterDelta !== 0 && document.body.style.position === 'fixed') {
 
-        document.body.style.transition = 'top var(--dur-mid) var(--ease-out)';
+        document.body.style.transition = 'top var(--dur-base) var(--ease-out)';
         document.body.style.top = `-${_targetScrollY}px`;
         setTimeout(() => { document.body.style.transition = ''; }, 210);
       } else if (document.body.style.position === 'fixed') {
@@ -1017,7 +1017,7 @@ window._startFocus = (function() {
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         fillEl.animate(
           [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
-          { duration: 2500, easing: 'ease-in-out', fill: 'none' }
+          { duration: 2500, easing: _motionEasing('--ease-in-out'), fill: 'none' } // motion-literal: timer-complete sweep
         ).onfinish = function() { _pulseComplete(fillEl, true); };
       } else {
         _pulseComplete(fillEl, true);
@@ -1422,7 +1422,7 @@ window._startFocus = (function() {
               gap: 12px;
               opacity: 0;
               background: var(--pip-overlay);
-              transition: opacity 0.15s ease;
+              transition: opacity 0.15s ease; /* motion-literal: PiP window has no app tokens */
             }
             .pip-bar:hover .pip-controls,
             .pip-bar:focus-within .pip-controls,
@@ -1440,7 +1440,7 @@ window._startFocus = (function() {
               font-weight: 300;
               cursor: pointer;
               letter-spacing: 0.02em;
-              transition: background 0.15s ease, border-color 0.15s ease;
+              transition: background 0.15s ease, border-color 0.15s ease; /* motion-literal: PiP window has no app tokens */
             }
             .pip-btn:hover {
               background: var(--pip-btn-hover-bg);

@@ -270,13 +270,13 @@ try {
       const inFlight = {
         wholeWordFlight: flight?.textContent === 'calm',
         confirmationMounted: !!document.querySelector('.reflection-confirmed-word'),
-        usesMidToken: timing?.duration === _motionDuration('--dur-mid'),
+        usesBaseToken: timing?.duration === _motionDuration('--dur-base'),
         usesOutToken: timing?.easing === _motionEasing('--ease-out'),
       };
 
       await waitFor(
         () => !document.querySelector('.reflection-choice-flight'),
-        _motionDuration('--dur-mid') + 500,
+        _motionDuration('--dur-base') + 500,
       );
       return {
         selectedFirst,

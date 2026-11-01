@@ -692,7 +692,7 @@
         io.disconnect();
         badge.animate(
           [{ opacity: 1 }, { opacity: 0.65 }, { opacity: 1 }],
-          { duration: 1800, easing: 'ease-in-out', iterations: 3 }
+          { duration: 1800, easing: _motionEasing('--ease-in-out'), iterations: 3 } // motion-literal: large-surface breath (Motion.md)
         );
       }, { threshold: 0.9 });
       io.observe(badge);

@@ -150,7 +150,7 @@
         '.mp-time.live{color:var(--pip-text);}' +
         '.mp-btn{font-family:inherit;font-size:11px;letter-spacing:0.06em;padding:5px 11px;border-radius:6px;' +
         'background:var(--pip-btn-bg);border:1px solid var(--pip-btn-border);color:var(--pip-accent);cursor:pointer;' +
-        'transition:background 140ms;}' +
+        'transition:background 140ms;}' + // motion-literal: PiP window has no app tokens
         '.mp-btn:hover{background:var(--pip-btn-hover-bg);}' +
         '.mp-btn:focus-visible{outline:2px solid var(--pip-accent);outline-offset:2px;}' +
         '.mp-note{position:absolute;left:14px;right:14px;bottom:6px;font-size:9px;letter-spacing:0.04em;' +
@@ -311,9 +311,9 @@
           cancelAnimationFrame(raf);
           ctx.close().catch(() => {});
           els.forEach(el => {
-            el.style.transition = 'box-shadow 0.4s ease';
+            el.style.transition = 'box-shadow var(--dur-slow) var(--ease-std)';
             el.style.boxShadow = '';
-            setTimeout(() => { el.style.transition = ''; }, 400);
+            setTimeout(() => { el.style.transition = ''; }, _motionDuration('--dur-slow'));
           });
         }
       };

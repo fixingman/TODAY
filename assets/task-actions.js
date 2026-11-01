@@ -20,7 +20,7 @@ window._startTaskActions = (function() {
 
     function _applyDoneStyles(el, isDone) {
       // Fade concurrent with focus-mode scroll-back; without this the task snaps to 0.25 while the viewport is still moving.
-      el.style.transition = 'opacity var(--dur-mid) ease-out';
+      el.style.transition = 'opacity var(--dur-base) var(--ease-out)';
       setTimeout(() => { if (el) el.style.transition = ''; }, 220);
       el.style.opacity = isDone ? '0.25' : '';
       const textEl = el.querySelector('.task-text');
@@ -147,7 +147,7 @@ window._startTaskActions = (function() {
         // immune to Chrome's CSS animation restart-drop on rapid back-to-back checks.
         if (isNowDone) {
           const svg = el.querySelector('.task-check svg');
-          if (svg && svg.animate) svg.animate(
+          if (svg && !_motionReduced()) svg.animate(
             [{ opacity: 0, transform: 'scale(0.5)' }, { opacity: 1, transform: 'scale(1)' }],
             { duration: _motionDuration('--dur-fast'), easing: _motionEasing('--ease-out'), fill: 'none' }
           );
@@ -238,16 +238,8 @@ window._startTaskActions = (function() {
       const div   = document.createElement('div');
       div.innerHTML = Today.use('connections').taskHTML(task, 'manual');
       const el = div.firstElementChild;
-      el.classList.add('task-new');
-      const _removeFade = e => {
-        if (e.animationName !== 'fadeIn') return;
-        el.classList.remove('task-new');
-        el.removeEventListener('animationend', _removeFade);
-        el.removeEventListener('animationcancel', _removeFade);
-      };
-      el.addEventListener('animationend', _removeFade);
-      el.addEventListener('animationcancel', _removeFade);
       list.appendChild(el);
+      _rowEnter(el);
       const tagEl = el.querySelector('.task-tag');
       Today.use('connections')._queueTagArrivalShimmer(tagEl);
       // Desktop: wire hover shimmer for new task (mobile gets add-shimmer above, skip to avoid conflict).
@@ -343,7 +335,7 @@ window._startTaskActions = (function() {
       done.forEach(t => {
         _addDeletedId(t.id);
         const el = document.querySelector('.task[data-taskid="' + CSS.escape(t.id) + '"]');
-        if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 180); }
+        if (el) _rowExit(el);
       });
       manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
       done.forEach(t => doneIds.delete(t.id));
@@ -561,9 +553,7 @@ window._startTaskActions = (function() {
       const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
       if (!el) return;
 
-      el.classList.add('removing');
-      setTimeout(() => {
-        el.remove();
+      _rowExit(el, () => {
         manualTasks = manualTasks.filter(t => t.id !== taskId);
         doneIds.delete(taskId);
         _saveManual();
@@ -591,7 +581,7 @@ window._startTaskActions = (function() {
           _showUndoToast(task.text || 'Task', _deletedStack.length);
           if (window._a11yAnnounce) _a11yAnnounce(`${task.text || 'Task'} removed. Undo available.`);
         }
-      }, 180);
+      });
     }
 
     function drawFavicon(pct, isEmpty) {

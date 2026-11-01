@@ -209,7 +209,7 @@
       line-height: 1.2;
       color: var(--accent);
       opacity: 0;
-      transition: opacity 0.6s ease;
+      transition: opacity var(--dur-emphasis) var(--ease-std);
       pointer-events: none;
       white-space: pre;
       z-index: 50;

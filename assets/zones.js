@@ -104,7 +104,7 @@
       const spring = _motionEasing('--ease-spring');
       const exit = el.animate(
         [{ transform: 'translateY(0)', opacity: '1' }, { transform: 'translateY(-8px)', opacity: '0' }],
-        { duration: 120, easing: 'ease-in', fill: 'forwards' }
+        { duration: _motionDuration('--dur-exit'), easing: _motionEasing('--ease-in'), fill: 'forwards' }
       );
       exit.onfinish = function() {
         exit.cancel(); // clear fill:forwards so it can't re-assert after enter finishes
@@ -313,50 +313,6 @@
       if (token) dropboxBackup(true);
     }
 
-    function moveToSoon(id) {
-      const task = manualTasks.find(t => t.id === id);
-      if (!task) return;
-
-      manualTasks = manualTasks.filter(t => t.id !== id);
-      _saveManual();
-
-      task.zone = 'soon';
-      task.zoneChangedAt = new Date().toISOString();
-      delete task.returnedFrom;
-      soonTasks.unshift(task);
-      _saveSoon();
-
-      Today.use('connections').renderManual();
-      renderSoon();
-      updateStats();
-      Today.use('triage').checkTriageBar();
-
-      const token = localStorage.getItem('dropbox_token');
-      if (token) dropboxBackup(true);
-    }
-
-    function moveToPast(id, status = 'let_go') {
-      const task = manualTasks.find(t => t.id === id);
-      if (!task) return;
-
-      manualTasks = manualTasks.filter(t => t.id !== id);
-      _saveManual();
-
-      task.zone = 'past';
-      task.status = status;
-      task.zoneChangedAt = new Date().toISOString();
-      pastTasks.unshift(task);
-      _savePast();
-
-      Today.use('connections').renderManual();
-      renderPast();
-      updateStats();
-      Today.use('triage').checkTriageBar();
-
-      const token = localStorage.getItem('dropbox_token');
-      if (token) dropboxBackup(true);
-    }
-
     if (window.Today) {
       Today.define('zones', {
         toggleZone,
@@ -365,8 +321,6 @@
         pullFromSoon,
         reviveFromPastShowReason,
         reviveFromPast,
-        moveToSoon,
-        moveToPast,
       });
       Today.ui.register('click', 'zones.toggle', (_event, button) => toggleZone(button.dataset.zone));
       Today.ui.register('click', 'zones.pull', (_event, button) => pullFromSoon(button.dataset.taskId));

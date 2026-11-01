@@ -127,8 +127,8 @@
     .task, .habit, .empty, .section-header, .app-date, h1 {
       transition:
         border-color var(--dur-fast),
-        filter 200ms ease,
-        opacity 260ms ease 80ms;
+        filter var(--dur-base) var(--ease-std),
+        opacity var(--dur-slow) var(--ease-std) calc(var(--dur-exit) * 2 / 3);
     }
 
     /* Focused task/habit snaps in via background+border, no opacity change */
@@ -165,35 +165,35 @@
       filter: url(#noise) blur(10px);
     }
     .focusing .empty {
-      transition: opacity 120ms ease, filter 60ms ease 120ms;
+      transition: opacity var(--dur-exit) var(--ease-std), filter calc(var(--dur-exit) / 2) var(--ease-std) var(--dur-exit);
       opacity: var(--opacity-recede-done) !important;
       filter: url(#noise) blur(10px);
     }
     .focusing .section-header,
     .focusing .app-date {
-      transition: opacity 120ms ease, filter 60ms ease 120ms;
+      transition: opacity var(--dur-exit) var(--ease-std), filter calc(var(--dur-exit) / 2) var(--ease-std) var(--dur-exit);
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
     /* Habits panel header recedes too */
     .focusing .config-panel:not(:has(.habit.focused)) {
-      transition: opacity 120ms ease, filter 60ms ease 120ms;
+      transition: opacity var(--dur-exit) var(--ease-std), filter calc(var(--dur-exit) / 2) var(--ease-std) var(--dur-exit);
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
     /* config-panel exit: base rule needed since it isn't in the .task/etc. list above */
-    .config-panel { transition: filter 320ms ease, opacity 220ms ease; }
+    .config-panel { transition: filter var(--dur-slow) var(--ease-std), opacity var(--dur-base) var(--ease-std); }
 
     /* Focus dims the surrounding chrome while the add bar stays available. */
     .focusing .morning-nudge,
     .focusing .morning-nudge-react,
     body.focus-locked #triageBar {
-      transition: opacity 120ms ease-out, filter 60ms ease 120ms;
+      transition: opacity var(--dur-exit) var(--ease-out), filter calc(var(--dur-exit) / 2) var(--ease-std) var(--dur-exit);
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
       pointer-events: none;
     }
-    #triageBar { transition: filter 320ms ease, opacity 220ms ease; }
+    #triageBar { transition: filter var(--dur-slow) var(--ease-std), opacity var(--dur-base) var(--ease-std); }
     /* Fixed during body scroll lock; focus.js preserves the header flow space (BUG-098). */
     /* Unpin section headers during focus to avoid a blurred box under the logo. */
     body.focus-locked .section-header { position: relative; top: auto; }
@@ -201,7 +201,7 @@
       position: fixed;
       top: 0;
       left: 0;
-      transition: opacity 120ms ease-out, filter 60ms ease 120ms;
+      transition: opacity var(--dur-exit) var(--ease-out), filter calc(var(--dur-exit) / 2) var(--ease-std) var(--dur-exit);
       opacity: var(--opacity-recede-chrome) !important;
       filter: url(#noise) blur(6px);
     }
@@ -227,7 +227,7 @@
       background: var(--color-breathe);
       backdrop-filter: blur(60px);
       -webkit-backdrop-filter: blur(60px);
-      transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), background 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), background 1.2s cubic-bezier(0.4, 0, 0.2, 1); /* motion-literal: focus pause breath pacing */
     }
     #breatheOverlay.active {
       opacity: 1;
@@ -273,7 +273,7 @@
       border: 1px solid var(--accent-focus-border);
       border-top: none;
       border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-      transition: max-height var(--dur-fast) ease, opacity var(--dur-fast) ease;
+      transition: max-height var(--dur-fast) var(--ease-std), opacity var(--dur-fast) var(--ease-std);
     }
     .focus-timer.open {
       max-height: 36px;
@@ -296,7 +296,7 @@
       transform-origin: left;
       will-change: transform;
       background: var(--accent-timer-fill);
-      transition: transform 1s linear; /* intentional — Pomodoro countdown, not a UI transition */
+      transition: transform 1s linear; /* motion-literal: Pomodoro countdown ticks each second */
     }
     .focus-timer-fill.paused    { background: var(--accent-timer-paused); }
     /* Completed — fill turns accent (main CTA colour), pulses gently, clickable to restart */
@@ -318,7 +318,7 @@
       color: var(--accent);
       font-variant-numeric: tabular-nums;
       opacity: var(--opacity-strong);
-      transition: opacity var(--dur-mid) ease;
+      transition: opacity var(--dur-base) var(--ease-std);
       pointer-events: auto;
       background: transparent;
       border: 0;
@@ -345,7 +345,7 @@
       text-transform: uppercase;
       color: var(--muted);
       opacity: 0;
-      transition: opacity var(--dur-mid) ease;
+      transition: opacity var(--dur-base) var(--ease-std);
       pointer-events: none;
     }
     .focus-timer-paused.show { opacity: var(--opacity-muted); }
@@ -360,7 +360,7 @@
       white-space: nowrap;
       opacity: 0;
       pointer-events: none;
-      transition: opacity var(--dur-mid) ease;
+      transition: opacity var(--dur-base) var(--ease-std);
     }
     .focus-kbd-hint.show { 
       display: block;
@@ -805,13 +805,18 @@
     --text-task:  13.5px; /* task row text — between base and md  */
 
     /* ── Motion ─ */
+    --dur-exit:   0.12s;  /* quick exits: dimming away, count flick out, glyph bounce */
     --dur-fast:   0.15s;
-    --dur-base:   0.18s;
-    --dur-mid:    0.20s;  /* focus mode exit, mid-weight transitions */
+    --dur-base:   0.20s;  /* general transitions (was 0.18s; merged with the former --dur-mid 0.20s) */
     --dur-slow:   0.30s;
+    --dur-emphasis: 0.60s; /* emphasis beats: milestone pulse, splash star */
     --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
     --ease-std:   ease;
+    --ease-in:    ease-in;      /* exits that accelerate away */
+    --ease-in-out: ease-in-out; /* symmetric loops and sweeps */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot for slide-up panels */
+    --motion-rise: 6px;   /* entry distance: new content rises into place (fadeIn, _rowEnter) */
+    --motion-drop: -4px;  /* reveal distance: lists and chips open downward (revealDown) */
     --focus-wave-delay: 0ms; /* per-row focus-entry state, derived from visual distance */
 
     /* ── Z-index scale ─ */
@@ -901,25 +906,14 @@
     z-index: 9999;
     cursor: pointer;
     display: none;
-    animation: errorPulse 2s ease-in-out infinite;
   }
-  #errorIndicator.open {
-    animation: none;
-    opacity: 1;
-  }
-  @keyframes errorPulse {
-    0%, 100% { box-shadow: 0 0 0 0 var(--color-danger-pulse); }
-    50%       { box-shadow: 0 0 0 4px transparent; }
-  }
+  #errorIndicator.open { opacity: 1; }
+  /* The dot's pulse is WAAPI (error-monitor.js): the dot is display-toggled. */
   @media (min-width: 640px) {
     #errorIndicator {
       width: 12px;
       height: 12px;
       border-width: 3px;
-    }
-    @keyframes errorPulse {
-      0%, 100% { box-shadow: 0 0 0 0 var(--color-danger-pulse); }
-      50%       { box-shadow: 0 0 0 2px transparent; }
     }
   }
   #errorPanel {
@@ -933,7 +927,7 @@
     overflow: hidden;
     z-index: 9998;
     display: none;
-    animation: fadeIn var(--dur-base) var(--ease-std);
+    animation: fadeIn var(--dur-base) var(--ease-out);
     max-height: 280px;
     overflow-y: auto;
   }
@@ -1052,7 +1046,7 @@
     margin-top: clamp(28px, 5vh, 48px);
     max-width: min(78vw, 440px);
     opacity: 0;
-    transition: opacity 900ms ease-in-out;
+    transition: opacity 900ms var(--ease-in-out); /* motion-literal: splash choreography (Motion.md splash sequence) */
   }
   #splash-poem.visible { opacity: 1; }
   #splash-poem .splash-poem-text {
@@ -1111,7 +1105,7 @@
     backdrop-filter: blur(16px) saturate(1.4);
     /* Exit beat for the focus recede (v2.82.4); the splash's inline opacity transition
        is cleared by focus.js at lock time so this one governs. */
-    transition: filter 320ms ease, opacity 220ms ease;
+    transition: filter var(--dur-slow) var(--ease-std), opacity var(--dur-base) var(--ease-std);
   }
   
   /* Fade gradient below header — content softens before clipping */
@@ -1212,10 +1206,9 @@
     border-color: var(--accent);
     background: var(--accent-dim);
   }
-  .btn-icon-week, .btn-icon-habits, .btn-icon-version, .btn-icon-attention { animation: icon-colour-pulse 2.4s ease-in-out infinite; }
-  @keyframes icon-colour-pulse {
-    0%, 100% { color: var(--muted); }
-    50%       { color: var(--accent); }
+  /* Attention buttons pulse muted↔accent via WAAPI (util.js _syncAttentionPulse); reduced motion holds accent. */
+  @media (prefers-reduced-motion: reduce) {
+    .btn-icon-week, .btn-icon-habits, .btn-icon-version, .btn-icon-attention { color: var(--accent); }
   }
   .config-title-row {
     display: flex;
@@ -1272,7 +1265,7 @@
     transform: scaleX(0);
     transform-origin: left;
     will-change: transform;
-    transition: transform 0.4s var(--ease-std);
+    transition: transform var(--dur-slow) var(--ease-std);
   }
 
   /* Section */
@@ -1662,7 +1655,7 @@
     display: flex;
     gap: var(--space-2);
     flex-wrap: wrap;
-    animation: fadeIn var(--dur-base) var(--ease-std) forwards;
+    animation: fadeIn var(--dur-base) var(--ease-out) forwards;
   }
   .triage-reason-btn {
     font-family: var(--font-mono);
@@ -1939,18 +1932,14 @@
     touch-action: manipulation;
   }
 
+  /* Entry vocabulary (Motion.md → Entries): fadeIn rises, revealDown opens downward,
+     fadeInPlain appears in place. Rows use the WAAPI twins in util.js. */
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(var(--motion-rise)); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes fadeOut {
-    from { opacity: 1; transform: scaleY(1);    }
-    to   { opacity: 0; transform: scaleY(0.85); }
-  }
-
-  /* Task entry uses pure fade — no transform, elements appear in place */
-  @keyframes taskSlideIn {
+  @keyframes fadeInPlain {
     from { opacity: 0; }
     to   { opacity: 1; }
   }
@@ -1974,28 +1963,20 @@
     -webkit-text-fill-color: transparent;
   }
   .task-tag-shimmer {
-    animation: tagShimmer 500ms 100ms ease-in-out 2 alternate both;
+    animation: tagShimmer 500ms 100ms var(--ease-in-out) 2 alternate both; /* motion-literal: shimmer arrival timing (Motion.md tag shimmer) */
   }
   /* Soon list: single sweep on hover (desktop) or scroll-into-view (mobile) */
   ._soon-shimmer {
-    animation: tagShimmer 400ms ease-in-out 1 normal both;
+    animation: tagShimmer 400ms var(--ease-in-out) 1 normal both; /* motion-literal: shimmer interaction timing (Motion.md tag shimmer) */
   }
 
-  .task-slide-in {
-    animation: taskSlideIn var(--dur-base) var(--ease-std) both;
-  }
 
   #manualEmpty.fading-in {
-    animation: taskSlideIn var(--dur-base) var(--ease-std) forwards;
+    animation: fadeInPlain var(--dur-base) var(--ease-out) forwards;
   }
 
-  .task.removing {
-    animation: fadeOut var(--dur-base) var(--ease-std) forwards;
-    overflow: hidden;
-    pointer-events: none;
-    transform-origin: top center;
-    will-change: transform, opacity;
-  }
+  /* Leaving rows (util.js _rowExit animates them); never interactive mid-exit. */
+  .removing { pointer-events: none; }
 
   /* Guarded: on touch, :hover sticks to whichever row is last hit-tested under the
      finger — after a drag reorder that is often a neighbour, left painted. */
@@ -2016,8 +1997,6 @@
        the task's GPU sub-layer competed with the sticky-header's backdrop-filter layer,
        rendering the header transparent over the hovered task as it scrolled underneath. */
   }
-  /* Applied only on insertion, removed on animationend — fill-mode:backwards prevents opacity:1 fill */
-  .task-new { animation: fadeIn var(--dur-slow) var(--ease-std) backwards; }
 
   /* AI suggestion row — appears below a task when AI has feedback */
   .task-suggestion {
@@ -2030,12 +2009,10 @@
     border-radius: var(--radius-md);
     font-size: var(--text-xs);
     color: var(--muted);
+    /* motion-literal: chipPulse is one 0.5s accent-glow ring (Motion.md) */
     animation:
-      slideDown var(--dur-fast) var(--ease-std),
+      revealDown var(--dur-fast) var(--ease-out),
       chipPulse 0.5s var(--ease-std) var(--dur-fast);
-  }
-  .task-suggestion.removing {
-    animation: fadeOut var(--dur-fast) var(--ease-std) forwards;
   }
   .task-suggestion-msg {
     flex: 1;
@@ -2067,8 +2044,8 @@
   .task-suggestion-chip.dismiss:hover {
     color: var(--text);
   }
-  @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px); }
+  @keyframes revealDown {
+    from { opacity: 0; transform: translateY(var(--motion-drop)); }
     to   { opacity: 1; transform: translateY(0); }
   }
   @keyframes chipPulse {
@@ -2130,7 +2107,7 @@
     30%  { opacity: 0.35; }
     100% { opacity: 1; }
   }
-  .milestone-pulse { animation: milestonePulse 600ms var(--ease-out) forwards; }
+  .milestone-pulse { animation: milestonePulse var(--dur-emphasis) var(--ease-out) forwards; }
 
   /* Habit dot consecutive-run ripple */
   @keyframes dotRipple {
@@ -2138,7 +2115,7 @@
     70%  { box-shadow: 0 0 0 5px transparent; }
     100% { box-shadow: 0 0 0 0 transparent; }
   }
-  .dot-ripple { animation: dotRipple 320ms var(--ease-out) forwards; }
+  .dot-ripple { animation: dotRipple var(--dur-slow) var(--ease-out) forwards; }
 
   /* Task aging — visual opacity steps as tasks linger.
      Uses data-age-bucket attribute set in taskHTML (young|mid|old).
@@ -2451,7 +2428,7 @@
     align-items: flex-start;
     gap: var(--space-3);
     cursor: pointer;
-    transition: border-color var(--dur-fast), opacity var(--dur-slow) var(--ease-out), filter 320ms ease;
+    transition: border-color var(--dur-fast), opacity var(--dur-slow) var(--ease-out), filter var(--dur-slow) var(--ease-std);
     opacity: 0;
     pointer-events: none;
     width: 100%;
@@ -2606,7 +2583,7 @@
     }
 
     .mirror-char-new {
-      animation: charBounce 120ms ease-out both;
+      animation: charBounce var(--dur-exit) var(--ease-out) both;
     }
   }
 
@@ -3026,7 +3003,7 @@
     box-sizing: border-box;
   }
 
-  .config-panel.open { display: block; animation: fadeIn var(--dur-base) var(--ease-std); }
+  .config-panel.open { display: block; animation: fadeIn var(--dur-base) var(--ease-out); }
 
   #infoStats {
     display: grid;
@@ -3208,19 +3185,11 @@
   .morning-nudge-react-body { min-height: 0; overflow: hidden; }
   .morning-nudge-react .nudge-react { max-height: none; opacity: 1; margin-top: 0; }
   .noticed-term { display: block; font-size: var(--text-xs); color: var(--muted); margin-bottom: 2px; }
-  @keyframes _nudgeBlockIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes _nudgeTextIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
   ._nudge-entering {
-    animation: _nudgeBlockIn var(--dur-slow) ease-out both;
+    animation: fadeIn var(--dur-slow) var(--ease-out) both;
   }
   ._nudge-text-resolving {
-    animation: _nudgeTextIn 260ms ease-out both;
+    animation: fadeIn var(--dur-slow) var(--ease-out) both;
   }
 
   .config-title {
@@ -3476,7 +3445,7 @@
     box-shadow: var(--shadow-panel-sm);
     opacity: 0;
     pointer-events: none;
-    transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-mid) ease;
+    transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-base) var(--ease-std);
     z-index: var(--z-modal);
     overflow: hidden;
   }
@@ -3490,7 +3459,7 @@
     opacity: 0.5;
     transform-origin: left;
     transform: scaleX(1);
-    animation: toast-countdown 5s linear forwards;
+    animation: toast-countdown 5s linear forwards; /* motion-literal: undo window length */
     animation-play-state: paused;
   }
   #undoToast.show .toast-countdown { animation-play-state: running; }
@@ -3686,11 +3655,6 @@
     color: var(--text);
     cursor: default;
     pointer-events: none;
-    animation: _pwaPulse 2.5s ease-in-out infinite;
-  }
-  @keyframes _pwaPulse {
-    0%, 100% { opacity: 0.45; }
-    50%       { opacity: 1; }
   }
 
   /* Expanded config — board selection state */
@@ -3905,7 +3869,6 @@
     border: 1px solid transparent;
     transition: background var(--dur-fast), border-color var(--dur-fast);
   }
-  .habit-new { animation: fadeIn var(--dur-slow) var(--ease-std); }
   @media (hover: hover) {
     .habit:hover { background: var(--surface2); border-color: var(--border); }
   }
@@ -4046,7 +4009,7 @@
 
   .habit-add-row {
     display: none; gap: var(--space-2); margin-top: var(--space-3);
-    animation: fadeIn var(--dur-base) var(--ease-std);
+    animation: fadeIn var(--dur-base) var(--ease-out);
   }
   .habit-add-row.open { display: flex; }
   .habit-input {
@@ -4294,13 +4257,9 @@
   .memory-type-header .memory-item-btn {
     margin-left: auto;
   }
-  /* Newly revealed Memory rows and opened zone lists fade and slide in. */
-  @keyframes memory-item-in {
-    from { opacity: 0; transform: translateY(-3px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  /* Newly revealed Memory rows and opened zone lists open downward. */
   .memory-item--extra, .zone-list:not([hidden]) {
-    animation: memory-item-in var(--dur-slow) var(--ease-out) both;
+    animation: revealDown var(--dur-slow) var(--ease-out) both;
   }
 
 
@@ -4313,8 +4272,9 @@
 
     /* Reduce transition durations */
     *, *::before, *::after {
+      /* motion-literal: reduced motion collapses every duration to effectively instant */
       transition-duration: 0.01ms !important;
-      animation-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important; /* motion-literal: reduced motion */
     }
 
     /* Keep essential state indicators visible */
@@ -4742,9 +4702,9 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '2.106.14': 'Tasks you remove ease out and the rows below glide up; all motion now runs on one shared set of timings.',
   '2.106.13': '"wording" button in Sunday reflection uses unified mono xs tokens, not uppercase micro.',
   '2.106.12': 'Task list nudge: reaction row visually joins the nudge card on expand instead of floating below it.',
-  '2.106.11': 'Reason chips under the morning reading are no longer cut off on phones.',
 };
 
 // Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
@@ -4848,12 +4808,10 @@ function init() {
     if (el.textContent === next) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!animate || reduced || !el.textContent || typeof el.animate !== 'function') { el.textContent = next; return; }
-    const css  = getComputedStyle(document.documentElement);
-    const ms   = name => { const v = parseFloat(css.getPropertyValue(name)); return isNaN(v) ? null : v * 1000; };
-    const out  = ms('--dur-mid')  || 200;
-    const back = ms('--dur-slow') || 300;
-    const ease = css.getPropertyValue('--ease-out').trim() || 'ease-out';
-    const exit = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: out, easing: 'ease-in', fill: 'forwards' });
+    const out  = _motionDuration('--dur-base');
+    const back = _motionDuration('--dur-slow');
+    const ease = _motionEasing('--ease-out');
+    const exit = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: out, easing: _motionEasing('--ease-in'), fill: 'forwards' });
     exit.onfinish = function() {
       exit.cancel(); // drop fill:forwards so it cannot re-assert after the enter finishes
       el.textContent = next;

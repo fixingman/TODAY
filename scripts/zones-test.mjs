@@ -1,7 +1,7 @@
 // TODAY — Zones (Soon/Past) regression test
 //
-// Full flow invariant suite: save helpers, render, pullFromSoon, moveToSoon,
-// moveToPast, reviveFromPast, _ageSoon, _purgePast, and module wiring.
+// Full flow invariant suite: save helpers, render, pullFromSoon,
+// reviveFromPast, _ageSoon, _purgePast, and module wiring.
 //
 // Run from repo root:
 //   node scripts/zones-test.mjs --pre-extraction
@@ -199,47 +199,6 @@ try {
     await page.close();
   }
 
-  // moveToSoon: task moves from manualTasks to soonTasks with zone/zoneChangedAt set.
-  {
-    const { page, errors } = await openPage();
-    const result = await page.evaluate(() => {
-      const startManualLen = manualTasks.length;
-      const startSoonLen   = soonTasks.length;
-      Today.use('zones').moveToSoon('ma1');
-      const inManual = manualTasks.some(t => t.id === 'ma1');
-      const inSoon   = soonTasks.find(t => t.id === 'ma1');
-      return {
-        removedFromManual: !inManual && manualTasks.length === startManualLen - 1,
-        addedToSoon:       !!inSoon,
-        zoneSoon:          inSoon?.zone === 'soon',
-        zoneChangedAtSet:  !!inSoon?.zoneChangedAt,
-      };
-    });
-    await expectAll('moveToSoon', { ...result, noErrors: errors.length === 0 });
-    ok('moveToSoon moves task to soonTasks with zone:soon and zoneChangedAt set');
-    await page.close();
-  }
-
-  // moveToPast: task moves from manualTasks to pastTasks with zone/status/zoneChangedAt set.
-  {
-    const { page, errors } = await openPage();
-    const result = await page.evaluate(() => {
-      const startManualLen = manualTasks.length;
-      Today.use('zones').moveToPast('mb2');
-      const inManual = manualTasks.some(t => t.id === 'mb2');
-      const inPast   = pastTasks.find(t => t.id === 'mb2');
-      return {
-        removedFromManual: !inManual && manualTasks.length === startManualLen - 1,
-        addedToPast:       !!inPast,
-        zonePast:          inPast?.zone === 'past',
-        statusLetGo:       inPast?.status === 'let_go',
-        zoneChangedAtSet:  !!inPast?.zoneChangedAt,
-      };
-    });
-    await expectAll('moveToPast', { ...result, noErrors: errors.length === 0 });
-    ok('moveToPast moves task to pastTasks with zone:past, status:let_go, zoneChangedAt set');
-    await page.close();
-  }
 
   // reviveFromPast: non-done task moves pastTasks → soonTasks; done task is blocked.
   {

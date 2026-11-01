@@ -444,7 +444,7 @@ try {
         window._dateTagRefresh(true);
         const oldTextDuringExit = el.textContent === 'STALE DAY';   // swap waits for the fade-out
         const animating = typeof el.getAnimations === 'function' && el.getAnimations().length === 1;
-        await new Promise(r => setTimeout(r, 700));                 // --dur-mid + --dur-slow, with slack
+        await new Promise(r => setTimeout(r, 700));                 // --dur-base + --dur-slow, with slack
         const after = el.textContent === expected;
         const animsCleared = typeof el.getAnimations === 'function' && el.getAnimations().length === 0;
         window._dateTagRefresh(true);                              // same day → no-op, no animation

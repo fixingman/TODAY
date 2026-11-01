@@ -60,7 +60,7 @@
 | `--color-danger` | `#ff5f5f` | Error / delete |
 | `--color-danger-dim` | `rgba(255,95,95,0.10)` | Danger bg tint |
 | `--color-danger-border` | `rgba(255,95,95,0.20)` | Danger border |
-| `--color-danger-pulse` | `rgba(255,95,95,0.40)` | Error-indicator `errorPulse` ring animation start |
+| `--color-danger-pulse` | `rgba(255,95,95,0.40)` | Error-dot ring pulse start (`_errorDotPulse`, WAAPI) |
 | `--color-highlight` | `#579dff` | Info / Trello link |
 | `--color-highlight-dim` | `rgba(87,157,255,0.10)` | Highlight bg tint (error badges) |
 | `--color-highlight-border` | `rgba(87,157,255,0.20)` | Highlight border (error badges) |
@@ -203,13 +203,18 @@ Scale is numeric, 4px base:
 
 | Token | Value | Usage |
 |---|---|---|
+| `--dur-exit` | `0.12s` | Quick exits |
 | `--dur-fast` | `0.15s` | Hover, snaps |
-| `--dur-base` | `0.18s` | General transitions |
-| `--dur-mid` | `0.20s` | Focus mode exit, fades |
-| `--dur-slow` | `0.30s` | Slide-up panels, recede/reveal |
+| `--dur-base` | `0.20s` | General transitions, fades (former `--dur-mid` merged in) |
+| `--dur-slow` | `0.30s` | Slide-up panels, recede/reveal, row entry/exit |
+| `--dur-emphasis` | `0.60s` | Emphasis beats |
 | `--ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | Deceleration, no overshoot |
 | `--ease-std` | `ease` | Generic |
+| `--ease-in` | `ease-in` | Accelerating exits |
+| `--ease-in-out` | `ease-in-out` | Symmetric loops and sweeps |
 | `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Subtle overshoot for panels |
+| `--motion-rise` | `6px` | Entry distance: new content rises into place (`fadeIn`, `_rowEnter`) |
+| `--motion-drop` | `-4px` | Reveal distance: opened lists and chips move down into place (`revealDown`) |
 | `--focus-wave-delay` | `0ms` | Per-row focus-entry state, derived from visual distance; not a general duration preset |
 
 ---

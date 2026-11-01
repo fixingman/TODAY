@@ -26,7 +26,7 @@ a small breathe visible. Established treatment (done-star, AI badge, nudge dot a
 `[{ opacity: 1, transform: 'scale(1)' }, { opacity: 0.5, transform: 'scale(0.85)' }, { opacity: 1, transform: 'scale(1)' }]`, 2400ms.
 The opacity-only 1→0.65→1 / 1800ms form is for larger surfaces where luminance change has enough area to register.
 
-**Looping animations must be WAAPI (`_breathe` / `_pulseComplete`), never CSS** (rule since v2.17.103). `_forceRepaint`'s `display:none/block` wake passes restart CSS animations from keyframe 0 — a guaranteed visible flash for anything mid-pulse; BUG-028 burned four sub-fixes proving suppress/restore can't hide it. A WAAPI timeline ignores display toggles. Both helpers gate on `prefers-reduced-motion` in JS. CSS animations remain correct for **one-shots** (slide-in, pop, ripple) — `_onWake` clears their classes mid-flight. The single CSS-suppression survivor in `_forceRepaint` is `.config-panel.open` (one-shot slide-up that would replay each pass, BUG-023). `#errorIndicator`'s `errorPulse` stays CSS by exception: it sits outside `#main-app`, untouched by repaint. Splash animations (`splashCursorBlink`, `splashStarBreath`) converted to WAAPI in v2.17.107 — migration complete.
+**Looping animations must be WAAPI (`_breathe` / `_pulseComplete` / `_loopPulse`), never CSS** (rule since v2.17.103). `_forceRepaint`'s `display:none/block` wake passes restart CSS animations from keyframe 0 — a guaranteed visible flash for anything mid-pulse; BUG-028 burned four sub-fixes proving suppress/restore can't hide it. A WAAPI timeline ignores display toggles. Both helpers gate on `prefers-reduced-motion` in JS. CSS animations remain correct for **one-shots** (slide-in, pop, ripple) — `_onWake` clears their classes mid-flight. The single CSS-suppression survivor in `_forceRepaint` is `.config-panel.open` (one-shot slide-up that would replay each pass, BUG-023). `#errorIndicator`'s `errorPulse` stays CSS by exception: it sits outside `#main-app`, untouched by repaint. Splash animations (`splashCursorBlink`, `splashStarBreath`) converted to WAAPI in v2.17.107 — migration complete.
 
 ---
 
@@ -34,14 +34,17 @@ The opacity-only 1→0.65→1 / 1800ms form is for larger surfaces where luminan
 
 | Token | Value | Usage |
 |---|---|---|
-| `--dur-fast` | 0.15s | Enter snaps, hover, timer open |
-| `--dur-base` | 0.18s | General UI transitions |
-| `--dur-mid` | 0.20s | Focus mode exit, fades |
-| `--dur-slow` | 0.30s | Recede/reveal, slide-up panels |
+| `--dur-exit` | 0.12s | Quick exits: chrome dimming away, count flick out, glyph bounce |
+| `--dur-fast` | 0.15s | Enter snaps, hover, timer open, count flick in |
+| `--dur-base` | 0.20s | General UI transitions, fades (v2.106.14 merged 0.18s and the former `--dur-mid` 0.20s) |
+| `--dur-slow` | 0.30s | Recede/reveal, slide-up panels, row entry/exit |
+| `--dur-emphasis` | 0.60s | Emphasis beats: milestone pulse, idle glyph; ×2 for the accent glow and age settle |
 
 JavaScript-owned motion must resolve these CSS tokens at animation time through
 `_motionDuration()` and `_motionEasing()` in `assets/util.js`. Do not duplicate
 their current millisecond or cubic-bezier values in WAAPI options.
+
+`design-lint` enforces this (v2.106.14): any literal duration, `cubic-bezier()` or bare easing keyword in a CSS transition/animation, an inline `style.transition` string or WAAPI `duration`/`delay`/`easing` fails the build. Deliberate rhythms (loop breaths, the Pomodoro tick, splash choreography, the undo window, PiP windows without app tokens, reduced-motion collapse) carry `motion-literal: <reason>` on the same or previous line. Derived beats use `calc()` on a token (`calc(var(--dur-exit) / 2)`).
 
 ---
 
@@ -52,14 +55,32 @@ their current millisecond or cubic-bezier values in WAAPI options.
 | `--ease-out` | cubic-bezier(0.16, 1, 0.3, 1) | Overshoot-free deceleration |
 | `--ease-spring` | cubic-bezier(0.34, 1.56, 0.64, 1) | Subtle overshoot for panels |
 | `--ease-std` | ease | Generic |
+| `--ease-in` | ease-in | Exits that accelerate away (count flick out, date swap out) |
+| `--ease-in-out` | ease-in-out | Symmetric loops and sweeps |
+
+Never write the bare keyword `ease-out`: it is the browser's gentle curve, not `--ease-out`. v2.106.14 moved its last uses onto the token.
 
 ---
 
 ## Animation Types
 
+### Rows: one entry, one exit (v2.106.14)
+Every list row (task, habit, Trello card, AI breakdown, synced task) uses the two helpers in `util.js`:
+
+- **Enter — `_rowEnter(el)`:** fade in while rising `--motion-rise` over `--dur-slow` / `--ease-out`.
+- **Exit — `_rowExit(el, then)`:** add `.removing` at once (callers and selectors skip leaving rows), fade while height, padding and margin close to zero over `--dur-slow` / `--ease-out`, so the rows below glide up. Removal and `then` run on the animation's own `finished`, never on a timer copying its duration.
+- Delete, clear-done, sync removal, Trello removal, AI suggestion/breakdown replacement and new-day graduation all call `_rowExit`.
+- Both are WAAPI, so wake repaints neither replay nor cut them. Reduced motion: no entry motion; exit removes immediately.
+
+### Entries (v2.106.14)
+Three CSS keyframes cover everything that appears: `fadeIn` rises `--motion-rise` (panels, nudge blocks, error panel), `revealDown` opens downward by `--motion-drop` (opened lists, Memory rows, suggestion chips), `fadeInPlain` appears in place (empty state). Use `--ease-out`. Sheets sliding up from an edge (`slideUp`, triage morph) are a different gesture and stay separate.
+
+### Attention and status pulses (v2.106.14)
+Header attention buttons (muted↔accent, 2.4s), the error dot ring (2s) and the PWA steps label (2.5s) run on `_loopPulse` (WAAPI, `ease-in-out` between steps). Header buttons follow their attention classes through one `MutationObserver` (`_syncAttentionPulse`). Reduced motion: no pulse; header buttons hold the accent colour.
+
 ### Enrichment Arrow Arrival (v2.93.20)
 
-Both ↩ email and ↗ web context use `_playEnrichmentArrival()` in `util.js`: one muted → accent → muted flash when a new result arrives. Duration is seven `--dur-mid` beats (1.4s), with `--ease-out` applied to each segment to retain the original timing. The WAAPI animation releases itself when finished and survives display-toggle repaints in progress. Cached restoration creates no animation; reduced motion skips it. Desktop hover remains the quiet way to reveal available context. The old persistent CSS arrival class replayed on every PWA wake pass (BUG-116).
+Both ↩ email and ↗ web context use `_playEnrichmentArrival()` in `util.js`: one muted → accent → muted flash when a new result arrives. Duration is seven `--dur-base` beats (1.4s), with `--ease-out` applied to each segment to retain the original timing. The WAAPI animation releases itself when finished and survives display-toggle repaints in progress. Cached restoration creates no animation; reduced motion skips it. Desktop hover remains the quiet way to reveal available context. The old persistent CSS arrival class replayed on every PWA wake pass (BUG-116).
 
 ### Tag Shimmer (task-tag-shimmer)
 One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newly added to the list.
@@ -110,20 +131,20 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 
 ### Feeling Choice Continuity (v2.90.15)
 - After the evening reflection choice, unselected words and the question recede over `--dur-fast` / `--ease-out`; the selected whole word acknowledges the tap over `--dur-base` / `--ease-spring`.
-- The selected word then travels as one fixed-position clone into the confirmation word over `--dur-mid` / `--ease-out`. Never split the word into letters: the continuity is semantic, and whole-word motion avoids the Safari shaping failures that character transforms caused elsewhere.
+- The selected word then travels as one fixed-position clone into the confirmation word over `--dur-base` / `--ease-out`. Never split the word into letters: the continuity is semantic, and whole-word motion avoids the Safari shaping failures that character transforms caused elsewhere.
 - Storage and haptics happen synchronously. Motion only explains the state change; it never delays or owns it.
 - Reduced motion swaps directly to the confirmation.
 
 ### Reorder Settle (v2.90.15)
-- Mouse, touch, and Option+Arrow moves share one FLIP path. Every affected row is measured before and after the DOM move, then visually settles over `--dur-mid`.
+- Mouse, touch, and Option+Arrow moves share one FLIP path. Every affected row is measured before and after the DOM move, then visually settles over `--dur-base`.
 - Neighboring rows use `--ease-out`; the moved row uses `--ease-spring`, giving the landing a small acknowledgement without making the list feel elastic.
-- Touch keeps the floating row under the finger and, on release, settles that ghost to the real row before fading it away over `--dur-mid` / `--ease-spring`.
+- Touch keeps the floating row under the finger and, on release, settles that ghost to the real row before fading it away over `--dur-base` / `--ease-spring`.
 - Rapid touch moves cancel the preceding FLIP only after measuring its current visual position, so movement continues from what the person saw rather than stacking transforms.
 - Reduced motion keeps the reorder and persistence behavior but skips FLIP and ghost-settle animation.
 
 ### Date Tag at Midnight (v2.82.2, BUG-097)
 - The header date is written once at init and refreshed by `checkNewDay()` at the day boundary via `window._dateTagRefresh(true)`, so a tab left open across midnight follows the day without a reload or a return to the splash.
-- Crossfade, deliberately slower than the count flick: fade out `--dur-mid` ease-in, swap text, fade in `--dur-slow` `--ease-out` with a 3px rise. Tokens are read from `:root` at call time so JS and CSS share one clock.
+- Crossfade, deliberately slower than the count flick: fade out `--dur-base` ease-in, swap text, fade in `--dur-slow` `--ease-out` with a 3px rise. Tokens are read from `:root` at call time so JS and CSS share one clock.
 - One-shot, so WAAPI is fine (the looping rule does not apply). `fill: forwards` on the exit is cancelled before the enter so it cannot re-assert. Reduced motion swaps the text with no animation; same-day calls are no-ops.
 
 ### New-Day Settle (v2.83.0)

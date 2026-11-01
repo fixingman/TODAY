@@ -152,7 +152,7 @@ try {
       return {
         armed, started, highlighted, dataTransfer: dataTransfer.value,
         tokenMotion: timings.some(timing =>
-          timing.duration === _motionDuration('--dur-mid') &&
+          timing.duration === _motionDuration('--dur-base') &&
           [
             _motionEasing('--ease-out'),
             _motionEasing('--ease-spring'),
@@ -239,7 +239,7 @@ try {
       moved: result.moved && result.position === 2,
       order: [...document.querySelectorAll('#manualList [data-taskid]')]
         .map(el => el.dataset.taskid).join(',') === 'm-b,m-a,m-c',
-      tokenMotion: timing?.duration === _motionDuration('--dur-mid') &&
+      tokenMotion: timing?.duration === _motionDuration('--dur-base') &&
         timing?.easing === _motionEasing('--ease-spring'),
     };
   });
@@ -330,11 +330,11 @@ try {
       const settle = document.querySelector('.touch-drag-ghost')?.getAnimations()[0];
       const timing = settle?.effect?.getTiming?.();
       const settlingUsesTokens = finish === 'touchend' && !!settle &&
-        timing.duration === _motionDuration('--dur-mid') &&
+        timing.duration === _motionDuration('--dur-base') &&
         timing.easing === _motionEasing('--ease-spring');
       // Poll for ghost removal — more reliable than a fixed wait because
       // compositor-threaded animations in Chrome fire onfinish asynchronously.
-      const deadline = Date.now() + _motionDuration('--dur-mid') + 300;
+      const deadline = Date.now() + _motionDuration('--dur-base') + 300;
       await new Promise(resolve => {
         const poll = () => {
           if (!document.querySelector('.touch-drag-ghost, .dragging, .drag-over') || Date.now() > deadline)
@@ -456,7 +456,7 @@ try {
     document.elementFromPoint = originalElementFromPoint;
     const crossListUnmarked = !document.querySelector('#trelloList .drag-over');
     fire(manual, 'touchend', []);
-    await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-mid') + 50));
+    await new Promise(resolve => setTimeout(resolve, _motionDuration('--dur-base') + 50));
     return {
       interactiveBlocked,
       editingBlocked,

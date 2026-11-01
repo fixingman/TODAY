@@ -47,11 +47,12 @@ The canonical tokens live in `:root` in `index.html`; this index and `memory/des
 | Sizes | `--text-sm 11px` · `--text-task 13.5px` · `--text-md 14px` · `--text-lg 16px` | — |
 | Spacing | `--space-1…6`, `--space-8`, `--space-20` (4–80px, 4px base scale) | — |
 | Layout | `--add-task-bar-height 72px` · `--panel-max-width 420px` | — |
-| Motion | `--dur-fast 0.15s` · `--dur-base 0.18s` · `--dur-slow 0.30s` | — |
-| Easing | `--ease-out cubic-bezier(0.16,1,0.3,1)` · `--ease-spring cubic-bezier(0.34,1.56,0.64,1)` | — |
+| Motion | `--dur-exit 0.12s` · `--dur-fast 0.15s` · `--dur-base 0.20s` · `--dur-slow 0.30s` · `--dur-emphasis 0.60s` | — |
+| Easing | `--ease-out cubic-bezier(0.16,1,0.3,1)` · `--ease-spring cubic-bezier(0.34,1.56,0.64,1)` · `--ease-std` · `--ease-in` · `--ease-in-out` | — |
+| Distance | `--motion-rise 6px` · `--motion-drop -4px` | — |
 | Z-index | `--z-header 11` · `--z-modal 100` · `--z-splash 500` | — |
 
-**Rules:** no hardcoded hex/rgba outside `:root` · no `transition: all` · no undefined CSS vars. Enforced by `scripts/design-lint.mjs`.
+**Rules:** no hardcoded hex/rgba outside `:root` · no `transition: all` · no undefined CSS vars · no hardcoded motion durations/curves (`motion-literal:` marks deliberate rhythms). Enforced by `scripts/design-lint.mjs`.
 
 → Full token table with usage notes: `memory/design/Tokens.md`
 

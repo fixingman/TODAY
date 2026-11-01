@@ -137,7 +137,7 @@
       _triageRevealTimer = setTimeout(() => {
         if (!panel) return;
         const els = panel.querySelectorAll('#triageTitle, .triage-header-btn, #triageList');
-        els.forEach(el => { el.style.transition = 'opacity 0.13s var(--ease-out)'; });
+        els.forEach(el => { el.style.transition = 'opacity var(--dur-exit) var(--ease-out)'; });
         panel.classList.remove('triage-morph-active');
         setTimeout(() => els.forEach(el => { el.style.transition = ''; }), 150);
       }, 200);

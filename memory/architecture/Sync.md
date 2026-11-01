@@ -61,7 +61,7 @@ Called from the sync module's `visibilitychange` handler, `window.focus` (PWA fa
 **Sequence:**
 1. `_forceRepaint()` + `_wakeFocusCheck()` immediately, on the next rAF, the rAF after, and at 500 / 1500 / 3000 / 5000 / 8000 / 12000ms — PWA standalone defers painting after sleep, and Mac GPU compositor wake can take >5s (BUG-004/056/071). Each pass toggles `#main-app` display while preserving scroll; skipped while hidden or just after focus exit.
 2. Looping animations are WAAPI, so they survive the display toggles; the only suppression left is the one-shot `.config-panel.open` slide-up (BUG-023), restored on the next user open. One-shot CSS animations that restart on toggle are a known hazard (BUG-109) — prefer WAAPI.
-3. Single-play classes cleared once: `.task-slide-in`, `.removing`, `.just-checked`, `.milestone-pulse`, `.dot-ripple`, `#manualEmpty.fading-in`.
+3. Single-play classes cleared once: `.just-checked`, `.milestone-pulse`, `.dot-ripple`, `#manualEmpty.fading-in`. Row entries/exits are WAAPI (`_rowEnter` / `_rowExit`) and need no wake cleanup.
 4. Stale `.focusing` cleared by `_clearStaleFocusing()` now, at 350ms and at 1000ms — skipped while `window._focusUIActive` (set in focus `openUI()`, cleared in `closeUI()`), because a sync-triggered `renderManual()` can destroy `.focused` moments before `_focusReanchor()` re-attaches it.
 5. `checkDayNudge()`; once-a-day memory abstraction if not yet run.
 6. Triage silent window: `setBarSilent(true)`, then after 3s re-read `triage_dismissed` and `checkTriageBar()` (BUG-001).
@@ -224,7 +224,7 @@ A task in SOON/PAST must not reappear in TODAY, and a task pulled back must not 
 - **Deleted tasks** are skipped in both SOON and PAST merges via `mergedDeletedMap` (no ghost tasks).
 - **Revive from PAST → SOON** (`reviveFromPast(id)`, aged/let_go only, never done): keeps the ID, clears `status`, fresh `zoneChangedAt`, increments `revived`, immediate backup. The SOON merge admits a remote entry that also sits in local PAST only if its `zoneChangedAt` is **strictly newer** (`_stillPast`); the PAST cleanup then drops the local copy. A stale remote SOON entry stays blocked.
 
-**Zone operations back up immediately** with `dropboxBackup(true)`, not the debounced save: `pullFromSoon()`, `moveToSoon()`, `moveToPast()`, `reviveFromPast()`. (Triage uses `dropboxAutoSave(0)` — see Triage.)
+**Zone operations back up immediately** with `dropboxBackup(true)`, not the debounced save: `pullFromSoon()`, `reviveFromPast()`. (Triage, the only path that moves tasks out of Today, uses `dropboxAutoSave(0)` — see Triage.)
 
 ---
 

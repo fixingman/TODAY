@@ -121,6 +121,47 @@ if (!styleBlocks.length) fail('no <style> blocks found — extraction regex may 
   }
 }
 
+// ── Check 2b: motion uses tokens (Motion.md → Timing Tokens / Easing) ────────
+// Durations and curves come from --dur-* / --ease-* (WAAPI: _motionDuration /
+// _motionEasing). A bare `ease-out` is the browser's gentle curve, not --ease-out.
+// Deliberate exceptions carry `motion-literal: <reason>` on the same or previous line.
+{
+  const hits = [];
+  const allowed = (lines, n) => /motion-literal:/.test(lines[n - 1] || '') || /motion-literal:/.test(lines[n - 2] || '');
+  const literal = v => {
+    const bare = v.replace(/var\([^)]*\)/g, '');
+    const found = [];
+    for (const d of bare.match(/(?<![\w.-])\d*\.?\d+m?s\b/g) || []) if (parseFloat(d) !== 0) found.push(d);
+    found.push(...(bare.match(/cubic-bezier\([^)]*\)|\b(?:ease-in-out|ease-in|ease-out|ease)\b/g) || []));
+    return found;
+  };
+  for (const { name, text } of runtimeSources) {
+    const lines = text.split('\n');
+    const patterns = [
+      /(?:transition|animation)(?:-duration|-delay|-timing-function)?\s*:\s*([^;"'`{}]+)/g,  // CSS + inline strings
+      /\.style\.transition\s*=\s*(['"`])([^'"`]*)\1/g,                                        // el.style.transition = '...'
+      /\b(?:duration|delay)\s*:\s*(\d+(?:\.\d+)?)\b/g,                                          // WAAPI numeric options
+      /\beasing\s*:\s*(['"])([^'"]+)\1/g,                                                     // WAAPI string easings
+    ];
+    patterns.forEach((re, kind) => {
+      let m;
+      while ((m = re.exec(text))) {
+        const n = lineOf(text, m.index);
+        if (allowed(lines, n)) continue;
+        const value = kind === 0 ? m[1] : kind === 2 ? m[1] + 'ms' : m[2];
+        const found = kind === 2 ? (parseFloat(m[1]) ? [m[1] + 'ms'] : []) : literal(value);
+        if (found.length) hits.push(`${name}:${n} ${[...new Set(found)].join(' ')}`);
+      }
+    });
+  }
+  const unique = [...new Set(hits)];
+  if (unique.length) {
+    fail(`${unique.length} hardcoded motion values (use --dur-*/--ease-* tokens, or mark "motion-literal: <reason>"):\n    ` + unique.join('\n    '));
+  } else {
+    ok('motion durations and curves use tokens');
+  }
+}
+
 // ── Check 3: undefined CSS var(--x) references ────────────────────────────────
 {
   const defined = new Set();

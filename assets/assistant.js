@@ -330,8 +330,7 @@ function _aiDismissSuggestion(source) {
   current.stopExposure?.();
   const el = current.element;
   if (el && el.parentNode) {
-    el.classList.add('removing');
-    el.addEventListener('animationend', () => el.remove(), { once: true });
+    _rowExit(el);
   }
   _aiCurrentSuggestion = null;
   if (appMemory?.patterns?.inlineSuggestions) {
@@ -356,8 +355,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks, sourceText) {
   const _tagPrefix = _tagPrefixMatch ? _tagPrefixMatch[0] : '';
   const oldEl = document.querySelector(`.task[data-taskid="${CSS.escape(originalTaskId)}"]`);
   if (oldEl) {
-    oldEl.classList.add('removing');
-    oldEl.addEventListener('animationend', () => oldEl.remove(), { once: true });
+    _rowExit(oldEl);
   }
   manualTasks.splice(idx, 1);
   const deleted = safeJSON('today_deleted_ids', []);
@@ -374,9 +372,8 @@ function _aiApplyBreakdown(originalTaskId, subtasks, sourceText) {
       const div = document.createElement('div');
       div.innerHTML = Today.use('connections').taskHTML(task, 'manual');
       const el = div.firstElementChild;
-      el.classList.add('task-new');
-      el.addEventListener('animationend', () => el.classList.remove('task-new'), { once: true });
       list.appendChild(el);
+      _rowEnter(el);
     }
   });
   _saveManual();

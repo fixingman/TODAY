@@ -413,11 +413,13 @@ try {
     localStorage.setItem(key,JSON.stringify({v:3,state:'hidden',taskText:text,boardId:'',fetchedAt:Date.now(),
       card:{headline:'Hidden card',body:'Fixture',cta:null}}));
     Today.use('connections').renderManual();
-    Today.use('zones').moveToSoon(id);
+    // Zone moves as triage performs them (the only product path out of Today).
+    const leave=(zone,list,save)=>{const t=manualTasks.find(x=>x.id===id);manualTasks=manualTasks.filter(x=>x.id!==id);_saveManual();Object.assign(t,{zone,zoneChangedAt:new Date().toISOString()},zone==='past'?{status:'let_go'}:{});list.unshift(t);save();Today.use('connections').renderManual();};
+    leave('soon',soonTasks,_saveSoon);
     await Promise.resolve();
     const soon=!!localStorage.getItem(key);
     Today.use('zones').pullFromSoon(id);
-    Today.use('zones').moveToPast(id);
+    leave('past',pastTasks,_savePast);
     await Promise.resolve();
     const past=!!localStorage.getItem(key);
     Today.use('zones').reviveFromPast(id);

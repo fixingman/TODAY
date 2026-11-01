@@ -28,7 +28,7 @@
 
     function _animateReorder(snapshot, movedRow) {
       if (!snapshot || _reorderReduced()) return;
-      const duration  = _motionDuration('--dur-mid');
+      const duration  = _motionDuration('--dur-base');
       const easeOut   = _motionEasing('--ease-out');
       const easeSpring = _motionEasing('--ease-spring');
       snapshot.forEach((before, row) => {
@@ -298,7 +298,7 @@
             { transform: `translate(${rect.left}px, ${rect.top}px) scale(1)`, opacity: 0 },
           ],
           {
-            duration: _motionDuration('--dur-mid'),
+            duration: _motionDuration('--dur-base'),
             easing: _motionEasing('--ease-spring'),
             fill: 'forwards',
           }
