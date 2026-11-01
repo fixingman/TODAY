@@ -1064,8 +1064,10 @@ try {
         checkDayNudge(); // fallback at 5s, AI cache written at ~5.6s
         await new Promise(r => setTimeout(r, 6000));
         checkDayNudge(); // _nudgeIsFallback=true + cache available → shows AI
-        await new Promise(r => setTimeout(r, 100));
+        // The late line swaps in after a --dur-slow fade-out; wait for it rather than a fixed margin.
         const nudge = document.getElementById('dayNudge');
+        const deadline = performance.now() + _motionDuration('--dur-slow') * 2 + 1500;
+        while (!nudge?.textContent.includes('AI upgraded line.') && performance.now() < deadline) await new Promise(r => setTimeout(r, 50));
         return {
           nudgeVisible:    !!(nudge && nudge.classList.contains('visible')),
           hasUpgradedText: !!(nudge && nudge.textContent.includes('AI upgraded line.')),
