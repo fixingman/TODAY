@@ -1085,7 +1085,9 @@ try {
       const voteLayout=await page.evaluate(()=>{
         const group=document.querySelector('.focus-ask-feedback-actions'),landed=group.querySelector('[data-choice="landed"]'),missed=group.querySelector('[data-choice="missed"]'),clear=group.querySelector('[data-today-click="focus-ask.clear"]');
         const rgb=el=>getComputedStyle(el).color.match(/\d+/g).slice(0,3).map(Number);
-        return {selectedWhite:Math.min(...rgb(landed))>=215,otherGray:Math.max(...rgb(missed))<180&&Math.max(...rgb(missed))-Math.min(...rgb(missed))<30,
+        const probe=document.createElement('span');probe.style.color='var(--accent)';document.body.append(probe);const accent=rgb(probe).join();probe.remove();
+        // v2.106.16: selected votes use the accent token everywhere.
+        return {selectedAccent:rgb(landed).join()===accent,otherGray:Math.max(...rgb(missed))<180&&Math.max(...rgb(missed))-Math.min(...rgb(missed))<30,
           clearAtRight:Math.abs(clear.getBoundingClientRect().right-group.getBoundingClientRect().right)<2,
           oneClearAction:!group.querySelector('[data-today-click="focus-ask.undo"]')&&clear.textContent==='clear vote'};
       });

@@ -310,7 +310,10 @@ try {
           observe(target) { this.target = target; }
           disconnect() { this.disconnected = true; }
         };
-        window.fetch = async (_url, options) => {
+        // The startup morning reading shares the proxy; only suggestion requests are counted.
+        const realFetch = window.fetch.bind(window);
+        window.fetch = async (url, options) => {
+          if (!JSON.parse(options?.body || '{}').systemPrompt?.includes('one newly captured task')) return realFetch(url, options);
           prompts.push(JSON.parse(options.body).messages[0].content);
           return {
             ok: true,
