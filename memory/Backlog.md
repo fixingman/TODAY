@@ -27,7 +27,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 |---|---|---|---|---|
 | 1 | 15 | [AI continuous improvement — target v3.0.0](#15-ai-continuous-improvement) | Bounded feedback/next-use mechanisms shipped through v2.106.0; broader personal style and acceptance remain open | Agree the concrete 3.0.0 acceptance/scope and any explicit deferrals; use the [single sub-item queue](#15-sub-items). |
 | 2 | — | [Release verification](#release-verification) | Installed/account checks and deployed performance follow-ups remain | Verify delivery and current installed behavior; keep BUG-135 separate from completed CI work; BUG-138 is verified closed. |
-| 3 | — | [Memory record and patterns](#memory-record-and-patterns) | KNOWN iterated; PATTERNS re-observing | Preserve November 1 KNOWN and overdue October 27 PATTERNS checkpoints; HOW DAYS FELT belongs to #15B. |
+| 3 | — | [Memory record and patterns](#memory-record-and-patterns) | KNOWN iterated; PATTERNS re-observing | Preserve November 1 KNOWN and overdue October 27 PATTERNS checkpoints; HOW DAYS FELT belongs to #15B. Post-v3: revisit noticed-nudge → memory trail connection. |
 | 4 | 14 | [Habit contextual companionship](#14-habit-contextual-companionship) | Desktop Ask kept; new morning contribution unbuilt | Existing Ask improvement belongs to #15D; a new morning relationship requires its own evidence/design decision. |
 | 5 | 10b | [Calendar context](#10b-google-calendar-context) | Read-only foundation and timing-only daily-writer increment implemented | Finish account/eligible-use checks; Join / Record remains unbuilt. |
 | 6 | 10a | [Granola meeting import](#10a-granola-meeting-import) | Not started; priority meeting-capture path | Revalidate API/auth and reviewed task chips before native calendar-led capture. |
@@ -38,6 +38,35 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 | 11 | — | [First-run orientation](#open-decisions) | Open product decision; unbuilt | Decide deliberate minimalism versus minimum orientation before building. |
 | 12 | 9 | [Google Drive sync](#9-google-drive-sync) | Parked | Revalidate auth/shared merge/current Connections before implementation. |
 
+
+---
+
+## ▸ Post-v3 follow-ups
+
+After v3.0.0 is cut and version bumped, pick these up in order. None are build tasks yet — each starts with a verdict or design session.
+
+### Design work (explicit deferrals)
+
+| Item | What to bring | Gate |
+|---|---|---|
+| **15B personal style** — HOW DAYS FELT writing | (1) Accumulated reaction votes in Dropbox (landed/hard to follow/wording concerns); (2) data density problem — eligibility needs sufficient reflection data in both comparison groups; (3) which dimensions of style matter — length, concreteness, warmth, structure; (4) whether 15B and 15D can share one style-learning mechanism; (5) existing `assets/feedback-policy.js` signal as starting point. | Sufficient reactions accumulated; at least a second qualifying insight seen |
+| **Noticed nudge → memory trail** | `assets/noticed-model.js` deterministic deltas; question: can accumulated noticed observations graduate into interpretation nudges, and should the memory panel show which observations stacked into which insights? | Post-v3 acceptance; v3 deliberately keeps noticed nudges separate |
+
+### Open verdict loops (ongoing — close when they close)
+
+| Slice | Status | Next checkpoint |
+|---|---|---|
+| 15A — daily nudge quality | Better, still observing | November 15 (BUG-139 +14 days) |
+| 15C / 12c — pool morning / Sunday | Really good, continuing | Close iterate verdict when novelty confirmed over multiple Sundays |
+| 15D — Focus Ask | Better, not useful enough yet | November 7 provisional; next concrete change observed |
+| 15E — Trello / Gmail enrichment | No exposure yet | First time it fires |
+| 15F — post-add suggestions | No exposure yet | First time it fires |
+
+### Gated roadmap items that may now unlock
+
+- **WEEK companion** — gated on 15C genuinely feeling like a companion (not just technically working)
+- **New week recognition** — gated on distinct week-scale relationship and novelty vs Today/Sunday
+- **DreamBank M3** — gated on M2 natural recurrence verdict; needs more dream accumulation first
 
 ---
 
@@ -66,12 +95,12 @@ Execution order is independent of the letters. Implemented mechanisms are not a 
 
 | Execution order | ID | Work / consolidated source | Current status | Remaining action / acceptance |
 |---|---|---|---|---|
-| 1 — acceptance | 15A | Morning loop and delivery | Balanced ordinary feedback/next-morning context shipped; v2.106.2 dev candidate fixes accepted-reading stability | Verify normal vote pickup, helper/fallback provenance, delivery (BUG-118) and writing usefulness. BUG-139 local fix passes eight affected suites and56 desktop/touch delivery cases, retaining an accepted About reading and vote after local/synced completions; one shared word is not a task link. Preserve writer freedom and existing daily boundaries; no metadata or extra AI call. Optional verified task relationships remain a future design option, not part of this fix. Do not rebuild the activated adapter. |
-| 1 — style design alongside | 15B | HOW DAYS FELT safety and writing style | Retention/export/incoming-merge safety, clearer day/evening framing and optional wording feedback shipped | Verify installed behavior and real clarity/voice. Define a meaningful permitted mechanism for broader personal style or agree an explicit deferral; prior feeling prose stays private. |
-| 3 — usefulness | 15C / 12c | Pool morning and Sunday | Selection/correctness and same-surface fixed-concern wording shipped | Judge natural-use clarity, novelty, timing and earned silence. Keep revision/clear/sync and selection meanings; iterate is not closed by tests or an ordinary-nudge success. |
-| 2 — usefulness | 15D | Focus Ask, tasks and habits | v2.106.0 adds same-owner/device concerns across sessions; whole votes remain session-only | Confirm installed build and later explicit Ask usefulness. Keep the 7-day / 20-owner / 16 KiB support, source/clear/expiry fences, no old-answer prose, and no cross-owner/surface transfer. Broader learned style remains open. |
-| 4 — relevance and writing | 15E / 11 | Web/Trello cards and Gmail context/drafts | Ownership, exact-card controls, requested alternatives and bounded next-use wording/selection shipped | Judge installed relevance/clarity and actual writing. Gmail thread rejection stays task-local; device-local cross-task wording is explicitly approved. Preserve retention/clear and no draft-prose reuse; BUG-117/account checks stay separate. |
-| Existing machinery — acceptance | 15F | Post-add suggestions/outcomes | Recovery, source-index application, stale-Apply guards and confirmed oil eligibility shipped through v2.106.0 | Verify useful offers in normal installed capture. Keep newest-capture cancellation, original wording, outcome/frequency meanings and conservative unsupported syntax. No automatic analysis of old tasks is approved. |
+| 1 — acceptance | 15A | Morning loop and delivery | Balanced ordinary feedback/next-morning context shipped; v2.106.2 shipped to dev/master — accepted-reading retention fix deployed | **Real-use checkpoint (November 1):** daily nudges are noticeably better, still observing. Verify normal vote pickup, helper/fallback provenance, delivery (BUG-118) and writing usefulness. BUG-139 deployed (v2.106.2, confirmed on origin/dev + origin/master November 1). Preserve writer freedom and existing daily boundaries; no metadata or extra AI call. Optional verified task relationships remain a future design option, not part of this fix. Do not rebuild the activated adapter. |
+| 1 — style design alongside | 15B | HOW DAYS FELT safety and writing style | Retention/export/incoming-merge safety, clearer day/evening framing and optional wording feedback shipped | **Deferred to post-v3 (November 1, Can).** Personal style mechanism undesigned; data too sparse to design from. **Real-use checkpoint:** one insight seen total since AI work shipped, same wording as before, voted "hard to follow." Feedback loop unverified; low reflection-data density limits eligibility. Writing quality and wording-concern effect both unverified. Accumulate signal and carry design context forward to post-v3. |
+| 3 — usefulness | 15C / 12c | Pool morning and Sunday | Selection/correctness and same-surface fixed-concern wording shipped | **Real-use checkpoint (November 1):** pool morning and Sunday readings feel really good in real use. Judge natural-use clarity, novelty, timing and earned silence. Keep revision/clear/sync and selection meanings; iterate is not closed by tests or an ordinary-nudge success. |
+| 2 — usefulness | 15D | Focus Ask, tasks and habits | v2.106.0 adds same-owner/device concerns across sessions; whole votes remain session-only | **Real-use checkpoint (November 1):** Asks are noticeably better since the AI work, but not yet useful enough to act on. Direction is right; quality gap remains. Broader learned style still open. Keep the 7-day / 20-owner / 16 KiB support, source/clear/expiry fences, no old-answer prose, and no cross-owner/surface transfer. |
+| 4 — relevance and writing | 15E / 11 | Web/Trello cards and Gmail context/drafts | Ownership, exact-card controls, requested alternatives and bounded next-use wording/selection shipped | **Real-use checkpoint (November 1):** Trello enrichment and Gmail context not yet encountered in normal use. No verdict possible; continue observing. Judge installed relevance/clarity and actual writing. Gmail thread rejection stays task-local; device-local cross-task wording is explicitly approved. Preserve retention/clear and no draft-prose reuse; BUG-117/account checks stay separate. |
+| Existing machinery — acceptance | 15F | Post-add suggestions/outcomes | Recovery, source-index application, stale-Apply guards and confirmed oil eligibility shipped through v2.106.0 | **Real-use checkpoint (November 1):** no suggestions seen in normal capture yet. Verify useful offers in normal installed capture. Keep newest-capture cancellation, original wording, outcome/frequency meanings and conservative unsupported syntax. No automatic analysis of old tasks is approved. |
 | Throughout — maintenance | 15G | Shared contracts, evaluation and release assurance | CI efficiency phases 1–3 complete; scoped regression/release checks remain | Apply existing per-slice safety/evaluation checks. Track deployed startup BUG-135 separately; hosting RUM BUG-138 is verified closed; automatic critic and D5 extraction stay parked. |
 
 **Completion rule:** each slice must show its normal trigger → actual result → feedback/current-source effect → next eligible use, with privacy/clear/sync and fallback preserved. Correctness, repetition/card control and personalized style are distinct. Sparse/unavailable signals stay an open goal, not an infinite dependency or permission for more collection. No manual console operating cycle, automatic prompt edits or default extra judge calls.
@@ -91,6 +120,10 @@ Execution order is independent of the letters. Implemented mechanisms are not a 
 **PATTERNS:** merged list and corrected obligation/return calculations are implemented; October 27 checks whether valued lines still help and AI restatements stay gone. Inspect existing semantic/procedural/episodic confirmation statuses before adding generation or sources; Can's limited interest is not permission to expand collection.
 
 **HOW DAYS FELT:** now owned by [#15B](#15-sub-items), including the October 25 clarity/usefulness verdict. v2.98.0 reaction/retention/sync foundation is pushed, without a style-learning or accepted real-use verdict. A source feeling is not a reaction to its reading. Memory hierarchy/KNOWN/PATTERNS remain separate; do not collect more to fill the panel.
+
+**Post-v3.0.0 — noticed nudges and memory:** after v3 ships, revisit whether the Memory section should surface the trail behind "noticed" observations. Noticed nudges (`assets/noticed-model.js`) are deterministic and outside the v3 AI loop by design, but they produce valuable behavioral signal. The open question: can accumulated "noticed" deltas graduate into interpretation nudges, and should the memory panel show which observations stacked into which insights? Do not add this before v3 acceptance; v3 deliberately keeps noticed nudges separate.
+
+**Post-v3.0.0 — personal style (deferred November 1, Can):** the HOW DAYS FELT personal style mechanism was explicitly deferred because data is too sparse to design from. What to bring into the post-v3 design session: (1) accumulated reaction votes on insights — landed/hard to follow/wording concerns stored in Dropbox; (2) the data density problem — eligibility requires sufficient reflection data in both comparison groups, so the mechanism needs a minimum-exposure threshold before it can act; (3) what dimensions of style actually matter — length, concreteness, warmth, structure; (4) whether 15D (Focus Ask) and 15B can share a single style-learning mechanism or need separate models; (5) the wording-concern signal already flowing through `assets/feedback-policy.js` as a starting point. Do not design this before v3 ships and sufficient reactions have accumulated.
 
 ### 13: DreamBank
 
@@ -146,7 +179,7 @@ The underlying habit/context idea remains open. Preserve the actual Habits compo
 **Still open:**
 
 - BUG-118: phone/desktop morning delivery, legacy rejection recovery and strip/About agreement through normal use.
-- BUG-139 (v2.106.2 dev candidate): verify the accepted About reading and its vote survive completion/sync without a replacement request; the fix leaves the writer unchanged. Publication and installed pickup remain pending.
+- BUG-139 (v2.106.2): deployed to dev/master (confirmed November 1). Verify the accepted About reading and vote survive completion/sync in real installed use; the fix leaves the writer unchanged.
 - BUG-135: deployed/installed startup evidence. Retain the failed local/deployed measurements; the accepted Linux release proof does not erase them or establish deployed recovery.
 - Current installed Calendar/mail relevance and other explicit account checks remain with [Bugs.md](Bugs.md) and the relevant product item. Technical source/cache/request ownership BUG-127/128 and precache BUG-136 are independently verified and archived; this does not close account relevance or normal installed experience. BUG-137 still owns the current hosted pool/reflection failures.
 - Ordinary two-device sync experience remains an installed check; BUG-130's confirmed unread-revision defect is already verified/archived and is not reopened as an implementation task. Do not promise a delivery SLA or lower polling to conceal latency.
@@ -189,13 +222,13 @@ Resolve as **kept**, **iterated** or **removed** from actual exposure. No exposu
 
 | Surface | Due / trigger | Current status / next judgment |
 |---|---|---|
-| [#15C / 12c](#15-sub-items) — pool morning / Sunday | 2026-10-15 — overdue | **Iterate.** Review actual misses and quiet Sundays for evidence, novelty, usefulness and timing. Ordinary morning quality/delivery does not close this gate or unlock WEEK/New week. |
-| [#15E](#15-sub-items) — enrichment arrow arrival | 2026-10-20 — overdue | Wake repair verified October 22 (BUG-116). Still judge W1 useful arrival versus distraction; W2 one flash for fresh context, quiet cached hover. No quality verdict yet. |
+| [#15C / 12c](#15-sub-items) — pool morning / Sunday | 2026-10-15 — overdue | **November 1 checkpoint:** pool morning and Sunday feel really good in real use. Continue judging for novelty and earned silence. Ordinary morning quality/delivery does not close this gate or unlock WEEK/New week. |
+| [#15E](#15-sub-items) — enrichment arrow arrival | 2026-10-20 — overdue | **November 1:** no exposure yet. Wake repair verified October 22 (BUG-116). Still judge W1 useful arrival versus distraction; W2 one flash for fresh context, quiet cached hover. No quality verdict yet. |
 | Connections sign-in attention | 2026-10-20 — overdue | W1 find the connection needing repair; W2 only expired Gmail/Dropbox/Calendar and quiet after opening Connections. Judge usefulness if reconnecting waits, not only the repair working. |
-| [#15E](#15-sub-items) — booking email context | 2026-10-20 — overdue | **Iterating.** W1 a relevant earlier confirmation can help rebook; W2 bounded task-grounded context without an automatic reply. Review wrong cards and useful cards withheld; BUG-117 verification remains separate. |
-| [#15A](#15-sub-items) — daily nudge quality / thinking | 2026-10-23 — overdue | W1 perceptive orientation beyond recap; W2 existing morning moment and bounded route. Judge wording/usefulness and latency independently. Historical decline is real; its cause is unproven. |
+| [#15E](#15-sub-items) — booking email context | 2026-10-20 — overdue | **November 1:** no exposure yet — Trello and Gmail context not encountered. W1 a relevant earlier confirmation can help rebook; W2 bounded task-grounded context without an automatic reply. Review wrong cards and useful cards withheld; BUG-117 verification remains separate. |
+| [#15A](#15-sub-items) — daily nudge quality / thinking | 2026-10-23 — overdue | **November 1 checkpoint:** noticeably better, still observing. W1 perceptive orientation beyond recap; W2 existing morning moment and bounded route. Judge wording/usefulness and latency independently. |
 | Daily nudge delivery — BUG-118 | 2026-10-23 overdue; follow-up 2026-11-05 | **Re-observing v2.97.8.** W1 a useful morning must survive transient failure/false recap rejection; W2 bounded recovery with real dismissals final. Verify phone/desktop midnight, legacy recovery and strip/About agreement. Consolidates the older recovery and recap-filter rows without closing either check. |
-| [#15B](#15-sub-items) — HOW DAYS FELT | 2026-10-25 — overdue | **Re-observing.** W1 recognizable relationship; W2 qualified comparison or silence fenced to current evidence. Feedback foundation shipped in v2.98.0; usefulness and writing-style verdicts remain open. |
+| [#15B](#15-sub-items) — HOW DAYS FELT | 2026-10-25 — overdue | **Personal style deferred to post-v3 (November 1).** Continue accumulating reaction signal (landed/hard to follow/wording concerns) for post-v3 design. W1 recognizable relationship; W2 qualified comparison or silence fenced to current evidence. Usefulness verdict remains open; style design intentionally parked. |
 | [#15A](#15-sub-items) — nudge length recovery | 2026-10-27 — overdue | **Re-observing.** W1 keep useful morning/About prose after a length miss; W2 one grounded shortening pass, not repeated prose hunting. Check delivery and retained meaning; no real-AI dismissal reset. |
 | Triage touch countdown | 2026-10-27 — overdue | **Re-observing.** W1 enough time to read; W2 hold only during the active countdown, resume on release/cancel. Physical-phone naturalness/scrolling/choice check is still owed. |
 | Memory → PATTERNS | 2026-10-27 — overdue | **Re-observing.** W1 corrected useful timing/outcome comparisons without HOW YOU WORK echo; W2 bounded list/qualified evidence. Judge valued lines and continued suppression of AI restatements. |
@@ -214,11 +247,11 @@ These already-shipped mechanisms still need a confirmed release/exposure date or
 
 | Surface | Due / trigger | Current status / next judgment |
 |---|---|---|
-| About → Today accepted-reading retention (v2.106.2 dev candidate, BUG-139) | Confirmed deployment +14 days; date unconfirmed | W1 revisit the accepted daily reading and vote after task progress. W2 existing Today block, dated cache and feedback controls; no extra call, prompt or new UI. Local shared-word/completion/sync/vote/noon/rollover checks verify correctness. Judge normal availability after installed pickup; broader writing usefulness remains #15A. |
-| #15B optional wording feedback (published v2.100.0; approved October 27) | 14 days after actual release | W1 an explicit wording concern changes permitted guidance on the next eligible feeling generation; W2 optional collapsed controls inside the existing reaction, no mandatory second vote or new panel. Compare actual clarity/voice; passing tests do not establish preference or quality. |
+| About → Today accepted-reading retention (v2.106.2, BUG-139) | November 1 deployment confirmed; +14 days = November 15 | W1 revisit the accepted daily reading and vote after task progress. W2 existing Today block, dated cache and feedback controls; no extra call, prompt or new UI. Judge normal availability in real installed use; broader writing usefulness remains #15A. |
+| #15B optional wording feedback (published v2.100.0; approved October 27) | 14 days after actual release | **November 1 checkpoint:** one insight seen total, same wording as before AI work, voted "hard to follow." Second generation not yet observed — wording concern effect unverified. Low reflection data density likely limiting eligibility. Resume when a second qualifying insight appears. |
 | #15E exact-card control (published v2.99.1) | 14 days after actual release | W1 remove unhelpful context and resume the task; W2 existing card/action row, optional local hide/Undo with no survey or extra call. Technical correctness is separate from relevance/style learning. |
-| #15F post-add recovery (published v2.99.1, BUG-129) | 14 days after actual release | W1 useful capture-time help survives a brief outage; W2 latest unchanged capture only, two-minute window and one retry with existing frequency/viewport limits. Verify actual delivery/usefulness after release; no automatic old-task review. |
-| #15D same-owner Focus wording — published v2.106.0 | Confirmed deployment/exposure +14 days; date unconfirmed | W1 explicit concerns can improve a later requested answer for the same owner; W2 existing Ask/hidden feedback shell, no automatic call or mandatory vote. Verify wording usefulness through normal use; no model-quality claim from mock providers. |
+| #15F post-add recovery (published v2.99.1, BUG-129) | 14 days after actual release | **November 1:** no suggestions seen in normal capture yet. W1 useful capture-time help survives a brief outage; W2 latest unchanged capture only, two-minute window and one retry with existing frequency/viewport limits. Verify actual delivery/usefulness after release; no automatic old-task review. |
+| #15D same-owner Focus wording — published v2.106.0 | Confirmed deployment/exposure +14 days; date unconfirmed | **November 1 checkpoint:** Asks are better but not yet useful enough to act on. Direction confirmed; quality gap remains. Continue observing — next checkpoint when wording concern or repeat Ask shows a concrete change. |
 | #15C Sunday fallback integration (published v2.99.1, BUG-126) | 14 days after actual release | W1 a reading respects rejected kinds and accurately describes supported actions; W2 existing Sunday component, one qualified reading or silence, no extra call/controls. Technical checks do not establish usefulness; the older pool iterate verdict stays open. |
 | DreamBank M2 recurrence | next natural dream accumulation | **Extended.** M1 and dream sheet are kept/archived; M2 lacks enough exposure. Judge recognition versus a word count before M3. |
 | Nudge readout / gentle default upgrade | once phone-first delivery is understood | **Temporary diagnostic.** Use the content-free Today readout to resolve the actual device path; then remove readout/`display` events. Judge the one bounded untouched-default upgrade separately. |
