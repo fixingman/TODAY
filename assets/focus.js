@@ -837,8 +837,7 @@ window._startFocus = (function() {
       }
     }, 200);
 
-    // Clean up exit wave after the longest possible exit animation:
-    // --dur-fast (150ms max wave delay) + --dur-slow (300ms) + --dur-exit*2/3 (80ms) ≈ 530ms
+    // 550ms covers max wave delay (--dur-fast) + transition duration (--dur-slow) + exit fraction (--dur-exit*2/3).
     const _exitGen = myGen;
     setTimeout(() => {
       if (_exitGen !== focusGen) return;
