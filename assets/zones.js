@@ -95,6 +95,15 @@
       if (trigger) trigger.setAttribute('aria-expanded', String(!isOpen));
       chevron.classList.toggle('open', !isOpen);
       chevron.textContent = isOpen ? '+' : '−';
+      if (!isOpen && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        list.animate(
+          [
+            { opacity: 0, transform: 'translateY(' + _cssToken('--motion-drop') + ')' },
+            { opacity: 1, transform: 'translateY(0)' }
+          ],
+          { duration: _motionDuration('--dur-slow'), easing: _motionEasing('--ease-out'), fill: 'none' }
+        );
+      }
     }
 
     function _flickCount(el, newVal) {
