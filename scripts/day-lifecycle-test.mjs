@@ -221,10 +221,24 @@ try {
         && window.__triageSyncUploads?.length > 0,
       { timeout: 15000 });
       const r = await page.evaluate(async ({ todayDs }) => {
-        Today.use('triage').setBarSilent(false);
-        Today.use('triage').checkTriageBar();
+        const triage = Today.use('triage');
+        triage.setBarSilent(false);
+        triage.checkTriageBar();
+        // Reproduce a reveal queued before the incoming dismissal, then delivered
+        // after it. A superseded animation frame must not resurrect the prompt.
+        const realFrame = window.requestAnimationFrame;
+        let queuedReveal;
+        window.requestAnimationFrame = callback => { queuedReveal = callback; return 0; };
+        try {
+          triageDismissedToday = false;
+          triage.checkTriageBar();
+          triageDismissedToday = true;
+          triage.checkTriageBar();
+          queuedReveal?.();
+        } finally { window.requestAnimationFrame = realFrame; }
         await new Promise(requestAnimationFrame);
         return {
+          revealQueued: !!queuedReveal,
           dismissalKept: localStorage.getItem('triage_dismissed') === todayDs,
           inMemoryDismissed: triageDismissedToday === true,
           promptHidden: !document.getElementById('triageBar').classList.contains('visible'),

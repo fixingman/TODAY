@@ -19,6 +19,7 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 141 | ⏳ Verify | Repeated dev CI failures: legacy feeling-feedback records survive source edits or withdrawal. | v3.0.8 |
 | 140 | ✅ Verified | Morning-reading reason chips and wording panel cut off on phones after "not really". | v2.106.11 |
 | 139 | ⏳ Verify | Accepted daily reading disappears from About after a completion shares a word with its prose. | v2.106.2 |
 | 137 | ✅ Verified | Hosted regression gate fails pool feedback clearing and configured reflection display. Fixed; hosted dev run 41194963071 green. | v2.106.4 |
@@ -33,6 +34,14 @@
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-141 — Legacy feeling-feedback withdrawal fails CI
+
+**v3.0.8 dev publication (authorized November 3):** dev runs [41514801226](https://github.com/fixingman/TODAY/actions/runs/41514801226), [41517387062](https://github.com/fixingman/TODAY/actions/runs/41517387062) and [41519328533](https://github.com/fixingman/TODAY/actions/runs/41519328533) repeatedly fail `feedback-policy-unit-test.mjs:48`. v3.0.5 retained voted records on every evidence change; v3.0.7 distinguished feeling edits only for records carrying new fingerprints. Older records still bypassed the original edit/withdrawal fence. Latest hosted run: 60 passed, zero flaky, one failed. Its final memory-check error follows skipped steps after that functional failure.
+
+Retain votes after recent evidence changes only when valid stored/current feeling fingerprints prove an outcome-only edit. Feeling edits, deletion and missing legacy/partial fingerprints invalidate the reading; source-readiness deferral, consent/clear fences and natural expiry stay intact. Original local failure: `.context/feedback-ci-fix/before-unit.log`. Policy regressions cover both record formats, outcome-only retention, feeling edits/deletion, missing metadata, startup deferral and expired-record convergence. A separate local reflection-fixture flake sampled before the request/result after a fixed 50ms; result assertions now await rendered acceptance/rejection within the existing 3s fixture bound. Initial logs and retry remain under `.context/feedback-ci-fix/initial-targeted/`. The frozen full local gate then reports 60 passes, zero flakes and one Focus fixture failure (`.context/feedback-ci-fix/full-gate/`). Its 25-minute synthetic jump crossed local midnight, so the subsequent partial session correctly reset the daily minute counter. A fixed 23:50 control reproduces the same one-minute-versus-26 result; that same-day sync test now starts at fixed noon, with existing midnight history coverage retained in `day-lifecycle-test`. Control: `.context/feedback-ci-fix/focus-midnight-control-seeded.log`. The earlier targeted run was invalidated by version metadata edits and is not accepted as final proof. The focused follow-up passes Focus but exposes a day-lifecycle flake: a triage reveal animation frame queued before incoming dismissal can run after a newer hide. A generation/state guard in `checkTriageBar` prevents that stale reveal. A controlled queued-frame test fails before and passes after (`.context/feedback-ci-fix/triage-frame-before.log`); all six affected invariant/smoke/Dropbox/triage/day-lifecycle checks pass with zero retries (`.context/feedback-ci-fix/triage-targeted/`). Final combined local validation (November 3): all 61 suites passed on the first attempt, zero failures/flakes, 422.4s, with runtime/test/policy fingerprints unchanged (Node24.14.0 / macOS arm64 / Chrome156.0.8078.79). Payload passes at1205.2KiB decoded /341.2KiB Brotli /38 scripts; syntax, memory inventory and whitespace pass. Final receipt: `.context/feedback-ci-fix/final-validation/summary.json`. This is local functional evidence; hosted exact-commit and five-run performance confirmation remain pending. Dev publication authorized November 3; hosted confirmation pending.
 
 ---
 

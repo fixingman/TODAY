@@ -1,4 +1,4 @@
-import { waitForFonts } from './browser-fixture.mjs';
+import { waitForFonts, installFixtureClock } from './browser-fixture.mjs';
 // TODAY — focus mode module regression test
 //
 // Tests: mobile guard, desktop exports, task click opens timer, session persist,
@@ -61,11 +61,12 @@ browser = await puppeteer.launch({
 
 // openPage — emulates a desktop (hover:hover) or mobile (no hover) environment.
 // Seeds localStorage with a single manual task so the task list renders.
-async function openPage({ hoverHover = true, extraSeed = {}, pip = false, nativeTouch = false } = {}) {
+async function openPage({ hoverHover = true, extraSeed = {}, pip = false, nativeTouch = false, clock } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 900, hasTouch: nativeTouch });
   const errors = [];
   page.on('pageerror', err => errors.push(err.message));
+  if (clock !== undefined) await installFixtureClock(page, clock);
   await page.evaluateOnNewDocument(({ seed, hoverHover, pip }) => {
     // Stub matchMedia so the hover:hover guard is deterministic in headless Chrome.
     const _orig = window.matchMedia.bind(window);
@@ -226,7 +227,8 @@ try {
 
     // Completed and partial focus progress must queue sync without another task edit.
     {
-      const { page, errors } = await openPage();
+      // Keep both synthetic sessions on one day; rollover has separate coverage.
+      const { page, errors } = await openPage({clock:new Date(2026,9,24,12).getTime()});
       await page.evaluate(() => {
         window.__focusSaves = [];
         localStorage.removeItem('last_local_change');
@@ -262,6 +264,12 @@ try {
       });
       await page.keyboard.press('Escape');
       const partial = await page.evaluate(() => window.__focusSaves.some(s => s.sessions === 1 && s.minutes === 26 && s.changed));
+      if (!partial) console.error('Partial focus fixture state:', await page.evaluate(() => ({
+        saves:window.__focusSaves, minutes:localStorage.getItem('stat_focus_mins_today'),
+        date:localStorage.getItem('stat_focus_mins_date'), day:_getAppDay(),
+        session:localStorage.getItem('today_focus_session'), timer:document.querySelector('.focus-timer')?.textContent,
+        active:window._focusUIActive,
+      })));
       await expectAll('partial focus queues sync', { partial, noErrors:!errors.length });
       ok('completed and partial sessions queue Dropbox sync and mark an offline change without another edit');
       await page.close();

@@ -16,6 +16,7 @@
     let _triageActive = false;
     let _triageBarSilent = false;
     let _triageBarShown = false;
+    let _triageBarGeneration = 0;
     let _triageRevealTimer = null;
     let _triageCollapseTimer = null;
     let _triageBarRect = null;
@@ -42,6 +43,7 @@
     }
 
     function checkTriageBar() {
+      const generation = ++_triageBarGeneration;
       const bar = $.triageBar || document.getElementById('triageBar');
       if (!bar) return;
 
@@ -75,7 +77,10 @@
         if (!bar.classList.contains('visible')) {
           bar.classList.remove('hidden');
           bar.style.display = '';
-          requestAnimationFrame(() => bar.classList.add('visible'));
+          requestAnimationFrame(() => {
+            if (generation === _triageBarGeneration && !_triageActive && !_triageBarSilent && !triageDismissedToday)
+              bar.classList.add('visible');
+          });
         }
         _triageBarShown = true;
       } else if (_triageBarShown && inTriageWindow && !triageDismissedToday && totalUndone === 0) {

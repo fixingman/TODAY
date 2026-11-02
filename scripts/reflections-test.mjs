@@ -90,6 +90,16 @@ async function openPage(extraSeed) {
           !!document.getElementById('triageReflection'),
     { timeout: 15000 }
   );
+  // Await observable completion rather than assuming lazy loads/digests fit 50ms.
+  await page.evaluate(() => {
+    window.__waitForReflection = async predicate => {
+      const deadline = performance.now() + 3000;
+      while (!predicate()) {
+        if (performance.now() > deadline) throw new Error('Reflection result did not settle');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    };
+  });
   // Stub all side-effects
   await page.evaluate(() => {
     window.dropboxAutoSave = () => {};
@@ -619,7 +629,7 @@ try {
       Today.use('reflections')._reflectionRenderMemory(container);
       const started = container.textContent.includes('reflecting…');
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await window.__waitForReflection(() => document.querySelector('.reflection-reading'));
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         started,
@@ -683,7 +693,7 @@ try {
       const container = document.createElement('div');
       document.body.appendChild(container);
       Today.use('reflections')._reflectionRenderMemory(container);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await window.__waitForReflection(() => document.querySelector('.reflection-reading'));
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         releaseSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-release"'),
@@ -734,7 +744,7 @@ try {
       const container = document.createElement('div');
       document.body.appendChild(container);
       Today.use('reflections')._reflectionRenderMemory(container);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await window.__waitForReflection(() => document.querySelector('.reflection-reading'));
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         focusSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-focus"'),
@@ -823,7 +833,7 @@ try {
       const container = document.createElement('div');
       document.body.appendChild(container);
       Today.use('reflections')._reflectionRenderMemory(container);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await window.__waitForReflection(() => document.querySelector('.reflection-reading'));
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         reviveSelected: request?.messages?.[0]?.content?.includes('"kind":"feeling-vs-revive"'),
@@ -868,7 +878,7 @@ try {
       const container = document.createElement('div');
       document.body.appendChild(container);
       Today.use('reflections')._reflectionRenderMemory(container);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await window.__waitForReflection(() => !document.getElementById('reflectionMemoryBlock'));
       const text = document.getElementById('reflectionMemoryBlock')?.textContent || '';
       return {
         partialHidden: !text.includes('followed by calm and'),

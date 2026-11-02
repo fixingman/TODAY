@@ -143,15 +143,13 @@ function mergeRecords(local, remote, { today, generation, clearedAt = '', versio
       const changed = Object.entries(r.support.versions).filter(([date, version]) =>
         day(date) < now - 29*86400000 || (sourcesReady && (!versions || versions[date] !== version)));
       if (changed.length) {
-        // A feeling edit on a recent support date invalidates the reading entirely —
-        // drop even if voted. Task-outcome-only changes (no feeling change) merely
-        // expire, retaining the user's withholding decision. Records without
-        // feelingVersions (created before this logic) expire rather than drop.
-        const feelingEdited = r.feelingVersions
-          ? changed.some(([date]) => day(date) >= now - 29*86400000
-              && feelingVersions && r.feelingVersions[date] !== feelingVersions[date])
-          : false;
-        if (!r.reactedAt || feelingEdited) continue;
+        // Retain votes only when unchanged feeling fingerprints prove an
+        // outcome-only edit. Missing/legacy evidence keeps the withdrawal fence;
+        // natural expiry still strips source values and preserves withholding.
+        const withdrawn = changed.some(([date]) => day(date) >= now - 29*86400000
+          && (!/^[a-f0-9]{64}$/.test(r.feelingVersions?.[date])
+            || r.feelingVersions[date] !== feelingVersions?.[date]));
+        if (!r.reactedAt || withdrawn) continue;
         expired = true;
       }
     }

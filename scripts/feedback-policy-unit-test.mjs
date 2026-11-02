@@ -53,6 +53,25 @@ assert.equal(p.mergeRecords([miss],[clear],pending)[0].reaction,null);
 assert.equal(p.mergeRecords([miss],[],{...pending,generation:'new-consent'}).length,0);
 assert.equal(p.mergeRecords([miss],[],{...pending,clearedAt:today+'T10:03:00.000Z'}).length,0);
 assert.equal(p.mergeRecords([miss],[],{...pending,sourcesReady:true}).length,0,'Ready missing sources mean actual withdrawal');
+// Only proven task-outcome changes may retain a vote; legacy/partial feeling
+// fingerprints cannot establish that the sensitive reflection is unchanged.
+const feelingVersions = Object.fromEntries(Object.keys(versions).map(date=>[date,p.fingerprint('calm')]));
+const tracked = await p.makeReading(c,versions,r.text,'generation',now,false,feelingVersions);
+const trackedMiss = {...tracked,reaction:miss.reaction,reactedAt:miss.reactedAt};
+const outcomeEdit = {...options,feelingVersions,versions:{...versions,'2026-10-20':p.fingerprint('new outcome')}};
+const outcomeExpired = p.mergeRecords([trackedMiss],[],outcomeEdit);
+assert.equal(outcomeExpired.length,1);
+assert.equal(outcomeExpired[0].expired,true);
+assert.ok(p.suppressed(c,outcomeExpired),'An outcome-only edit preserves the withholding decision');
+assert.ok(!('text' in outcomeExpired[0]) && !('support' in outcomeExpired[0]) && !('feelingVersions' in outcomeExpired[0]));
+assert.deepEqual(p.mergeRecords([trackedMiss],outcomeExpired,outcomeEdit),p.mergeRecords(outcomeExpired,[trackedMiss],outcomeEdit));
+assert.equal(p.mergeRecords([tracked],[],outcomeEdit).length,0,'Unvoted readings cannot survive changed evidence');
+assert.equal(p.mergeRecords([trackedMiss],[],{...outcomeEdit,feelingVersions:{...feelingVersions,'2026-10-20':p.fingerprint('sad')}}).length,0,'Feeling edits withdraw voted readings');
+assert.equal(p.mergeRecords([trackedMiss],[],{...outcomeEdit,feelingVersions:{}}).length,0,'A withdrawn reflection removes its vote');
+assert.equal(p.mergeRecords([trackedMiss],[],{...outcomeEdit,feelingVersions:undefined}).length,0,'Older callers cannot prove an outcome-only edit');
+assert.equal(p.mergeRecords([miss],[],outcomeEdit).length,0,'Legacy records retain the original edit/withdrawal fence');
+assert.equal(p.mergeRecords([{...trackedMiss,feelingVersions:{}}],[],{...outcomeEdit,feelingVersions:{}}).length,0,'Missing fingerprints cannot prove unchanged feelings');
+assert.deepEqual(p.mergeRecords([trackedMiss],[],{...outcomeEdit,feelingVersions:{},sourcesReady:false}),[trackedMiss],'Partial startup evidence still preserves the complete record');
 // Wording feedback is explicit, independent of insight votes, and bounded by its reading.
 const formal={...r,wordingReaction:'formal',wordingAt:today+'T10:04:00.000Z'};
 const wordingClear={...r,wordingReaction:null,wordingAt:today+'T10:05:00.000Z'};
