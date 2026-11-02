@@ -4,6 +4,8 @@
 
 | Version | Key change |
 |---|---|
+| **3.0.5** | HOW DAYS FELT "not really" vote now survives evidence changes: voted records expire instead of being dropped when task data updates. |
+| **3.0.4** | HOW DAYS FELT unchosen button uses color dimming instead of opacity (contrast fix); focus-test wave-clear timing corrected. |
 | **3.0.3** | WHAT TODAY HAS SEEN no longer shows "still learning" diagnostic notes; absent data already implies it. |
 | **3.0.2** | HOW DAYS FELT voting buttons use plain-text style matching the Focus Ask evaluation pattern; selected choice highlighted in accent, unchosen dims. |
 | **3.0.1** | HOW DAYS FELT "not really" vote now reliably suppresses the insight from reappearing; focus exit wave stagger matches entry rhythm. |

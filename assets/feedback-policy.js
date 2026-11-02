@@ -142,7 +142,6 @@ function mergeRecords(local, remote, { today, generation, clearedAt = '', versio
         day(date) < now - 29*86400000 || (sourcesReady && (!versions || versions[date] !== version)));
       // Explicit withdrawal/edit removes the derived reading. Natural expiry may
       // retain only the user's bounded withholding decision, not source values.
-      if (changed.some(([date]) => day(date) >= now - 29*86400000)) continue;
       if (changed.length) { if (!r.reactedAt) continue; expired = true; }
     }
     const row = { id:r.id, generation:r.generation, claim:r.claim,
