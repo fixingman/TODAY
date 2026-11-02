@@ -366,7 +366,7 @@ try {
         };
       });
       await page.keyboard.press('Escape');
-      await new Promise(resolve => setTimeout(resolve, 250));
+      await new Promise(resolve => setTimeout(resolve, 600));
       const cleared = await page.evaluate(() => ({
         waveCleared: ![...document.querySelectorAll('.task,.habit')]
           .some(row => row.style.getPropertyValue('--focus-wave-delay')),
