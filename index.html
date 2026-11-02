@@ -3159,14 +3159,7 @@
   .pool-wording-choices { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
   .reflection-reading { background: none; border: 0; padding: 0; text-align: left; font-family: inherit; cursor: pointer; }
   .nudge-react.reflection-reaction { flex-wrap: wrap; max-height: none; }
-  .reflection-reaction .nudge-react-btn {
-    border: 1px solid transparent; border-radius: var(--radius-md);
-    padding: 2px var(--space-2);
-    transition: color var(--dur-fast), border-color var(--dur-fast);
-  }
-  .reflection-reaction .nudge-react-btn:hover,
-  .reflection-reaction .nudge-react-btn:focus-visible { border-color: var(--border); }
-  .reflection-reaction .nudge-react-btn.on { border-color: var(--accent); }
+  .nudge-react.reflection-reaction:has(.on) .nudge-react-btn:not(.on) { opacity: var(--opacity-muted); }
   .reflection-feedback-manage { margin-top: var(--space-4); }
   .reflection-wording .reflection-reaction { flex-wrap: wrap; }
   .reflection-feedback-manage .memory-item-text { overflow-wrap: anywhere; }
@@ -4715,6 +4708,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '3.0.2': 'HOW DAYS FELT voting buttons use plain-text style matching the Focus Ask evaluation pattern; selected choice highlighted in accent, unchosen dims.',
   '3.0.1': 'HOW DAYS FELT "not really" vote now reliably suppresses the insight from reappearing; focus exit wave stagger matches entry rhythm.',
   '3.0.0': 'AI continuous improvement: daily nudges, HOW DAYS FELT insights, pool and Sunday readings, Focus Ask, task enrichment and post-add suggestions all learn from your feedback across sessions.',
   '2.106.16': 'Selected state for all reaction and wording buttons uses the accent green token consistently across the app.',
