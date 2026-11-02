@@ -584,6 +584,8 @@ window._startFocus = (function() {
     if (uiTaskEl && uiTaskEl !== taskEl) closeUI(false);
     // Supersede the prior close callback before reusing the timer (BUG-065).
     focusGen++;
+    appEl.classList.remove('focus-exiting');
+    _clearFocusWave();
 
     uiTaskEl = taskEl;
     uiTaskId = taskId;
@@ -740,8 +742,8 @@ window._startFocus = (function() {
     if (window._pipClose) window._pipClose();
 
     if (doResetState) {
+      appEl.classList.add('focus-exiting');
       appEl.classList.remove('focusing');
-      _clearFocusWave();
     }
 
 
@@ -815,8 +817,8 @@ window._startFocus = (function() {
       if (myGen !== focusGen) return;
 
       if (!doResetState) {
+        appEl.classList.add('focus-exiting');
         appEl.classList.remove('focusing');
-        _clearFocusWave();
       }
       document.body.appendChild(timerEl);
       timerEl.hidden = true;
@@ -834,6 +836,15 @@ window._startFocus = (function() {
         setPaused(false);
       }
     }, 200);
+
+    // Clean up exit wave after the longest possible exit animation:
+    // --dur-fast (150ms max wave delay) + --dur-slow (300ms) + --dur-exit*2/3 (80ms) ≈ 530ms
+    const _exitGen = myGen;
+    setTimeout(() => {
+      if (_exitGen !== focusGen) return;
+      appEl.classList.remove('focus-exiting');
+      _clearFocusWave();
+    }, 550);
 
     uiTaskEl = null;
     uiTaskId = null;

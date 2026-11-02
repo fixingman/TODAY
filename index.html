@@ -164,6 +164,18 @@
       opacity: var(--opacity-recede-done) !important;
       filter: url(#noise) blur(10px);
     }
+    /* Exit wave: mirrors entry stagger so far rows return last, matching how they dimmed last */
+    .focus-exiting .task:not(.focused),
+    .focus-exiting .habit:not(.focused) {
+      transition:
+        filter var(--dur-base) var(--ease-std) var(--focus-wave-delay, 0ms),
+        opacity var(--dur-slow) var(--ease-std) calc(var(--dur-exit) * 2 / 3 + var(--focus-wave-delay, 0ms));
+    }
+    .focus-exiting .task.done:not(.focused) {
+      transition:
+        filter var(--dur-base) var(--ease-std) var(--focus-wave-delay, 0ms),
+        opacity var(--dur-slow) var(--ease-std) calc(var(--dur-exit) * 2 / 3 + var(--focus-wave-delay, 0ms));
+    }
     .focusing .empty {
       transition: opacity var(--dur-exit) var(--ease-std), filter calc(var(--dur-exit) / 2) var(--ease-std) var(--dur-exit);
       opacity: var(--opacity-recede-done) !important;
