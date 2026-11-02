@@ -217,12 +217,6 @@
         const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
         metaItems.push({ text: `${hrs} hours of focus so far` });
       }
-      const coverageNotes = [];
-      if ((m.patterns?.focusMinutesTotal || 0) === 0) coverageNotes.push('no focus sessions yet');
-      if (!peakHour) coverageNotes.push('too few tasks done to see your timing');
-      if (coverageNotes.length) {
-        metaItems.push({ text: `still learning: ${coverageNotes.join(' · ')}` });
-      }
 
       const _fmtDay = iso => {
         const d = new Date(String(iso).slice(0, 10) + 'T00:00:00');

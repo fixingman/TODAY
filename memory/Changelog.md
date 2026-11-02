@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **3.0.3** | WHAT TODAY HAS SEEN no longer shows "still learning" diagnostic notes; absent data already implies it. |
 | **3.0.2** | HOW DAYS FELT voting buttons use plain-text style matching the Focus Ask evaluation pattern; selected choice highlighted in accent, unchosen dims. |
 | **3.0.1** | HOW DAYS FELT "not really" vote now reliably suppresses the insight from reappearing; focus exit wave stagger matches entry rhythm. |
 | **3.0.0** | AI continuous improvement: daily nudges, HOW DAYS FELT insights, pool and Sunday readings, Focus Ask, task enrichment and post-add suggestions all learn from your feedback across sessions. |
