@@ -597,8 +597,9 @@
       const next = choice === row.reaction ? null : choice;
       if (![null,'landed','missed'].includes(next)) return;
       const at = _feedbackStamp([row.reactedAt,row.createdAt].sort().at(-1));
+      const _vt = Object.keys(evidence.versions).sort().at(-1) || row.seenThrough;
       const updated = { ...row, reaction:next, reactedAt:at,
-        votedThrough:Object.keys(evidence.versions).sort().at(-1) || row.seenThrough };
+        votedThrough: /^\d{4}-\d\d-\d\d$/.test(_vt) ? _vt : _localISO() };
       const records = _feedbackPolicy.mergeRecords(evidence.feedback.records.filter(r => r.id !== id),[updated],evidence.options);
       const store = { ...evidence.feedback, consentAt:evidence.feedback.consentAt || at, records };
       if (!records.some(r => r.id === id && r.reaction === next) || !_saveFeedback(store)) {
