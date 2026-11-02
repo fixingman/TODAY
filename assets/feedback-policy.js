@@ -106,9 +106,11 @@ function support(c, versions) {
 }
 const supportKey = s => key(s);
 const body = r => [1, r.generation, r.claim, r.support, r.text, r.seenThrough];
-async function makeReading(candidate, versions, text, generation, now, wordingGuided) {
+async function makeReading(candidate, versions, text, generation, now, wordingGuided, feelingVersions) {
+  const supportDates = [...new Set([...candidate.more_dates, ...candidate.less_dates])];
   const record = { generation, claim: claimKey(candidate), support: support(candidate, versions),
     text, seenThrough: Object.keys(versions).sort().at(-1) || '', createdAt: now,
+    ...(feelingVersions ? { feelingVersions: Object.fromEntries(supportDates.map(d => [d, feelingVersions[d]])) } : {}),
     ...(wordingGuided ? {wordingGuided:true} : {}), reaction: null, reactedAt: '' };
   record.id = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key(body(record)))))]
     .map(byte => byte.toString(16).padStart(2,'0')).join('');
@@ -131,7 +133,7 @@ function validRecord(r) {
     && dates.every(date => Number.isFinite(day(date)) && typeof s.versions[date] === 'string' && /^[a-f0-9]{64}$/.test(s.versions[date]))
     ;
 }
-function mergeRecords(local, remote, { today, generation, clearedAt = '', versions, sourcesReady = true } = {}) {
+function mergeRecords(local, remote, { today, generation, clearedAt = '', versions, feelingVersions, sourcesReady = true } = {}) {
   const map = new Map(), now = day(today);
   for (const r of [...(Array.isArray(local) ? local.slice(0,120) : []), ...(Array.isArray(remote) ? remote.slice(0,120) : [])]) {
     if (!validRecord(r) || r.generation !== generation || (clearedAt && r.createdAt <= clearedAt)
@@ -140,12 +142,23 @@ function mergeRecords(local, remote, { today, generation, clearedAt = '', versio
     if (!expired) {
       const changed = Object.entries(r.support.versions).filter(([date, version]) =>
         day(date) < now - 29*86400000 || (sourcesReady && (!versions || versions[date] !== version)));
-      // Explicit withdrawal/edit removes the derived reading. Natural expiry may
-      // retain only the user's bounded withholding decision, not source values.
-      if (changed.length) { if (!r.reactedAt) continue; expired = true; }
+      if (changed.length) {
+        // A feeling edit on a recent support date invalidates the reading entirely —
+        // drop even if voted. Task-outcome-only changes (no feeling change) merely
+        // expire, retaining the user's withholding decision. Records without
+        // feelingVersions (created before this logic) expire rather than drop.
+        const feelingEdited = r.feelingVersions
+          ? changed.some(([date]) => day(date) >= now - 29*86400000
+              && feelingVersions && r.feelingVersions[date] !== feelingVersions[date])
+          : false;
+        if (!r.reactedAt || feelingEdited) continue;
+        expired = true;
+      }
     }
     const row = { id:r.id, generation:r.generation, claim:r.claim,
-      ...(expired ? { expired:true } : { support:JSON.parse(key(r.support)), text:r.text }), seenThrough:r.seenThrough,
+      ...(expired ? { expired:true } : { support:JSON.parse(key(r.support)), text:r.text }),
+      seenThrough:r.seenThrough,
+      ...(!expired && r.feelingVersions ? { feelingVersions:r.feelingVersions } : {}),
       createdAt:r.createdAt, reaction:r.reaction, reactedAt:r.reactedAt,
       ...(r.votedThrough ? {votedThrough:r.votedThrough} : {}),
       ...(!expired && r.wordingGuided ? {wordingGuided:true} : {}),
@@ -161,6 +174,7 @@ function mergeRecords(local, remote, { today, generation, clearedAt = '', versio
       if (row.expired || old.expired) {
         delete merged.text; delete merged.support; merged.expired = true;
         delete merged.wordingAt; delete merged.wordingReaction; delete merged.wordingGuided;
+        delete merged.feelingVersions;
       }
       map.set(row.id, merged);
     }

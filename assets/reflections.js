@@ -494,10 +494,14 @@
         const value = JSON.stringify([r.feeling,canonical(outcomes.filter(row => row[0] === r.date))]);
         return [r.date,_feedbackPolicy ? _feedbackPolicy.fingerprint(value) : value];
       }));
+      const feelingVersions = Object.fromEntries(list.map(r => {
+        const value = JSON.stringify([r.feeling]);
+        return [r.date,_feedbackPolicy ? _feedbackPolicy.fingerprint(value) : value];
+      }));
       const raw = _feedbackStore();
       const feedbackCleared = localStorage.getItem(FEEDBACK_CLEAR_KEY) || '';
       const generation = JSON.stringify([policy?.updatedAt || '', cleared, feedbackCleared]);
-      const options = { today:_localISO(), generation, clearedAt:feedbackCleared, versions, sourcesReady:_sourceReady };
+      const options = { today:_localISO(), generation, clearedAt:feedbackCleared, versions, feelingVersions, sourcesReady:_sourceReady };
       const consentAt = _feedbackPolicy?.stamp(raw.consentAt) && raw.consentAt >= (policy?.updatedAt || '')
         && (!cleared || raw.consentAt > cleared) ? raw.consentAt : '';
       const feedback = { version:1, consentAt, records: policy?.choice === 'remember' && consentAt && _feedbackPolicy
@@ -505,7 +509,7 @@
       const key = JSON.stringify([_localISO(), _sourceReady, policy?.choice, policy?.updatedAt, cleared,
         canonical(list.map(r => [r.date, r.feeling, r.updatedAt])), canonical(outcomes), feedbackCleared,
         consentAt, feedback.records.map(r => [r.id,r.reactedAt,r.reaction])]);
-      return { key, policy, list, versions, generation, options, feedback,
+      return { key, policy, list, versions, feelingVersions, generation, options, feedback,
         candidate: policy?.choice === 'remember' ? _buildReflectionCandidate(list, feedback.records) : null };
     }
 
@@ -719,7 +723,7 @@
           const accepted = _usableReflectionText(text, candidate);
           if (accepted) {
             const reading = await _feedbackPolicy.makeReading(candidate, evidence.versions, accepted, evidence.generation,
-              _feedbackStamp(localStorage.getItem(FEEDBACK_CLEAR_KEY) || ''), !!guidance);
+              _feedbackStamp(localStorage.getItem(FEEDBACK_CLEAR_KEY) || ''), !!guidance, evidence.feelingVersions);
             if (isCurrent()) { _reflectResult = accepted; _currentReading = reading; }
           }
         }
