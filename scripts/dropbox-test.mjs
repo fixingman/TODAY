@@ -1208,11 +1208,15 @@ try {
   // Independent device stores use actual check/uncheck, queued uploads and wake/poll pulls.
   {
     const contexts = await Promise.all([browser.createBrowserContext(), browser.createBrowserContext()]);
-    let cloud = null, revision = 0, failNextDownload = true;
+    let cloud = null, revision = 0;
     try {
       const devices = [];
-      for (const context of contexts) {
+      for (let idx = 0; idx < contexts.length; idx++) {
+        const context = contexts[idx];
         const device = await openPage(null, context);
+        // Only device B (idx 1) fails its first download; device A always succeeds so a
+        // background sync on A cannot steal the 503 that the test needs device B to receive.
+        let failNextDownload = idx === 1;
         await device.page.exposeFunction('__syncCloud', (url, body) => {
           if (url.endsWith('/2/files/upload')) {
             cloud = JSON.parse(body); revision++;
