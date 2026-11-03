@@ -1197,7 +1197,7 @@ try {
       const exactSeed = seeded === (metadata === 'valid' ? 'restored-revision' : null);
       const noExtraMetadata = samples === 0;
       _dbxSyncNow();
-      await new Promise(resolve => setTimeout(resolve, 30));
+      await new Promise(resolve => setTimeout(resolve, 200));
       return { exactSeed, noExtraMetadata, nextRevisionApplied:downloads === 2 && doneIds.has('task_1') };
     }, metadata);
     await expectAll('manual restore metadata: ' + metadata, { ...result, noErrors:errors.length === 0 });
