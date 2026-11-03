@@ -474,7 +474,7 @@ try {
         }
         if (scenario === 'midnight') {
           // Finish the known promise chain without requesting a new-day nudge.
-          await new Promise(resolve => setTimeout(resolve, 30));
+          await new Promise(resolve => setTimeout(resolve, 200));
         } else await window.__nudgeTestWait(() => Today.use('nudge').generationAudit().status === 'accepted', 'Calendar fixture settled');
         const line = localStorage.getItem('day_nudge_ai_' + date);
         if (scenario === 'qualified') _memoryReactToLine('morning nudge', date, 'landed');
@@ -633,7 +633,8 @@ try {
         const accepted = ['accepted', 'dismissed'].includes(outcome);
         const expectedStatus = accepted ? 'accepted' : ['still-long','noon'].includes(outcome) ? 'rejected-length' : 'rejected-grounding';
         const afterRepair = document.getElementById('dayNudge').textContent;
-        checkDayNudge(); await new Promise(r => setTimeout(r, 30));
+        checkDayNudge();
+        for (const s = performance.now(); calls.length < 2 && performance.now() - s < 200; ) await new Promise(r => setTimeout(r, 20));
         const repair = calls[1];
         return {
           bounded: calls.length === (['unsafe-original','noon'].includes(outcome) ? 1 : 2) && audit.attempts === 1,
@@ -976,7 +977,7 @@ try {
       });
       const converged = await a.page.evaluate(async payload => {
         mergeRemoteData(payload); mergeRemoteData(payload);
-        checkDayNudge(); await new Promise(r => setTimeout(r, 40));
+        checkDayNudge(); await new Promise(r => setTimeout(r, 200));
         const lines = appMemory.spokenLines.filter(l => l.surface === 'morning nudge' && l.date === _localISO());
         return { oneVote: lines.length === 1 && lines[0].reaction === 'landed',
           noRegeneration: window.__calls === 2,

@@ -362,13 +362,13 @@ try {
       document.dispatchEvent(new KeyboardEvent('keydown', {
         code: 'Space', key: ' ', shiftKey: true, repeat: true, bubbles: true,
       }));
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 200));
       const guarded = document.getElementById('voiceCapturePill').hidden
         && __voiceCaptureTest.getUserMediaCalls === 0;
       document.dispatchEvent(new KeyboardEvent('keydown', {
         code: 'Space', key: ' ', shiftKey: true, bubbles: true,
       }));
-      await new Promise(resolve => setTimeout(resolve, 20));
+      for (const s = Date.now(); document.getElementById('voiceCapturePill')?.dataset.state !== 'unavailable' && Date.now() - s < 2000; ) await new Promise(r => setTimeout(r, 20));
       return {
         guarded,
         unavailable: document.getElementById('voiceCapturePill')?.dataset.state === 'unavailable',

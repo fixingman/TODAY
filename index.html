@@ -4709,6 +4709,7 @@ const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // derivation below the object). Only edit the changelog — APP_VERSION follows it,
 // so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
 const CHANGELOG = {
+  '3.0.10': 'CI reliability: synchronization waits in 4 test files replaced with condition-polling (2s cap) or 200ms fixed margins.',
   '3.0.9': 'CI timing: dropbox sync wait 30→200ms, nudge upgrade deadline buffer 1500→3000ms.',
   '3.0.8': 'Feeling feedback follows edits and deletions correctly. A synced dismissal keeps the evening prompt hidden.',
   '3.0.7': 'HOW DAYS FELT voted records now distinguish genuine feeling edits (drop) from task-outcome-only changes (expire) via a feeling-only fingerprint.',

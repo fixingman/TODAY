@@ -89,9 +89,11 @@ jobs:
         run: npm run performance --prefix scripts -- --no-audit-check --output performance-ci.json --trace-on-failure .context/performance-diagnostics
       - name: Validate memory inventory
         id: memory
+        if: always()
         run: bash memory/validate-files.sh
       - name: Check patch whitespace
         id: whitespace
+        if: always()
         run: git diff-tree --check --root -r HEAD
       - name: Check invariants for reused release
         id: invariants

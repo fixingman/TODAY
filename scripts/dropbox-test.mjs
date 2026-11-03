@@ -901,12 +901,12 @@ try {
 
       localStorage.setItem('stat_last_visit', _getAppDay());
       _dbxSyncNow();
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 200));
       const unchangedTickQuiet = renderCount === 0;
 
       localStorage.setItem('stat_last_visit', '1900-01-01');
       _dbxSyncNow();
-      await new Promise(resolve => setTimeout(resolve, 20));
+      for (const s = Date.now(); renderCount < 1 && Date.now() - s < 2000; ) await new Promise(r => setTimeout(r, 20));
       const dayBoundaryRendered = renderCount === 1;
 
       Object.defineProperty(document, 'visibilityState', {
@@ -914,7 +914,7 @@ try {
         value: 'visible',
       });
       document.dispatchEvent(new Event('visibilitychange'));
-      await new Promise(resolve => setTimeout(resolve, 20));
+      for (const s = Date.now(); renderCount < 2 && Date.now() - s < 2000; ) await new Promise(r => setTimeout(r, 20));
       const wakeRendered = renderCount === 2;
 
       window.renderTrello = originalRenderTrello;
@@ -1122,11 +1122,11 @@ try {
           return new Response(JSON.stringify(remote), { headers:{ 'Dropbox-API-Result':'{"rev":"new-revision"}' } });
         };
         _dbxSyncNow();
-        await new Promise(resolve => setTimeout(resolve, 30));
+        await new Promise(resolve => setTimeout(resolve, 200));
         const failedReadNotAcknowledged = localStorage.getItem('last_sync_read') === '2026-01-01T00:00:00.000Z';
         const noCompletionAfterFailure = !doneIds.has('task_1');
         _dbxSyncNow();
-        await new Promise(resolve => setTimeout(resolve, 30));
+        for (const s = Date.now(); !doneIds.has('task_1') && Date.now() - s < 2000; ) await new Promise(r => setTimeout(r, 20));
         return { failedReadNotAcknowledged, noCompletionAfterFailure,
           sameRevisionRetried:downloads === 2, completionApplied:doneIds.has('task_1'),
           completionPainted:document.querySelector('.task[data-taskid="task_1"]')?.classList.contains('done') === true };
@@ -1242,7 +1242,6 @@ try {
       await a.page.waitForFunction(() => !!localStorage.getItem('last_successful_backup'));
       await b.page.evaluate(() => _dbxSyncNow());
       await b.page.waitForFunction(() => window.__failedDownloads === 1 && !doneIds.has('task_1'));
-      await new Promise(resolve => setTimeout(resolve, 30));
       await b.page.evaluate(() => {
         Object.defineProperty(document, 'visibilityState', { configurable:true, value:'visible' });
         document.dispatchEvent(new Event('visibilitychange'));

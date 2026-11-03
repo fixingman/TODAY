@@ -340,14 +340,14 @@ try {
         const firstTarget = firstObserver?.target;
 
         Today.use('connections').renderManual();
-        await new Promise(r => setTimeout(r, 30));
+        for (const s = Date.now(); (!observers[1] || !firstObserver?.disconnected) && Date.now() - s < 2000; ) await new Promise(r => setTimeout(r, 20));
         const reanchorObserver = observers[1];
         const reanchored = !!firstObserver?.disconnected &&
           !!reanchorObserver?.target && reanchorObserver.target !== firstTarget;
 
         manualTasks = manualTasks.filter(task => task.id !== 'task_2');
         Today.use('connections').renderManual();
-        await new Promise(r => setTimeout(r, 30));
+        for (const s = Date.now(); !reanchorObserver?.disconnected && Date.now() - s < 2000; ) await new Promise(r => setTimeout(r, 20));
         const removedCancelled = !!reanchorObserver?.disconnected &&
           !document.querySelector('.task-suggestion') && appMemory.suggestionOutcomes.length === 0;
         window.IntersectionObserver = realIntersectionObserver;
