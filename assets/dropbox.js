@@ -565,6 +565,7 @@
       headers: { 'Authorization': `Bearer ${token}`, 'Dropbox-API-Arg': JSON.stringify({ path }) },
     }), true);
 
+
     // Backup
     async function dropboxBackup(silent) {
       await _dropboxEnsureToken();
@@ -2256,9 +2257,11 @@
     window._doneTodayCount = _doneTodayCount;
     window.dropboxAutoSave = dropboxAutoSave;
     if (window.Today) Today.define('dropbox-files', {
+      explorationPath: `/Life Exploration${_env}/living.md`, ensureToken: _dropboxEnsureToken,
       dreamsDir: DREAMS_DIR, upload: _dbxDreamUpload, move: _dbxDreamMove,
       remove: _dbxDreamDelete, download: _dbxDreamDownload,
     });
+
     window.dropboxBackup = dropboxBackup;
     window.dropboxRestore = dropboxRestore;
     window.dropboxAuth = dropboxAuth;

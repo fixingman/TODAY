@@ -267,6 +267,7 @@ window._startTaskActions = (function() {
     function addTaskFromText(text) {
       const task = _buildTask(text);
       if (task) _commitTask(task);
+      return task?.id || null;
     }
 
     // Clean-slate echo (Roadmap #2) — the calm states re-surface the morning's poem,

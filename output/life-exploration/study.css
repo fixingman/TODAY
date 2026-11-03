@@ -1,0 +1,314 @@
+/* Isolated additions. Existing Memory rules live unchanged in baseline.css. */
+
+/* ── Exact native daily-list rules, copied verbatim from index.html (1293–1350, 1935–1945,
+   2074–2113, 2148–2167, 2429–2467, 3183–3193). Kept here because this pass could not add a
+   separate entry-baseline.css. Study overrides follow after the closing marker. ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding-top: var(--space-4);    /* clears the 10px ::after gradient on .sticky-header */
+    padding-bottom: var(--space-3);
+    position: sticky;
+    top: max(var(--sec-sticky-top, 0px), env(safe-area-inset-top, 0px));
+    z-index: 9; /* below --z-header (11), above task content */
+    background: var(--bg);
+  }
+
+  .section-header::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background: linear-gradient(to bottom, var(--bg), transparent);
+    pointer-events: none;
+  }
+
+  @media (hover: none) {
+    .section-header::after { display: none; }
+  }
+  @media (hover: hover) {
+    .section-header:has(+ .task-list > .task:first-child:hover)::after { display: none; }
+  }
+
+  .section-label {
+    font-size: var(--text-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color var(--dur-fast);
+  }
+
+  .section-count {
+    display: inline-block; /* required for WAAPI transform on the flick animation */
+    font-size: var(--text-xs);
+    color: var(--muted);
+    letter-spacing: 0.04em; /* quiet-voice tracking — matches nudge + streak-label etc. */
+  }
+
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    border: 1px solid transparent;
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+    cursor: default;
+    touch-action: manipulation;
+  }
+
+  .task-check {
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--control-border);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+    background: transparent;
+    position: relative;
+    padding: 0;
+    appearance: none;
+  }
+
+  .task-check::after {
+    content: '';
+    position: absolute;
+    inset: -16px -16px -16px -8px;
+  }
+
+  .task-check:hover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .task.done .task-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+  }
+
+  .task-check svg { display: none; }
+  .task.done .task-check svg { display: block; }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-text {
+    color: var(--text);
+    font-size: var(--text-task);
+    line-height: 1.5;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    /* Right padding clears the copy button in focus mode */
+    padding-right: var(--space-8);
+  }
+
+  .morning-nudge {
+    padding: var(--space-3) var(--space-4);
+    margin: var(--space-1) 0 var(--space-4);
+    background: var(--surface);
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+    color: var(--text);
+    font-size: var(--text-sm2);
+    letter-spacing: 0.02em;
+    line-height: 1.55;
+    display: none;
+    align-items: flex-start;
+    gap: var(--space-3);
+    cursor: pointer;
+    transition: border-color var(--dur-fast), opacity var(--dur-slow) var(--ease-out), filter var(--dur-slow) var(--ease-std);
+    opacity: 0;
+    pointer-events: none;
+    width: 100%;
+    font-family: var(--font-mono);
+    text-align: left;
+  }
+  .morning-nudge.show { display: flex; }
+  .morning-nudge.show.visible { opacity: 1; pointer-events: auto; }
+  .morning-nudge:hover { border-color: var(--border); }
+  .morning-nudge .nudge-star {
+    font-size: var(--text-sm);
+    color: var(--accent);
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 2px; /* optical alignment with first line of text */
+    display: inline-block;
+  }
+  .morning-nudge .nudge-text {
+    min-width: 0;
+  }
+
+  .morning-nudge-react {
+    display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; padding: 0 var(--space-4);
+    transition: grid-template-rows var(--dur-fast), opacity var(--dur-fast), visibility 0s var(--dur-fast);
+    background: var(--surface);
+    border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);
+  }
+  .morning-nudge-react.open { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; padding-bottom: var(--space-2); margin-bottom: var(--space-4); }
+  .morning-nudge.react-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; }
+  .morning-nudge-react-body { min-height: 0; overflow: hidden; }
+  .morning-nudge-react .nudge-react { max-height: none; opacity: 1; margin-top: 0; }
+/* ── End of exact native rules. ── */
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: var(--text-md)/1.6 var(--font-mono); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+button, textarea { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+[hidden] { display: none !important; }
+.config-panel.open { display: block; }
+.config-panel { --muted: var(--color-muted-elevated); --control-border: var(--color-control-border-elevated); }
+h1, h2, h3, h4, p { margin: 0; }
+.study-bar { max-width: 880px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + var(--space-4)) var(--space-6) var(--space-3); display: flex; gap: var(--space-4); justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+.study-bar strong { font-weight: 400; color: var(--text); }
+.study-bar span { display: block; color: var(--muted); font-size: var(--text-sm); }
+.study-controls { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.study-controls button { background: none; color: var(--muted); border: 1px solid transparent; border-radius: var(--radius-md); padding: var(--space-1) var(--space-2); min-height: 32px; font-size: var(--text-sm); }
+.study-controls button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-glow); background: var(--accent-dim); }
+.date-label { font-size: var(--text-sm); color: var(--muted); padding-top: var(--space-3); }
+/* Title-row actions sit flush with the panel's content edge, like Memory's footer actions.
+   In a session the Memory title is hidden: the back action takes the left edge, notes the right. */
+.config-title-row .memory-item-btn { margin-right: calc(-1 * var(--space-2)); }
+#memoryReturn { margin: 0 0 0 calc(-1 * var(--space-2)); }
+/* Focus targets clear the sticky header when scrolled into view. */
+#explorationTitle, #notesTitle, #changesTitle, #tryText, #recordTitle, #privacyTitle, textarea { scroll-margin-top: calc(var(--space-20) + var(--space-8)); }
+/* One-shot reveal for newly shown content (Memory's revealDown gesture); reduced motion removes it below. */
+@keyframes revealDown { from { opacity: 0; transform: translateY(var(--motion-drop)); } }
+#explorationView, #sessionView, #notesView, #tryView, #recordView, #privacyView, .turn { animation: revealDown var(--dur-slow) var(--ease-out); }
+#earlierList .turn { animation: none; }
+
+.eyebrow { font: 400 var(--text-xs)/1.6 var(--font-mono); letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+.quiet { font-size: var(--text-sm2); color: var(--muted); }
+strong { font-weight: 500; }
+
+/* Session order, top to bottom: question · where we left off (or the current exchange) · the next question · reply box. */
+#explorationTitle { font-size: var(--text-lg); font-weight: 400; line-height: 1.5; margin: 0 0 var(--space-3); }
+#forgottenNote { margin-top: var(--space-2); }
+#resume { margin-bottom: var(--space-5); }
+#resume .eyebrow { margin-bottom: var(--space-1); }
+#recap { font-size: var(--text-sm2); line-height: 1.6; color: var(--muted); }
+
+/* Disclosures read as Memory's text actions (show all / manage), not as native widgets. */
+summary { list-style: none; display: inline-flex; align-items: center; min-height: var(--space-6); padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-2)); border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--muted); cursor: pointer; transition: color var(--dur-fast), border-color var(--dur-fast); }
+summary::-webkit-details-marker { display: none; }
+summary:hover, summary:focus-visible, details[open] > summary { color: var(--text); }
+summary:hover, summary:focus-visible { border-color: var(--border); }
+details > :not(summary) { margin-top: var(--space-3); }
+#earlierTurns { margin-bottom: var(--space-4); }
+
+/* Conversation: your wording keeps the dream retelling's left rule; the reading leads at task size. */
+#currentTurns:not(:empty) { margin-bottom: var(--space-5); }
+.turn { font-size: var(--text-sm2); overflow-wrap: anywhere; }
+.turn + .turn { margin-top: var(--space-4); }
+.turn .eyebrow { margin-bottom: var(--space-1); }
+.turn-you > p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
+.turn-reply > p:not(.turn-meta) { font-size: var(--text-task); line-height: 1.6; }
+.turn-note > p { color: var(--muted); }
+/* The single link from a reading to its notes. */
+.turn-meta { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); }
+.turn-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); margin-left: calc(-1 * var(--space-2)); }
+.edit-label { display: block; margin-bottom: var(--space-2); font-size: var(--text-sm2); color: var(--muted); }
+.amendment { margin-top: var(--space-3); }
+
+/* Reply box: the next question is its label, so answering sits directly under what is asked.
+   A hairline marks "your turn" only once an exchange sits above it. */
+#conversation:has(.turn) + .composer-block { padding-top: var(--space-4); border-top: 1px solid var(--border); }
+#nextThread { display: block; font-size: var(--text-task); line-height: 1.6; color: var(--text); margin-bottom: var(--space-2); }
+textarea { width: 100%; resize: vertical; border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); background: var(--bg); padding: var(--space-3); line-height: 1.6; font-size: var(--text-md); }
+textarea::placeholder { color: var(--muted); }
+.composer-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-3); margin-top: var(--space-2); }
+.primary-action { background: none; border: 1px solid var(--accent-glow); border-radius: var(--radius-md); color: var(--accent); padding: var(--space-1) var(--space-3); min-height: 32px; font-size: var(--text-sm2); transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast); }
+.primary-action:not(:disabled):hover { background: var(--accent-dim); }
+.primary-action:disabled { color: var(--muted); border-color: var(--border); cursor: default; }
+.study-bar .study-hint { margin-top: var(--space-1); max-width: 48ch; color: var(--muted); font-size: var(--text-sm); }
+
+/* Notes: Memory's own block anatomy, so the secondary view reads as part of Memory rather than a new tool. */
+#notesTitle { margin-bottom: var(--space-1); }
+.notes-intro { margin-bottom: var(--space-4); }
+h4.memory-type-name { font-weight: 400; }
+#notesView .memory-type-block > p { font-size: var(--text-sm2); line-height: 1.6; }
+#notesView .memory-type-block > p + p { margin-top: var(--space-2); }
+#notesView #hypothesisText:not(.quiet) { font-size: var(--text-task); color: var(--text); }
+#hypothesisLabel + p { margin-top: var(--space-1); }
+.history-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
+.history-list .memory-item-text { color: var(--muted); }
+#tryBlock { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+#tryView > p:first-child { font-size: var(--text-sm2); line-height: 1.6; }
+#tryView > .quiet { margin-top: var(--space-1); }
+.source-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
+.source-id { display: block; font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--muted); }
+.source-list .is-left-out .memory-item-text { color: var(--muted); }
+.source-fixed { flex-shrink: 0; padding: 2px var(--space-2); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--muted); }
+
+/* Notes footer mirrors Memory's: the raw record and privacy are reachable, never beside reply. */
+.notes-footer > :first-child { margin-left: calc(-1 * var(--space-2)); }
+.notes-footer > :last-child { margin-right: calc(-1 * var(--space-2)); }
+.memory-conn-link[aria-expanded="true"] { color: var(--text); }
+.memory-conn-link.is-danger:hover, .memory-conn-link.is-danger:focus-visible { color: var(--danger); }
+#recordView, #privacyView { margin-top: var(--space-4); font-size: var(--text-sm2); }
+.record-heading { display: flex; align-items: baseline; justify-content: space-between; margin-right: calc(-1 * var(--space-2)); margin-bottom: var(--space-2); }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font: var(--text-sm2)/1.7 var(--font-mono); margin: var(--space-3) 0 0; padding: var(--space-3); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
+#privacyView p { margin-top: var(--space-2); }
+#privacyView > .memory-conn-link { margin: var(--space-2) 0 0 calc(-1 * var(--space-2)); }
+#forgetConfirm { margin-top: var(--space-2); }
+
+/* ── Entrance study. Native rows and strip come from the block above; these place the entrances. ── */
+.study-bar { flex-wrap: wrap; }
+.study-scene { align-items: center; }
+.study-bar .study-scene-label { display: inline; margin: 0 var(--space-1) 0 var(--space-2); }
+.study-bar .study-scene-label:first-child { margin-left: 0; }
+.today-view { padding-top: var(--space-4); margin-bottom: var(--space-8); }
+
+/* Reactions: show/hide demo only; the note marks that nothing is stored. */
+.nudge-react { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-left: calc(-1 * var(--space-2)); }
+.memory-item-btn[aria-pressed="true"] { color: var(--text); }
+.react-note { font-size: var(--text-xs); color: var(--muted); letter-spacing: 0.04em; }
+
+/* Nudge sibling: tucked under the strip, outside its button, in the strip's quiet voice. */
+.nudge-explore { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: var(--space-3); margin: calc(-1 * var(--space-3)) 0 var(--space-4); padding-left: var(--space-4); font-size: var(--text-xs); color: var(--muted); letter-spacing: 0.04em; }
+.nudge-explore .memory-item-btn { margin-right: calc(-1 * var(--space-2)); }
+
+/* Task action: revealed like the row's delete × on pointer devices, always present on touch. */
+.task-explore { margin: -2px calc(-1 * var(--space-2)) -2px 0; }
+.task.done .task-explore { display: none; }
+@media (hover: hover) {
+  .task-explore { opacity: 0; transition: opacity var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast); }
+  .task:hover .task-explore, .task:focus-within .task-explore { opacity: 1; }
+}
+.empty { padding: var(--space-3) var(--space-4); font-size: var(--text-sm2); color: var(--muted); }
+
+/* List entrance: section-header anatomy as one button. It does not pin; a single row has nothing to label while scrolling. */
+#exploreSection { margin-top: var(--space-4); }
+.entry-header { position: static; width: 100%; border: 0; padding-left: 0; padding-right: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.entry-header::after { display: none; }
+.entry-header .section-label { flex-shrink: 0; color: var(--text); }
+.entry-question { min-width: 0; font-size: var(--text-sm2); overflow-wrap: anywhere; transition: color var(--dur-fast); }
+.entry-header:hover .section-label, .entry-header:focus-visible .section-label,
+.entry-header:hover .entry-question, .entry-header:focus-visible .entry-question { color: var(--text); }
+
+/* What an entrance would bring: a compact inset under the reply box, sharing its background, since it travels with the reply. */
+.entry-context { align-items: center; margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--bg); border-radius: var(--radius-md); }
+.entry-context .memory-item-text { font-size: var(--text-sm); }
+.entry-note { display: block; margin-top: var(--space-1); font-size: var(--text-xs); letter-spacing: 0.04em; color: var(--muted); }
+.entry-context .memory-item-btn { margin-right: calc(-1 * var(--space-2)); }
+.study-footnote { color: var(--muted); font-size: var(--text-sm); padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 0px)); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 600px) {
+  .app { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .sticky-header-inner { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .study-bar { padding-left: var(--space-4); padding-right: var(--space-4); flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+  .config-panel { padding: var(--space-3); }
+  .memory-type-header { flex-wrap: wrap; column-gap: var(--space-2); row-gap: 0; }
+  textarea { font-size: var(--text-lg); }
+  .entry-context { flex-wrap: wrap; }
+  .date-label { max-width: 100px; text-align: right; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }

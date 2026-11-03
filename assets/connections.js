@@ -435,6 +435,7 @@
       localStorage.removeItem('dropbox_refresh_token');
       localStorage.removeItem('dropbox_token_expiry');
       localStorage.removeItem('dropbox_token_expired');
+      document.dispatchEvent(new Event('today:dropbox-disconnected'));
       renderConnections();
       showStatus('Dropbox disconnected.', 'success');
     }

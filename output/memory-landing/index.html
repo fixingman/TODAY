@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'none'; img-src 'none'; form-action 'none'; base-uri 'none'">
+  <title>TODAY — Memory landing study</title>
+  <link rel="stylesheet" href="baseline.css">
+  <link rel="stylesheet" href="study.css">
+  <script src="study.js" defer></script>
+</head>
+<body>
+  <aside class="study-bar" aria-label="Design study controls">
+    <div><strong>Design study · Memory landing</strong><span>Fictional records · scripted replies · nothing saved</span><p class="study-hint">Memory opens on the proposed landing. Switch to current to compare the same records.</p><p class="study-hint" id="previewHint">Example fills the reply box. Other text stays here, unanalysed.</p></div>
+    <div class="study-controls">
+      <button type="button" data-action="example">play example</button>
+      <button type="button" data-action="reset">restart</button>
+    </div>
+    <div class="study-controls study-scene" role="group" aria-label="Memory landing and records">
+      <span class="study-scene-label">landing</span>
+      <button type="button" data-action="baseline" aria-pressed="false">current</button>
+      <button type="button" data-action="proposal" aria-pressed="true">proposal</button>
+      <span class="study-scene-label">records</span>
+      <button type="button" data-action="fixture" data-value="full" aria-pressed="true">full</button>
+      <button type="button" data-action="fixture" data-value="sparse" aria-pressed="false">sparse</button>
+    </div>
+    <div class="study-controls study-scene" role="group" aria-label="Daily screen">
+      <span class="study-scene-label">nudge</span>
+      <button type="button" data-action="scene-nudge" data-value="linked" aria-pressed="true">linked</button>
+      <button type="button" data-action="scene-nudge" data-value="overlap" aria-pressed="false">word overlap</button>
+      <button type="button" data-action="scene-nudge" data-value="none" aria-pressed="false">none</button>
+      <span class="study-scene-label">list</span>
+      <button type="button" data-action="scene-list" data-value="tasks" aria-pressed="true">tasks</button>
+      <button type="button" data-action="scene-list" data-value="empty" aria-pressed="false">empty</button>
+    </div>
+  </aside>
+  <header class="sticky-header">
+    <div class="sticky-header-inner">
+      <div class="header">
+        <!-- Study stand-in for opening Memory; not a proposal for the logo's behaviour. -->
+        <h1 class="today-brand"><button class="today-logo" id="memoryToggle" type="button" data-action="panel" aria-expanded="false" aria-controls="memoryPanel" aria-label="TODAY · Memory">TO<span>DAY</span></button></h1>
+        <span class="date-label">a fictional day</span>
+      </div>
+    </div>
+  </header>
+  <main class="app">
+    <section class="config-panel" id="memoryPanel" aria-labelledby="memoryTitle">
+      <div class="config-title-row">
+        <h2 class="config-title" id="memoryTitle" tabindex="-1">✦ Memory</h2>
+        <button type="button" class="memory-item-btn" id="exploreEntry" data-action="explore">explore →</button>
+        <button type="button" class="memory-item-btn" id="memoryReturn" data-action="memory" hidden>← all memory</button>
+        <button type="button" class="memory-item-btn" id="notesToggle" data-action="notes" aria-controls="notesView" aria-expanded="false" hidden>notes &amp; sources</button>
+      </div>
+      <!-- Both landings render here from the same fictional records (study.js → renderLanding). -->
+      <div id="memoryView" data-landing="proposal"></div>
+      <div id="memoryFooter"></div>
+      <section id="explorationView" hidden aria-labelledby="explorationTitle">
+        <!-- One header: the title-row back action names where you return; the question is the only title. -->
+        <h2 id="explorationTitle" tabindex="-1">What makes room for sketching?</h2>
+        <p class="quiet" id="forgottenNote" hidden>The preview document and its notes have been removed. Any action you added to the preview list stays there.</p>
+
+        <!-- Conversation: resume, the current exchange, then the reply box. Nothing administrative in between. -->
+        <div id="sessionView">
+          <div id="resume">
+            <p class="eyebrow">Where we left off</p>
+            <p id="recap">You wanted to understand why a few spontaneous sketches felt easy to return to. Timing, having materials nearby and the size of the activity were left open.</p>
+          </div>
+          <div id="conversation" role="region" aria-label="Exploration conversation">
+            <details id="earlierTurns" hidden>
+              <summary>earlier in this conversation</summary>
+              <div id="earlierList"></div>
+            </details>
+            <div id="currentTurns"></div>
+          </div>
+          <div class="composer-block">
+            <label for="thought" id="nextThread">Does having the sketchbook in reach help on an ordinary day?</label>
+            <textarea id="thought" rows="3" placeholder="In your own words…" aria-describedby="previewHint"></textarea>
+            <!-- What an entrance could bring. Nothing joins until the person chooses it and replies. -->
+            <div class="entry-context memory-item" id="entryContext" hidden>
+              <span class="memory-item-text"><span class="source-id" id="entryContextId"></span><span id="entryContextBody"></span><span class="entry-note" id="entryContextNote"></span></span>
+              <button type="button" class="memory-item-btn" id="entryContextToggle" data-action="bring">bring along</button>
+            </div>
+            <div class="composer-actions">
+              <button type="button" class="primary-action" id="sendThought" data-action="send" disabled>reply →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes: the one secondary place for inspection, correction, sources, something to try, the raw record and privacy. -->
+        <section id="notesView" hidden aria-labelledby="notesTitle">
+          <h3 class="eyebrow" id="notesTitle" tabindex="-1">Notes on this exploration</h3>
+          <p class="quiet notes-intro">What the conversation has added. Your words stay as written. TODAY's readings stay unconfirmed; a correction replaces the wording, not the evidence.</p>
+
+          <div class="memory-type-block" id="readingBlock">
+            <div class="memory-type-header"><h4 class="memory-type-name">Current reading</h4></div>
+            <p class="eyebrow" id="hypothesisLabel" hidden></p>
+            <p id="hypothesisText"></p>
+            <p class="quiet" id="correctionNote" hidden>Your correction replaces TODAY's wording. It doesn't confirm the evidence listed under what changed.</p>
+            <div class="turn-actions"><button type="button" class="memory-item-btn" id="correctStart" data-action="correct" hidden>correct this</button></div>
+            <div class="amendment" id="correction" hidden>
+              <label class="edit-label" for="correctionText">How would you put it?</label>
+              <textarea id="correctionText" rows="3"></textarea>
+              <div class="turn-actions">
+                <button type="button" class="memory-item-btn" data-action="amend">keep correction</button>
+                <button type="button" class="memory-item-btn" data-action="amend-cancel">cancel</button>
+              </div>
+            </div>
+            <ul class="history-list" id="amendmentList" aria-label="Earlier versions" hidden></ul>
+          </div>
+
+          <div class="memory-type-block" id="changesBlock" hidden>
+            <div class="memory-type-header"><h4 class="memory-type-name" id="changesTitle" tabindex="-1">What changed</h4></div>
+            <p id="changesText">Added your words as NOTE-03. Materials have support in NOTE-02 and NOTE-03; an open-ended result in NOTE-01 and NOTE-03. Timing has one example. Activity size remains uncertain. No experiment or conclusion was added.</p>
+          </div>
+
+          <div class="memory-type-block">
+            <div class="memory-type-header"><h4 class="memory-type-name">What it draws on</h4></div>
+            <p class="quiet">Replies use only what's included. The task is context; it doesn't say how anything felt. No feelings, dreams, email or Calendar.</p>
+            <ul class="source-list">
+              <li class="memory-item"><span class="memory-item-text"><span class="source-id">NOTE-01 · your words<span class="source-state" hidden> · left out</span></span>“I liked making a quick sketch without deciding what it should become.”</span><button type="button" class="memory-item-btn" data-action="source" data-source="NOTE-01">leave out</button></li>
+              <li class="memory-item"><span class="memory-item-text"><span class="source-id">NOTE-02 · your words<span class="source-state" hidden> · left out</span></span>“I drew again when the sketchbook happened to be on the table.”</span><button type="button" class="memory-item-btn" data-action="source" data-source="NOTE-02">leave out</button></li>
+              <li class="memory-item"><span class="memory-item-text"><span class="source-id">TASK-01 · activity</span>“Sketch by the window” — one recorded focus session.</span><span class="source-fixed">context</span></li>
+            </ul>
+            <ul class="source-list" id="addedSources" aria-label="Added in this conversation"></ul>
+          </div>
+
+          <div class="memory-type-block" id="tryBlock">
+            <div class="memory-type-header"><h4 class="memory-type-name">Something to try</h4><span class="memory-type-desc">— only if you ask</span></div>
+            <div class="turn-actions"><button type="button" class="memory-item-btn" id="tryAsk" data-action="try">suggest something</button></div>
+            <p class="quiet" id="tryUnavailable">Nothing to suggest without a current reading.</p>
+            <div id="tryView" hidden>
+              <p id="tryText" tabindex="-1">Leave a page open for one ordinary day and see whether you reach for it. One setup, less than a minute; no daily log. Look again when you return, and stop if it feels like another obligation.</p>
+              <div class="turn-actions"><button type="button" class="memory-item-btn" id="taskAdd" data-action="task">add to Today</button></div>
+              <p class="quiet">Adds a fictional action to the preview list only when you choose it. Doing it won't show whether it helps.</p>
+            </div>
+          </div>
+
+          <div class="memory-footer notes-footer">
+            <button type="button" class="memory-conn-link" id="recordToggle" data-action="record" aria-controls="recordView" aria-expanded="false">Markdown record</button>
+            <button type="button" class="memory-conn-link" id="privacyToggle" data-action="privacy" aria-controls="privacyView" aria-expanded="false">privacy &amp; forget</button>
+          </div>
+          <section id="recordView" hidden aria-labelledby="recordTitle">
+            <div class="record-heading">
+              <h4 class="eyebrow" id="recordTitle" tabindex="-1">Markdown record</h4>
+              <button type="button" class="memory-item-btn" data-action="record">hide</button>
+            </div>
+            <p class="quiet">The same notes as one portable document, including raw wording and every amendment. Preview only; no Dropbox connection.</p>
+            <pre id="recordText"></pre>
+          </section>
+          <section id="privacyView" class="storage-note" hidden aria-labelledby="privacyTitle">
+            <h4 class="eyebrow" id="privacyTitle" tabindex="-1">Privacy &amp; forget</h4>
+            <p>Proposed: this exploration lives in its own Dropbox document. Clearing Memory removes its links here; forgetting the exploration removes the document. Today's tasks stay.</p>
+            <p class="quiet">In this study, everything stays in this page.</p>
+            <button type="button" class="memory-conn-link is-danger" id="forgetStart" data-action="forget">forget exploration</button>
+            <div id="forgetConfirm" hidden>
+              <p>Remove the exploration and its notes from this preview?</p>
+              <div class="turn-actions">
+                <button type="button" class="memory-conn-link is-danger" data-action="forget-confirm">yes, forget</button>
+                <button type="button" class="memory-conn-link" id="forgetCancel" data-action="forget-cancel">keep it</button>
+              </div>
+            </div>
+          </section>
+        </section>
+      </section>
+    </section>
+    <section class="today-view" id="todayView" aria-label="Today">
+      <!-- The morning strip stays one button: first tap shows reactions, the next dismisses.
+           The explore action is a separate sibling, never nested and never the strip's tap. -->
+      <button class="morning-nudge show visible" id="dayNudge" type="button" data-action="nudge" aria-expanded="false" aria-controls="dayNudgeReact"><span class="nudge-star" aria-hidden="true">✦</span><span class="nudge-text"><span id="nudgeText"></span><span class="visually-hidden" id="nudgeHint"> — show reactions</span></span></button>
+      <div class="morning-nudge-react" id="dayNudgeReact">
+        <div class="morning-nudge-react-body">
+          <div class="nudge-react" role="group" aria-label="How this line landed">
+            <button type="button" class="memory-item-btn" data-action="react" aria-pressed="false">landed</button>
+            <button type="button" class="memory-item-btn" data-action="react" aria-pressed="false">not really</button>
+            <span class="react-note" id="reactNote"></span>
+          </div>
+        </div>
+      </div>
+      <div class="nudge-explore" id="nudgeExplore" hidden>
+        <span>this task is context in an exploration</span>
+        <button type="button" class="memory-item-btn" data-action="open-from" data-origin="nudge">explore this →</button>
+      </div>
+
+      <!-- Daily-list entrance: present whenever an exploration exists, unchanged by list size or nudge. -->
+      <div class="section" id="exploreSection">
+        <button class="section-header entry-header" id="listEntry" type="button" data-action="open-from" data-origin="list">
+          <span class="section-label">Explore</span>
+          <span class="section-count entry-question">what makes room for sketching? →</span>
+        </button>
+      </div>
+
+      <div class="section" id="manualSection" tabindex="-1">
+        <div class="section-header">
+          <h2 class="section-label">Your tasks</h2>
+          <div class="section-count" id="manualCount">3</div>
+        </div>
+        <div class="task-list" id="manualList" role="list" aria-label="Your tasks">
+          <div class="task" role="listitem" id="taskLinked" data-scene-row data-link-note="already context here as TASK-01">
+            <button class="task-check" type="button" data-action="check" aria-pressed="false" aria-label="done: Sketch by the window"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5.2l2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+            <div class="task-body"><div class="task-text">Sketch by the window</div></div>
+            <button type="button" class="memory-item-btn task-explore" data-action="open-from" data-origin="task" aria-label="explore “Sketch by the window”">explore</button>
+          </div>
+          <div class="task" role="listitem" data-scene-row>
+            <button class="task-check" type="button" data-action="check" aria-pressed="false" aria-label="done: Order sketchbook refills"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5.2l2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+            <div class="task-body"><div class="task-text">Order sketchbook refills</div></div>
+          </div>
+          <div class="task" role="listitem" data-scene-row>
+            <button class="task-check" type="button" data-action="check" aria-pressed="false" aria-label="done: Call the boiler engineer"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 5.2l2.3 2.3 4.7-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+            <div class="task-body"><div class="task-text">Call the boiler engineer</div></div>
+          </div>
+        </div>
+        <div class="empty" id="manualEmpty" hidden>A clean slate</div>
+      </div>
+
+    </section>
+    <p class="study-footnote">Memory is open on the proposed landing. Compare: <strong>landing current / proposal</strong> on the same records, then <strong>records full / sparse</strong>. Resume from the landing with <strong>continue →</strong> under your question; the current landing keeps <strong>explore →</strong> in its title row. Other entrances: <strong>Explore</strong> above your tasks, <strong>explore this →</strong> under the morning line, a task's <strong>explore</strong> (hover or focus on desktop). <strong>TODAY</strong> opens and closes Memory in this study.</p>
+  </main>
+  <p class="visually-hidden" id="status" role="status"></p>
+</body>
+</html>

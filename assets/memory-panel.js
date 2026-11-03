@@ -11,6 +11,15 @@
     let _patternsOpen = false;
     let _knownWaitingOpen = false;
     let _computedPatterns = [];
+    let explorationLoading = null, explorationUI = null;
+    Today.ui.register('click','exploration.open',async(event,button)=>{
+      event.stopPropagation();
+      try {
+        explorationLoading ||= import('/assets/exploration-entry.js').then(()=>Today.use('exploration-entry'));
+        explorationUI = await explorationLoading;
+        await explorationUI.open(event,button);
+      } catch (_) { explorationLoading=null; if(window._a11yAnnounce) _a11yAnnounce('Exploration could not open. Try again.'); }
+    });
 
     function _parseAIText(data) {
       if (data.error) return null;
@@ -21,6 +30,7 @@
       const scrollY = window.scrollY;
       const panel = $.memoryPanel;
       const isOpening = !panel.classList.contains('open');
+      if (!isOpening && explorationUI) explorationUI.hide();
       if (isOpening) {
         Today.use('reflections').endFeedbackVisit();
         panel.style.animation = '';
@@ -287,7 +297,7 @@
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML = _memoryClearPending
         ? `<div class="memory-footer">` +
-          `<span class="memory-confirm-msg">erase everything?</span>` +
+          `<span class="memory-confirm-msg">erase app records? Dropbox files stay.</span>` +
           `<span class="memory-confirm-actions">` +
           `<button class="memory-clear-btn memory-clear-confirm" data-today-click="memory.clear-confirm">yes, clear</button>` +
           `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
@@ -310,7 +320,7 @@
       const footer = document.getElementById('memoryFooter');
       if (footer) footer.innerHTML =
         `<div class="memory-footer">` +
-        `<span class="memory-confirm-msg">erase everything?</span>` +
+        `<span class="memory-confirm-msg">erase app records? Dropbox files stay.</span>` +
         `<span class="memory-confirm-actions">` +
         `<button class="memory-clear-btn memory-clear-confirm" data-today-click="memory.clear-confirm">yes, clear</button>` +
         `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
@@ -324,6 +334,7 @@
 
     function _memoryClearConfirm() {
       _memoryClearPending = false;
+      if (explorationUI) explorationUI.clearInfluence();
       if (appMemory) {
         appMemory.preferences = { peakHour: null, dragKeywords: [] };
         appMemory.patterns = {

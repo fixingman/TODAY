@@ -1118,11 +1118,12 @@ window._startFocus = (function() {
     // Header and recording buttons: button's own onclick already fires the panel toggle
     // (bubbling order: element onclick first, document listener second). We just need to
     // close focus here and bail — the panel is already opening.
-    if (uiTaskId && e.target.closest('#todayLogo, #habitsBtn, #trelloBtn, #infoBtn, #voiceNoteBtn, #meetingBtn')) {
+    if (uiTaskId && e.target.closest('#todayLogo, #habitsBtn, #trelloBtn, #infoBtn, #voiceNoteBtn, #meetingBtn, [data-today-click="exploration.open"]')) {
       closeUI(false);
       return;
     }
     if (e.target.closest('.task-delete')) return;
+    if (e.target.closest('[data-today-click="exploration.open"]')) return;
     if (e.target.closest('.task-check'))  return;
     if (e.target.closest('.task-copy'))   return;
     if (e.target.closest('.task-copy'))   return;  // copy button — handled by event delegation

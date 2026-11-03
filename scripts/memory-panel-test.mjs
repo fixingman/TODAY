@@ -195,9 +195,9 @@ try {
     const result = await page.evaluate(() => {
       Today.use('memory').requestClear();
       const footer = document.getElementById('memoryFooter');
-      const confirmShown = footer?.innerHTML.includes('erase everything?');
+      const confirmShown = footer?.innerHTML.includes('erase app records? Dropbox files stay.');
       Today.use('memory').cancelClear();
-      const normalRestored = !footer?.innerHTML.includes('erase everything?')
+      const normalRestored = !footer?.innerHTML.includes('erase app records? Dropbox files stay.')
         && footer?.innerHTML.includes('clear all memory');
       return { confirmShown, normalRestored };
     });

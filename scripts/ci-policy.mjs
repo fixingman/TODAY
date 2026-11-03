@@ -49,6 +49,7 @@ export const SUITE = [
   "meeting-test",
   "voice-capture-test",
   "memory-panel-test",
+  "exploration-test",
   "observation-pool-test",
   "mailto-test",
   "about-test",
@@ -226,7 +227,7 @@ export const GROUPS = {
       "nudge-delivery-test"
     ],
     "dependents": [
-      "about", "memory", "calendar"
+      "about", "memory", "calendar", "exploration"
     ]
   },
   "calendar": {
@@ -288,6 +289,11 @@ export const GROUPS = {
       "connections"
     ]
   },
+  "exploration": {
+    "files": ["assets/exploration.js", "assets/exploration-core.js", "assets/exploration-entry.js", "assets/exploration-files.js", "assets/exploration.css"],
+    "suites": ["exploration-test"],
+    "dependents": ["memory", "connections", "sync", "tasks", "focus"]
+  },
   "memory": {
     "files": [
       "assets/memory-panel.js"
@@ -296,7 +302,7 @@ export const GROUPS = {
       "memory-panel-test"
     ],
     "dependents": [
-      "about", "reflections", "gmail", "enrichment", "dreams", "insights", "sync"
+      "about", "reflections", "gmail", "enrichment", "dreams", "insights", "sync", "exploration"
     ]
   },
   "reflections": {

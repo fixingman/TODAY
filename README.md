@@ -31,6 +31,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 - **About digest** — the day's line, a weekly reflection on Sundays, and a "Noticed" block that surfaces what TODAY has learned (peak hour, streak proximity, recurring themes) — only when something changes, never as filler
 - **Meeting mode** — record an in-room meeting (desktop or iPhone), get action items extracted in the meeting's own language, with your items pre-selected
 - **Dreams** — tell the mic a dream, whenever it comes back to you: you get a short reading, and the dream is kept as a dated file in your own Dropbox (see [DreamBank files](#dreambank-files))
+- **Exploration** — return to a question, talk it through, inspect readings and corrections, and choose a small experiment. One living Markdown document stays in your Dropbox; [how it works](docs/exploration-integration.md)
 - The AI observes, it never coaches: "usually", never "should"
 
 **The frame**
@@ -58,7 +59,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 
 No framework, no build step, no bundler. Vanilla JS + CSS.
 
-- `index.html` — the 4.8K-line HTML/CSS shell and startup composition; 36 ordered classic-script modules in `/assets/` own component behavior
+- `index.html` — the 4.8K-line HTML/CSS shell and startup composition; 38 ordered classic-script modules in `/assets/` own component behavior
 - `sw.js` — service worker: offline support, background updates
 - `manifest.json` — PWA installation
 - Seven Netlify Functions cover Dropbox/Gmail OAuth, AI, meeting/voice extraction, and task enrichment; one Edge Function injects poem sharing metadata
@@ -154,7 +155,7 @@ Your key is stored locally in your browser and sent only through your own Netlif
 
 Each device stores state in `localStorage`. Dropbox holds a single JSON backup file (`/today-backup.json`). On startup and every 7 seconds the app does a cheap metadata check — a full sync only happens if the file actually changed.
 
-Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes, check/uncheck operations, and zone moves carry timestamps so the most recent intent wins; purged tasks leave tombstones so stale devices can't resurrect them. Backup schema version `5.4`.
+Concurrent edits are handled with union merge: tasks and habits added on two devices offline both survive. Deletes, check/uncheck operations, and zone moves carry timestamps so the most recent intent wins; purged tasks leave tombstones so stale devices can't resurrect them. Backup schema version `5.5`. Exploration uses its own revision-protected Markdown file outside this task backup.
 
 ### DreamBank files
 

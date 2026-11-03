@@ -1,0 +1,36 @@
+/* Approved exploration session, scoped to Memory's sub-view. */
+#explorationRoot { font-size: var(--text-sm2); line-height: 1.6; overflow-wrap: anywhere; }
+#explorationRoot h2 { font-size: var(--text-lg); font-weight: 400; margin: 0 0 var(--space-3); }
+#explorationRoot h3, #explorationRoot h4 { font-weight: 400; margin: 0 0 var(--space-2); }
+#explorationRoot p { margin: var(--space-2) 0; white-space: pre-wrap; }
+#explorationRoot .ex-nav { display: flex; justify-content: space-between; margin: 0 calc(-1 * var(--space-2)) var(--space-4); }
+#explorationRoot .ex-muted, #explorationRoot .ex-status { color: var(--muted); font-size: var(--text-sm2); }
+#explorationRoot .ex-status:empty { display: none; }
+#explorationRoot .ex-turn { margin: var(--space-4) 0; }
+#explorationRoot .ex-you p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
+#explorationRoot .ex-turn > p { font-size: var(--text-task); }
+#explorationRoot label { display: block; margin-bottom: var(--space-2); }
+#explorationRoot input:not([type=file]), #explorationRoot textarea { box-sizing: border-box; width: 100%; padding: var(--space-3); background: var(--bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); line-height: 1.6; }
+#explorationRoot textarea { resize: vertical; }
+#explorationRoot .ex-composer { margin-top: var(--space-4); }
+#explorationRoot .ex-composer label { font-size: var(--text-task); }
+#explorationRoot .ex-send { display: flex; justify-content: flex-end; margin-top: var(--space-2); }
+#explorationRoot .ex-send button { border-color: var(--accent-glow); color: var(--accent); }
+#explorationRoot button:disabled { color: var(--muted); cursor: default; }
+#explorationRoot .ex-context { margin: var(--space-3) 0; }
+#explorationRoot .ex-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+#explorationRoot .ex-source { display: block; color: var(--muted); font-size: var(--text-xs); }
+#explorationRoot .memory-item { flex-wrap: wrap; }
+#explorationRoot pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm2); padding: var(--space-3); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
+#explorationRoot .ex-file { display: block; }
+#explorationRoot input[type=file] { display: block; max-width: 100%; margin: var(--space-2) 0; font-family: var(--font-mono); }
+#explorationRoot .memory-item-text { min-width: 0; }
+#explorationRoot h2, #explorationRoot h3, #explorationRoot textarea { scroll-margin-top: calc(var(--space-20) + var(--space-8)); }
+@media (max-width: 600px) {
+  #explorationRoot input:not([type=file]), #explorationRoot textarea { font-size: var(--text-lg); }
+}
+
+.exploration-task-action { margin-right: var(--space-4); }
+@media (hover: hover) { .exploration-task-action { opacity: 0; } .task:hover .exploration-task-action, .task:focus-within .exploration-task-action { opacity: 1; } }
+/* The deliberate conversation has one composer; daily capture returns with the list. */
+body:has(#memoryPanel.exploration-active) #addTaskBar, body:has(#memoryPanel.exploration-active) #triageBar { display: none; }

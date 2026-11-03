@@ -4124,6 +4124,7 @@
   }
   #meetingNameInput::placeholder { color: var(--muted); opacity: 0.7; }
 
+
   /* ── Memory panel ─ */
   .memory-type-block {
     padding-bottom: var(--space-4);
@@ -4470,7 +4471,7 @@
 
   <!-- Memory panel -->
   <section class="config-panel" id="memoryPanel" aria-labelledby="memoryTitle" hidden>
-    <h2 class="config-title" id="memoryTitle">✦&#xFE0E; Memory</h2>
+    <div class="config-title-row" id="memoryTitleRow"><h2 class="config-title" id="memoryTitle">✦&#xFE0E; Memory</h2><button type="button" class="memory-item-btn" data-today-click="exploration.open">explore →</button></div>
 
     <div id="memoryContent"></div>
     <div id="memoryFooter"></div>
@@ -4486,13 +4487,12 @@
     <div class="task-list zone-list" id="soonList" role="list" aria-label="Soon tasks" hidden></div>
   </div>
 
-  <!-- Unified morning nudge (v2.19.0) — one surface for carried-over tasks,
-       Trello cards, and yesterday's review; leads with what matters most -->
+  <!-- Morning reading and separate reactions. -->
   <button class="morning-nudge" id="dayNudge" type="button" aria-label="Dismiss morning summary"></button>
-  <!-- 12e (v2.86.0): two-state reaction to the morning line. Sibling, not child — the
-       strip is a button and buttons cannot nest. Filled by nudge.js only when today's
-       line is a spoken one; opened by the first tap on the strip. -->
   <div class="morning-nudge-react" id="dayNudgeReact"></div>
+
+  <div id="explorationNudge" hidden><button type="button" class="memory-item-btn" data-today-click="exploration.open" data-ex-origin="nudge">explore this →</button></div>
+  <div class="section" id="explorationEntry"><button type="button" class="section-header zone-header" data-today-click="exploration.open" data-ex-origin="list"><span class="section-label">Explore</span><span class="section-count" id="explorationQuestion"></span><span aria-hidden="true">→</span></button></div>
 
   <!-- Trello section -->
   <div class="section" id="trelloSection">
@@ -4699,26 +4699,19 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 // Color constants (COLOR_ACCENT/BG/MUTED/BORDER) now live in assets/util.js.
 
-// AI_BUILD_PROVIDER / AI_DEFAULT_PROVIDER — moved to assets/connections.js
 
 // ─ Version ─
-const DEV_HOURS     = '385.5h';
+const DEV_HOURS     = '387.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
-// Single source of truth for the version: the newest CHANGELOG key (see APP_VERSION
-// derivation below the object). Only edit the changelog — APP_VERSION follows it,
-// so they physically cannot drift. ⚠️ Also mirror the entry into memory/Changelog.md.
+// Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.1.0': 'Exploration — continue a question, keep your words and readings in your Dropbox, and bring chosen actions into Today.',
   '3.0.10': 'CI reliability: synchronization waits in 4 test files replaced with condition-polling (2s cap) or 200ms fixed margins.',
   '3.0.9': 'CI timing: dropbox sync wait 30→200ms, nudge upgrade deadline buffer 1500→3000ms.',
-  '3.0.8': 'Feeling feedback follows edits and deletions correctly. A synced dismissal keeps the evening prompt hidden.',
 };
 
-// Derived, never hand-typed — the newest changelog entry IS the version. CHANGELOG
-// keys are dotted strings (not array-index-like), so JS preserves insertion order and
-// [0] is the entry we add at the top. sw.js CACHE_VERSION can't import this (separate
-// SW context, no build step) — it's the one value still hand-synced, and the smoke
-// test asserts it matches (scripts/smoke-test.mjs). Per "derive, don't duplicate".
+// Version derives from the newest changelog entry; sw.js is checked by the release gate.
 const APP_VERSION = Object.keys(CHANGELOG)[0];
 
 // ─ Helpers ─

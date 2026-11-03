@@ -296,3 +296,7 @@ The app is fully functional offline; mutations persist to localStorage and `last
 ## 15D Focus wording privacy boundary
 
 today_focus_wording_v1 is device-local and explicitly excluded from Dropbox/schema5.5 and all backup projections. A local max-wins clear watermark and fresh storage reads fence cross-tab changes. Memory clear / AI Forget remove wording influence. No new backup fields, schema or bytes. Existing raw spoken focus history is not repurposed as a feedback store.
+
+## Separate exploration document — local v3.1.0
+
+Exploration does not extend schema 5.5 or its merge/Restore algorithm. Its lazy transport uses the existing Dropbox grant and environment separation, strict add/revision-update and revision-conditional delete on one canonical Markdown file. Conflicts preserve the draft for a fresh read; a lost acknowledgement is reconciled by exact readback. No durable device-local journal or automatic semantic merge is added. See [the file/sync contract](../../docs/exploration-integration.md).
