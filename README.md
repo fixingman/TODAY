@@ -31,7 +31,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 - **About digest** — the day's line, a weekly reflection on Sundays, and a "Noticed" block that surfaces what TODAY has learned (peak hour, streak proximity, recurring themes) — only when something changes, never as filler
 - **Meeting mode** — record an in-room meeting (desktop or iPhone), get action items extracted in the meeting's own language, with your items pre-selected
 - **Dreams** — tell the mic a dream, whenever it comes back to you: you get a short reading, and the dream is kept as a dated file in your own Dropbox (see [DreamBank files](#dreambank-files))
-- **Exploration and Memory** — return to a question, connect relevant TODAY records, import a checkpoint, inspect readings and corrections, and choose a small experiment. One living Markdown document stays in your Dropbox; [how it works](docs/exploration-integration.md)
+- **Exploration and Memory** — return to a question and talk it through with relevant TODAY context. Inspect sources and correct readings in Notes & sources; earlier notes and small experiments are optional. One living Markdown document stays in your Dropbox; [how it works](docs/exploration-integration.md)
 - The AI observes, it never coaches: "usually", never "should"
 
 **The frame**

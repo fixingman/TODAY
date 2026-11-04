@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.106.10** | About voted nudge collapses on load; reason chips restore on re-expand. |
 | **2.106.9** | Raise triage sheet max-height to 90vh so feeling grid fits without scroll. |
 | **2.106.8** | Focus wording feedback — consistent tokens, remove help text and clear-all. |
 | **2.106.7** | Task list nudge UX — toggle, fade-in, reason auto-dismisses. |

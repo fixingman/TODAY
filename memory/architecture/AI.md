@@ -361,3 +361,5 @@ The approved session is a separate deliberate interaction opened from the daily 
 ## Native Memory data extension — v3.2.0
 
 The explicit per-exploration TODAY connection projects at most eight matching task/Memory records, including no more than two unconfirmed stable AI interpretations. It never passes the whole profile or feeling/dream/mail/Calendar/feedback stores. Fingerprints, inherited dependencies, permission epochs and current readiness/clear/grant checks fence live sources and late replies. No generation on opening or source review; reply quality remains a real-use verdict. See [the integration contract](../../docs/exploration-data-integration.md).
+
+**v3.2.1 interaction:** new exploration creation explains and enables bounded TODAY context on explicit Start; existing saved scope is preserved. Source review/connection controls stay in Notes & sources, with no automatic generation or personal-checkpoint import. Context selection, limits, provenance, withdrawal and provider behavior are unchanged.
