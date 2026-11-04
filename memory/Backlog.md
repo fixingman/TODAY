@@ -1,7 +1,7 @@
 # Backlog
 
 > **Forward-looking only: what to build next, what is parked, and which decisions remain.**
-> Reviewed 2026-10-30 against v2.106.0 on dev/master. Shipped code is not an installed-device or usefulness verdict. Release/handoff history lives in [the archive](archive/Backlog-archive.md#release-and-handoff-snapshots--october-30-2026); defects belong to [Bugs.md](Bugs.md).
+> Reviewed 2026-11-04. Remote source: dev/master v3.2.2 (`8bdb1be7`), before this documentation update. Branch publication, hosted validation and installed/usefulness verdicts are separate. Release/handoff history lives in [the archive](archive/Backlog-archive.md#release-and-handoff-snapshots--october-30-2026); defects belong to [Bugs.md](Bugs.md).
 
 ---
 
@@ -17,33 +17,36 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 ## ▸ Roadmap
 
-**Can’s top product priority remains AI continuous improvement, #15, targeting v3.0.0 (October 25 decision).** Preserve the original IDs; priority is work rank. Independent installed/account checks do not block design or implementation on another slice.
+**Can’s top product priority remains AI continuous improvement, #15.** v3.0.0 is published on master; remaining real-use acceptance and the explicitly deferred style work stay open. Original IDs are preserved; priority below is work rank, not release numbering. A waiting gate does not prevent useful work on a lower row.
 
-**Current baseline:** v2.106.0 is published to dev/master. Its full Linux dev proof passed 61 suites and all five performance runs; master verified reuse in 15 seconds. CI efficiency phases 1–3 are complete and [archived](archive/Backlog-archive.md#ci-efficiency-completion). Follow-up release metrics are routine maintenance, not another build initiative. Deployment, installed behavior and writing usefulness remain separate.
+**Current release checkpoint (November 4):** v3.2.2 is published on dev/master. [Full dev release validation](https://github.com/fixingman/TODAY/actions/runs/41900718090) passed all 62 suites with zero failures/flakes and all five performance runs; [master CI](https://github.com/fixingman/TODAY/actions/runs/41902705951) verified reuse and passed. BUG-137 is verified fixed; the retained BUG-141 failures are historical and the current full gate covers that repair. BUG-135 deployed/installed performance remains open. CI-efficiency phases 1–3 are complete, with earlier exact-SHA proof [archived](archive/Backlog-archive.md#ci-efficiency-completion).
 
-**Latest verification (October 30):** v2.106.1 (`946dc046`) is published to dev/master. Eight targeted suites and deployed offline/source checks verify technical BUG-136/134/131/128/127; those records are archived. Current master CI41042013402 fails pool-wording clearing/reflection display (59 passed, one flaky, one failed), so BUG-137 remains open. Earlier v2.106.0 release proof does not approve this newer SHA. CI-efficiency implementation remains complete; connected-account relevance, installed delivery and product usefulness retain their existing owners.
+### Priority table
 
-| Priority | ID | Item / details | Current status | Next action / gate |
+Rows 1–3 cover current acceptance and verification. Rows 4–5 preserve the agreed order of post-v3 design work; later rows retain existing queued ideas, followed by gated expansions and parked work. Observe through normal use; a date or test pass does not manufacture exposure.
+
+| Priority | ID | Item | State | Next action / gate |
 |---|---|---|---|---|
-| 1 | 15 | [AI continuous improvement — target v3.0.0](#15-ai-continuous-improvement) | Bounded feedback/next-use mechanisms shipped through v2.106.0; broader personal style and acceptance remain open | Agree the concrete 3.0.0 acceptance/scope and any explicit deferrals; use the [single sub-item queue](#15-sub-items). |
-| 2 | — | [Release verification](#release-verification) | Installed/account checks and deployed performance follow-ups remain | Verify delivery and current installed behavior; keep BUG-135 separate from completed CI work; BUG-138 is verified closed. |
-| 3 | — | [Memory record and patterns](#memory-record-and-patterns) | KNOWN iterated; PATTERNS re-observing | Preserve November 1 KNOWN and overdue October 27 PATTERNS checkpoints; HOW DAYS FELT belongs to #15B. Post-v3: revisit noticed-nudge → memory trail connection. |
-| 4 | 14 | [Habit contextual companionship](#14-habit-contextual-companionship) | Desktop Ask kept; new morning contribution unbuilt | Existing Ask improvement belongs to #15D; a new morning relationship requires its own evidence/design decision. |
-| 5 | 10b | [Calendar context](#10b-google-calendar-context) | Read-only foundation and timing-only daily-writer increment implemented | Finish account/eligible-use checks; Join / Record remains unbuilt. |
-| 6 | 10a | [Granola meeting import](#10a-granola-meeting-import) | Not started; priority meeting-capture path | Revalidate API/auth and reviewed task chips before native calendar-led capture. |
-| 7 | — | [WEEK companion](#week-companion) | Gated | #15C / 12c must feel useful; history volume or a common framework does not unlock it. |
-| 8 | — | [New week recognition](#new-week-recognition) | Gated | Distinct week-scale relationship, novelty and earned silence after 12c. |
-| 9 | 13 | [DreamBank](#13-dreambank) | M1 + sheet kept; M2 extended | Natural recurrence verdict remains separate; M3 and new dream-history input stay gated. |
-| 10 | 2 | [Poem corpus](#2-poem-corpus) | Ongoing; 159 poems | Broaden voices/geography; summer needs one to reach the existing target. |
-| 11 | — | [First-run orientation](#open-decisions) | Open product decision; unbuilt | Decide deliberate minimalism versus minimum orientation before building. |
-| 12 | 9 | [Google Drive sync](#9-google-drive-sync) | Parked | Revalidate auth/shared merge/current Connections before implementation. |
-
+| 1 | 15A / 15C / 15D / 15E / 15F | [AI quality and feedback acceptance](#15-sub-items) | Observe / iterate | Morning readings are better and pool/Sunday readings feel good; Focus Ask still needs usefulness improvement. Next Ask checkpoint: November 7 provisional; nudge-retention checkpoint: November 15. Enrichment and post-add verdicts wait for natural exposure. |
+| 2 | 15G | [Release and installed verification](#release-verification) | Verify | v3.2.2 full dev/master validation passed. Future master promotion needs its own exact-SHA proof and explicit approval. Preserve BUG-118/139 installed checks and BUG-135 deployed-performance follow-up. |
+| 3 | — | [KNOWN and PATTERNS](#memory-record-and-patterns) | Verdict due | Review the overdue November 1 KNOWN and October 27 PATTERNS checkpoints: useful returns, valued patterns and continued suppression of AI restatements. |
+| 4 | 15B | [HOW DAYS FELT personal style](#15-sub-items) | First post-v3 design; waiting on exposure | Explicitly deferred November 1. Resume design after a second qualifying insight and sufficient reaction signal; bring clarity, data density, style dimensions and possible shared principles with Focus Ask. No additional collection is approved. |
+| 5 | — | [Noticed nudge → memory trail](#memory-record-and-patterns) | Second post-v3 design; gated | After the style-design follow-up and post-v3 acceptance, decide whether accumulated deterministic observations should support interpretation nudges or an inspectable memory trail. No implementation decision yet. |
+| 6 | 14 | [Habit contextual companionship](#14-habit-contextual-companionship) | Design decision | Desktop Ask is kept; its improvement belongs to #15D. A new morning habit contribution needs a distinct supported relationship and design decision. |
+| 7 | 10b | [Calendar context](#10b-google-calendar-context) | Account / eligible-use checks | Verify the shipped read-only timing support in normal use. Join / Record remains unbuilt and separate from the foundation. |
+| 8 | 10a | [Granola meeting import](#10a-granola-meeting-import) | Queued; not started | Revalidate API/auth and reviewed task chips. This remains the priority meeting-capture path before native calendar-led capture. |
+| 9 | 2 | [Poem corpus](#2-poem-corpus) | Ongoing curation | Recorded count: 159; summer needs one poem to reach the existing target. Broaden voices/geography using the existing approval and rights rules. |
+| 10 | — | [First-run orientation](#open-decisions) | Product decision | Decide deliberate minimalism versus minimum orientation before designing or building an introduction. |
+| 11 | 13 | [DreamBank](#13-dreambank) | Waiting on natural recurrence | M1 and the sheet are kept; M2 needs more exposure. M3 and new dream-history input stay gated. |
+| 12 | — | [WEEK companion](#week-companion) | Gated | Await the #15C / 12c companion-usefulness verdict; history volume and positive implementation checks do not unlock it. |
+| 13 | — | [New week recognition](#new-week-recognition) | Gated | After 12c acceptance, establish a distinct week-scale relationship, useful choice and novelty against Today/Sunday. |
+| 14 | 9 | [Google Drive sync](#9-google-drive-sync) | Parked | Revalidate auth/shared merge/current Connections if reopened. Keep one active sync provider and the recorded migration boundaries. |
 
 ---
 
 ## ▸ Post-v3 follow-ups
 
-After v3.0.0 is cut and version bumped, pick these up in order. None are build tasks yet — each starts with a verdict or design session.
+v3.0.0 is published on master. The following design follow-ups retain the agreed order; their exposure/acceptance gates still apply. Each starts with a verdict or design session.
 
 ### Design work (explicit deferrals)
 
@@ -85,9 +88,9 @@ Ordinary morning quality/delivery remains separate under #15A and release verifi
 
 ### 15: AI continuous improvement
 
-**Priority 1; release target v3.0.0 — Can, October 25.** Improve when AI helps, which supported content it chooses and how it writes through normal use. [The reviewed plan](../docs/ai-improvement-cycle.md) owns architecture/privacy/acceptance; this table owns the work queue. [Detailed nudge/feeling contracts](../docs/feedback-learning-plan.md) and [completed studies](archive/Backlog-archive.md#ai-feedback-and-evaluator-studies--october-25-2026) are references, not new recurring tasks.
+**Priority 1; v3.0.0 published, acceptance continues.** Can set the release target on October 25 and explicitly deferred HOW DAYS FELT personal-style design on November 1. Improve when AI helps, which supported content it chooses and how it writes through normal use. [The reviewed plan](../docs/ai-improvement-cycle.md) owns architecture/privacy/acceptance; this table owns the work queue. [Detailed nudge/feeling contracts](../docs/feedback-learning-plan.md) and [completed studies](archive/Backlog-archive.md#ai-feedback-and-evaluator-studies--october-25-2026) are references, not new recurring tasks.
 
-**Before the 3.0.0 cut:** agree concrete acceptance and any explicitly deferred personal-style work. Fixed concerns, safety fixes, repetition control and changed sentences do not by themselves finish the broader style goal. Keep separately shipped prerequisites at their actual versions; cut app/SW and both changelogs together only for the agreed scope. No artificial schema migration or automatic critic is implied.
+**Post-v3 acceptance:** keep the November 1 real-use checkpoints and explicit 15B style deferral below. Fixed concerns, safety fixes, repetition control and changed sentences do not by themselves finish the broader style goal. Release publication does not close those verdicts. Preserve actual prerequisite version history; no artificial schema migration or automatic critic is implied.
 
 #### #15 sub-items
 
@@ -119,11 +122,11 @@ Execution order is independent of the letters. Implemented mechanisms are not a 
 
 **PATTERNS:** merged list and corrected obligation/return calculations are implemented; October 27 checks whether valued lines still help and AI restatements stay gone. Inspect existing semantic/procedural/episodic confirmation statuses before adding generation or sources; Can's limited interest is not permission to expand collection.
 
-**HOW DAYS FELT:** now owned by [#15B](#15-sub-items), including the October 25 clarity/usefulness verdict. v2.98.0 reaction/retention/sync foundation is pushed, without a style-learning or accepted real-use verdict. A source feeling is not a reaction to its reading. Memory hierarchy/KNOWN/PATTERNS remain separate; do not collect more to fill the panel.
+**HOW DAYS FELT:** now owned by [#15B](#15-sub-items), including the October 25 clarity/usefulness verdict. The reaction/retention/sync foundation is shipped; v3.0.8 on dev repairs legacy source-edit/withdrawal handling. Broader personal style and an accepted real-use verdict remain open. A source feeling is not a reaction to its reading. Memory hierarchy/KNOWN/PATTERNS remain separate; do not collect more to fill the panel.
 
-**Post-v3.0.0 — noticed nudges and memory:** after v3 ships, revisit whether the Memory section should surface the trail behind "noticed" observations. Noticed nudges (`assets/noticed-model.js`) are deterministic and outside the v3 AI loop by design, but they produce valuable behavioral signal. The open question: can accumulated "noticed" deltas graduate into interpretation nudges, and should the memory panel show which observations stacked into which insights? Do not add this before v3 acceptance; v3 deliberately keeps noticed nudges separate.
+**Post-v3.0.0 — noticed nudges and memory:** as the second deferred design follow-up, revisit whether the Memory section should surface the trail behind "noticed" observations. Noticed nudges (`assets/noticed-model.js`) are deterministic and outside the v3 AI loop by design, but they produce valuable behavioral signal. The open question: can accumulated "noticed" deltas graduate into interpretation nudges, and should the memory panel show which observations stacked into which insights? Keep the post-v3 acceptance gate; v3 deliberately keeps noticed nudges separate.
 
-**Post-v3.0.0 — personal style (deferred November 1, Can):** the HOW DAYS FELT personal style mechanism was explicitly deferred because data is too sparse to design from. What to bring into the post-v3 design session: (1) accumulated reaction votes on insights — landed/hard to follow/wording concerns stored in Dropbox; (2) the data density problem — eligibility requires sufficient reflection data in both comparison groups, so the mechanism needs a minimum-exposure threshold before it can act; (3) what dimensions of style actually matter — length, concreteness, warmth, structure; (4) whether 15D (Focus Ask) and 15B can share a single style-learning mechanism or need separate models; (5) the wording-concern signal already flowing through `assets/feedback-policy.js` as a starting point. Do not design this before v3 ships and sufficient reactions have accumulated.
+**Post-v3.0.0 — personal style (deferred November 1, Can):** the HOW DAYS FELT personal style mechanism was explicitly deferred because data is too sparse to design from. What to bring into the post-v3 design session: (1) accumulated reaction votes on insights — landed/hard to follow/wording concerns stored in Dropbox; (2) the data density problem — eligibility requires sufficient reflection data in both comparison groups, so the mechanism needs a minimum-exposure threshold before it can act; (3) what dimensions of style actually matter — length, concreteness, warmth, structure; (4) whether 15D (Focus Ask) and 15B can share a single style-learning mechanism or need separate models; (5) the wording-concern signal already flowing through `assets/feedback-policy.js` as a starting point. v3 is published; resume this first deferred design follow-up when sufficient reactions have accumulated.
 
 ### 13: DreamBank
 
@@ -181,7 +184,7 @@ The underlying habit/context idea remains open. Preserve the actual Habits compo
 - BUG-118: phone/desktop morning delivery, legacy rejection recovery and strip/About agreement through normal use.
 - BUG-139 (v2.106.2): deployed to dev/master (confirmed November 1). Verify the accepted About reading and vote survive completion/sync in real installed use; the fix leaves the writer unchanged.
 - BUG-135: deployed/installed startup evidence. Retain the failed local/deployed measurements; the accepted Linux release proof does not erase them or establish deployed recovery.
-- Current installed Calendar/mail relevance and other explicit account checks remain with [Bugs.md](Bugs.md) and the relevant product item. Technical source/cache/request ownership BUG-127/128 and precache BUG-136 are independently verified and archived; this does not close account relevance or normal installed experience. BUG-137 still owns the current hosted pool/reflection failures.
+- Current installed Calendar/mail relevance and other explicit account checks remain with [Bugs.md](Bugs.md) and the relevant product item. Technical source/cache/request ownership BUG-127/128 and precache BUG-136 are independently verified and archived; this does not close account relevance or normal installed experience. BUG-137 is verified fixed in v2.106.4; BUG-141 retains the v3.0.8 feedback/CI repair history; the v3.2.2 full hosted gate now passes.
 - Ordinary two-device sync experience remains an installed check; BUG-130's confirmed unread-revision defect is already verified/archived and is not reopened as an implementation task. Do not promise a delivery SLA or lower polling to conceal latency.
 
 Keep the normal fresh-poem/midnight and two-device zone behavior checks; their accepted technical bug fixes stay closed. The one untouched-default nudge upgrade remains bounded to 20 seconds/before noon/no real dismissal. Use the temporary content-free About → Today readout only until phone-first delivery is understood, then remove the readout and display audit events as a separate cleanup. Do not reset live caches/votes or force exposure to close a checklist.

@@ -28,6 +28,16 @@ for(const suite of ['calendar-test','calendar-nudge-policy-unit-test','nudge-tes
 assert.ok(calendar.suites.length < SUITE.length);
 assert.ok(planChanges([change('scripts/gmail-test.mjs')]).suites.includes('gmail-feedback-test'));
 assert.deepEqual(planChanges([change('docs/ci-efficiency-plan.md')]).suites,DOC_BASE);
+for (const path of trackedPaths(ROOT).filter(path => path.startsWith('life-skill/'))) {
+  const plan = planChanges([change(path)]);
+  assert.equal(plan.docsOnly, true, path);
+  assert.deepEqual(plan.suites, DOC_BASE, path);
+}
+for (const path of ['life-skill/runtime.js', 'life-skill/templates/private-state.json', 'life-skill/new-guide.md']) {
+  const plan = planChanges([change(path)]);
+  assert.equal(plan.mode, 'full', path);
+  assert.equal(plan.performance, true, path);
+}
 assert.equal(planChanges([change('assets/poems.js')]).performance,true);
 assert.equal(planChanges([], {fallback:['missing base']}).mode,'full');
 

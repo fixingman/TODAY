@@ -7,6 +7,15 @@ import { SUITE, EXCLUDED, GROUPS, BASE, DOC_BASE } from './ci-policy.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OWNERS = new Map(Object.entries(GROUPS).flatMap(([name, group]) => group.files.map(path => [path, name])));
 const suiteOwner = new Map(Object.entries(GROUPS).flatMap(([name, group]) => group.suites.map(suite => [suite, name])));
+// Reviewed reusable instructions and blank templates; no app imports.
+// New files remain unknown until explicitly reviewed here.
+const SKILL_DOCUMENTATION = new Set([
+  'life-skill/INSTALL.md', 'life-skill/PACKAGE-CONTENTS.md', 'life-skill/README.md', 'life-skill/SKILL.md',
+  'life-skill/references/app-integration-sync.md', 'life-skill/references/framework.md',
+  'life-skill/references/source-notes.md', 'life-skill/references/state-format.md',
+  'life-skill/references/today-integration.md', 'life-skill/templates/experiment-journal.md',
+  'life-skill/templates/handoff.md', 'life-skill/templates/review.md', 'life-skill/templates/state.json',
+]);
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', timeout: 10000,
   maxBuffer: 20 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -25,7 +34,7 @@ export function classifyPath(path) {
       /^assets\/[^/]+\.(png|svg|ico)$/.test(path) || ['netlify.toml'].includes(path)) return { kind: 'group', group: 'foundation' };
   if (path === 'memory/performance-baseline.json' || path === 'memory/Performance-audit.md') return { kind: 'performance', group: 'tooling' };
   if (/^output\/(?:habit-(?:context|moments)|life-exploration|memory-landing)\//.test(path)) return { kind: 'prototype', reason: 'isolated non-shipping study; no app imports' };
-  if (['README.md','Design.md'].includes(path) || /^(docs|memory)\/.+\.md$/.test(path) ||
+  if (SKILL_DOCUMENTATION.has(path) || ['README.md','Design.md'].includes(path) || /^(docs|memory)\/.+\.md$/.test(path) ||
       path.startsWith('docs/media/') || path.startsWith('video/')) return { kind: 'documentation' };
   if (path === 'memory/validate-files.sh') return { kind: 'tooling', group: 'tooling' };
   return { kind: 'unknown', reason: 'unclassified path' };

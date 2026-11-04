@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": null,
+  "revision": 0,
+  "updated_at": null,
+  "timezone": null,
+  "source_status": "partial_source_provisional_framework",
+  "stage": "observe",
+  "framework_confirmed": false,
+  "preferences": {
+    "review_cadence": null,
+    "next_review_at": null,
+    "scheduled_reminders_enabled": false,
+    "active_experiment_limit": 2
+  },
+  "lenses": [
+    "direction",
+    "engagement",
+    "leverage"
+  ],
+  "candidate_problems": [
+    {
+      "id": "P1",
+      "statement": "Unclear direction",
+      "provenance": "provisional_package_design",
+      "endorsement": "unconfirmed",
+      "status": "candidate",
+      "supporting_observation_ids": [],
+      "counterevidence_observation_ids": [],
+      "open_questions": []
+    },
+    {
+      "id": "P2",
+      "statement": "Limited engagement",
+      "provenance": "provisional_package_design",
+      "endorsement": "unconfirmed",
+      "status": "candidate",
+      "supporting_observation_ids": [],
+      "counterevidence_observation_ids": [],
+      "open_questions": []
+    },
+    {
+      "id": "P3",
+      "statement": "Difficulty turning insight into action",
+      "provenance": "provisional_package_design",
+      "endorsement": "unconfirmed",
+      "status": "candidate",
+      "supporting_observation_ids": [],
+      "counterevidence_observation_ids": [],
+      "open_questions": []
+    },
+    {
+      "id": "P4",
+      "statement": "Effort concentrated in low-leverage places",
+      "provenance": "provisional_package_design",
+      "endorsement": "unconfirmed",
+      "status": "candidate",
+      "supporting_observation_ids": [],
+      "counterevidence_observation_ids": [],
+      "open_questions": []
+    }
+  ],
+  "active_experiment_ids": [],
+  "latest_review_id": null,
+  "next_question": null,
+  "living_document": null,
+  "therapist_questions": [],
+  "sync": {
+    "enabled": false,
+    "last_common_revision": null,
+    "destination": null
+  }
+}
