@@ -314,3 +314,7 @@ Rollback: clear all Focus wording in the current build before using an older cli
 ## Exploration — local v3.1.0
 
 A separate canonical Markdown document in the user's Dropbox holds the exploration, imported starting material and append-only observations/readings/amendments/source choices/task links. No new personal localStorage/appMemory/general-backup field is added. Page-held drafts and working copies are transient; online acknowledgement, explicit creation/import, export, retention and clear semantics are in [the integration contract](../../docs/exploration-integration.md). Clearing Memory leaves the document intact and says Dropbox files stay; explicit Forget conditionally deletes it. Existing task/reflection/dream boundaries remain.
+
+## Native Memory data extension — v3.2.0
+
+Native document schema 2 adds shared context permission/exclusions and live-source reference fingerprints. It does not create another appMemory/localStorage or backup field. Original source records retain their existing lifetime. AI reply history can quote them and remains in Markdown/export until explicit Forget; withholding is not deletion. Reader supports 1/2 and older writers refuse 2. New checkpoints append with an opening-material revision. See [the integration contract](../../docs/exploration-data-integration.md).

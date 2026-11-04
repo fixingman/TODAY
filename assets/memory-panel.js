@@ -53,260 +53,29 @@
           }
         }
         if (_anyNew) _saveMemory();
+        memoryView?.begin();
         _patternsOpen = false;
         _knownWaitingOpen = false;
         renderMemoryPanel();
       }
     }
 
-    function renderMemoryPanel() {
-      const el = document.getElementById('memoryContent');
-      if (!el) return;
-      const m = appMemory;
-      if (!m) { el.innerHTML = '<div class="memory-empty">nothing noticed yet</div>'; return; }
-      const revealPatterns = _patternsOpen && el.querySelector('[data-today-click="memory.patterns-more"]')?.getAttribute('aria-expanded') !== 'true';
-
-      function itemRow(item, extraClass = '') {
-        return `<div class="memory-item${extraClass ? ' ' + extraClass : ''}">` +
-                (item.isNew ? `<span class="memory-item-new"></span>` : '') +
-                `<span class="memory-item-text">${esc(item.text)}</span>` +
-                (item.action ? `<button type="button" class="memory-item-btn" data-today-click="memory.kind-restore" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
-                (item.revokeKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.item-revoke" data-revoke-key="${esc(item.revokeKey)}">dismiss</button>` : '') +
-                (item.rejectKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.hypothesis-reject" data-hypothesis="${esc(item.rejectKey)}" aria-label="Not true about me: ${esc(item.text)}">not me</button>` : '') +
-                `</div>`;
-      }
-      function typeBlock(name, desc, items, pendingNote, more = '', extraItems = [], animateExtra = true) {
-        const rows = items.length
-          ? items.map(item => itemRow(item)).join('')
-          : more ? '' : pendingNote
-            ? `<div class="memory-pending">${pendingNote}</div>`
-            : `<div class="memory-empty">nothing here yet</div>`;
-        return `<div class="memory-type-block">` +
-          `<div class="memory-type-header">` +
-          `<span class="memory-type-name">${name}</span>` +
-          `<span class="memory-type-desc">${desc}</span>` +
-          (more ? more : '') +
-          `</div>${rows}${extraItems.map(i => itemRow(i, animateExtra ? 'memory-item--extra' : '')).join('')}</div>`;
-      }
-
-      const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-      const _parseDowLocal = iso => { const [y,mo,d] = iso.split('-').map(Number); return new Date(y, mo-1, d).getDay(); };
-      const allDailyHistory = safeJSON('today_daily_history', []);
-      if (allDailyHistory.length > 0 && !allDailyHistory[0].tasksAddedFixed) {
-        allDailyHistory.sort((a, b) => a.date.localeCompare(b.date));
-        for (let _i = allDailyHistory.length - 1; _i >= 0; _i--) {
-          const _prev = _i > 0 ? allDailyHistory[_i - 1].tasksAdded : 0;
-          const _raw  = allDailyHistory[_i].tasksAdded || 0;
-          const _delta = Math.max(0, _raw - _prev);
-          allDailyHistory[_i].tasksAdded = _delta;
-          allDailyHistory[_i].tasksAddedFixed = true;
-        }
-        localStorage.setItem('today_daily_history', JSON.stringify(allDailyHistory));
-      }
-      if (!localStorage.getItem('today_tasksAdded_v2')) {
-        let _dirty = false;
-        for (const _e of allDailyHistory) {
-          if (_e.tasksAddedFixed) { _e.tasksAdded = 0; _dirty = true; }
-          _e.tasksAddedFixed = true;
-        }
-        if (_dirty) localStorage.setItem('today_daily_history', JSON.stringify(allDailyHistory));
-        localStorage.setItem('today_tasksAdded_v2', '1');
-      }
-      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekAgoISO = _localISO(weekAgo);
-      const weekHistory = allDailyHistory.filter(e => e.date >= weekAgoISO);
-
-      const semanticItems = [];
-      const peakHour = m.preferences?.peakHour;
-      if (peakHour !== null && peakHour !== undefined) {
-        const _fmtH = h => h === 0 ? 'midnight' : h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h-12}pm`;
-        const _hourCounts = typeof _memoryHourCounts === 'function' ? _memoryHourCounts() : (m.patterns?.completionsByHour || {});
-        const _peakCount = _hourCounts[String(peakHour)] || 1;
-        const _thresh = _peakCount * 0.5;
-        const _activeHours = Object.entries(_hourCounts)
-          .filter(([, c]) => c >= _thresh).map(([h]) => parseInt(h)).sort((a, b) => a - b);
-        const _runs = []; let _run = [_activeHours[0]];
-        for (let i = 1; i < _activeHours.length; i++) {
-          if (_activeHours[i] - _activeHours[i-1] <= 1) { _run.push(_activeHours[i]); }
-          else { _runs.push(_run); _run = [_activeHours[i]]; }
-        }
-        _runs.push(_run);
-        const _peakRun = _runs.find(r => r.includes(parseInt(peakHour))) || [parseInt(peakHour)];
-        if (_peakRun.length >= 2) {
-          const _s = _peakRun[0], _e = _peakRun[_peakRun.length - 1];
-          semanticItems.push({ text: `most tasks done between ${_fmtH(_s)}–${_fmtH(_e)}` });
-        } else {
-          const h = parseInt(peakHour);
-          semanticItems.push({ text: `most tasks done around ${_fmtH(h)}` });
-        }
-      }
-      const samples = m.patterns?.taskLifespanSamples || [];
-      if (samples.length >= 5) {
-        const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
-        let lifespanText;
-        if (avg < 0.5) lifespanText = 'most tasks close the same day';
-        else if (avg < 1.5) lifespanText = 'tasks typically take about a day to close';
-        else lifespanText = `tasks typically close in about ${Math.round(avg)} day${Math.round(avg) === 1 ? '' : 's'}`;
-        semanticItems.push({ text: lifespanText });
-      }
-      const best = m.patterns?.bestStreak || 0;
-      const _curStreak = parseInt(localStorage.getItem('stat_streak') || '0');
-      if (best >= 3 && best > _curStreak) semanticItems.push({ text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
-      if (allDailyHistory.length >= 14) {
-        const byDow = {};
-        allDailyHistory.forEach(e => {
-          const dow = _parseDowLocal(e.date);
-          if (!byDow[dow]) byDow[dow] = [];
-          byDow[dow].push(e.tasksDone);
-        });
-        const dowAvgs = Object.entries(byDow)
-          .filter(([, vals]) => vals.length >= 2)
-          .map(([dow, vals]) => [parseInt(dow), vals.reduce((s, v) => s + v, 0) / vals.length]);
-        if (dowAvgs.length >= 3) {
-          const [bestDow, bestAvg] = dowAvgs.sort(([, a], [, b]) => b - a)[0];
-          const secondAvg = dowAvgs[1][1];
-          if (bestAvg >= 2 && bestAvg > secondAvg * 1.2) {
-            semanticItems.push({ text: `most done on ${_dowNames[bestDow]}s` });
-          }
-        }
-      }
-
-      const episodicItems = [];
-      const recent = (m.recentCompletedTasks || []);
-      const thisWeek = recent.filter(e => e.date >= weekAgoISO);
-      if (thisWeek.length > 0) {
-        episodicItems.push({ text: `${thisWeek.length} task${thisWeek.length === 1 ? '' : 's'} done in the last 7 days` });
-      }
-
-      if (weekHistory.length >= 2) {
-        const bestDay = weekHistory.reduce((a, b) => b.tasksDone > a.tasksDone ? b : a);
-        if (bestDay.tasksDone >= 3) {
-          const dayName = _dowNames[_parseDowLocal(bestDay.date)];
-          episodicItems.push({ text: `best day this week: ${dayName} (${bestDay.tasksDone} tasks)` });
-        }
-      }
-      const activeDays = weekHistory.filter(e => e.tasksDone > 0);
-      if (activeDays.length >= 3) {
-        const avg = activeDays.reduce((s, e) => s + e.tasksDone, 0) / activeDays.length;
-        episodicItems.push({ text: `averaging ${avg.toFixed(1)} tasks on active days this week` });
-      }
-      const _startedStillOpen = Object.values(m.returningTasks || {})
-        .filter(t => t && (parseInt(t.focusSessions) || 0) > 0);
-      if (_startedStillOpen.length >= 2) {
-        const _sn = _startedStillOpen.length;
-        episodicItems.push({ text: `${_sn} task${_sn === 1 ? '' : 's'} started — still open` });
-      }
-      (m.memory?.episodic || []).filter(i => _hypoLive(i)).forEach(i => {
-        episodicItems.push({ text: i.text, isNew: i.isNew, rejectKey: `episodic:${i.id}` });
-      });
-
-      semanticItems.push(..._memoryOutcomePatterns(m));
-      _computedPatterns = semanticItems.map(i => i.text);
-      for (const i of _memoryShownInferences()) {
-        semanticItems.push({ text: i.text, isNew: i.isNew, rejectKey: `${i.type}:${i.id}` });
-      }
-
-      const metaItems = [];
-      if (m.firstSeen) {
-        const _calDays = Math.round((Date.now() - new Date(m.firstSeen + 'T12:00:00').getTime()) / 86400000);
-        const _activeDays = Math.min(m.totalDaysActive || 0, _calDays);
-        const _dayStr = _activeDays > 0 && _calDays > 0
-          ? `active on ${_activeDays} of ${_calDays} day${_calDays === 1 ? '' : 's'}`
-          : `${_calDays} day${_calDays === 1 ? '' : 's'} so far`;
-        let _sinceStr = m.firstSeen;
-        try {
-          const _d = new Date(m.firstSeen + 'T12:00:00');
-          _sinceStr = _d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        } catch (_) {}
-        metaItems.push({ text: `noticing since ${_sinceStr} — ${_dayStr}` });
-      }
-      if (m.totalTasksCompleted > 0) {
-        metaItems.push({ text: `${m.totalTasksCompleted} tasks done in all` });
-      }
-      if ((m.patterns?.focusMinutesTotal || 0) > 0) {
-        const hrs = (m.patterns.focusMinutesTotal / 60).toFixed(1);
-        metaItems.push({ text: `${hrs} hours of focus so far` });
-      }
-
-      const _fmtDay = iso => {
-        const d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
-        return isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      };
-      const _strip = t => (typeof _stripTag === 'function' ? _stripTag(t || '') : String(t || '')).trim();
-      const knownItems = [];
-
-      const _revoked = m.revokedKnownItems || {};
-      const _returning = Object.entries(m.returningTasks || {})
-        .filter(([id, t]) => t && t.text && !_revoked['rt:' + id])
-        .sort(([, a], [, b]) => Number((parseInt(b.focusSessions) || 0) > 0) - Number((parseInt(a.focusSessions) || 0) > 0)
-          || (b.dayCount || 0) - (a.dayCount || 0))
-        .slice(0, 5);
-      for (const [_rtId, t] of _returning) {
-        const n = parseInt(t.focusSessions) || 0;
-        knownItems.push({ text: `returning · "${_strip(t.text)}" — on the list ${t.dayCount} days, ` +
-          (n > 0 ? `${n} focus session${n > 1 ? 's' : ''}` : 'no focus sessions recorded'),
-          revokeKey: 'rt:' + _rtId });
-      }
-
-      const _soonList = typeof soonTasks !== 'undefined' && Array.isArray(soonTasks) ? soonTasks : [];
-      const _soonWaiting = _soonList
-        .filter(t => t && t.id && t.text && t.zoneChangedAt && !_revoked['sn:' + t.id])
-        .map(t => ({ t, days: Math.floor((Date.now() - new Date(t.zoneChangedAt).getTime()) / 86400000) }))
-        .filter(e => e.days >= 7)
-        .sort((a, b) => b.days - a.days)
-        .slice(0, 5);
-      const waitingItems = _soonWaiting.map(({ t, days }) => ({
-        text: `in Soon · "${_strip(t.text)}" — kept here ${days} days`, revokeKey: 'sn:' + t.id,
-      }));
-
-      const _pendingObl = (m.obligationHistory || [])
-        .filter(e => e && e.text && !e.done && !e.letgo)
-        .filter(e => !_revoked['oh:' + e.date + '|' + (e.text || '').slice(0, 40)])
-        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, 5);
-      for (const e of _pendingObl) {
-        knownItems.push({ text: `obligation · "${_strip(e.text)}" — added ${_fmtDay(e.date)}, still open`,
-          revokeKey: 'oh:' + e.date + '|' + (e.text || '').slice(0, 40) });
-      }
-
-      const _floor = new Date(); _floor.setDate(_floor.getDate() - 30);
-      const _win = (m.taskOutcomes || []).filter(e => e && e.date && new Date(e.date) >= _floor);
-      if (_win.length) {
-        const c = k => _win.filter(e => e.outcome === k).length;
-        metaItems.push({ text: `30 days · ${c('done')} done · ${c('letgo')} let go · ${c('soon_pull')} to Soon · ${c('revive')} brought back` });
-      }
-
-      el.innerHTML =
-        typeBlock('KNOWN', '— what today has on record, not what it concludes', knownItems,
-          'nothing on record yet — this fills as tasks come and go',
-          waitingItems.length
-            ? `<button type="button" class="memory-item-btn" data-today-click="memory.known-waiting" aria-expanded="${_knownWaitingOpen}">${_knownWaitingOpen ? 'less' : `show waiting (${waitingItems.length})`}</button>`
-            : '', _knownWaitingOpen ? waitingItems : []) +
-        typeBlock('PATTERNS', '— what holds over time',
-          semanticItems.slice(0, PATTERNS_SHOWN),
-          'patterns appear as more evidence builds',
-          semanticItems.length > PATTERNS_SHOWN
-            ? `<button type="button" class="memory-item-btn" data-today-click="memory.patterns-more" aria-expanded="${_patternsOpen}">${_patternsOpen ? 'less' : `show all (${semanticItems.length})`}</button>`
-            : '', _patternsOpen ? semanticItems.slice(PATTERNS_SHOWN) : [], revealPatterns) +
-        typeBlock('LATELY', '— the last week or so', episodicItems,
-          'nothing new this week');
-
-      Today.use('reflections')._reflectionRenderMemory(el);
-      el.insertAdjacentHTML('beforeend', typeBlock('WHAT TODAY HAS SEEN', '— how much it has to go on', metaItems));
-      Today.use('dreambank').renderMemory(el);
-
-      const footer = document.getElementById('memoryFooter');
-      if (footer) footer.innerHTML = _memoryClearPending
-        ? `<div class="memory-footer">` +
-          `<span class="memory-confirm-msg">erase app records? Dropbox files stay.</span>` +
-          `<span class="memory-confirm-actions">` +
-          `<button class="memory-clear-btn memory-clear-confirm" data-today-click="memory.clear-confirm">yes, clear</button>` +
-          `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
-          `</span></div>`
-        : `<div class="memory-footer">` +
-          `<button class="memory-clear-btn" data-today-click="memory.clear-request">clear all memory</button>` +
-          `<button type="button" class="memory-conn-link" data-today-click="memory.connections">Connections →</button>` +
-          `</div>`;
-      Today.use('reflections').renderFeedbackFooter();
+    let memoryView=null, viewLoading=null;
+    function viewOptions(){return {patternsOpen:_patternsOpen,waitingOpen:_knownWaitingOpen,clearPending:_memoryClearPending,
+      outcomes:_memoryOutcomePatterns,inferences:_memoryShownInferences,live:_hypoLive,computed:rows=>{_computedPatterns=rows;}};}
+    async function prepareMemory(){
+      if(!viewLoading)viewLoading=import('/assets/memory-view.js').then(async()=>{
+        if(!document.getElementById('memoryViewStyles'))await new Promise(resolve=>{const css=document.createElement('link');css.id='memoryViewStyles';css.rel='stylesheet';css.href='/assets/memory-view.css';css.onload=resolve;css.onerror=resolve;document.head.append(css);});
+        memoryView=Today.use('memory-view');memoryView.configure(viewOptions());return memoryView;
+      }).catch(error=>{viewLoading=null;throw error;});
+      return viewLoading;
+    }
+    function renderMemoryPanel(){
+      if(memoryView){$.memoryPanel.removeAttribute('aria-busy');memoryView.render(viewOptions());return;}
+      if(!$.memoryPanel.classList.contains('open'))return;
+      $.memoryPanel.setAttribute('aria-busy','true');
+      const target=document.getElementById('memoryContent');target.textContent='Opening Memory…';
+      prepareMemory().then(()=>{$.memoryPanel.removeAttribute('aria-busy');if($.memoryPanel.classList.contains('open'))memoryView.render(viewOptions());}).catch(()=>{$.memoryPanel.removeAttribute('aria-busy');target.textContent='Memory could not open. Try again.';});
     }
 
     function _memoryGoToConnections() {
@@ -324,7 +93,7 @@
         `<span class="memory-confirm-actions">` +
         `<button class="memory-clear-btn memory-clear-confirm" data-today-click="memory.clear-confirm">yes, clear</button>` +
         `<button class="btn-ghost memory-conn-link" data-today-click="memory.clear-cancel">cancel</button>` +
-        `</span></div>`;
+        `</span></div><p class="memory-empty">Dependent exploration readings are withheld. Their history stays in Dropbox until you forget the exploration.</p>`;
     }
 
     function _memoryClearCancel() {
@@ -686,6 +455,7 @@
       appMemory.rejectedHypotheses = appMemory.rejectedHypotheses.slice(-60);
       _saveMemory();
       renderMemoryPanel();
+      document.getElementById('memoryHoldsTitle')?.focus();
     }
 
     function _versionBadgeBreathe() {
@@ -716,11 +486,14 @@
         appMemory.revokedKnownItems[revokeKey] = new Date().toISOString();
         _saveMemory();
         renderMemoryPanel();
+        document.getElementById('memoryOpenTitle')?.focus();
       }
 
       Today.define('memory', {
         toggle: toggleMemory,
         render: renderMemoryPanel,
+        prepare: prepareMemory,
+        async records(){const view=await prepareMemory();view.configure(viewOptions());return view.records();},
         openConnections: _memoryGoToConnections,
         requestClear: _memoryClearRequest,
         cancelClear: _memoryClearCancel,

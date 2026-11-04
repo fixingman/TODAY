@@ -233,6 +233,7 @@ async function openPage(options = {}) {
     _logSyncError = (where, message) => { window.__meetingTest.errors.push({ where, message }); };
     window._haptic = preset => { window.__meetingTest.haptics.push(preset); };
   });
+  await page.evaluate(()=>Today.use('memory').prepare());
   return { page, errors };
 }
 
@@ -764,7 +765,7 @@ try {
       let status = 200;
       const requests = [];
       window.fetch = async (url, opts = {}) => {
-        if (!String(url).endsWith('/2/files/download')) return originalFetch(url, opts);
+        if (!String(url).endsWith('/2/files/download')||!JSON.parse(opts.headers['Dropbox-API-Arg']).path.startsWith(files.dreamsDir+'/')) return originalFetch(url, opts);
         requests.push({ method: opts.method, path: JSON.parse(opts.headers['Dropbox-API-Arg']).path });
         return new Response(status === 200 ? file : '{"error_summary":"path_lookup/not_found/"}', { status });
       };
@@ -808,7 +809,7 @@ try {
       let release;
       const fetchBeforeDelay = window.fetch;
       window.fetch = async (url, opts) => {
-        if (String(url).endsWith('/2/files/download')) await new Promise(resolve => { release = resolve; });
+        if (String(url).endsWith('/2/files/download')&&JSON.parse(opts.headers['Dropbox-API-Arg']).path.startsWith(files.dreamsDir+'/')) await new Promise(resolve => { release = resolve; });
         return fetchBeforeDelay(url, opts);
       };
       action('open');

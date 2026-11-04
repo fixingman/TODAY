@@ -1,6 +1,6 @@
 # Memory landing — alternative proposal (isolated study)
 
-Status: design proposal for review, 3 November 2026. Claude authored it at Can's request to challenge the Memory overview *before* entering an exploration. It is not approved and not shipped. The integrated app keeps the current Memory landing until Can reviews this. Codex is implementing the approved exploration separately; this study doesn't touch it.
+Status: fictional design study, 3 November 2026; approved for native integration on 4 November. [Native v3.2 contract](../../docs/exploration-data-integration.md). The study below records the original review boundary. Claude authored it at Can's request to challenge the Memory overview *before* entering an exploration. The native implementation now uses actual TODAY records; this isolated study remains disconnected. Its review text describes the original proposal, not the current runtime status.
 
 Everything here is fictional: records, readings, dreams and the scripted exchange. There are no app/API calls or browser storage; only local static files and fonts are requested. Restart (or reload) clears everything.
 

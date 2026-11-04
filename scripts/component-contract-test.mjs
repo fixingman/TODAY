@@ -33,7 +33,7 @@ for (const match of sw.matchAll(/['"](\/assets\/[^'"]+\.js)['"]/g)) {
   const path=match[1].slice(1);
   if (actionSources.has(path)) continue;
   const source=readFileSync(join(ROOT,path),'utf8');
-  if (source.includes('Today.ui.register')) actionSources.set(path,source);
+  if (source.includes('Today.ui.register') || /data-today-[a-z]+=[\"']/.test(source)) actionSources.set(path,source);
 }
 for (const [path,source] of actionSources) {
   for (const match of source.matchAll(/data-today-([a-z]+)=["']([^"']+)["']/g)) {

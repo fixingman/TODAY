@@ -4471,7 +4471,7 @@
 
   <!-- Memory panel -->
   <section class="config-panel" id="memoryPanel" aria-labelledby="memoryTitle" hidden>
-    <div class="config-title-row" id="memoryTitleRow"><h2 class="config-title" id="memoryTitle">✦&#xFE0E; Memory</h2><button type="button" class="memory-item-btn" data-today-click="exploration.open">explore →</button></div>
+    <div class="config-title-row" id="memoryTitleRow"><h2 class="config-title" id="memoryTitle">✦&#xFE0E; Memory</h2></div>
 
     <div id="memoryContent"></div>
     <div id="memoryFooter"></div>
@@ -4701,14 +4701,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '387.5h';
+const DEV_HOURS     = '389.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.2.0': 'Memory — return to your question, connect relevant TODAY records, and bring your own checkpoints into the conversation.',
   '3.1.0': 'Exploration — continue a question, keep your words and readings in your Dropbox, and bring chosen actions into Today.',
   '3.0.10': 'CI reliability: synchronization waits in 4 test files replaced with condition-polling (2s cap) or 200ms fixed margins.',
-  '3.0.9': 'CI timing: dropbox sync wait 30→200ms, nudge upgrade deadline buffer 1500→3000ms.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

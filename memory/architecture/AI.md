@@ -357,3 +357,7 @@ Independent wording event clocks, source withdrawal markers and exact-time full/
 ## Explicit exploration conversation — local v3.1.0
 
 The approved session is a separate deliberate interaction opened from the daily list, Memory, a connected task, or a chosen nudge reading. It uses the existing configured AI proxy/provider/key without changing model/routing settings. Raw user observations are committed before generation. A bounded selected opening document and included records support a tentative reply/continuation/question; experiments require a separate request. Other Memory/feeling/dream/email/Calendar/feedback stores are not automatically passed. Readings, corrections and source withdrawal remain distinct, with epoch/revision/grant/key fences. See [the integration and input contract](../../docs/exploration-integration.md).
+
+## Native Memory data extension — v3.2.0
+
+The explicit per-exploration TODAY connection projects at most eight matching task/Memory records, including no more than two unconfirmed stable AI interpretations. It never passes the whole profile or feeling/dream/mail/Calendar/feedback stores. Fingerprints, inherited dependencies, permission epochs and current readiness/clear/grant checks fence live sources and late replies. No generation on opening or source review; reply quality remains a real-use verdict. See [the integration contract](../../docs/exploration-data-integration.md).

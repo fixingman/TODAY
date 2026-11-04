@@ -573,3 +573,7 @@ Keep the spoken sentence isolated. In the existing reactions on an actually disp
 ## Exploration session — local v3.1.0
 
 The approved Memory sub-view leads with a question, short resumption and directly labelled composer; the current exchange leads after a reply. Notes replaces the conversation to inspect interpretations, sources, corrections, raw document/privacy and explicitly requested experiments. Back returns through Notes → conversation → invoking place. The daily task composer is hidden during this deliberate session and restored on exit. Sources/reading/task completion never imply endorsement or benefit. Entry coordination, transport and UI load lazily. [Integrated behavior](../../docs/exploration-integration.md); [separate Memory landing proposal](../../output/memory-landing/README.md) remains unapproved.
+
+## Native Memory landing — v3.2.0
+
+STILL OPEN leads with the canonical question/Continue or a sparse starting action; WHAT HOLDS labels counted facts and unconfirmed readings; KEPT APART preserves reflection/dream controls. Coverage closes per visit. Presentation and CSS load lazily and styles settle before controls appear. Concurrent redraws share one canonical read per visit; changing preview text preserves focus and the focused control’s viewport position. Daily capture/triage are hidden while Memory is open and return with the list. Native source inclusion controls stay visible on touch. [Data/UX contract](../../docs/exploration-data-integration.md).

@@ -149,6 +149,7 @@ async function openPage() {
   await page.evaluate(() => {
     _saveMemory = () => { window.__memoryTest.saveCalls++; };
   });
+  await page.evaluate(()=>Today.use('memory').prepare());
   return { page, errors };
 }
 
@@ -434,7 +435,7 @@ try {
           && !text.includes('5 done of 10 added'),
         peakEvidenceKept: text.includes('most tasks done between 9am–10am'),
         identityClaimRemoved: !text.includes('a morning person'),
-        semanticFramingUpdated: text.includes('PATTERNS') && text.includes('what holds over time') && !text.includes('SEMANTIC'),
+        semanticFramingUpdated: text.includes('WHAT HOLDS') && text.includes('counted facts first') && !text.includes('SEMANTIC'),
       };
     });
     await expectAll('Memory output-stat cleanup', { ...result, noErrors: errors.length === 0 });
@@ -477,11 +478,11 @@ try {
       Today.use('memory').toggle();
       const content = document.getElementById('memoryContent');
       const text = content?.textContent || '';
-      const knownFirst = text.indexOf('KNOWN') >= 0 && text.indexOf('KNOWN') < text.indexOf('PATTERNS');
+      const knownFirst = text.indexOf('STILL OPEN') >= 0 && text.indexOf('STILL OPEN') < text.indexOf('WHAT HOLDS');
       const blocks = [...content.querySelectorAll(':scope > .memory-type-block')];
       const block = name => blocks.find(el => el.querySelector('.memory-type-name')?.textContent === name);
-      const known = block('KNOWN').textContent;
-      const coverage = block('WHAT TODAY HAS SEEN').textContent;
+      const known = block('STILL OPEN').textContent;
+      const coverage = document.getElementById('memoryCoverage').textContent;
       const counts = '30 days · 2 done · 1 let go · 1 to Soon · 1 brought back';
       const tasksBefore = JSON.stringify(soonTasks);
       const waitingButton = () => content.querySelector('[data-today-click="memory.known-waiting"]');
@@ -490,7 +491,7 @@ try {
       waitingButton().click();
       const expandedText = content.textContent;
       const waitingExpanded = waitingButton()?.getAttribute('aria-expanded') === 'true'
-        && expandedText.includes('in Soon · "book blood test" — kept here 12 days');
+        && expandedText.includes('"book blood test" — kept here 12 days');
       const focusPreserved = document.activeElement === waitingButton();
       content.querySelector('[data-revoke-key="sn:manual_s1"]').click();
       const dismissedFromRecordOnly = !content.textContent.includes('book blood test')
@@ -501,8 +502,8 @@ try {
       Today.use('memory').toggle();
       const waitingResetsOnReopen = waitingButton()?.getAttribute('aria-expanded') === 'false'
         && !content.textContent.includes('book blood test');
-      Today.use('dreambank').renderMemory(content);
-      const dreamsLast = content.lastElementChild?.id === 'dreamMemoryBlock';
+      Today.use('dreambank').renderMemory(document.getElementById('memoryKept'));
+      const dreamsLast = document.getElementById('memoryKept').lastElementChild?.id === 'dreamMemoryBlock';
 
       // empty state
       appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = [];
@@ -593,8 +594,8 @@ try {
       };
       Today.use('memory').toggle();
       const content = () => document.getElementById('memoryContent');
-      const block = () => [...content().querySelectorAll('.memory-type-block')].find(b => b.textContent.includes('PATTERNS'));
-      const lines = () => [...block().querySelectorAll('.memory-item-text')].map(el => el.textContent);
+      const block = () => [...content().querySelectorAll('.memory-type-block')].find(b => b.querySelector('.memory-type-name')?.textContent==='WHAT HOLDS');
+      const lines = () => [...block().querySelectorAll('.memory-item-body')].map(el => el.textContent);
       const text = content().textContent;
       const collapsed = lines();
       const more = block().querySelector('[data-today-click="memory.patterns-more"]');

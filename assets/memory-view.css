@@ -1,0 +1,16 @@
+/* Approved Memory hierarchy uses the native blocks, rows, actions and tokens. */
+#memoryContent { overflow-wrap: anywhere; }
+#memoryContent h3.memory-type-name { font-weight: 400; margin: 0; flex-shrink: 0; }
+#memoryContent .memory-source { display: block; font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--muted); }
+#memoryContent .memory-thread-question { display: block; font-size: var(--text-task); color: var(--text); }
+#memoryContent .memory-thread-recap { display: block; margin-top: var(--space-1); color: var(--muted); }
+#memoryContent .memory-thread { padding-bottom: var(--space-3); }
+#memoryContent .memory-thread .memory-item-btn { opacity: 1; color: var(--text); }
+#memoryContent .memory-landing-note { margin-top: var(--space-2); font-size: var(--text-xs); line-height: 1.6; color: var(--muted); }
+#memoryKept > .memory-type-block { border-bottom: 0; margin-bottom: 0; }
+#memoryCoverage { margin-top: var(--space-4); }
+#memoryContent h3 { scroll-margin-top: calc(var(--space-20) + var(--space-8)); }
+#memoryContent .memory-item { min-width: 0; }
+#memoryContent .memory-item-text { min-width: 0; }
+/* Keep daily capture and triage with the list while Memory's controls are in use. */
+body:has(#memoryPanel.open) #addTaskBar, body:has(#memoryPanel.open) #triageBar { display: none; }

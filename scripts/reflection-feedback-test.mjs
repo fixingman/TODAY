@@ -11,7 +11,7 @@ const require=createRequire(import.meta.url);
 const server=createServer(async(req,res)=>{
   try {const path=decodeURIComponent(new URL(req.url,'http://test').pathname);
     const body=await readFile(join(root,path==='/'?'index.html':path));
-    res.writeHead(200,{'Content-Type':({'.js':'text/javascript','.html':'text/html','.woff2':'font/woff2'})[path==='/'?'.html':extname(path)]||'application/octet-stream'});res.end(body);
+    res.writeHead(200,{'Content-Type':({'.js':'text/javascript','.html':'text/html','.woff2':'font/woff2','.css':'text/css'})[path==='/'?'.html':extname(path)]||'application/octet-stream'});res.end(body);
   }catch{res.writeHead(404);res.end();}
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));

@@ -559,6 +559,7 @@
     }
 
     function _refreshMemoryBlock() {
+      if(document.getElementById('memoryPanel')?.getAttribute('aria-busy')==='true')return;
       const restoreWording = _wording?.preserve();
       const reviewOpen = !!document.getElementById('reflectionFeedbackManage')?.open;
       const existing = document.getElementById('reflectionMemoryBlock');
@@ -569,7 +570,7 @@
         if (newBlock) existing.replaceWith(newBlock);
         else existing.remove();
       } else if (document.getElementById('memoryPanel')?.classList.contains('open')) {
-        const container = document.getElementById('memoryContent');
+        const container = document.getElementById('memoryKept') || document.getElementById('memoryContent');
         if (!container) return;
         const tmp = document.createElement('div');
         _reflectionRenderMemory(tmp);

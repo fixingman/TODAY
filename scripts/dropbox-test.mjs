@@ -1189,6 +1189,7 @@ try {
         if (url.endsWith('/2/files/get_metadata')) { samples++; return new Response('{"rev":"later-revision"}'); }
         if (!url.endsWith('/2/files/download')) throw new Error('Unexpected fixture request');
         downloads++;
+        if(downloads>1)await new Promise(resolve=>setTimeout(resolve,250)); // controlled asynchronous completion
         const headers = metadata === 'missing' ? {} : { 'Dropbox-API-Result':metadata === 'valid' ? '{"rev":"restored-revision"}' : '{' };
         return new Response(JSON.stringify({ manual_tasks:manualTasks, done_ids:downloads > 1 ? ['task_1'] : [],
           checked_ids:downloads > 1 ? [{ id:'task_1', at:new Date().toISOString() }] : [] }), { headers });
@@ -1197,7 +1198,7 @@ try {
       const exactSeed = seeded === (metadata === 'valid' ? 'restored-revision' : null);
       const noExtraMetadata = samples === 0;
       _dbxSyncNow();
-      await new Promise(resolve => setTimeout(resolve, 200));
+      for(const started=Date.now();!doneIds.has('task_1')&&Date.now()-started<2000;)await new Promise(resolve=>setTimeout(resolve,20));
       return { exactSeed, noExtraMetadata, nextRevisionApplied:downloads === 2 && doneIds.has('task_1') };
     }, metadata);
     await expectAll('manual restore metadata: ' + metadata, { ...result, noErrors:errors.length === 0 });

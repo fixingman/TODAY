@@ -714,7 +714,7 @@ window._startNudge = (function() {
     window.checkVersionNudge = checkVersionNudge;
     window.checkSundayNudge = checkSundayNudge;
     window.checkHabitNudge = checkHabitNudge;
-    Today.define('nudge', { generationAudit: _generationAudit, currentLine: _currentDayLine, auditLine: () => _nudgeAuditLine() });
+    Today.define('nudge', { memoryReady:()=>_memoryReady, generationAudit: _generationAudit, currentLine: _currentDayLine, auditLine: () => _nudgeAuditLine() });
     window.addEventListener('online', () => checkDayNudge());
     // device's audit (times, paths, elapsed seconds). Never synced; no prose, keys or votes.
     function _nudgeAuditLine() {

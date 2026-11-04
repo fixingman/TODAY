@@ -290,13 +290,13 @@ export const GROUPS = {
     ]
   },
   "exploration": {
-    "files": ["assets/exploration.js", "assets/exploration-core.js", "assets/exploration-entry.js", "assets/exploration-files.js", "assets/exploration.css"],
+    "files": ["assets/exploration.js", "assets/exploration-core.js", "assets/exploration-entry.js", "assets/exploration-files.js", "assets/exploration-context.js", "assets/exploration.css"],
     "suites": ["exploration-test"],
     "dependents": ["memory", "connections", "sync", "tasks", "focus"]
   },
   "memory": {
     "files": [
-      "assets/memory-panel.js"
+      "assets/memory-panel.js", "assets/memory-view.js", "assets/memory-view.css"
     ],
     "suites": [
       "memory-panel-test"

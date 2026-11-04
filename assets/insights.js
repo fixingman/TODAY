@@ -209,6 +209,7 @@ function _memoryOnMeetingAttribution(stats) {
 function _saveMemory() {
   Today.use('sync-merge').normalizePoolWording(appMemory);
   localStorage.setItem('today_memory', JSON.stringify(appMemory));
+  document.dispatchEvent(new Event('today:memory-change'));
 }
 
 // 12a: Scan current task list (manual + Trello) and update relational memory slots.

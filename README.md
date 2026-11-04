@@ -31,7 +31,7 @@ Most task apps have the same bug: they remember everything, and opening them fee
 - **About digest** — the day's line, a weekly reflection on Sundays, and a "Noticed" block that surfaces what TODAY has learned (peak hour, streak proximity, recurring themes) — only when something changes, never as filler
 - **Meeting mode** — record an in-room meeting (desktop or iPhone), get action items extracted in the meeting's own language, with your items pre-selected
 - **Dreams** — tell the mic a dream, whenever it comes back to you: you get a short reading, and the dream is kept as a dated file in your own Dropbox (see [DreamBank files](#dreambank-files))
-- **Exploration** — return to a question, talk it through, inspect readings and corrections, and choose a small experiment. One living Markdown document stays in your Dropbox; [how it works](docs/exploration-integration.md)
+- **Exploration and Memory** — return to a question, connect relevant TODAY records, import a checkpoint, inspect readings and corrections, and choose a small experiment. One living Markdown document stays in your Dropbox; [how it works](docs/exploration-integration.md)
 - The AI observes, it never coaches: "usually", never "should"
 
 **The frame**
@@ -181,7 +181,7 @@ role: "suyun üstünde yürüyor"
 
 Files written before v2.93.8 may also end with a `## My thought` section.
 
-TODAY itself keeps only a small synced summary per dream (date, images, role, people — never the retelling). Under Memory → Dreams → manage, **read** fetches a saved dream from Dropbox when you ask for it; any older `My thought` note is read-only. That on-demand copy is not added to TODAY's backup or kept after Memory closes. You can also delete a dream there. "Clear all memory" clears the summaries; it never deletes your dream files.
+TODAY itself keeps only a small synced summary per dream (date, images, role, people — never the retelling). Under Memory → Kept apart → Dreams → manage, **read** fetches a saved dream from Dropbox when you ask for it; any older `My thought` note is read-only. That on-demand copy is not added to TODAY's backup or kept after Memory closes. You can also delete a dream there. "Clear all memory" clears the summaries; it never deletes your dream files.
 
 ---
 

@@ -10,7 +10,7 @@
 #explorationRoot .ex-you p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
 #explorationRoot .ex-turn > p { font-size: var(--text-task); }
 #explorationRoot label { display: block; margin-bottom: var(--space-2); }
-#explorationRoot input:not([type=file]), #explorationRoot textarea { box-sizing: border-box; width: 100%; padding: var(--space-3); background: var(--bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); line-height: 1.6; }
+#explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { box-sizing: border-box; width: 100%; padding: var(--space-3); background: var(--bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); line-height: 1.6; }
 #explorationRoot textarea { resize: vertical; }
 #explorationRoot .ex-composer { margin-top: var(--space-4); }
 #explorationRoot .ex-composer label { font-size: var(--text-task); }
@@ -27,10 +27,15 @@
 #explorationRoot .memory-item-text { min-width: 0; }
 #explorationRoot h2, #explorationRoot h3, #explorationRoot textarea { scroll-margin-top: calc(var(--space-20) + var(--space-8)); }
 @media (max-width: 600px) {
-  #explorationRoot input:not([type=file]), #explorationRoot textarea { font-size: var(--text-lg); }
+  #explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { font-size: var(--text-lg); }
 }
 
 .exploration-task-action { margin-right: var(--space-4); }
 @media (hover: hover) { .exploration-task-action { opacity: 0; } .task:hover .exploration-task-action, .task:focus-within .exploration-task-action { opacity: 1; } }
 /* The deliberate conversation has one composer; daily capture returns with the list. */
 body:has(#memoryPanel.exploration-active) #addTaskBar, body:has(#memoryPanel.exploration-active) #triageBar { display: none; }
+
+#explorationRoot input[type=checkbox] { accent-color: var(--accent); margin-right: var(--space-2); }
+#explorationRoot .ex-today { margin-top: var(--space-3); font-size: var(--text-sm2); }
+
+#explorationRoot .ex-today .memory-item-btn { opacity: 1; }

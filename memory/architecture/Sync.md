@@ -300,3 +300,7 @@ today_focus_wording_v1 is device-local and explicitly excluded from Dropbox/sche
 ## Separate exploration document — local v3.1.0
 
 Exploration does not extend schema 5.5 or its merge/Restore algorithm. Its lazy transport uses the existing Dropbox grant and environment separation, strict add/revision-update and revision-conditional delete on one canonical Markdown file. Conflicts preserve the draft for a fresh read; a lost acknowledgement is reconciled by exact readback. No durable device-local journal or automatic semantic merge is added. See [the file/sync contract](../../docs/exploration-integration.md).
+
+## Native Memory data extension — v3.2.0
+
+The same canonical revision-protected Dropbox Markdown file carries schema 2 and shared context permission; task backup stays schema 5.5. Locally missing source records withhold readings without writing destructive retirements; sync readiness and the clearedAt watermark prevent stale support. Permission UUID epochs prevent re-inclusion from reviving old readings. Source IDs/fingerprints are change detection, not encryption. See [the integration contract](../../docs/exploration-data-integration.md).
