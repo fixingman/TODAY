@@ -98,3 +98,9 @@ Hosted dev41932445980 preserves60 passing suites, one Assistant readiness flake 
 ### Full verification checkpoint — v3.3.2
 
 The existing Actions integration returned403 for full-workflow dispatch, and computer/browser control was unavailable. A source comment documents the Explore entrance’s shared Memory-sheet/input boundary. The existing conservative foundation policy therefore runs the full62-suite/five-run gate on a normal dev push. This is an explicit release checkpoint with unchanged product behavior and no policy/access/routing modification. Master still requires an accepted artifact for this exact commit.
+
+### Nudge release-fixture timing — v3.3.3
+
+Full Linux41934464822 passes61 suites, including Exploration and Assistant, but the fallback-upgrade nudge fixture fails its first sample and passes its diagnostic retry. The fixture now waits for its accepted-cache prerequisite before invoking the real backstop, using the original total6s+two native fade beats+3s deadline. It also asserts that fallback and cache were observed. In isolated actual-component controls, a6200ms response plus paused automatic fade makes the old driver fail, the corrected driver pass and a deliberately disabled backstop fail. A delayed response alone did not reproduce the failure because normal automatic upgrade completed; that earlier probe remains retained. No runtime writer/UI, waits/budgets, or source/consent behavior changed. The native Memory preparation comment triggers the existing conservative full gate for this release checkpoint. Fresh exact-commit Linux/performance evidence remains required before master.
+
+The revised complete nudge suite plus invariants, smoke and service-worker checks pass on pinned Chrome152:4/4, zero flakes/failures,49.9s, unchanged runtime/test inputs. The final release metadata records this session’s additional hour; hosted validation supplies the exact final-commit proof.

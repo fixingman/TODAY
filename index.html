@@ -4469,7 +4469,7 @@
     </div>
   </section>
 
-  <!-- Memory panel -->
+  <!-- Memory prepares code/styles ahead; private documents refresh only on a visit. -->
   <section class="config-panel" id="memoryPanel" aria-labelledby="memoryTitle" hidden>
     <div class="config-title-row" id="memoryTitleRow"><h2 class="config-title" id="memoryTitle">✦&#xFE0E; Memory</h2></div>
 
@@ -4702,14 +4702,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '395h';
+const DEV_HOURS     = '396h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.3.3': 'Explore — clearer conversations, living notes, and an easier-to-read Memory.',
   '3.3.2': 'Maintenance — prepare the Explore update for release.',
   '3.3.1': 'Maintenance — exploration checks now work reliably in a fresh checkout.',
-  '3.3.0': 'Explore — start with an experience, return to your conversation, and open a clearer living note. Memory is easier to read and prepares ahead of opening.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.
