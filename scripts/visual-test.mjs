@@ -395,8 +395,14 @@ const SCENES = {
     interact: async (page) => {
       const box = await page.evaluate(() => {
         const header = document.querySelector('.sticky-header').getBoundingClientRect();
-        const lastRow = [...document.querySelectorAll('#manualList .task')].pop().getBoundingClientRect();
-        return { headerY: header.top + 4, pageY: lastRow.bottom + 24 };
+        const footer = document.getElementById('addTaskBar').getBoundingClientRect();
+        // Sample beside a visible row, clear of both fixed bars and their 10px fades.
+        // Below the last row can land in the footer fade as text wraps across platforms.
+        const row = [...document.querySelectorAll('#manualList .task')]
+          .map(node => node.getBoundingClientRect())
+          .find(rect => rect.top > header.bottom + 10 && rect.bottom < footer.top - 10);
+        if (!row) throw new Error('mobile background sample has no uncovered task row');
+        return { headerY: header.top + 4, pageY: row.top + row.height / 2 };
       });
       const png = PNG.sync.read(await page.screenshot({ type: 'png' }));
       const mean = (x, y, w, h) => {

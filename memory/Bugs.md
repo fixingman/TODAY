@@ -19,6 +19,7 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 142 | ⏳ Verify | Full release visual gate samples the bottom input fade as page background at320px. | v3.2.2 |
 | 141 | ⏳ Verify | Repeated dev CI failures: legacy feeling-feedback records survive source edits or withdrawal. | v3.0.8 |
 | 140 | ✅ Verified | Morning-reading reason chips and wording panel cut off on phones after "not really". | v2.106.11 |
 | 139 | ⏳ Verify | Accepted daily reading disappears from About after a completion shares a word with its prose. | v2.106.2 |
@@ -34,6 +35,14 @@
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-142 — Mobile visual sampler overlaps the input fade
+
+**Release blocker:** full Linux [41828799949](https://github.com/fixingman/TODAY/actions/runs/41828799949) at97fe749c passed61 suites but failed `visual-test` on both attempts: header14.67/page14.26. The v3.2.1 selected dev check had passed; it did not supply full promotion proof. Performance was skipped after the functional failure; master remains unchanged.
+
+The point `lastRow.bottom +24` can enter the fixed add-bar fade after text wrapping. Pinned Chrome152 measurements place it at592.4px inside the589–599px fade. v3.2.2 samples beside a row wholly between header/footer fades and fails explicitly if no such row exists. Tolerance0.25, screenshot threshold/limit and all baselines remain unchanged; no product styling is changed. Two pinned-browser mobile captures pass at329.6px. A counterfactual restores the original BUG-113 noise CSS and is still rejected14.67 vs15.80. Original failure/control receipts: `.context/exploration-layout-restored/`. All five affected local suites pass with unchanged input fingerprints: invariants, design lint, smoke, six-scene/repeat visual and real service-worker checks. Can authorized the repair as part of master promotion. Hosted exact-candidate release verification is required before master promotion.
 
 ---
 
