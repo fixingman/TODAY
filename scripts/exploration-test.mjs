@@ -290,7 +290,7 @@ try{
  await page.evaluate(()=>{__explorationTest.holdDownload=false;__explorationTest.releaseDownload();});
  await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  assert.ok(await page.evaluate(()=>document.getElementById('memoryPanel').getAnimations().some(animation=>animation.effect.getKeyframes().some(frame=>'height' in frame))),'Loaded content settles height instead of jumping');
- await page.screenshot({path:join(ROOT,'.context/exploration-polish/desktop-loaded.png'),fullPage:true});
+ await page.screenshot({path:join(ROOT,'.context/memory-clarity/desktop-loaded.png'),fullPage:true});
  await click('[data-ex-action="back"]');await wait(()=>document.activeElement?.id==='memoryContinue');
  await click('#memoryContinue');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  const sheetAI=await page.evaluate(()=>__explorationTest.ai.length);
