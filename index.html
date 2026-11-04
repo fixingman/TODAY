@@ -4492,6 +4492,7 @@
   <div class="morning-nudge-react" id="dayNudgeReact"></div>
 
   <div id="explorationNudge" hidden><button type="button" class="memory-item-btn" data-today-click="exploration.open" data-ex-origin="nudge">explore this →</button></div>
+  <!-- Explore shares the native Memory sheet; its reply input is independent of daily task capture. -->
   <div class="section" id="explorationEntry"><button type="button" class="section-header zone-header" data-today-click="exploration.open" data-ex-origin="list"><span class="section-label">✦︎ Explore</span></button></div>
 
   <!-- Trello section -->
@@ -4706,9 +4707,9 @@ const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.3.2': 'Maintenance — prepare the Explore update for release.',
   '3.3.1': 'Maintenance — exploration checks now work reliably in a fresh checkout.',
   '3.3.0': 'Explore — start with an experience, return to your conversation, and open a clearer living note. Memory is easier to read and prepares ahead of opening.',
-  '3.2.3': 'Documentation — clearer exploration guidance and updated project notes.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

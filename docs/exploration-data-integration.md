@@ -94,3 +94,7 @@ Can authorized committing and publishing this v3.3.0 candidate to dev and master
 ### Fresh-checkout release repair — v3.3.1
 
 Hosted dev41932445980 preserves60 passing suites, one Assistant readiness flake and an Exploration failure on both attempts. The screenshot destination relied on a directory created by earlier local work. The fixture now writes to its own already-created memory-clarity directory; assertions/deadlines and all product behavior stay unchanged. Both the complete Exploration and Assistant suites pass in a disposable archive that started without .context, using Node24.14 and pinned Chrome152. The Assistant timeout occurred in the existing startup readiness check late in its many-page run; its diagnostic retry passed, with no established product cause or waived gate. New exact-commit full Linux/performance proof is required before master.
+
+### Full verification checkpoint — v3.3.2
+
+The existing Actions integration returned403 for full-workflow dispatch, and computer/browser control was unavailable. A source comment documents the Explore entrance’s shared Memory-sheet/input boundary. The existing conservative foundation policy therefore runs the full62-suite/five-run gate on a normal dev push. This is an explicit release checkpoint with unchanged product behavior and no policy/access/routing modification. Master still requires an accepted artifact for this exact commit.
