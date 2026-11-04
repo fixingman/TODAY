@@ -373,9 +373,13 @@ const SCENES = {
     interact: async (page) => {
       await page.evaluate(() => document.getElementById('todayLogo')?.click());
       await page.waitForFunction(
-        () => !document.getElementById('memoryPanel')?.hidden,
+        () => document.getElementById('memoryPanel')?.classList.contains('open')
+          && !document.getElementById('memoryPanel').hasAttribute('aria-busy')
+          && document.getElementById('memoryViewStyles')?.sheet
+          && document.querySelector('#memoryCoverage summary')?.textContent,
         { timeout: 5000 },
       );
+      await waitForFonts(page);
     },
   }),
 

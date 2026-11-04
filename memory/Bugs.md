@@ -19,6 +19,8 @@
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 144 | 🔧 Local | Exploration opens late, flashes content and exposes unclear or redundant controls. | v3.3.0 |
+| 143 | 🔧 Local | Exploration rejects valid structured AI replies and suggestions. | v3.3.0 |
 | 142 | ⏳ Verify | Full release visual gate samples the bottom input fade as page background at320px. | v3.2.2 |
 | 141 | ⏳ Verify | Repeated dev CI failures: legacy feeling-feedback records survive source edits or withdrawal. | v3.0.8 |
 | 140 | ✅ Verified | Morning-reading reason chips and wording panel cut off on phones after "not really". | v2.106.11 |
@@ -35,6 +37,24 @@
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-144 — Exploration opening and control friction
+
+**Report (November 4):** desktop Explore opens/content appears laggily; Start has no visible hover; question heading feels oversized; setup explanation, retry, Document tools and task-copy picker are unclear/redundant.
+
+**Follow-up (Can):** remove the unsupported list arrow and count-sized topic, restore daily capture in both Memory/Explore, and correct prose/navigation type roles. Can approved the clarity study and explicitly requested production integration. Local v3.3.0 replaces the mixed Notes/source/admin view with focused pages and experience-first Send; Memory prepares code/styles ahead of use, increases prose/action sizing and removes routine repeated row labels. Claude reviewed both actual components and rendered before/after captures. Intentional entrance/capture changes refresh the six visual references without raising tolerances; the Memory scene waits for the actual lazy view and fonts.
+
+**Local v3.3.0:** show the standard panel shell before lazy imports, keep cancellation/current-open fences, skip unrelated Memory rendering/preview and wait for CSS before replacing loading content. Loaded content fades and its height settles through shared motion tokens, with reduced-motion bypass. Use text-md for the question, token hover/focus for Start, Enter submission/Shift+Enter newline with IME/repeat guards and a small accessible send control. Preserve focus with readonly while waiting. Replace setup boilerplate with compact source scope; remove duplicate task-copy picker and generic tools while retaining old records and contextual recovery/export/clear. Retry is only shown for a failed/interrupted saved observation. Tests cover held imports/styles/downloads, cancellation, one canonical read, focus and keyboard, source safety and 320/390/736/1024px axe/containment. Local verification:46 affected checks passed with zero failures/flakes; the subsequent recovery changes pass nine final checks, including actual-component accessibility/visual and held stylesheet/write failure paths. Input fingerprints stay unchanged. Latest clarity follow-up:61 other full-run suites pass; the reflection feedback helper clicked beneath the restored task bar. A causal hit-test shows the task bar at the vote centre. Scrolling/hit-testing before the same vote preserves all feedback/privacy assertions; the suite and invariants pass separately. All five performance runs pass unchanged budgets. Original full failure and receipts stay in `.context/exploration-clarity/`. The current v3.3.0 full run has61 passes and one nudge browser-startup flake before navigation (diagnostic retry passes); it is not a green release gate. A final exact-native-title/first-save-export patch passes all six targeted checks, zero flakes/failures. Both frozen receipts are retained in `.context/memory-clarity/`; all five final performance runs pass unchanged limits at1197.6KiB decoded /339.2KiB Brotli /38 scripts. Installed smoothness remains a user verdict. Can authorized dev/master publication November 5; exact-commit hosted release proof remains required.
+
+---
+
+## BUG-143 — Exploration rejects the proxy's structured result
+
+**Report (November 4):** Suggest something produced no suggestion. The unchanged ai-assist handler parses valid model JSON and returns it at top level; Exploration attempted to parse only content/message. A before-control with a fictional direct response times out waiting for a reading, preserving the failure in `.context/exploration-polish/direct-response-before.log`. This defect affects ordinary replies as well.
+
+**Local v3.3.0:** validate both direct objects and wrapped JSON text. Preserve evidence-ID, source, epoch, revision and account fences. Requested suggestions must include all six bounds before any replacement reading is committed; pending, empty and failure states appear beside the action, and successful suggestions persist on resumption. The real handler runs against a fictional upstream response in an isolated VM; actual-component fixtures exercise both shapes and empty/failure/delayed results. No live provider request or personal record is used. Local verification:46 affected checks passed without failures/flakes, followed by nine final recovery checks, including real-handler direct JSON, wrapped JSON, empty/failure/pending suggestion states and retry after unconfirmed reading persistence. Input fingerprints remain unchanged. Live writing/usefulness and publication remain separate.
 
 ---
 

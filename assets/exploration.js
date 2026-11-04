@@ -11,65 +11,93 @@
   const grant = () => localStorage.getItem('dropbox_refresh_token') || localStorage.getItem('dropbox_token') || '';
   const connection = () => Today.use('connections');
   let doc = null, revision = null, draft = '', draftWorkspace = null, imported = '', incoming = null, includeIncoming = false;
-  let host = null, root = null, origin = null, notes = false, busy = false, message = '', epoch = 0;
+  let host = null, root = null, origin = null, view = 'conversation', trail = [], busy = false, message = '', epoch = 0;
   let controller = null, aiController = null, pendingReading = false, activeGrant = '', retryId = null;
   let snapshot = null, forgot = false, opened = false, loaded = false, confirmForget = false;
-  let experiment = false, correction = false, showRecord = false, showPrivacy = false, setupQuestion = '';
+  let suggestionMessage = '', correctionTarget = null, correctionText = '', setupQuestion = '', historyWindow = 24, navigation = 0;
   let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [];
-  let recovery = '';
+  let recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
   const dataContext=()=>Today.use('exploration-context');
-  let visitStart = 0, sourceWindow = 50, offeredTasks = [];
+  let visitStart = 0, sourceWindow = 50;
   const status = (text, nextAction = '') => { message = text; recovery = nextAction; render(); };
   function ensureRoot() {
-    if (!byId('explorationStyles')) {
-      const style = document.createElement('link'); style.id = 'explorationStyles'; style.rel = 'stylesheet'; style.href = '/assets/exploration.css'; document.head.append(style);
-    }
+    stylesLoading ||= new Promise((resolve,reject)=>{
+      const style = document.createElement('link'); style.id = 'explorationStyles'; style.rel = 'stylesheet'; style.href = '/assets/exploration.css';
+      style.onload=resolve;style.onerror=()=>{style.remove();stylesLoading=null;reject(new Error('exploration-styles'));};document.head.append(style);
+    });
     root = byId('explorationRoot');
     if (!root) { root = document.createElement('section'); root.id = 'explorationRoot'; root.hidden = true; byId('memoryPanel').append(root); }
+    return stylesLoading;
   }
   const validSession = token => opened && token === epoch && activeGrant === grant();
-  function abortAI() { aiController?.abort(); aiController = null; pendingReading = false; }
+  function abortAI() { if(pendingReading&&retryId)retryReading=true;aiController?.abort(); aiController = null; pendingReading = false;if(suggestionMessage==='Thinking…')suggestionMessage='The context changed. You can ask again.'; }
   function wipe() {
     liveSources=[];sourceGeneration++;pendingSources=[];
     epoch++; controller?.abort(); abortAI(); doc = null; revision = null; draft = ''; imported = ''; incoming = null;
     snapshot = null; retryId = null; taskPending = null; activeGrant = ''; busy = false; forgot = false; loaded = false;
-    setupQuestion = ''; draftWorkspace = null; notes = false; confirmForget = false; offeredTasks = [];
-    recovery = '';
+    setupQuestion = ''; draftWorkspace = null; view = 'conversation'; trail = []; correctionTarget = null; correctionText = ''; confirmForget = false; retryReading = false;
+    recovery = '';suggestionMessage='';
     if (root) root.replaceChildren(); decorate();
   }
   function hide() {
+    arrivalMotion?.cancel();
     opened = false; epoch++; controller?.abort(); abortAI(); busy = false;
     if (root) { root.hidden = true; root.replaceChildren(); }
     ['memoryTitleRow','memoryContent','memoryFooter'].forEach(name=>{const node=byId(name);if(node)node.hidden=false;});
     byId('memoryPanel')?.classList.remove('exploration-active');
+    byId('memoryPanel')?.removeAttribute('aria-busy');
     byId('memoryPanel')?.setAttribute('aria-labelledby','memoryTitle');
   }
+  function go(next, trigger = document.activeElement) {
+    navigation++;trail.push({view, scroll:window.scrollY, action:trigger?.dataset.exAction, id:trigger?.id});
+    view=next; confirmForget=false; render();
+    byId('exViewTitle')?.focus({preventScroll:true});
+    root.scrollIntoView({block:'start'});
+  }
   function leave() {
-    if (notes) { notes = false; correction = false; render(); byId('exNotes')?.focus(); return; }
-    const place = origin; hide();
-    host.restore(place);
+    if (trail.length) {
+      navigation++;const previous=trail.pop();view=previous.view;confirmForget=false;render();
+      const target=(previous.id&&byId(previous.id)) || [...root.querySelectorAll('[data-ex-action]')].find(node=>node.dataset.exAction===previous.action);
+      (target||byId('exViewTitle')||byId('exTitle'))?.focus({preventScroll:true});
+      window.scrollTo(0,previous.scroll);return;
+    }
+    const place = origin; hide(); host.restore(place);
   }
   async function open(hooks, place, context) {
-    ensureRoot(); host = hooks; origin = place; opened = true; notes = false; forgot = false; message = '';
-    incoming = context || null; includeIncoming = false; correction = false; showRecord = false; showPrivacy = false;
+    const styles=ensureRoot(), token=++epoch; host = hooks; origin = place; opened = true; view = 'conversation'; trail = []; forgot = false; message = '';
+    incoming = context || null; includeIncoming = false; correctionTarget = null; correctionText = '';suggestionMessage='';
     byId('memoryPanel').classList.add('exploration-active');
     ['memoryTitleRow','memoryContent','memoryFooter'].forEach(name=>{byId(name).hidden=true;});
     byId('memoryPanel').setAttribute('aria-labelledby','exTitle'); root.hidden = false;
+    await styles;
+    if(!opened||token!==epoch)return;
     await load();
   }
   async function load() {
+    arrivalMotion?.cancel();
     const token = ++epoch; controller?.abort(); abortAI(); controller = new AbortController(); activeGrant = grant();
-    busy = true; loaded = false; recovery = ''; message = ''; render();
+    busy = true; loaded = false; recovery = ''; message = ''; doc=null; liveSources=[]; retryReading=false; render();
     const result = await files.read(controller.signal);
     if (!validSession(token)) return;
     busy = false; loaded = !!(result.ok || result.notFound);
     if (result.ok) {
-      try { doc = core.parse(result.text); revision = result.rev; imported = ''; visitStart = doc.entries.length; }
+      try { doc = core.parse(result.text); revision = result.rev; imported = ''; visitStart = doc.entries.length;
+        retryId=doc.entries.at(-1)?.kind==='observation'?doc.entries.at(-1).id:null;
+        retryReading=!!retryId;
+      }
       catch (_) { doc = null; revision = result.rev; imported = result.text; message = 'This Markdown needs importing before TODAY can update it. Its contents will be preserved.'; }
     } else if (result.notFound) { doc = null; revision = null; }
     else { message = 'Connect Dropbox or come back online to open your exploration.'; recovery = 'reload'; }
     await refreshSources(false);if(!validSession(token))return;
-    render(); decorate(); byId('exTitle')?.focus();
+    const panel=byId('memoryPanel'), priorHeight=panel.getBoundingClientRect().height;
+    render(); decorate();panel.removeAttribute('aria-busy');
+    if(!_motionReduced()) {
+      const timing={duration:_motionDuration('--dur-base'),easing:_motionEasing('--ease-out')};
+      const height=panel.getBoundingClientRect().height;
+      if(priorHeight&&height!==priorHeight)arrivalMotion=panel.animate([{height:priorHeight+'px'},{height:height+'px'}],timing);
+      root.querySelector('.ex-body')?.animate([{opacity:0},{opacity:1}],timing);
+    }
+    byId('exTitle')?.focus({preventScroll:true});
   }
   async function commit(next) {
     const body = core.stringify(next);
@@ -99,7 +127,7 @@
     if(!validSession(token)||generation!==sourceGeneration)return;
     const changed=JSON.stringify(next.map(row=>[row.id,row.signature]))!==JSON.stringify(liveSources.map(row=>[row.id,row.signature]));
     liveSources=next;
-    if(changed&&pendingReading&&!dataContext().supports(pendingSources,next)){abortAI();message='TODAY’s sources changed. Your words are kept; ask again with the current context.';}
+    if(changed&&pendingReading&&!dataContext().supports(pendingSources,next)){abortAI();retryReading=!!retryId;message='TODAY’s sources changed. Your words are kept; ask again with the current context.';}
     if(prior&&!chosenReading())message='A supporting TODAY record changed or is no longer available. Its earlier reading is withheld until the same supported records are available.';
     if(changed&&update)render();
   }
@@ -114,101 +142,111 @@
   }
 
   function controls() {
-    return `<div class="ex-nav">${action('back', notes ? '← conversation' : h(origin?.label || '← memory'))}
-      ${doc && !notes && !forgot ? action('notes','notes &amp; sources','id="exNotes"') : ''}</div>`;
+    const parent=trail.at(-1)?.view;
+    const back=parent ? parent==='conversation'?'back to conversation':parent==='notes'?'back to note':parent==='document'?'back to document':'back' : origin?.kind==='memory'?'back to Memory':'back to Today';
+    return `<div class="config-title-row ex-header"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('back',h(back))}</div>`;
   }
   function notice() {
-    const text = message === 'Kept in your Dropbox' && !notes ? '' : message || (!doc && busy ? 'Opening your exploration…' : '');
-    return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p>${text && !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft ? action('draft-export','export draft') : '') : ''}</div>`;
+    const text = message === 'Kept in your Dropbox' ? '' : message || (!doc && busy ? 'Opening your exploration…' : '');
+    return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p>${text && !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : ''}</div>`;
   }
   function turnsHTML(entries,reading) {
-    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="memory-type-name">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && core.supportedReading(doc,entry,liveSources) ? `<div class="ex-turn"><span class="memory-type-name">TODAY · unconfirmed</span><p>${h(entry.text)}</p>${entry.id === reading?.id ? action('changes','what changed →') : ''}</div>` : '').join('');
+    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && core.supportedReading(doc,entry,liveSources) ? `<div class="ex-turn" data-ex-reading="${h(entry.id)}"><span class="ex-source">TODAY · a possibility</span><p>${h(core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p>${entry.id === reading?.id ? `<div class="ex-links">${action('sources','see sources')}${action('correct','correct this')}</div>` : ''}</div>` : '').join('');
+  }
+  const title=(text,id='exViewTitle')=>`<h3 id="${id}" tabindex="-1">${h(text)}</h3>`;
+  function conversationHTML(reading,disabled) {
+    const sessionEntries=doc.entries.slice(visitStart);
+    const latestUser=sessionEntries.some(entry=>entry.kind==='observation');
+    const currentReply=reading&&sessionEntries.some(entry=>entry.id===reading.id);
+    let html=title(doc.question);
+    if(!latestUser&&!currentReply&&doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-resume"><span class="ex-source">Where we left off</span><p>${h(reading?.summary || 'Bring an experience, a contradiction, or something you want to understand.')}</p></div>`;
+    html+=turnsHTML(sessionEntries,reading);
+    if(!reading&&doc.entries.some(entry=>entry.kind==='reading'))html+='<p class="ex-muted">The earlier reading is withheld because its sources changed. Your words remain.</p>';
+    if(draftWorkspace&&draftWorkspace!==doc.workspace_id)html+=`<p>Your draft belongs to a different document. ${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</p>`;
+    html+=`<div class="ex-composer"><label for="exThought">${h(reading?.next_question || (doc.entries.some(entry=>entry.kind==='observation')?'What has stayed with you, or happened since then?':'What brought this question to mind?'))}</label>
+      <textarea id="exThought" rows="3" maxlength="8000" placeholder="In your own words…" enterkeyhint="send" aria-describedby="exReplyHint" data-today-input="exploration.draft" data-today-keydown="exploration.reply-key" ${busy||pendingReading?'readonly aria-busy="true"':''}>${h(draft)}</textarea>
+      ${incoming?`<div class="ex-context"><span class="ex-source">${incoming.source_type==='task'?'From your task':'AI reading · not your statement'}</span><p>${h(incoming.text)}</p>${action('include',includeIncoming?'leave out':'include in reply',disabled)}</div>`:''}
+      <div class="ex-reply-actions"><span class="ex-muted" id="exReplyHint">${pendingReading?'Thinking…':matchMedia('(pointer: fine)').matches?'Enter to reply · Shift + Enter for a new line':''}</span>${action('send','<span aria-hidden="true">↑</span>',`id="exSend" aria-label="Send reply" ${disabled} ${!draft.trim()||(draftWorkspace&&draftWorkspace!==doc.workspace_id)?'disabled':''}`,'memory-item-btn ex-submit')}</div></div>`;
+    if(retryReading&&retryId&&!busy&&!pendingReading)html+=`<p class="ex-muted">Your last reply is kept. ${action('retry-ai','try reply again',disabled)}</p>`;
+    html+=`<div class="ex-links">${action('notes','living note','id="exNotes"')}${action('history','earlier conversation')}${action('sources','sources')}</div>`;
+    return html;
+  }
+  function notesHTML(reading,disabled) {
+    const own=reading&&core.amendments(doc,reading.id).at(-1);
+    const withheldEdit=!reading&&doc.entries.filter(entry=>entry.kind==='amendment').at(-1);
+    const observations=doc.entries.filter(entry=>entry.kind==='observation');
+    return title('Living note','exNotesTitle')+`<div class="ex-note-section"><h4>Your account</h4>${observations.slice(-3).map(entry=>`<p>${h(entry.text)}</p>`).join('')||'<p>No observation recorded yet.</p>'}${observations.length>3?action('history','earlier conversation'):''}</div>
+      <div class="ex-note-section"><h4>A possibility</h4><p>${h(reading?own?.text||reading.text:doc.entries.some(entry=>entry.kind==='reading')?'The earlier reading is withheld because its sources changed. Your words remain.':'A reading will appear after you reply.')}</p>${reading?`<p class="ex-muted">${own?'Your wording · does not verify the interpretation':'AI interpretation · unconfirmed by you'}</p><div class="ex-links">${action('correct','correct this',disabled)}${action('sources','see sources')}</div>`:''}</div>
+      ${withheldEdit?`<div class="ex-note-section"><span class="ex-source">Your wording about an earlier reading · support changed</span><p>${h(withheldEdit.text)}</p></div>`:''}<div class="ex-note-section"><h4>Still open</h4><p>${h(reading?.next_question||'Bring an experience or something you want to understand. A question can take shape as we talk.')}</p>${reading?`<p class="ex-muted">${h(reading.summary)}</p>`:''}</div>
+      <div class="ex-links">${action('step','something to try')}${action('sources','sources')}${action('document','your document')}</div>`;
+  }
+  function sourcesHTML(reading,disabled) {
+    let html=title('Sources')+'<p>What supports this exploration. Leave out anything you don’t want used in future replies.</p>';
+    html+=`<div class="ex-note-section"><h4>Your notes</h4>${core.sources(doc).slice(-sourceWindow).map(entry=>`<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${entry.kind==='observation'?'Your words':h(entry.source_type)}${core.included(doc,entry.id)?'':' · left out'}</span>${h(entry.text)}</span>${action('source',core.included(doc,entry.id)?'leave out':'include',`data-entry-id="${h(entry.id)}" ${busy?'disabled':''}`)}</div>`).join('')||'<p>No observations recorded yet.</p>'}${core.sources(doc).length>sourceWindow?action('more-sources','show earlier sources'):''}</div>`;
+    if(reading?.today_sources?.length)html+=`<details id="exReadingSources" open><summary>TODAY records used in this reading · ${reading.today_sources.length}</summary>${reading.today_sources.map(ref=>{const source=liveSources.find(row=>row.id===ref.id&&row.signature===ref.signature);return `<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${h(source?.source_type||'source unavailable')}</span>${h(source?.text||'This source is no longer available here.')}</span></div>`;}).join('')}</details>`;
+    return html+todayHTML(disabled)+'<p class="ex-muted">Including a source again does not revive a reading withheld after you left it out. Feelings, dreams, email and Calendar stay separate.</p>';
+  }
+  function stepHTML(reading,disabled) {
+    const step=reading?.experiment;
+    return title('Something to try')+`<p>A possible next step, only if you want it. Understanding or leaving this open can also be useful.</p>${action('experiment','suggest something',disabled)}<p class="ex-status" id="exSuggestionStatus" role="status">${h(suggestionMessage)}</p>${step?`<div class="ex-note-section"><p>${h(step.action)}</p><dl class="ex-bounds">${[['Question',step.question],['Notice',step.signal],['Limit',step.effort],['Review',step.review],['Stop',step.stop]].map(([key,value])=>`<div><dt>${key}</dt><dd>${h(value)}</dd></div>`).join('')}</dl>${doc.entries.some(entry=>entry.kind==='task'&&entry.target===reading.id)?'<p>Added to Today. What it helps remains open.</p>':action('task','add to Today',disabled)}</div>`:''}`;
+  }
+  function documentHTML(disabled) {
+    return title('Your document')+`<p>Your words, corrections and readings stay together in your Dropbox.</p><div class="ex-links">${action('record','read Markdown')}${action('export','export document')}${action('privacy','privacy &amp; forget')}${action('import','bring in earlier notes')}</div>${draft?`<div class="ex-links">${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</div>`:''}`;
+  }
+  function privacyHTML(disabled) {
+    return title('Privacy & forget')+`<div class="ex-privacy"><p>This document lives in your Dropbox at ${h(files.path)}. It is held in this page while open, outside TODAY’s task backup. Updates need a connection. Reloading an unsent draft can lose it; export it first.</p><p>Each reply uses your supplied notes, the current thread and a bounded selection of relevant TODAY records. Other chats and private checkpoints are not automatically available. The installed Life skill does not run inside TODAY. No exploration happens between visits, and no reminder has been scheduled.</p><p>Clearing Memory withholds dependent readings; this separate document and its reply history stay. Forget removes this document and page-held records. Dropbox may retain recoverable versions under your account policy. Your tasks stay.</p>${action('forget','forget exploration',disabled)}${confirmForget?`<p>Remove this exploration document from Dropbox?</p>${action('forget-confirm','yes, forget',disabled)}${action('forget-cancel','keep it')}`:''}</div>`;
+  }
+  function secondaryHTML(reading,disabled) {
+    if(view==='notes')return notesHTML(reading,disabled);
+    if(view==='sources')return sourcesHTML(reading,disabled);
+    if(view==='step')return stepHTML(reading,disabled);
+    if(view==='document')return documentHTML(disabled);
+    if(view==='privacy')return privacyHTML(disabled);
+    if(view==='record')return title('Markdown')+`<pre>${h(core.stringify(doc))}</pre>${action('export','export document')}`;
+    if(view==='import')return title('Earlier notes')+`<p>Add a Markdown journal or checkpoint to this exploration. Your existing notes stay. Nothing is sent to AI by importing.</p><label class="memory-item-btn ex-file">choose a document<input type="file" accept=".md,.txt,text/plain,text/markdown" data-today-change="exploration.checkpoint" ${disabled}></label>`;
+    if(view==='history')return title('Earlier conversation')+turnsHTML(doc.entries.filter(entry=>['observation','reading'].includes(entry.kind)).slice(-historyWindow),reading)+(doc.entries.filter(entry=>['observation','reading'].includes(entry.kind)).length>historyWindow?action('more-history','show earlier conversation'):'');
+    if(view==='correct')return title('Your wording')+`<label for="exCorrection">How would you put it?</label><textarea id="exCorrection" rows="5" maxlength="8000" data-today-input="exploration.correction">${h(correctionText)}</textarea><p class="ex-muted">Your correction stays alongside the earlier version. It does not verify an explanation.</p>${reading?.id===correctionTarget?action('amend','keep correction',disabled):'<p>The supporting reading changed. Your wording is still here; return to the note to review it.</p>'}${action('cancel-correction','cancel')}`;
+    return '';
   }
   function render() {
     if (!opened || !root) return;
-    const editing=root.contains(document.activeElement)&&document.activeElement.matches('textarea,input:not([type=file]):not([type=checkbox])')?{id:document.activeElement.id,value:document.activeElement.value,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
-    const todayOpen=!!byId('exTodayContext')?.open;
-    const detailState=[...root.querySelectorAll('details')].map(node=>({key:node.id||node.querySelector('summary')?.textContent,open:node.open}));
+    const editing=root.contains(document.activeElement)&&document.activeElement.matches('textarea,input:not([type=file]):not([type=checkbox])')?{id:document.activeElement.id,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
+    const detailState=[...root.querySelectorAll('details')].map(node=>({key:node.id,open:node.open}));
     const focused=root.contains(document.activeElement)?document.activeElement:null;
-    const focusAction=focused?.dataset.exAction;
     const focusData=focused?JSON.stringify({...focused.dataset}):'';
     const focusId=focused?.id;
-    const focusSummary=focused?.tagName==='SUMMARY'?(focused.parentElement.id||focused.textContent):null;
     const disabled = busy || pendingReading ? 'disabled' : '';
-    const reading = chosenReading();
-    let html = controls();
-    if (forgot) html += '<h2 id="exTitle" tabindex="-1">Exploration forgotten</h2><p>The document was removed from Dropbox. Your daily tasks stay.</p>';
-    else if (!doc) {
-      html += `<h2 id="exTitle" tabindex="-1">${loaded ? 'What would you like to explore?' : 'Open your exploration'}</h2>${notice()}`;
-      if (!grant()) html += action('connections','connect Dropbox');
-      else if (!busy && loaded) html += `<div class="ex-setup"><input id="exQuestion" aria-labelledby="exTitle" maxlength="500" value="${h(setupQuestion)}" placeholder="A question worth staying with">
-        <p class="ex-muted">A conversation you can return to, kept in your Dropbox. When you reply, your AI can draw on relevant tasks and Memory. Review or change what it uses in Notes &amp; sources. Feelings and dreams stay separate.</p>
-        <div class="ex-send">${action('create', imported ? 'start with this document' : 'start exploring →',disabled)}</div></div>`;
-    } else {
-      html += `<h2 id="exTitle" tabindex="-1">${h(doc.question)}</h2>${notice()}`;
-      if (notes) html += notesHTML(reading, disabled);
-      else {
-        const sessionEntries = doc.entries.slice(visitStart);
-        const latestUser = sessionEntries.filter(entry => entry.kind === 'observation').at(-1);
-        const currentReply = reading && sessionEntries.some(entry=>entry.id === reading.id) ? reading : null;
-        const recap = reading?.summary || 'We are keeping this question open. Bring an experience, a contradiction, or something you want to understand.';
-        if (!latestUser && !currentReply && doc.entries.some(entry=>entry.kind === 'observation')) html += `<div class="ex-resume"><span class="memory-type-name">Where we left off</span><p>${h(recap)}</p></div>`;
-        const earlier = turnsHTML(doc.entries.slice(0,visitStart).filter(entry=>['observation','reading'].includes(entry.kind)).slice(-24),reading);
-        if (earlier) html += `<details id="exEarlierTurns"><summary>earlier in this conversation</summary>${earlier}</details>`;
-        html += turnsHTML(sessionEntries,reading);
-        if (!reading && doc.entries.some(entry => entry.kind === 'reading')) html += '<p class="ex-muted">The earlier reading is withheld because its sources changed.</p>';
-        if (draftWorkspace && draftWorkspace !== doc.workspace_id) html += '<p>Your draft belongs to a different document. Export or clear it before replying here.</p>';
-        html += `<div class="ex-composer"><label for="exThought">${h(reading?.next_question || (doc.entries.some(entry=>entry.kind === 'observation') ? 'What has stayed with you, or happened since then?' : 'What brought this question to mind?'))}</label>
-          <textarea id="exThought" rows="3" maxlength="8000" placeholder="In your own words…" data-today-input="exploration.draft" data-today-keydown="exploration.reply-key" ${disabled}>${h(draft)}</textarea>
-          ${incoming ? `<div class="ex-context"><span class="memory-type-name">${incoming.source_type === 'task' ? 'From your task' : 'AI reading · not your statement'}</span><p>${h(incoming.text)}</p>${action('include',includeIncoming ? 'leave out' : 'include in reply',disabled)}</div>` : ''}
-          <div class="ex-send">${action('send',pendingReading ? 'thinking…' : 'reply →',`id="exSend" ${disabled} ${!draft.trim() || (draftWorkspace && draftWorkspace !== doc.workspace_id) ? 'disabled' : ''}`)}</div></div>`;
-        if (retryId) html += `<div class="ex-send">${action('retry-ai','retry reading',disabled)}</div>`;
-      }
-    }
-    root.innerHTML = html;
-    if(todayOpen&&byId('exTodayContext')?.tagName==='DETAILS')byId('exTodayContext').open=true;
-    root.querySelectorAll('details').forEach(node=>{const saved=detailState.find(state=>state.key===(node.id||node.querySelector('summary')?.textContent));if(saved)node.open=saved.open;});
-    if(editing){const input=byId(editing.id);if(input&&!input.disabled){if(editing.id==='exCorrection')input.value=editing.value;input.focus({preventScroll:true});input.setSelectionRange(editing.start,editing.end);}}
-    else if(focused){const target=focusId?byId(focusId):focusAction?[...root.querySelectorAll('[data-ex-action]')].find(node=>JSON.stringify({...node.dataset})===focusData):focusSummary?[...root.querySelectorAll('summary')].find(node=>(node.parentElement.id||node.textContent)===focusSummary):null;if(target&&!target.disabled)target.focus({preventScroll:true});else if(focusAction)byId(notes?'exNotesTitle':'exTitle')?.focus({preventScroll:true});}
-  }
-  function notesHTML(reading, disabled) {
-    const edits = reading ? core.amendments(doc, reading.id) : [];
-    const own = edits.at(-1);
-    const sourceName=id=>{const note=core.sources(doc).findIndex(entry=>entry.id===id),live=liveSources.findIndex(source=>source.id===id);return note>=0?'Note '+(note+1):live>=0?'TODAY record '+(live+1):'Earlier source';};
-    let html = `<section aria-labelledby="exNotesTitle"><h3 id="exNotesTitle" class="memory-type-name" tabindex="-1">Notes on this exploration</h3>
-      <div class="memory-type-block"><h4 class="memory-type-name">Current reading</h4><p>${h(reading ? own?.text || reading.text : doc.entries.some(entry=>entry.kind==='reading') ? 'The earlier reading is withheld because its sources changed. Your words are still here.' : 'A reading will appear after you reply.')}</p>
-      ${reading ? `<p class="ex-muted">${own ? 'Your correction replaces wording; it does not verify the interpretation.' : 'AI interpretation · unconfirmed'}</p>${action('correct','correct this',disabled)}` : ''}
-      ${correction ? `<label for="exCorrection">How would you put it?</label><textarea id="exCorrection" rows="3" maxlength="8000">${h(own?.text || reading?.text || '')}</textarea>${action('amend','keep correction',disabled)}${action('cancel-correction','cancel')}` : ''}
-      ${edits.length ? `<details><summary>earlier versions</summary><p>${h(reading.text)}</p>${edits.map(entry=>`<p>${h(entry.text)}</p>`).join('')}</details>` : ''}</div>`;
-    if (reading) html += `<div class="memory-type-block"><h4 class="memory-type-name" id="exChangesTitle" tabindex="-1">What changed</h4><p>${h(reading.summary)}</p><p class="ex-muted">Supporting notes: ${h(reading.evidence_ids.map(sourceName).join(', ') || 'earlier notes only')}. Your wording and earlier readings are preserved.</p></div>`;
-    html += `<div class="memory-type-block"><h4 class="memory-type-name">What it draws on</h4><p class="ex-muted">Your words, any earlier notes you added, and the TODAY context below. You can leave sources out. Feelings, dreams, email and Calendar stay separate.</p>
-      ${core.sources(doc).slice(-sourceWindow).map(entry=>`<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${h(sourceName(entry.id))} · ${entry.kind === 'observation' ? 'your words' : h(entry.source_type)}${core.included(doc,entry.id) ? '' : ' · left out'}</span>${h(entry.text)}</span>${action('source',core.included(doc,entry.id) ? 'leave out' : 'include',`data-entry-id="${h(entry.id)}" ${busy ? 'disabled' : ''}`)}</div>`).join('') || '<p>No observations recorded yet.</p>'}${core.sources(doc).length>sourceWindow?action('more-sources','show earlier sources'):''}`;
-    if(reading?.today_sources?.length)html+=`<details id="exReadingSources"><summary>TODAY records used in this reading · ${reading.today_sources.length}</summary>${reading.today_sources.map(ref=>{const source=liveSources.find(row=>row.id===ref.id&&row.signature===ref.signature);return `<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${h(sourceName(ref.id))} · ${h(source?.source_type||'source unavailable')}</span>${h(source?.text||'This source is no longer available here.')}</span></div>`;}).join('')}</details>`;
-    html += todayHTML(disabled)+'</div>';
-    html += `<div class="memory-type-block"><h4 class="memory-type-name">Something to try</h4>${action('experiment',pendingReading ? 'thinking…' : 'suggest something',disabled)}
-      ${experiment && reading?.experiment ? `<p>${h(reading.experiment.question)}</p><p>${h(reading.experiment.action)}</p><p class="ex-muted">Signal: ${h(reading.experiment.signal)} · Effort: ${h(reading.experiment.effort)} · Review: ${h(reading.experiment.review)} · Stop: ${h(reading.experiment.stop)}</p>
-        ${doc.entries.some(entry=>entry.kind === 'task' && entry.target === reading.id) ? '<p>Action linked. What it helps remains open.</p>' : action('task','add to Today',disabled)}` : ''}</div>`;
-    offeredTasks = host.availableTasks();
-    if (offeredTasks.length) html += `<details class="ex-secondary" id="exTaskNote"><summary>Keep a task as a note</summary><p class="ex-muted">Optional: keep a separate copy of a task’s current wording. TODAY context above uses live records; this copy stays in your notes even if the task changes.</p>${offeredTasks.map((task,index)=>`<div class="memory-item"><span class="memory-item-text">${h(task.text)}</span>${action('task-context','include',`data-task-index="${index}" ${disabled}`)}</div>`).join('')}</details>`;
-    html += `<details class="ex-secondary" id="exEarlierNotes"><summary>Bring in earlier notes</summary><p class="ex-muted">Optional: add a Markdown journal or checkpoint to this exploration in Dropbox. Your existing notes stay. Nothing is sent to AI until you reply.</p><label class="memory-item-btn ex-file">choose a document<input type="file" accept=".md,.txt,text/plain,text/markdown" data-today-change="exploration.checkpoint" ${disabled}></label></details>`;
-    html += `<div class="memory-footer">${action('record',showRecord ? 'hide document' : 'Markdown record','','memory-conn-link')}${action('privacy',showPrivacy ? 'hide privacy' : 'privacy &amp; forget','','memory-conn-link')}</div>
-      ${showRecord ? `<pre>${h(core.stringify(doc))}</pre>${action('export','export document')}` : ''}
-      <details class="ex-secondary" id="exDocumentTools"><summary>Document tools</summary>${action('reload','reload latest',disabled)}${action('draft-export','export draft',draft ? '' : 'hidden')}${action('draft-clear','clear draft',draft ? disabled : 'hidden')}</details>
-      ${showPrivacy ? `<div class="ex-privacy"><p>This document lives in your Dropbox at ${h(files.path)}. It is held in this page while open, outside TODAY’s task backup. Updates need a connection. Reloading an unsent draft can lose it; export it first.</p>
-        <p>Clearing Memory clears app links and pending AI work and withholds dependent readings; this separate document and its reply history stay. Replies may quote their sources. Forget the exploration to remove them. Forget removes this document and page-held records; Dropbox may retain recoverable versions under your account policy. Your tasks stay.</p>
-        ${action('forget','forget exploration',disabled)}${confirmForget ? `<p>Remove this exploration document from Dropbox?</p>${action('forget-confirm','yes, forget',disabled)}${action('forget-cancel','keep it')}` : ''}</div>` : ''}</section>`;
-    return html;
+    const reading=chosenReading();
+    let html=controls()+'<div class="ex-body">'+notice();
+    if(forgot)html+=title('Exploration forgotten')+'<p>The document was removed from Dropbox. Your daily tasks stay.</p>';
+    else if(!doc){
+      html+=title(loaded?'Start with an experience':'Open your exploration');
+      if(!grant())html+=action('connections','connect Dropbox');
+      else if(!busy&&loaded)html+=`<p>You don’t need a finished question. Bring something that happened, or something you’re unsure about.</p><div class="ex-setup"><label class="visually-hidden" for="exQuestion">Something that happened, or something you’re unsure about</label><textarea id="exQuestion" rows="3" maxlength="8000" enterkeyhint="send" data-today-input="exploration.question" data-today-keydown="exploration.start-key">${h(setupQuestion)}</textarea>${incoming?`<div class="ex-context"><span class="ex-source">${incoming.source_type==='task'?'From your task':'AI reading · not your statement'}</span><p>${h(incoming.text)}</p>${action('include',includeIncoming?'leave out':'include in reply',disabled)}</div>`:''}<details id="exSetupSources"><summary>Uses relevant tasks &amp; Memory</summary><p class="ex-muted">Your words and relevant TODAY records support this reply, kept in Dropbox. You can review or change sources before the next reply. Feelings and dreams stay separate.</p></details><div class="ex-send">${action('create',imported?'continue with this document':'send',disabled)}</div></div>`;
+    }else html+=view==='conversation'?conversationHTML(reading,disabled):secondaryHTML(reading,disabled);
+    root.innerHTML=html+'</div>';
+    root.querySelectorAll('details[id]').forEach(node=>{const saved=detailState.find(state=>state.key===node.id);if(saved)node.open=saved.open;});
+    if(editing){const input=byId(editing.id);if(input&&!input.disabled){input.focus({preventScroll:true});input.setSelectionRange(editing.start,editing.end);}}
+    else if(focused){const target=focusId?byId(focusId):[...root.querySelectorAll('[data-ex-action]')].find(node=>JSON.stringify({...node.dataset})===focusData);(target&&!target.disabled?target:byId('exViewTitle')||byId('exNotesTitle'))?.focus({preventScroll:true});}
   }
   async function createDocument() {
-    setupQuestion = byId('exQuestion')?.value.trim() || '';
-    if (!setupQuestion) return status('Give the exploration a question first.');
+    if(busy||pendingReading||doc)return;
+    setupQuestion=byId('exQuestion')?.value.trim()||'';
+    if(!setupQuestion&&!imported)return status('Bring an experience or something you’re unsure about.');
     try {
-      let next = imported.startsWith('<!-- today-exploration ') ? core.parse(imported) : core.create(setupQuestion, imported, id(), now());
+      // A descriptive title comes from the person's own words, never an invented interpretation.
+      let next=imported.startsWith('<!-- today-exploration ')?core.parse(imported):core.create((setupQuestion.split('\n').find(line=>line.trim())||'Earlier notes').slice(0,120),imported,id(),now());
       next={...next,schema_version:2,today_context:next.today_context||{enabled:true,epoch:id(),excluded:[]}};
-      visitStart = next.entries.length;
-      // Import preserves the workspace/history; destination is still protected by its current Dropbox revision.
-      if (await commit(next)) { draftWorkspace = null; imported = ''; await refreshSources(false);render(); }
-    } catch (_) { status('This document could not be imported. Use plain Markdown or a supported exploration export.'); }
+      visitStart=next.entries.length;
+      const observation=setupQuestion?row('observation',setupQuestion):null;
+      if(includeIncoming&&incoming)next=core.append(next,row('context',incoming.text,{source_type:incoming.source_type,source_id:incoming.source_id||null}));
+      if(observation)next=core.append(next,observation);
+      if(await commit(next)){
+        draftWorkspace=null;imported='';setupQuestion='';incoming=null;includeIncoming=false;retryId=observation?.id||null;
+        await refreshSources(false);render();byId('exThought')?.focus({preventScroll:true});
+        if(observation)await ask(false);
+      }
+    } catch (_) { busy=false;status('This document could not be imported or updated. Your words stay here.'); }
   }
   async function send() {
     if (!doc || busy || pendingReading || !draft.trim() || (draftWorkspace && draftWorkspace !== doc.workspace_id)) return;
@@ -224,7 +262,8 @@
   }
   async function ask(wantExperiment) {
     if (!doc || busy || pendingReading) return;
-    if (!connection()._aiIsConfigured()) { status('Connect your AI to receive a reading. Your observation is kept in Dropbox.','connections'); return; }
+    retryReading=false;
+    if (!connection()._aiIsConfigured()) { if(wantExperiment)suggestionMessage='Connect your AI to suggest a step.';status('Connect your AI to continue. Your words are kept.','connections'); return; }
     await refreshSources(false);if(!opened||!doc||busy||pendingReading)return;
     const token = epoch, baseRevision = revision, workspace = doc.workspace_id;
     const provider = connection()._aiGetProvider(), key = connection()._aiGetKey();
@@ -233,7 +272,7 @@
     const previous = chosenReading();
     const sourceIds = [...new Set([...selected.records.filter(entry=>!selectedLive.some(source=>source.id===entry.id)).map(entry=>entry.id), ...(previous?.source_ids || previous?.evidence_ids || []).filter(id=>doc.entries.some(entry=>entry.id===id))])];
     pendingSources=[...new Map([...(previous?.today_sources||[]),...selectedLive.map(source=>({id:source.id,signature:source.signature}))].map(ref=>[ref.id,ref])).values()];
-    pendingReading = true; const requestController = new AbortController(); aiController = requestController; render();
+    pendingReading = true; message='';recovery='';suggestionMessage=wantExperiment?'Thinking…':'';const requestController = new AbortController(); aiController = requestController; render();
     const timeout = setTimeout(()=>requestController.abort(),25000);
     try {
       const result = await fetch('/.netlify/functions/ai-assist',{method:'POST',headers:{'Content-Type':'application/json'},signal:aiController.signal,
@@ -243,12 +282,18 @@
       if (!validSession(token) || aiController !== requestController || doc.workspace_id !== workspace || revision !== baseRevision || provider !== connection()._aiGetProvider() || key !== connection()._aiGetKey()) return;
       if(!dataContext().supports(pendingSources,freshSources)){liveSources=freshSources;throw new Error('sources-changed');}
       if (!result.ok || data.error) throw new Error('reply-unavailable');
-      const reply = core.response(data.content || data.message,selected.records.map(entry=>entry.id));
+      const reply = core.response(typeof data.reply==='string'?data:data.content || data.message,selected.records.map(entry=>entry.id));
+      if(wantExperiment&&!reply.experiment)throw new Error('suggestion-empty');
       pendingReading = false;
       const entry = row('reading',reply.reply,{next_question:reply.next_question,summary:reply.summary,evidence_ids:reply.evidence_ids,source_ids:sourceIds,today_sources:pendingSources,today_epoch:doc.today_context?.epoch||'',opening_revision:doc.source_revision||'',
         experiment:wantExperiment ? reply.experiment : null});
-      if (await commit(core.append(doc,entry))) { retryId = null; experiment = wantExperiment; }
-    } catch (_) { if (validSession(token)) status(wantExperiment ? 'No suggestion to show yet. Your words are kept; you can ask again here.' : 'No reading to show yet. Your words are kept; you can retry.'); }
+      if (await commit(core.append(doc,entry))) { retryId = null;retryReading=false;suggestionMessage=''; }
+      else if(wantExperiment)suggestionMessage='Dropbox has not confirmed this suggestion. Your earlier notes stay.';
+      else retryReading=recovery!=='reload'&&!!retryId;
+    } catch (error) { if (validSession(token) && aiController===requestController) {
+      if(wantExperiment){suggestionMessage=error.message==='suggestion-empty'?'No suggestion came back. You can ask again.':'The suggestion could not be completed. Try again.';render();}
+      else {retryReading=true;status('TODAY could not reply. Your words are kept.');}
+    } }
     finally { clearTimeout(timeout); if (aiController === requestController) {pendingReading = false; aiController = null; if (validSession(token)) render();} }
   }
   function download(name, content) {
@@ -261,14 +306,13 @@
     async 'today-toggle'(){abortAI();const policy=doc.today_context||{enabled:false,excluded:[]};const next={...doc,schema_version:2,revision:doc.revision+1,updated_at:now(),today_context:{enabled:!policy.enabled,epoch:id(),excluded:policy.excluded,included:policy.included||[]}};if(await commit(next)){await refreshSources(false);render();}},
     async 'today-pin'(button){abortAI();const source=liveSources.find(row=>row.id===button.dataset.todaySourceId&&row.selectable!==false),policy=doc.today_context;if(!source||!policy)return;const ids=[...new Set([...(policy.included||[]).filter(id=>liveSources.some(row=>row.id===id&&row.selectable!==false)),source.id])];if(ids.length>8||ids.filter(id=>liveSources.find(row=>row.id===id)?.evidence_kind==='AI interpretation').length>2)return status('Choose up to eight records, including at most two AI readings. Leave one out to make room.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),included:ids,excluded:policy.excluded.filter(id=>id!==source.id)}}))render();},
     async 'today-source'(button){abortAI();const target=button.dataset.todaySourceId,policy=doc.today_context;if(!policy||!liveSources.some(source=>source.id===target))return;const excluded=policy.excluded.includes(target)?policy.excluded.filter(value=>value!==target):[...policy.excluded,target];if(excluded.length>96)return status('Disconnect TODAY context to clear all its influence.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),excluded,included:(policy.included||[]).filter(id=>id!==target)}}))render();},
-    back:leave, notes(){notes=true;render();byId('exNotesTitle')?.focus();}, changes(){notes=true;render();byId('exChangesTitle')?.focus();},
+    back:leave, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'more-history'(){historyWindow+=24;render();},
     'more-sources'(){sourceWindow+=50;render();},
-    async 'task-context'(button){const task=offeredTasks[Number(button.dataset.taskIndex)];if(!task||busy||!host.availableTasks().some(current=>current.id===task.id&&current.text===task.text))return;await commit(core.append(doc,row('context',task.text,{source_type:'task',source_id:task.id})));render();},
     connections(){hide();host.connections();}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
-    'retry-ai'(){return ask(false);}, experiment(){experiment=true;return ask(true);},
-    correct(){correction=true;render();byId('exCorrection')?.focus();}, 'cancel-correction'(){correction=false;render();},
-    async amend(){const value=byId('exCorrection')?.value.trim();const reading=chosenReading();if(value&&reading&&await commit(core.append(doc,row('amendment',value,{target:reading.id})))){correction=false;render();}},
+    'retry-ai'(){return ask(false);}, experiment(){return ask(true);},
+    correct(){const reading=chosenReading();if(!reading)return;if(correctionTarget!==reading.id){correctionTarget=reading.id;correctionText=core.amendments(doc,reading.id).at(-1)?.text||reading.text;}go('correct');byId('exCorrection')?.focus({preventScroll:true});}, 'cancel-correction'(){correctionTarget=null;correctionText='';leave();},
+    async amend(){const value=byId('exCorrection')?.value.trim(),visit=navigation,target=correctionTarget;const reading=chosenReading();if(value&&reading&&reading.id===target&&await commit(core.append(doc,row('amendment',value,{target:reading.id})))){if(correctionTarget===target){correctionTarget=null;correctionText='';}if(view==='correct'&&navigation===visit)leave();else render();}},
     async source(button){abortAI();const target=button.dataset.entryId;if(doc&&await commit(core.append(doc,row('source','',{target,include:!core.included(doc,target)})))){message='Source choice kept; earlier dependent readings stay withheld.';render();}},
     async task(){
       const reading=chosenReading();if(!reading?.experiment||busy)return;
@@ -277,7 +321,7 @@
       if(taskId&&await commit(core.append(doc,row('task',reading.experiment.action,{target:reading.id,task_id:taskId})))) taskPending=null;
       render();
     },
-    record(){showRecord=!showRecord;render();}, privacy(){showPrivacy=!showPrivacy;render();},
+    record(){go('record');}, privacy(){go('privacy');},
     forget(){confirmForget=true;render();root.querySelector('[data-ex-action="forget-cancel"]')?.focus();},
     'forget-cancel'(){confirmForget=false;render();root.querySelector('[data-ex-action="forget"]')?.focus();},
     async 'forget-confirm'(){
@@ -286,15 +330,19 @@
       if(result.uncertain){const check=await files.read(controller?.signal);if(check.notFound)result={ok:true};}
       if(!validSession(token))return;busy=false;
       if(!result.ok)return status('The document changed or Dropbox could not confirm deletion. Reload before trying again.');
-      doc=null;revision=null;draft='';imported='';incoming=null;snapshot=null;retryId=null;draftWorkspace=null;forgot=true;notes=false;confirmForget=false;taskPending=null;setupQuestion='';offeredTasks=[];
+      doc=null;revision=null;draft='';imported='';incoming=null;snapshot=null;retryId=null;draftWorkspace=null;forgot=true;view='conversation';trail=[];confirmForget=false;taskPending=null;setupQuestion='';retryReading=false;suggestionMessage='';
       decorate();render();byId('exTitle')?.focus();
     },
     export(){if(doc)download('life-exploration.md',core.stringify(doc));},
-    'draft-export'(){download('exploration-unsent.md',draft);},'draft-clear'(){draft='';draftWorkspace=null;render();}
+    'draft-export'(){download('exploration-unsent.md',draft||(!doc?setupQuestion:''));},'draft-clear'(){draft='';draftWorkspace=null;render();}
   };
   Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
   Today.ui.register('input','exploration.draft',(_event,input)=>{draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
-  Today.ui.register('keydown','exploration.reply-key',(event)=>{if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)&&!event.isComposing){event.preventDefault();send();}});
+  Today.ui.register('input','exploration.correction',(_event,input)=>{correctionText=input.value;});
+  Today.ui.register('input','exploration.question',(_event,input)=>{setupQuestion=input.value;});
+  const submits=event=>event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229&&!event.repeat;
+  Today.ui.register('keydown','exploration.start-key',event=>{if(submits(event)){event.preventDefault();if(!busy)createDocument();}});
+  Today.ui.register('keydown','exploration.reply-key',event=>{if(submits(event)){event.preventDefault();send();}});
   Today.ui.register('change','exploration.checkpoint',async(_event,input)=>{
     const file=input.files?.[0];if(!file||!doc||busy||pendingReading)return;
     if(file.size>core.limit)return status('Choose a Markdown document smaller than 500 KB.');

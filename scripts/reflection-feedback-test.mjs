@@ -74,7 +74,11 @@ async function open(p){await p.evaluate(()=>Today.use('memory').toggle());}
 async function vote(p,choice){
   await p.focus('.reflection-reading');await p.keyboard.press('Enter');
   await p.waitForSelector(`#reflectionReaction [data-reaction="${choice}"]`,{visible:true});
-  await p.click(`#reflectionReaction [data-reaction="${choice}"]`);
+  const selector=`#reflectionReaction [data-reaction="${choice}"]`;
+  await p.$eval(selector,button=>button.scrollIntoView({block:'center'}));
+  await settleMemoryAnimations(p);
+  assert.ok(await p.$eval(selector,button=>{const r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===button;}),'Vote control is reachable above the normal fixed input');
+  await p.click(selector);
 }
 try{
   const a=await page();

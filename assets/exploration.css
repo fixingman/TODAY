@@ -1,6 +1,6 @@
 /* Approved exploration session, scoped to Memory's sub-view. */
-#explorationRoot { font-size: var(--text-sm2); line-height: 1.6; overflow-wrap: anywhere; }
-#explorationRoot h2 { font-size: var(--text-lg); font-weight: 400; margin: 0 0 var(--space-3); }
+#explorationRoot { font-size: var(--text-task); line-height: 1.6; overflow-wrap: anywhere; }
+#explorationRoot h2:not(.config-title) { font-size: var(--text-md); font-weight: 400; margin: 0 0 var(--space-3); }
 #explorationRoot h3, #explorationRoot h4 { font-weight: 400; margin: 0 0 var(--space-2); }
 #explorationRoot p { margin: var(--space-2) 0; white-space: pre-wrap; }
 #explorationRoot .ex-nav { display: flex; justify-content: space-between; margin: 0 calc(-1 * var(--space-2)) var(--space-4); }
@@ -10,7 +10,7 @@
 #explorationRoot .ex-you p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
 #explorationRoot .ex-turn > p { font-size: var(--text-task); }
 #explorationRoot .ex-resume { margin-bottom: var(--space-5); }
-#explorationRoot .ex-resume p { color: var(--muted); }
+#explorationRoot .ex-resume p { color: var(--text); font-size: var(--text-task); }
 #explorationRoot label { display: block; margin-bottom: var(--space-2); }
 #explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { box-sizing: border-box; width: 100%; padding: var(--space-3); background: var(--bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); line-height: 1.6; }
 #explorationRoot textarea { resize: vertical; }
@@ -20,9 +20,13 @@
 #explorationRoot .ex-send { display: flex; justify-content: flex-end; margin-top: var(--space-2); }
 #explorationRoot .ex-send button { border-color: var(--accent-glow); color: var(--accent); }
 #explorationRoot .ex-send button:disabled { border-color: var(--border); }
+#explorationRoot .ex-send button:not(:disabled):is(:hover,:focus-visible), #explorationRoot .ex-submit:not(:disabled):is(:hover,:focus-visible) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+#explorationRoot .ex-reply-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-2); }
+#explorationRoot .ex-reply-actions .ex-muted { font-size: var(--text-xs); }
+#explorationRoot .ex-submit { min-width: var(--space-8); min-height: var(--space-8); font-size: var(--text-md); }
 #explorationRoot button:disabled { color: var(--muted); cursor: default; }
 #explorationRoot .ex-context { margin: var(--space-3) 0; }
-#explorationRoot summary { list-style: none; display: inline-block; min-height: var(--space-6); padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-2)); border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--muted); cursor: pointer; }
+#explorationRoot summary { list-style: none; display: inline-block; min-height: var(--space-6); padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-2)); border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--text-sm2); letter-spacing: normal; color: var(--muted); cursor: pointer; }
 #explorationRoot summary::-webkit-details-marker { display: none; }
 #explorationRoot summary:hover, #explorationRoot summary:focus-visible { border-color: var(--border); color: var(--text); }
 #explorationRoot details[open] > summary { color: var(--text); }
@@ -31,7 +35,7 @@
 #explorationRoot pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm2); padding: var(--space-3); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
 #explorationRoot .ex-file { display: block; }
 #explorationRoot input[type=file] { display: block; max-width: 100%; margin: var(--space-2) 0; font-family: var(--font-mono); }
-#explorationRoot .memory-item-text { min-width: 0; }
+#explorationRoot .memory-item-text { min-width: 0; font-size: var(--text-task); line-height: 1.7; }
 #explorationRoot h2, #explorationRoot h3, #explorationRoot textarea { scroll-margin-top: calc(var(--space-20) + var(--space-8)); }
 @media (max-width: 600px) {
   #explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { font-size: var(--text-lg); }
@@ -39,11 +43,26 @@
 
 .exploration-task-action { margin-right: var(--space-4); }
 @media (hover: hover) { .exploration-task-action { opacity: 0; } .task:hover .exploration-task-action, .task:focus-within .exploration-task-action { opacity: 1; } }
-/* The deliberate conversation has one composer; daily capture returns with the list. */
-body:has(#memoryPanel.exploration-active) #addTaskBar, body:has(#memoryPanel.exploration-active) #triageBar { display: none; }
-
-#explorationRoot .ex-today { margin-top: var(--space-3); font-size: var(--text-sm2); }
+#explorationRoot .ex-today { margin-top: var(--space-3); font-size: var(--text-task); }
 #explorationRoot .ex-secondary { margin-top: var(--space-4); }
 #explorationRoot [data-ex-action=forget]:hover { color: var(--danger); }
 
 #explorationRoot .ex-today .memory-item-btn { opacity: 1; }
+
+/* Conversation prose and panel navigation are not compact Memory-row metadata. */
+#explorationRoot .memory-item-btn { font-size: var(--text-sm2); letter-spacing: normal; }
+#explorationRoot .ex-source { font-size: var(--text-sm2); letter-spacing: normal; }
+#explorationRoot .ex-turn > .memory-type-name { font-size: var(--text-sm2); letter-spacing: normal; text-transform: none; }
+/* Production version of the reviewed conversation / focused-page design. */
+#explorationRoot .ex-header { align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+#explorationRoot .ex-header h2 { margin: 0; }
+#explorationRoot h3 { font-size: var(--text-md); line-height: 1.6; margin-bottom: var(--space-4); }
+#explorationRoot h4 { font-size: var(--text-base); line-height: 1.7; margin-bottom: var(--space-2); }
+#explorationRoot .ex-links { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+#explorationRoot .ex-note-section { padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: 1px solid var(--border); }
+#explorationRoot .ex-bounds { margin: var(--space-4) 0; }
+#explorationRoot .ex-bounds > div { margin-bottom: var(--space-3); }
+#explorationRoot .ex-bounds dt { color: var(--muted); font-size: var(--text-sm2); }
+#explorationRoot .ex-bounds dd { margin: 0; }
+#explorationRoot .ex-body > p + p { margin-top: var(--space-3); }
+#explorationRoot { scroll-margin-top: calc(var(--space-20) + var(--space-8)); }

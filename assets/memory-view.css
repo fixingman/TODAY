@@ -1,16 +1,30 @@
 /* Approved Memory hierarchy uses the native blocks, rows, actions and tokens. */
 #memoryContent { overflow-wrap: anywhere; }
 #memoryContent h3.memory-type-name { font-weight: 400; margin: 0; flex-shrink: 0; }
-#memoryContent .memory-source { display: block; font-size: var(--text-xs); letter-spacing: 0.06em; color: var(--muted); }
+#memoryContent .memory-source { display: block; font-size: var(--text-sm2); letter-spacing: normal; color: var(--muted); }
 #memoryContent .memory-thread-question { display: block; font-size: var(--text-task); color: var(--text); }
 #memoryContent .memory-thread-recap { display: block; margin-top: var(--space-1); color: var(--muted); }
 #memoryContent .memory-thread { padding-bottom: var(--space-3); }
 #memoryContent .memory-thread .memory-item-btn { opacity: 1; color: var(--text); }
-#memoryContent .memory-landing-note { margin-top: var(--space-2); font-size: var(--text-xs); line-height: 1.6; color: var(--muted); }
+#memoryContent .memory-landing-note { margin-top: var(--space-2); font-size: var(--text-sm2); line-height: 1.7; color: var(--muted); }
 #memoryKept > .memory-type-block { border-bottom: 0; margin-bottom: 0; }
 #memoryCoverage { margin-top: var(--space-4); }
 #memoryContent h3 { scroll-margin-top: calc(var(--space-20) + var(--space-8)); }
 #memoryContent .memory-item { min-width: 0; }
 #memoryContent .memory-item-text { min-width: 0; }
-/* Keep daily capture and triage with the list while Memory's controls are in use. */
-body:has(#memoryPanel.open) #addTaskBar, body:has(#memoryPanel.open) #triageBar { display: none; }
+
+/* Reading rows use the task/body role; controls and provenance use the action role. */
+#memoryContent { font-size: var(--text-task); line-height: 1.7; }
+#memoryContent .memory-item { padding: var(--space-2) 0; gap: var(--space-3); }
+#memoryContent .memory-item-text { font-size: var(--text-task); line-height: 1.7; }
+#memoryContent .memory-source { margin-top: var(--space-1); }
+#memoryContent .memory-type-header { flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+#memoryContent .memory-type-name { font-size: var(--text-sm2); letter-spacing: 0.12em; }
+#memoryContent .memory-item-btn, #memoryFooter button { font-size: var(--text-sm2); letter-spacing: normal; }
+#memoryContent .memory-type-block { padding-bottom: var(--space-5); margin-bottom: var(--space-5); }
+#memoryContent .memory-empty, #memoryContent .memory-pending { letter-spacing: normal; }
+#memoryCoverage > summary { font-size: var(--text-sm2); }
+#memoryContent .memory-thread { flex-wrap: wrap; }
+#memoryContent .memory-thread .memory-item-text { flex-basis: 70%; }
+
+#memoryKept > .memory-type-block { margin-top: var(--space-4); }

@@ -1,0 +1,253 @@
+/* Current index.html tokens and shared neutral-button/capture rules, copied verbatim for this isolated study. */
+:root {
+    color-scheme: dark;  /* UA dark hint via CSS too, not only the meta — paints a dark default canvas (BUG-041) */
+
+    /* ── Color: Base palette ─ */
+    --color-bg:          #0e0e10;   /* page background             */
+    --color-surface:     #17171a;   /* card / hover surface        */
+    --color-surface2:    #1f1f24;   /* elevated surface (panels)   */
+    --color-border:      #2a2a30;   /* decorative separation       */
+    --color-control-border: #636370;/* main-surface boundaries      */
+    --color-control-border-elevated: #6b6b78;/* elevated boundaries */
+
+    /* ── Color: Text ─ */
+    --color-text:        #e8e8ec;   /* primary text                */
+    --color-muted:       #80808d;   /* main-surface secondary text */
+    --color-muted-elevated: #858594;/* elevated AA secondary text  */
+
+    /* ── Color: Accent (lime green) ─ */
+    --color-accent:      #c8f060;   /* primary accent              */
+    --color-accent-dim:  rgba(200,240,96,0.12); /* ghost accent bg */
+    --color-accent-hover: rgba(200,240,96,0.18); /* accent bg on hover */
+    --color-accent-glow: rgba(200,240,96,0.28); /* accent glow border */
+    /* Focus mode accent variants — all derived from --color-accent */
+    --color-accent-focus-bg:     rgba(200,240,96,0.04);  /* focused row background    */
+    --color-accent-focus-border: rgba(200,240,96,0.12);  /* focused row border        */
+    --color-accent-focus-divider: rgba(200,240,96,0.08); /* focus enrichment divider  */
+    --color-accent-check:        rgba(200,240,96,0.55);  /* focused checkbox border   */
+    --color-accent-check-hover:  rgba(200,240,96,0.90);  /* focused checkbox hover    */
+    --color-accent-check-glow:   rgba(200,240,96,0.10);  /* focused checkbox glow     */
+    --color-accent-timer-bg:     rgba(200,240,96,0.022); /* timer bar background      */
+    --color-accent-timer-fill:   rgba(200,240,96,0.08);  /* timer progress fill       */
+    --color-accent-timer-paused: rgba(200,240,96,0.03);  /* timer fill when paused    */
+    --color-accent-stat:         rgba(200,240,96,0.60);  /* accomplishment stats readout */
+
+    /* ── Isolated-document palette ─
+       Focus/meeting PiP read these computed values before building their
+       separate documents. They cannot inherit the opener's custom properties. */
+    --color-art-muted:            #6b6b78;
+    --color-pip-muted:            rgba(255,255,255,0.50);
+    --color-pip-fill-bar:         rgba(200,240,96,0.20);
+    --color-pip-overlay:          rgba(14,14,16,0.85);
+    --color-pip-btn-bg:           rgba(200,240,96,0.15);
+    --color-pip-btn-border:       rgba(200,240,96,0.30);
+    --color-pip-btn-hover-bg:     rgba(200,240,96,0.25);
+    --color-pip-btn-hover-border: rgba(200,240,96,0.50);
+
+    /* ── Color: Semantic ─ */
+    --color-danger:      #ff5f5f;   /* error / delete              */
+    --color-danger-dim:  rgba(255,95,95,0.10);  /* danger bg tint  */
+    --color-danger-border: rgba(255,95,95,0.20);/* danger border   */
+    --color-danger-pulse: rgba(255,95,95,0.40); /* error indicator ring animation start */
+    --color-highlight:        #579dff;              /* info / Trello link      */
+    --color-highlight-dim:    rgba(87,157,255,0.10); /* highlight bg tint       */
+    --color-highlight-border: rgba(87,157,255,0.20); /* highlight border        */
+
+    /* ── Color: Utility ─ */
+    --color-text-dim:    rgba(232,232,236,0.50); /* dimmed text — secondary interactive labels */
+    --color-done-line:   rgba(107,107,120,0.55); /* strikethrough  */
+    --color-muted-dim:   rgba(107,107,120,0.12); /* muted bg tint  */
+    --color-bg-glass:    rgba(14,14,16,0.92);    /* sticky header frosted bg */
+    --color-overlay:     rgba(0,0,0,0.6);        /* modal backdrop */
+    --color-breathe:     rgba(22,26,20,0.88);    /* focus breathe rest */
+    --color-breathe-active: rgba(28,34,24,0.92); /* focus breathe active */
+    --shadow-float:      0 8px 24px rgba(0,0,0,0.4); /* floating element shadow */
+    --shadow-panel-sm:   0 4px 16px rgba(0,0,0,0.12); /* small panel shadow */
+    --shadow-triage:     0 -8px 32px rgba(0,0,0,0.12), 0 -2px 8px rgba(0,0,0,0.08); /* triage bar */
+
+    /* ── Backward-compat aliases (used in inline styles & JS) ── */
+    --bg:           var(--color-bg);
+    --surface:      var(--color-surface);
+    --surface2:     var(--color-surface2);
+    --border:       var(--color-border);
+    --control-border: var(--color-control-border);
+    --accent:       var(--color-accent);
+    --accent-dim:   var(--color-accent-dim);
+    --accent-hover: var(--color-accent-hover);
+    --accent-glow:  var(--color-accent-glow);
+    --text:         var(--color-text);
+    --muted:        var(--color-muted);
+    --danger:       var(--color-danger);
+    --highlight:    var(--color-highlight);
+    --highlight-ui: var(--color-accent);
+    --done-line:    var(--color-done-line);
+    --bg-glass:     var(--color-bg-glass);
+    /* Focus mode accent aliases */
+    --accent-focus-bg:     var(--color-accent-focus-bg);
+    --accent-focus-border: var(--color-accent-focus-border);
+    --accent-focus-divider: var(--color-accent-focus-divider);
+    --accent-check:        var(--color-accent-check);
+    --accent-check-hover:  var(--color-accent-check-hover);
+    --accent-check-glow:   var(--color-accent-check-glow);
+    --accent-timer-bg:     var(--color-accent-timer-bg);
+    --accent-timer-fill:   var(--color-accent-timer-fill);
+    --accent-timer-paused: var(--color-accent-timer-paused);
+    --accent-stat:         var(--color-accent-stat);
+    --text-dim:            var(--color-text-dim);
+
+    /* ── Spacing scale (4px base) ─ */
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3:  12px;
+    --space-4:  16px;
+    --space-5:  20px;
+    --space-6:  24px;
+    --space-8:  32px;
+    --space-20: 80px;
+    --add-task-bar-height: 72px; /* clearance for the fixed bottom add-task bar */
+    --panel-max-width: 420px;   /* bottom sheets and overlay panels */
+
+    /* ── Radius scale ─ */
+    --radius-sm:   4px;   /* badge, tag                          */
+    --radius-md:   6px;   /* input, small card                   */
+    --radius-lg:   8px;   /* task row, button                    */
+    --radius-xl:   12px;  /* panel, config section               */
+    --radius-full: 99px;  /* pill                                */
+
+    /* ── Typography ─ */
+    --font-mono:  'DM Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+
+    --text-micro: 9px;    /* micro labels: grid col letters, focus time, provider badge */
+    --text-xs:    10px;
+    --text-sm:    11px;
+    --text-base:  13px;
+    --text-md:    14px;   /* body default                        */
+    --text-lg:    16px;
+    --text-sm2:   12px;   /* small labels, config hints          */
+    --text-task:  13.5px; /* task row text — between base and md  */
+
+    /* ── Motion ─ */
+    --dur-exit:   0.12s;  /* quick exits: dimming away, count flick out, glyph bounce */
+    --dur-fast:   0.15s;
+    --dur-base:   0.20s;  /* general transitions (was 0.18s; merged with the former --dur-mid 0.20s) */
+    --dur-slow:   0.30s;
+    --dur-emphasis: 0.60s; /* emphasis beats: milestone pulse, splash star */
+    --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-std:   ease;
+    --ease-in:    ease-in;      /* exits that accelerate away */
+    --ease-in-out: ease-in-out; /* symmetric loops and sweeps */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* subtle overshoot for slide-up panels */
+    --motion-rise: 6px;   /* entry distance: new content rises into place (fadeIn, _rowEnter) */
+    --motion-drop: -4px;  /* reveal distance: lists and chips open downward (revealDown) */
+    --focus-wave-delay: 0ms; /* per-row focus-entry state, derived from visual distance */
+
+    /* ── Z-index scale ─ */
+    --z-base:    1;
+    --z-header:  11;
+    --z-modal:   100;
+    --z-splash:  500;
+    --z-overlay: 999;
+
+    /* ── Layout ─ */
+    --sec-sticky-top: 0px; /* set by ResizeObserver in init() to sticky-header height */
+
+    /* ── Opacity scale ─ */
+    --opacity-dim:          0.25;  /* done state, secondary badges     */
+    --opacity-mid:          0.50;  /* focused session count            */
+    --opacity-soft:         0.60;  /* session count on hover           */
+    --opacity-muted:        0.65;  /* paused label, kbd hint base      */
+    --opacity-label:        0.40;  /* subtle hints, kbd hint show      */
+    --opacity-subtle:       0.28;  /* checkbox fill, timer time paused */
+    --opacity-hover:        0.85;  /* button hover states              */
+    --opacity-strong:       0.80;  /* timer time default               */
+    /* Focus mode recede opacities */
+    --opacity-recede:       0.07;  /* non-focused tasks during focus   */
+    --opacity-recede-done:  0.035; /* done tasks receded in focus      */
+    --opacity-recede-chrome:0.08;  /* headers/date receded in focus    */
+    /* Copy button */
+    --opacity-copy:         0.45;  /* copy button at rest in focus     */
+
+  }
+
+.btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm2);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+  }
+
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+.add-task-row {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    /* Desktop: fixed at bottom, full width with inner max-width centering */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: var(--z-header);
+    margin: 0;
+    padding: var(--space-2) 0;
+    padding-bottom: var(--space-3); /* safe breathing room above window chrome */
+    background: var(--bg-glass);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+  }
+
+.add-task-row::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background: linear-gradient(to top, var(--bg), transparent);
+    pointer-events: none;
+  }
+
+#addTaskBar {
+    padding-left: max(var(--space-6), calc((100vw - 680px) / 2 + var(--space-6)));
+    padding-right: max(var(--space-6), calc((100vw - 680px) / 2 + var(--space-6)));
+  }
+
+.add-task-input {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--control-border);
+    border-radius: var(--radius-lg);
+    /* Vertical padding drives height — button matches this exactly */
+    padding: 11px 40px 11px 14px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    outline: none;
+    transition: border-color var(--dur-fast);
+    /* Same height as button (11+1+line-height≈20+1+11 = 44px) */
+    height: 44px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+
+.add-task-input::placeholder { color: var(--muted); }
+
+.add-task-input:hover { border-color: var(--muted); }
+
+.add-task-input:focus { border-color: var(--accent); }
+
+.section-label {
+    font-size: var(--text-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color var(--dur-fast);
+  }

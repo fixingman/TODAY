@@ -4492,7 +4492,7 @@
   <div class="morning-nudge-react" id="dayNudgeReact"></div>
 
   <div id="explorationNudge" hidden><button type="button" class="memory-item-btn" data-today-click="exploration.open" data-ex-origin="nudge">explore this →</button></div>
-  <div class="section" id="explorationEntry"><button type="button" class="section-header zone-header" data-today-click="exploration.open" data-ex-origin="list"><span class="section-label">Explore</span><span class="section-count" id="explorationQuestion"></span><span aria-hidden="true">→</span></button></div>
+  <div class="section" id="explorationEntry"><button type="button" class="section-header zone-header" data-today-click="exploration.open" data-ex-origin="list"><span class="section-label">✦︎ Explore</span></button></div>
 
   <!-- Trello section -->
   <div class="section" id="trelloSection">
@@ -4701,14 +4701,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '391h';
+const DEV_HOURS     = '395h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.3.0': 'Explore — start with an experience, return to your conversation, and open a clearer living note. Memory is easier to read and prepares ahead of opening.',
   '3.2.3': 'Documentation — clearer exploration guidance and updated project notes.',
   '3.2.2': 'Maintenance — more reliable visual checks before updates are released.',
-  '3.2.1': 'Exploration — start with your question and speak naturally. Sources, earlier notes and document tools stay in Notes & sources.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

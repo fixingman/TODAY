@@ -1,4 +1,4 @@
-// Native Memory presentation, loaded on demand. All rows come from the existing records.
+// Native Memory presentation, loaded ahead of use. All rows come from the existing records.
 (function(){
 'use strict';
 let hooks, previewEpoch=0, visit=0, preparedVisit=-1,freshVisit=true;
@@ -207,15 +207,15 @@ function records() {
       function itemRow(item, extraClass = '') {
         return `<div class="memory-item${extraClass ? ' ' + extraClass : ''}">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +
-                `<span class="memory-item-text"><span class="memory-source">${esc(item.source || (item.rejectKey ? "TODAY’s reading · unconfirmed" : item.revokeKey ? item.text.split(" · ")[0] + " · on record" : "counted from your tasks"))}</span><span class="memory-item-body">${esc(item.revokeKey ? item.text.replace(/^[^·]+ · /, "") : item.text)}</span></span>` +
+                `<span class="memory-item-text"><span class="memory-item-body">${esc(item.text)}</span>${item.rejectKey ? `<span class="memory-source">${esc(item.source ? item.source.includes("unconfirmed") ? item.source : item.source + " · unconfirmed by you" : "TODAY’s reading · unconfirmed by you")}</span>` : ''}</span>` +
                 (item.action ? `<button type="button" class="memory-item-btn" data-today-click="memory.kind-restore" data-kind="${esc(item.action.kind)}">${esc(item.action.label)}</button>` : '') +
                 (item.revokeKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.item-revoke" data-revoke-key="${esc(item.revokeKey)}">dismiss</button>` : '') +
                 (item.rejectKey ? `<button type="button" class="memory-item-btn" data-today-click="memory.hypothesis-reject" data-hypothesis="${esc(item.rejectKey)}" aria-label="Not true about me: ${esc(item.text)}">not me</button>` : '') +
                 `</div>`;
       }
 
-function block(id,name,desc,rows,extra='') {
- return `<section class="memory-type-block" id="${id}"><div class="memory-type-header"><h3 class="memory-type-name" id="${id}Title" tabindex="-1">${name}</h3><span class="memory-type-desc">${desc}</span>${extra}</div>${rows}</section>`;
+function block(id,name,rows,extra='') {
+ return `<section class="memory-type-block" id="${id}"><div class="memory-type-header"><h3 class="memory-type-name" id="${id}Title" tabindex="-1">${name}</h3>${extra}</div>${rows}</section>`;
 }
 async function thread() {
  const target=document.getElementById('memoryThread');if(!target||!document.getElementById('memoryPanel')?.classList.contains('open'))return;
@@ -228,7 +228,7 @@ async function thread() {
   const focused=target.contains(document.activeElement);
   const anchor=document.getElementById('memoryPanel').contains(document.activeElement)&&!focused?document.activeElement:null;
   const top=anchor?.getBoundingClientRect().top;
-  target.innerHTML=preview.doc?`<span class="memory-item-text"><span class="memory-source">exploring · your question</span><span class="memory-thread-question" id="memoryThreadQuestion">${h(preview.doc.question)}</span><span class="memory-thread-recap">${h(preview.summary)}</span></span>${button}`:`<span class="memory-item-text memory-empty">${h(preview.message || 'A question you can return to, with your notes in Dropbox.')}</span>${button}`;
+  target.innerHTML=preview.doc?`<span class="memory-item-text"><span class="memory-thread-question" id="memoryThreadQuestion">${h(preview.doc.question)}</span><span class="memory-thread-recap">${h(preview.summary)}</span>${preview.reading?'<span class="memory-source">TODAY · unconfirmed by you</span>':''}</span>${button}`:`<span class="memory-item-text memory-empty">${h(preview.message || 'A question you can return to, with your notes in Dropbox.')}</span>${button}`;
   if(anchor?.isConnected)window.scrollBy(0,anchor.getBoundingClientRect().top-top);
   if(focused)target.querySelector('button')?.focus({preventScroll:true});
   target.querySelector('button')?.setAttribute('aria-describedby',preview.doc?'memoryThreadQuestion':'memoryOpenTitle');
@@ -242,10 +242,10 @@ function render(options) {
  const waiting=data.waiting.length?`<button type="button" class="memory-item-btn" data-today-click="memory.known-waiting" aria-expanded="${hooks.waitingOpen}">${hooks.waitingOpen?'less':`show waiting (${data.waiting.length})`}</button>`:'';
  const more=data.patterns.length>6?`<button type="button" class="memory-item-btn" data-today-click="memory.patterns-more" aria-expanded="${hooks.patternsOpen}">${hooks.patternsOpen?'less':`show all (${data.patterns.length})`}</button>`:'';
  const patterns=[...data.patterns.slice(0,hooks.patternsOpen?undefined:6),...data.lately.filter(row=>row.rejectKey)];
- el.innerHTML=block('memoryOpen','STILL OPEN','— your question, then what keeps returning',
-  '<div class="memory-item memory-thread" id="memoryThread"><span class="memory-item-text memory-empty">Opening your exploration…</span><button type="button" class="memory-item-btn" id="memoryContinue" data-today-click="exploration.open">open exploration →</button></div>'+(data.known.map(row=>itemRow(row)).join('')||'<p class="memory-pending">nothing on record yet</p>')+(hooks.waitingOpen?data.waiting.map(row=>itemRow(row,'memory-item--extra')).join(''):''),waiting)+
- block('memoryHolds','WHAT HOLDS','— counted facts first, then TODAY’s readings',patterns.map((row,index)=>itemRow(row,index>=6&&reveal?'memory-item--extra':'')).join('')||'<p class="memory-pending">patterns appear as more evidence builds</p>',more)+
- block('memoryKept','KEPT APART','— private records, never mixed in','<p class="memory-landing-note">Feelings and dreams stay in their own reading spaces. They are not added to exploration automatically.</p>')+
+ el.innerHTML=block('memoryOpen','STILL OPEN',
+  '<div class="memory-item memory-thread" id="memoryThread"><span class="memory-item-text memory-empty">A question you can return to.</span><button type="button" class="memory-item-btn" id="memoryContinue" data-today-click="exploration.open">open exploration →</button></div>'+(data.known.map(row=>itemRow(row)).join('')||'<p class="memory-pending">nothing on record yet</p>')+(hooks.waitingOpen?data.waiting.map(row=>itemRow(row,'memory-item--extra')).join(''):''),waiting)+
+ block('memoryHolds','WHAT HOLDS',patterns.map((row,index)=>itemRow(row,index>=6&&reveal?'memory-item--extra':'')).join('')||'<p class="memory-pending">patterns appear as more evidence builds</p>',more)+
+ block('memoryKept','KEPT APART','<p class="memory-landing-note">Feelings and dreams stay in their own reading spaces. They are not added to exploration automatically.</p>')+
  `<details id="memoryCoverage"${coverageOpen?' open':''}><summary>what it has to go on</summary><p class="memory-landing-note">How much TODAY has seen. Not a measure of you.</p>${[...data.coverage,...data.lately.filter(row=>!row.rejectKey)].map(row=>itemRow({...row,source:'coverage · on record'})).join('')||'<p class="memory-empty">nothing on record yet</p>'}</details>`;
  const kept=document.getElementById('memoryKept');
  Today.use('reflections')._reflectionRenderMemory(kept);Today.use('dreambank').renderMemory(kept);

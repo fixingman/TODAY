@@ -435,7 +435,7 @@ try {
           && !text.includes('5 done of 10 added'),
         peakEvidenceKept: text.includes('most tasks done between 9am–10am'),
         identityClaimRemoved: !text.includes('a morning person'),
-        semanticFramingUpdated: text.includes('WHAT HOLDS') && text.includes('counted facts first') && !text.includes('SEMANTIC'),
+        semanticFramingUpdated: text.includes('WHAT HOLDS') && !text.includes('counted from your tasks') && !text.includes('SEMANTIC'),
       };
     });
     await expectAll('Memory output-stat cleanup', { ...result, noErrors: errors.length === 0 });

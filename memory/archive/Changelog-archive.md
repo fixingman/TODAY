@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **2.106.13** | "wording" button in Sunday reflection uses unified mono xs tokens. |
 | **2.106.12** | Task list nudge reaction row joins the card visually on expand. |
 | **2.106.11** | **BUG-140: strip reaction row fits its content; tests follow v2.106.7–.10.** The v2.106.7 fade-in capped `#dayNudgeReact` at 80px; after "not really" the row needs 92–128px on 320–430px phones, so reason chips and the wording panel were clipped and untappable. It now opens 0fr→1fr to its own height, keeps the fade, and hides collapsed controls from keyboard/AT. Stale suites rewritten to the new intended behaviour: reason choice closes its row, second tap collapses, About starts collapsed and restores the chosen reason, Focus wording closes after a choice and clears by re-tap. Strip clicks wait for the open transition. Motion literals equal to tokens now use the tokens (no visual change). |
 | **2.106.10** | About voted nudge collapses on load; reason chips restore on re-expand. |

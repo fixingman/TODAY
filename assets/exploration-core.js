@@ -125,7 +125,7 @@
   }
   function response(raw, evidence) {
     const clean = String(raw || '').trim().replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```$/, '');
-    const result = JSON.parse(clean);
+    const result = typeof raw==='object'&&raw!==null?raw:JSON.parse(clean);
     if (!result || !text(result.reply, 2400) || !result.reply.trim() || !text(result.next_question, 500) ||
         !text(result.summary, 1200) || !Array.isArray(result.evidence_ids) || result.evidence_ids.some(id => !evidence.includes(id))) throw new Error('reply-format');
     if (result.experiment != null) {

@@ -11,14 +11,45 @@
     let _patternsOpen = false;
     let _knownWaitingOpen = false;
     let _computedPatterns = [];
-    let explorationLoading = null, explorationUI = null;
+    let explorationLoading = null, explorationUI = null, explorationOpening = 0, explorationPlace = null;
+    function restoreMemoryShell() {
+      explorationUI?.hide();
+      const root=document.getElementById('explorationRoot');if(root)root.hidden=true;
+      ['memoryTitleRow','memoryContent','memoryFooter'].forEach(id=>{document.getElementById(id).hidden=false;});
+      $.memoryPanel.classList.remove('exploration-active');
+      $.memoryPanel.removeAttribute('aria-busy');
+      $.memoryPanel.setAttribute('aria-labelledby','memoryTitle');
+    }
+    function cancelExplorationOpen() {
+      explorationOpening++;
+      restoreMemoryShell();
+      if(explorationPlace?.wasOpen) renderMemoryPanel(); else $.memoryPanel.classList.remove('open');
+      Today.use('connections').syncActiveButtons();
+      explorationPlace?.button?.focus({preventScroll:true});
+    }
+    Today.ui.register('click','memory.exploration-cancel',cancelExplorationOpen);
     Today.ui.register('click','exploration.open',async(event,button)=>{
       event.stopPropagation();
+      const token=++explorationOpening,kind=button.dataset.exOrigin||'memory';
+      const place={kind,button,wasOpen:kind==='memory'&&$.memoryPanel.classList.contains('open'),label:kind==='memory'?'← memory':'← today'};
+      explorationPlace=place;
+      explorationUI?.hide();
+      let root=document.getElementById('explorationRoot');
+      if(!root){root=document.createElement('section');root.id='explorationRoot';$.memoryPanel.append(root);}
+      root.hidden=false;
+      root.innerHTML=`<div class="config-title-row"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="memory-item-btn" data-today-click="memory.exploration-cancel">${esc(kind==='memory'?'back to Memory':'back to Today')}</button></div><p class="memory-empty" role="status">Opening your exploration…</p>`;
+      ['memoryTitleRow','memoryContent','memoryFooter'].forEach(id=>{document.getElementById(id).hidden=true;});
+      $.memoryPanel.classList.add('exploration-active');
+      $.memoryPanel.setAttribute('aria-busy','true');
+      $.memoryPanel.setAttribute('aria-labelledby','exTitle');
+      if(!$.memoryPanel.classList.contains('open'))toggleMemory({exploration:true});
+      root.querySelector('#exTitle').focus({preventScroll:true});
       try {
         explorationLoading ||= import('/assets/exploration-entry.js').then(()=>Today.use('exploration-entry'));
         explorationUI = await explorationLoading;
-        await explorationUI.open(event,button);
-      } catch (_) { explorationLoading=null; if(window._a11yAnnounce) _a11yAnnounce('Exploration could not open. Try again.'); }
+        if(token!==explorationOpening||!$.memoryPanel.classList.contains('open')||!$.memoryPanel.classList.contains('exploration-active'))return;
+        await explorationUI.open(event,button,place,()=>token===explorationOpening&&$.memoryPanel.classList.contains('open')&&$.memoryPanel.classList.contains('exploration-active'));
+      } catch (_) { explorationLoading=null; if(token===explorationOpening){$.memoryPanel.removeAttribute('aria-busy');const notice=root.querySelector('[role=status]');if(notice)notice.textContent='Exploration could not open. Try opening it again.';if(window._a11yAnnounce)_a11yAnnounce('Exploration could not open. Try again.');} }
     });
 
     function _parseAIText(data) {
@@ -26,11 +57,11 @@
       return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
     }
 
-    function toggleMemory() {
+    function toggleMemory(options = {}) {
       const scrollY = window.scrollY;
       const panel = $.memoryPanel;
       const isOpening = !panel.classList.contains('open');
-      if (!isOpening && explorationUI) explorationUI.hide();
+      if (!options.exploration) { explorationOpening++; restoreMemoryShell(); }
       if (isOpening) {
         Today.use('reflections').endFeedbackVisit();
         panel.style.animation = '';
@@ -44,7 +75,7 @@
       $.infoPanel.classList.remove('open');
       Today.use('connections').syncActiveButtons();
       window.scrollTo(0, scrollY);
-      if (isOpening) {
+      if (isOpening && !options.exploration) {
         let _anyNew = false;
         const _memTypes = ['semantic', 'episodic', 'procedural'];
         for (const _t of _memTypes) {
@@ -61,21 +92,32 @@
     }
 
     let memoryView=null, viewLoading=null;
+    // Warm code and presentation only. Private documents still refresh on a real visit.
+    const warmMemory=()=>prepareMemory().catch(()=>{});
+    document.addEventListener('today:boot-ready',()=>{
+      if(window.requestIdleCallback)requestIdleCallback(warmMemory);else setTimeout(warmMemory,0);
+    },{once:true});
+    document.querySelectorAll('[data-today-click="memory.toggle"]').forEach(trigger=>{
+      trigger.addEventListener('pointerenter',warmMemory,{once:true});
+      trigger.addEventListener('focusin',warmMemory,{once:true});
+      trigger.addEventListener('touchstart',warmMemory,{once:true,passive:true});
+    });
     function viewOptions(){return {patternsOpen:_patternsOpen,waitingOpen:_knownWaitingOpen,clearPending:_memoryClearPending,
       outcomes:_memoryOutcomePatterns,inferences:_memoryShownInferences,live:_hypoLive,computed:rows=>{_computedPatterns=rows;}};}
     async function prepareMemory(){
       if(!viewLoading)viewLoading=import('/assets/memory-view.js').then(async()=>{
-        if(!document.getElementById('memoryViewStyles'))await new Promise(resolve=>{const css=document.createElement('link');css.id='memoryViewStyles';css.rel='stylesheet';css.href='/assets/memory-view.css';css.onload=resolve;css.onerror=resolve;document.head.append(css);});
+        if(!document.getElementById('memoryViewStyles'))await new Promise((resolve,reject)=>{const css=document.createElement('link');css.id='memoryViewStyles';css.rel='stylesheet';css.href='/assets/memory-view.css';css.onload=resolve;css.onerror=()=>{css.remove();reject(new Error('memory-styles'));};document.head.append(css);});
         memoryView=Today.use('memory-view');memoryView.configure(viewOptions());return memoryView;
       }).catch(error=>{viewLoading=null;throw error;});
       return viewLoading;
     }
     function renderMemoryPanel(){
+      if($.memoryPanel.classList.contains('exploration-active'))return;
       if(memoryView){$.memoryPanel.removeAttribute('aria-busy');memoryView.render(viewOptions());return;}
-      if(!$.memoryPanel.classList.contains('open'))return;
+      if(!$.memoryPanel.classList.contains('open')||$.memoryPanel.classList.contains('exploration-active'))return;
       $.memoryPanel.setAttribute('aria-busy','true');
       const target=document.getElementById('memoryContent');target.textContent='Opening Memory…';
-      prepareMemory().then(()=>{$.memoryPanel.removeAttribute('aria-busy');if($.memoryPanel.classList.contains('open'))memoryView.render(viewOptions());}).catch(()=>{$.memoryPanel.removeAttribute('aria-busy');target.textContent='Memory could not open. Try again.';});
+      prepareMemory().then(()=>{if($.memoryPanel.classList.contains('exploration-active'))return;$.memoryPanel.removeAttribute('aria-busy');if($.memoryPanel.classList.contains('open'))memoryView.render(viewOptions());}).catch(()=>{if($.memoryPanel.classList.contains('exploration-active'))return;$.memoryPanel.removeAttribute('aria-busy');target.textContent='Memory could not open. Try again.';});
     }
 
     function _memoryGoToConnections() {
