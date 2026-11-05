@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"><meta name="color-scheme" content="dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'none'; img-src 'none'; form-action 'none'; base-uri 'none'">
+<title>TODAY — Explore side panel study</title>
+<link rel="stylesheet" href="../baseline.css"><link rel="stylesheet" href="../clarity/native.css"><link rel="stylesheet" href="sidebar.css">
+<script src="sidebar.js" defer></script>
+</head>
+<body>
+<p class="study-note">Design study · fictional · nothing saved · no AI runs here</p>
+
+<div class="page" id="page">
+<header class="sticky-header"><div class="sticky-header-inner"><div class="header"><h1 class="today-brand"><button type="button" class="today-logo" data-action="memory" aria-controls="memoryPanel" aria-expanded="false" aria-label="Open memory">TO<span>DAY</span></button></h1><span class="date-label">thu, 5 nov</span></div></div></header>
+
+<main class="app">
+  <section class="config-panel" id="memoryPanel" aria-labelledby="memoryTitle" hidden>
+    <div class="config-title-row"><h2 class="config-title" id="memoryTitle">Memory</h2><button type="button" class="btn-ghost" data-action="memory">close</button></div>
+    <div class="memory-type-block"><div class="memory-type-header"><span class="memory-type-name">Still open</span></div>
+      <div class="memory-item"><span class="memory-item-text">Making room for pottery</span><button type="button" class="memory-item-btn" data-action="open" data-origin="memory">continue →</button></div>
+    </div>
+  </section>
+
+  <div class="section"><button type="button" class="entry" data-action="open" data-origin="list">✦︎ Explore</button></div>
+  <ul class="task-preview" aria-label="Today">
+    <li>Reply to the contract email</li>
+    <li>Email the pottery studio</li>
+    <li>Draft the quarterly notes</li>
+    <li>Call the bank</li>
+    <li>Water the plants</li>
+  </ul>
+</main>
+
+<div class="add-task-row" id="addTaskBar"><label class="visually-hidden" for="capture">New task</label><input class="add-task-input" id="capture" placeholder="What's on your mind?" maxlength="500" enterkeyhint="done"></div>
+</div>
+
+<!-- The new primitive: one Explore surface. Docked beside the list on wide screens,
+     a drawer over it on medium screens, the whole screen on phones. -->
+<div class="ex-scrim" id="exScrim" data-action="close" hidden></div>
+<aside class="ex-sheet" id="exSheet" aria-labelledby="exTitle" hidden>
+  <div class="ex-sheet-head">
+    <h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>
+    <button type="button" class="ex-back" data-action="back" id="exBack" aria-label="Back to Today">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path id="exBackPath" d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <div class="ex-sheet-body" id="exBody"></div>
+  <form class="ex-sheet-composer" id="exComposer">
+    <div class="ex-prompt" id="exPromptWrap"><p id="exPrompt"></p></div>
+    <div class="ex-input-row">
+      <label class="visually-hidden" for="exReply" id="exReplyLabel">Your reply</label>
+      <textarea id="exReply" rows="1" maxlength="8000" placeholder="In your own words…" enterkeyhint="send" aria-describedby="exPrompt"></textarea>
+      <button type="button" class="add-mic-btn ex-mic" id="exMic" data-action="dictate" aria-label="Dictate your reply" aria-pressed="false">
+        <svg width="15" height="20" viewBox="0 0 15 20" fill="none" aria-hidden="true" focusable="false">
+          <rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <p class="visually-hidden" role="status" id="exLive"></p>
+  </form>
+</aside>
+</body>
+</html>

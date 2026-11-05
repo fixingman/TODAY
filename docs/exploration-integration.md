@@ -21,7 +21,7 @@ The first implementation uses the chosen opening document (bounded to its beginn
 - Relevant tasks are inspectable through live TODAY context in Notes. The duplicate task-copy picker is removed in v3.3.0; existing historical context entries remain readable. Connected task IDs and actions deliberately created from an experiment get their own task entrance, including touch. No keyword match silently creates a link.
 - An experiment is requested deliberately and includes question, action, signal, effort, review and stop condition. Only a further explicit action adds/links its task. No completion automatically records benefit, closes a review or changes a personal hypothesis. Existing identical undone task wording is linked rather than duplicated.
 
-The native daily capture input stays visible during this conversation, as it does for other sheets. Its Enter/task behavior is independent of the exploration reply field. Notes returns to conversation, then back returns to the invoking place. Other header panels/Focus can close the exploration without leaving hidden controls active.
+Since v3.4.0 Explore is its own surface beside the list: daily capture stays visible and usable on wide and medium screens and is hidden while Explore is full screen on phones (Can, November 5). Its Enter/task behavior is independent of the exploration reply field. Notes returns to conversation, then back returns to the invoking place. Other header panels/Focus can close the exploration without leaving hidden controls active.
 
 ## File format and cross-tool updates
 

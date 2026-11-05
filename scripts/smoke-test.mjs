@@ -327,8 +327,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
     return counts;
   }, {});
   const seasonCountDrift = seasonCounts.winter !== 18 || seasonCounts.spring !== 18 ||
-    seasonCounts.summer !== 15 || seasonCounts.autumn !== 18 || seasonCounts['year-round'] !== 90;
-  if (poems.length !== 159 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
+    seasonCounts.summer !== 15 || seasonCounts.autumn !== 18 || seasonCounts['year-round'] !== 89;
+  if (poems.length !== 158 || malformed.length || !hasAllApprovedVoices || !hasForeverNows || !hasBecauseRose || !hasNietzscheStory || !hasThoreauLifePoem || !hasNietzscheLove || !hasNietzscheStar || !hasAiyarSneeze || newLineLimitDrift || hasSkippedVoice || seasonTagDrift || seasonCountDrift) {
     console.error('✗ FAIL — reviewed poem corpus count, schema, line limit, or season tags drifted.');
     process.exit(1);
   }

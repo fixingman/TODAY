@@ -18,7 +18,8 @@
   let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [];
   let recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
   const dataContext=()=>Today.use('exploration-context');
-  let visitStart = 0, sourceWindow = 50;
+  let visitStart = 0, sourceWindow = 50, shownPrompt = '', turnCount = 0;
+  const wide = matchMedia('(min-width: 1120px)'), phone = matchMedia('(max-width: 600px)');
   const status = (text, nextAction = '') => { message = text; recovery = nextAction; render(); };
   function ensureRoot() {
     stylesLoading ||= new Promise((resolve,reject)=>{
@@ -26,7 +27,8 @@
       style.onload=resolve;style.onerror=()=>{style.remove();stylesLoading=null;reject(new Error('exploration-styles'));};document.head.append(style);
     });
     root = byId('explorationRoot');
-    if (!root) { root = document.createElement('section'); root.id = 'explorationRoot'; root.hidden = true; byId('memoryPanel').append(root); }
+    if (!root) { root = document.createElement('aside'); root.id = 'explorationRoot'; root.hidden = true; document.body.append(root); }
+    root.className = 'ex-sheet'; root.setAttribute('aria-labelledby','exTitle');
     return stylesLoading;
   }
   const validSession = token => opened && token === epoch && activeGrant === grant();
@@ -41,34 +43,75 @@
   }
   function hide() {
     arrivalMotion?.cancel();
-    opened = false; epoch++; controller?.abort(); abortAI(); busy = false;
-    if (root) { root.hidden = true; root.replaceChildren(); }
-    ['memoryTitleRow','memoryContent','memoryFooter'].forEach(name=>{const node=byId(name);if(node)node.hidden=false;});
-    byId('memoryPanel')?.classList.remove('exploration-active');
-    byId('memoryPanel')?.removeAttribute('aria-busy');
-    byId('memoryPanel')?.setAttribute('aria-labelledby','memoryTitle');
+    opened = false; epoch++; controller?.abort(); abortAI(); busy = false; dictation()?.stop();
+    if (root) { root.hidden = true; root.replaceChildren(); root.classList.remove('entering','leaving'); root.removeAttribute('aria-busy'); }
+    surface(false);
   }
+  // ── The surface: docked (wide) leaves the page usable; drawer and full screen are modal.
+  function scrim() {
+    let node = byId('exScrim');
+    if (!node) { node = document.createElement('div'); node.id = 'exScrim'; node.className = 'ex-scrim'; node.hidden = true; node.addEventListener('click',()=>close()); document.body.append(node); }
+    return node;
+  }
+  // Docked (wide): the page stays usable. Drawer (medium): the list behind is inert, daily
+  // capture stays usable beside it. Full screen (phone): modal; capture is hidden.
+  function modality() {
+    const shown = opened && root && !root.hidden, covered = shown && !wide.matches, modal = shown && phone.matches;
+    const app = byId('main-app'); if (app) app.inert = covered;
+    const bar = byId('addTaskBar'); if (bar) bar.inert = modal;
+    scrim().hidden = !covered || modal;
+    if (!root) return;
+    root.setAttribute('role', modal ? 'dialog' : 'complementary');
+    if (modal) root.setAttribute('aria-modal','true'); else root.removeAttribute('aria-modal');
+  }
+  function surface(open) {
+    document.body.classList.toggle('ex-open', open);
+    modality(); fitViewport();
+    if (!open && history.state?.explore) history.back();
+  }
+  function motion(cls) {
+    if (!root || _motionReduced()) return Promise.resolve();
+    root.classList.remove('entering','leaving'); void root.offsetWidth; root.classList.add(cls);
+    // Wide: the panel slides. Phone: head and scroll rise while the composer crossfades. Wait for all.
+    const running = root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||''));
+    return Promise.all(running.map(a=>a.finished.catch(()=>{}))).then(()=>root.classList.remove(cls));
+  }
+  function close() {
+    if (!opened) return;
+    const place = origin;
+    document.body.classList.remove('ex-open');
+    motion('leaving').then(()=>{ hide(); host.restore(place); });
+  }
+  // Phone keyboard: 100dvh ignores the iOS keyboard, so size the surface to the visual viewport.
+  function fitViewport() {
+    if (!root) return;
+    const fit = opened && !root.hidden && phone.matches && window.visualViewport;
+    root.style.height = fit ? visualViewport.height + 'px' : '';
+    root.style.top = fit ? visualViewport.offsetTop + 'px' : '';
+  }
+  const scroller = () => root?.querySelector('.ex-sheet-scroll');
   function go(next, trigger = document.activeElement) {
-    navigation++;trail.push({view, scroll:window.scrollY, action:trigger?.dataset.exAction, id:trigger?.id});
+    navigation++;trail.push({view, scroll:scroller()?.scrollTop||0, action:trigger?.dataset.exAction, id:trigger?.id});
     view=next; confirmForget=false; render();
     byId('exViewTitle')?.focus({preventScroll:true});
-    root.scrollIntoView({block:'start'});
+    const box=scroller(); if(box)box.scrollTop=0;
   }
   function leave() {
     if (trail.length) {
       navigation++;const previous=trail.pop();view=previous.view;confirmForget=false;render();
       const target=(previous.id&&byId(previous.id)) || [...root.querySelectorAll('[data-ex-action]')].find(node=>node.dataset.exAction===previous.action);
       (target||byId('exViewTitle')||byId('exTitle'))?.focus({preventScroll:true});
-      window.scrollTo(0,previous.scroll);return;
+      const box=scroller(); if(box)box.scrollTop=previous.scroll;return;
     }
-    const place = origin; hide(); host.restore(place);
+    close();
   }
   async function open(hooks, place, context) {
     const styles=ensureRoot(), token=++epoch; host = hooks; origin = place; opened = true; view = 'conversation'; trail = []; forgot = false; message = '';
     incoming = context || null; includeIncoming = false; correctionTarget = null; correctionText = '';suggestionMessage='';
-    byId('memoryPanel').classList.add('exploration-active');
-    ['memoryTitleRow','memoryContent','memoryFooter'].forEach(name=>{byId(name).hidden=true;});
-    byId('memoryPanel').setAttribute('aria-labelledby','exTitle'); root.hidden = false;
+    const arriving = root.hidden || !root.childElementCount;
+    root.hidden = false; shownPrompt = ''; turnCount = 0; surface(true);
+    if (phone.matches && !history.state?.explore) history.pushState({explore:true}, ''); // back gesture closes Explore
+    if (arriving) motion('entering');
     await styles;
     if(!opened||token!==epoch)return;
     await load();
@@ -89,14 +132,8 @@
     } else if (result.notFound) { doc = null; revision = null; }
     else { message = 'Connect Dropbox or come back online to open your exploration.'; recovery = 'reload'; }
     await refreshSources(false);if(!validSession(token))return;
-    const panel=byId('memoryPanel'), priorHeight=panel.getBoundingClientRect().height;
-    render(); decorate();panel.removeAttribute('aria-busy');
-    if(!_motionReduced()) {
-      const timing={duration:_motionDuration('--dur-base'),easing:_motionEasing('--ease-out')};
-      const height=panel.getBoundingClientRect().height;
-      if(priorHeight&&height!==priorHeight)arrivalMotion=panel.animate([{height:priorHeight+'px'},{height:height+'px'}],timing);
-      root.querySelector('.ex-body')?.animate([{opacity:0},{opacity:1}],timing);
-    }
+    render(); decorate(); root.removeAttribute('aria-busy');
+    if(!_motionReduced()) arrivalMotion=root.querySelector('.ex-body')?.animate([{opacity:0},{opacity:1}],{duration:_motionDuration('--dur-base'),easing:_motionEasing('--ease-out')});
     byId('exTitle')?.focus({preventScroll:true});
   }
   async function commit(next) {
@@ -141,10 +178,16 @@
     return `<details class="ex-today" id="exTodayContext"><summary>TODAY context · ${chosen.length} records</summary><p class="ex-muted">Selected for the next reply from your question and latest words. Connections remain tentative. Replies may quote this context and stay in your document’s history until you forget it.</p>${[...chosen,...omitted].map(source=>`<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${h(source.source_type)}${policy.excluded.includes(source.id)?' · left out':''}</span>${h(source.text)}<span class="ex-source">${h(source.selection_reason||'left out of this exploration')}</span></span>${action('today-source',policy.excluded.includes(source.id)?'include':'leave out',`data-today-source-id="${h(source.id)}" ${busy?'disabled':''}`)}</div>`).join('')||'<p>No close wording match is available yet. Your notes can still lead.</p>'}${browse}${action('today-toggle','use only my notes',disabled)}</details>`;
   }
 
+  // The header control only ever hides Explore; sub-pages carry their own way back.
+  const chevron = d => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="${d}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   function controls() {
+    const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
+    return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M12 5l-5 5 5 5'),`aria-label="${label}"`,'ex-hide')}`;
+  }
+  function backLink() {
     const parent=trail.at(-1)?.view;
-    const back=parent ? parent==='conversation'?'back to conversation':parent==='notes'?'back to note':parent==='document'?'back to document':'back' : origin?.kind==='memory'?'back to Memory':'back to Today';
-    return `<div class="config-title-row ex-header"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('back',h(back))}</div>`;
+    const label=parent==='notes'?'living note':parent==='document'?'your document':'conversation';
+    return action('back',`<span aria-hidden="true">‹ </span>${label}`,`aria-label="Back to ${label}"`,'memory-item-btn ex-subnav');
   }
   function notice() {
     const text = message === 'Kept in your Dropbox' ? '' : message || (!doc && busy ? 'Opening your exploration…' : '');
@@ -161,12 +204,10 @@
     let html=title(doc.question);
     if(!latestUser&&!currentReply&&doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-resume"><span class="ex-source">Where we left off</span><p>${h(reading?.summary || 'Bring an experience, a contradiction, or something you want to understand.')}</p></div>`;
     html+=turnsHTML(sessionEntries,reading);
+    if(pendingReading)html+='<div class="ex-turn ex-thinking"><span class="ex-source">TODAY</span><p>Thinking…</p></div>';
     if(!reading&&doc.entries.some(entry=>entry.kind==='reading'))html+='<p class="ex-muted">The earlier reading is withheld because its sources changed. Your words remain.</p>';
     if(draftWorkspace&&draftWorkspace!==doc.workspace_id)html+=`<p>Your draft belongs to a different document. ${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</p>`;
-    html+=`<div class="ex-composer"><label for="exThought">${h(reading?.next_question || (doc.entries.some(entry=>entry.kind==='observation')?'What has stayed with you, or happened since then?':'What brought this question to mind?'))}</label>
-      <textarea id="exThought" rows="3" maxlength="8000" placeholder="In your own words…" enterkeyhint="send" aria-describedby="exReplyHint" data-today-input="exploration.draft" data-today-keydown="exploration.reply-key" ${busy||pendingReading?'readonly aria-busy="true"':''}>${h(draft)}</textarea>
-      ${incoming?`<div class="ex-context"><span class="ex-source">${incoming.source_type==='task'?'From your task':'AI reading · not your statement'}</span><p>${h(incoming.text)}</p>${action('include',includeIncoming?'leave out':'include in reply',disabled)}</div>`:''}
-      <div class="ex-reply-actions"><span class="ex-muted" id="exReplyHint">${pendingReading?'Thinking…':matchMedia('(pointer: fine)').matches?'Enter to reply · Shift + Enter for a new line':''}</span>${action('send','<span aria-hidden="true">↑</span>',`id="exSend" aria-label="Send reply" ${disabled} ${!draft.trim()||(draftWorkspace&&draftWorkspace!==doc.workspace_id)?'disabled':''}`,'memory-item-btn ex-submit')}</div></div>`;
+    html+=incomingHTML(disabled);
     if(retryReading&&retryId&&!busy&&!pendingReading)html+=`<p class="ex-muted">Your last reply is kept. ${action('retry-ai','try reply again',disabled)}</p>`;
     html+=`<div class="ex-links">${action('notes','living note','id="exNotes"')}${action('history','earlier conversation')}${action('sources','sources')}</div>`;
     return html;
@@ -196,7 +237,8 @@
   function privacyHTML(disabled) {
     return title('Privacy & forget')+`<div class="ex-privacy"><p>This document lives in your Dropbox at ${h(files.path)}. It is held in this page while open, outside TODAY’s task backup. Updates need a connection. Reloading an unsent draft can lose it; export it first.</p><p>Each reply uses your supplied notes, the current thread and a bounded selection of relevant TODAY records. Other chats and private checkpoints are not automatically available. The installed Life skill does not run inside TODAY. No exploration happens between visits, and no reminder has been scheduled.</p><p>Clearing Memory withholds dependent readings; this separate document and its reply history stay. Forget removes this document and page-held records. Dropbox may retain recoverable versions under your account policy. Your tasks stay.</p>${action('forget','forget exploration',disabled)}${confirmForget?`<p>Remove this exploration document from Dropbox?</p>${action('forget-confirm','yes, forget',disabled)}${action('forget-cancel','keep it')}`:''}</div>`;
   }
-  function secondaryHTML(reading,disabled) {
+  function secondaryHTML(reading,disabled) { return backLink()+secondaryBody(reading,disabled); }
+  function secondaryBody(reading,disabled) {
     if(view==='notes')return notesHTML(reading,disabled);
     if(view==='sources')return sourcesHTML(reading,disabled);
     if(view==='step')return stepHTML(reading,disabled);
@@ -208,6 +250,57 @@
     if(view==='correct')return title('Your wording')+`<label for="exCorrection">How would you put it?</label><textarea id="exCorrection" rows="5" maxlength="8000" data-today-input="exploration.correction">${h(correctionText)}</textarea><p class="ex-muted">Your correction stays alongside the earlier version. It does not verify an explanation.</p>${reading?.id===correctionTarget?action('amend','keep correction',disabled):'<p>The supporting reading changed. Your wording is still here; return to the note to review it.</p>'}${action('cancel-correction','cancel')}`;
     return '';
   }
+  function incomingHTML(disabled) {
+    return incoming?`<div class="ex-context"><span class="ex-source">${incoming.source_type==='task'?'From your task':'AI reading · not your statement'}</span><p>${h(incoming.text)}</p>${action('include',includeIncoming?'leave out':'include in reply',disabled)}</div>`:'';
+  }
+  // Pinned composer, built like the daily add bar. TODAY's next question rises in with a new
+  // reply and folds away once you start answering; it stays the field's description.
+  function composerHTML() {
+    if(forgot) return '';
+    let id, field, value, prompt, locked = busy || pendingReading, promptKey;
+    if(!doc){
+      if(!grant()||busy||!loaded) return '';
+      id='exQuestion'; value=setupQuestion;
+      field=(lock,text)=>`<textarea id="exQuestion" class="ex-input" rows="1" maxlength="8000" placeholder="In your own words…" enterkeyhint="send" aria-describedby="exPrompt" data-today-input="exploration.question" data-today-keydown="exploration.start-key" ${lock?'readonly aria-busy="true"':''}>${h(text)}</textarea>`;
+      prompt='What happened, or what feels unresolved?'; promptKey='start';
+    } else {
+      if(view!=='conversation') return '';
+      const reading=chosenReading();
+      id='exThought'; value=draft;
+      field=(lock,text)=>`<textarea id="exThought" class="ex-input" rows="1" maxlength="8000" placeholder="In your own words…" enterkeyhint="send" aria-describedby="exPrompt" data-today-input="exploration.draft" data-today-keydown="exploration.reply-key" ${lock?'readonly aria-busy="true"':''}>${h(text)}</textarea>`;
+      prompt=reading?.next_question || (doc.entries.some(entry=>entry.kind==='observation')?'What has stayed with you, or happened since then?':'What brought this question to mind?');
+      promptKey=reading?.id || 'open';
+    }
+    const show = !value.trim() && !pendingReading, fresh = show && promptKey !== shownPrompt;
+    if(show) shownPrompt = promptKey;
+    const voice = dictation(), live = !!voice?.active();
+    const mic = voice?.available() ? `<button type="button" class="add-mic-btn ex-mic${live?' live':''}" data-today-click="exploration.action" data-ex-action="dictate" aria-label="${live?'Stop dictating':'Dictate your reply'}" aria-pressed="${live}" ${locked?'disabled':''}><svg width="15" height="20" viewBox="0 0 15 20" fill="none" aria-hidden="true" focusable="false"><rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>` : '';
+    return `<div class="ex-prompt${show?' show':''}${fresh&&!_motionReduced()?' arriving':''}" id="exPromptWrap"><p id="exPrompt">${h(prompt)}</p></div>
+      <div class="ex-input-row"><label class="visually-hidden" for="${id}">Your reply</label>${field(locked,value)}${mic}</div>`;
+  }
+  function dictation() { try { return Today.use('voice-dictation'); } catch (_) { return null; } }
+  // Words land in the field unsent, so they can be read and edited before Enter.
+  function dictate(button) {
+    const voice = dictation(); if (!voice) return;
+    if (voice.active()) { voice.stop(); return; }
+    const field = byId('exThought') || byId('exQuestion'); if (!field || field.readOnly) return;
+    const token = epoch, workspace = doc?.workspace_id;
+    const started = voice.start((text, outcome) => {
+      const mic = root?.querySelector('[data-ex-action="dictate"]');
+      mic?.classList.remove('live'); mic?.setAttribute('aria-pressed','false'); mic?.setAttribute('aria-label','Dictate your reply');
+      if (!validSession(token) || doc?.workspace_id !== workspace) return;
+      const input = byId('exThought') || byId('exQuestion'); if (!input || input.readOnly) return;
+      if (text) {
+        input.value = (input.value.trim() ? input.value.replace(/\s*$/,' ') : '') + text;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus({ preventScroll: true });
+      }
+      window._a11yAnnounce?.(text ? 'Dictation added. Press Enter to send.' : outcome === 'unavailable' ? 'Dictation is unavailable here.' : 'Nothing was heard.');
+    });
+    if (started) { button.classList.add('live'); button.setAttribute('aria-pressed','true'); button.setAttribute('aria-label','Stop dictating'); promptFor('listening'); }
+  }
+  function fitInput(input) { if(!input)return; input.style.height=''; input.style.height=Math.min(input.scrollHeight+2, innerHeight*0.4)+'px'; }
+  function promptFor(value) { byId('exPromptWrap')?.classList.toggle('show', !value.trim() && !pendingReading); }
   function render() {
     if (!opened || !root) return;
     const editing=root.contains(document.activeElement)&&document.activeElement.matches('textarea,input:not([type=file]):not([type=checkbox])')?{id:document.activeElement.id,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
@@ -217,14 +310,18 @@
     const focusId=focused?.id;
     const disabled = busy || pendingReading ? 'disabled' : '';
     const reading=chosenReading();
-    let html=controls()+'<div class="ex-body">'+notice();
+    const box=scroller(), keep=box?box.scrollTop:0, turns=doc?doc.entries.length:0, newer=turns!==turnCount||pendingReading;
+    turnCount=turns;
+    let html='<div class="ex-body">'+notice();
     if(forgot)html+=title('Exploration forgotten')+'<p>The document was removed from Dropbox. Your daily tasks stay.</p>';
     else if(!doc){
       html+=title(loaded?'Start with an experience':'Open your exploration');
       if(!grant())html+=action('connections','connect Dropbox');
-      else if(!busy&&loaded)html+=`<p>You don’t need a finished question. Bring something that happened, or something you’re unsure about.</p><div class="ex-setup"><label class="visually-hidden" for="exQuestion">Something that happened, or something you’re unsure about</label><textarea id="exQuestion" rows="3" maxlength="8000" enterkeyhint="send" data-today-input="exploration.question" data-today-keydown="exploration.start-key">${h(setupQuestion)}</textarea>${incoming?`<div class="ex-context"><span class="ex-source">${incoming.source_type==='task'?'From your task':'AI reading · not your statement'}</span><p>${h(incoming.text)}</p>${action('include',includeIncoming?'leave out':'include in reply',disabled)}</div>`:''}<details id="exSetupSources"><summary>Uses relevant tasks &amp; Memory</summary><p class="ex-muted">Your words and relevant TODAY records support this reply, kept in Dropbox. You can review or change sources before the next reply. Feelings and dreams stay separate.</p></details><div class="ex-send">${action('create',imported?'continue with this document':'send',disabled)}</div></div>`;
+      else if(!busy&&loaded)html+=`<p>You don’t need a finished question. Bring something that happened, or something you’re unsure about.</p><div class="ex-setup">${incomingHTML(disabled)}<details id="exSetupSources"><summary>Uses relevant tasks &amp; Memory</summary><p class="ex-muted">Your words and relevant TODAY records support this reply, kept in Dropbox. You can review or change sources before the next reply. Feelings and dreams stay separate.</p></details>${imported?`<div class="ex-send">${action('create','continue with this document',disabled)}</div>`:''}</div>`;
     }else html+=view==='conversation'?conversationHTML(reading,disabled):secondaryHTML(reading,disabled);
-    root.innerHTML=html+'</div>';
+    root.innerHTML=`<div class="ex-sheet-head">${controls()}</div><div class="ex-sheet-scroll">${html}</div></div><div class="ex-sheet-foot">${composerHTML()}</div>`;
+    const nextBox=scroller(); if(nextBox) nextBox.scrollTop = view==='conversation'&&newer ? nextBox.scrollHeight : keep;
+    fitInput(byId('exThought')||byId('exQuestion'));
     root.querySelectorAll('details[id]').forEach(node=>{const saved=detailState.find(state=>state.key===node.id);if(saved)node.open=saved.open;});
     if(editing){const input=byId(editing.id);if(input&&!input.disabled){input.focus({preventScroll:true});input.setSelectionRange(editing.start,editing.end);}}
     else if(focused){const target=focusId?byId(focusId):[...root.querySelectorAll('[data-ex-action]')].find(node=>JSON.stringify({...node.dataset})===focusData);(target&&!target.disabled?target:byId('exViewTitle')||byId('exNotesTitle'))?.focus({preventScroll:true});}
@@ -306,7 +403,7 @@
     async 'today-toggle'(){abortAI();const policy=doc.today_context||{enabled:false,excluded:[]};const next={...doc,schema_version:2,revision:doc.revision+1,updated_at:now(),today_context:{enabled:!policy.enabled,epoch:id(),excluded:policy.excluded,included:policy.included||[]}};if(await commit(next)){await refreshSources(false);render();}},
     async 'today-pin'(button){abortAI();const source=liveSources.find(row=>row.id===button.dataset.todaySourceId&&row.selectable!==false),policy=doc.today_context;if(!source||!policy)return;const ids=[...new Set([...(policy.included||[]).filter(id=>liveSources.some(row=>row.id===id&&row.selectable!==false)),source.id])];if(ids.length>8||ids.filter(id=>liveSources.find(row=>row.id===id)?.evidence_kind==='AI interpretation').length>2)return status('Choose up to eight records, including at most two AI readings. Leave one out to make room.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),included:ids,excluded:policy.excluded.filter(id=>id!==source.id)}}))render();},
     async 'today-source'(button){abortAI();const target=button.dataset.todaySourceId,policy=doc.today_context;if(!policy||!liveSources.some(source=>source.id===target))return;const excluded=policy.excluded.includes(target)?policy.excluded.filter(value=>value!==target):[...policy.excluded,target];if(excluded.length>96)return status('Disconnect TODAY context to clear all its influence.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),excluded,included:(policy.included||[]).filter(id=>id!==target)}}))render();},
-    back:leave, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'more-history'(){historyWindow+=24;render();},
+    back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'more-history'(){historyWindow+=24;render();},
     'more-sources'(){sourceWindow+=50;render();},
     connections(){hide();host.connections();}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
@@ -337,9 +434,9 @@
     'draft-export'(){download('exploration-unsent.md',draft||(!doc?setupQuestion:''));},'draft-clear'(){draft='';draftWorkspace=null;render();}
   };
   Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
-  Today.ui.register('input','exploration.draft',(_event,input)=>{draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
+  Today.ui.register('input','exploration.draft',(_event,input)=>{fitInput(input);promptFor(input.value);draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
   Today.ui.register('input','exploration.correction',(_event,input)=>{correctionText=input.value;});
-  Today.ui.register('input','exploration.question',(_event,input)=>{setupQuestion=input.value;});
+  Today.ui.register('input','exploration.question',(_event,input)=>{fitInput(input);promptFor(input.value);setupQuestion=input.value;});
   const submits=event=>event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229&&!event.repeat;
   Today.ui.register('keydown','exploration.start-key',event=>{if(submits(event)){event.preventDefault();if(!busy)createDocument();}});
   Today.ui.register('keydown','exploration.reply-key',event=>{if(submits(event)){event.preventDefault();send();}});
@@ -350,10 +447,24 @@
     try{const next={...doc,schema_version:2,revision:doc.revision+1,updated_at:now(),source_revision:id(),source_md:doc.source_md+'\n\n## Checkpoint added '+now()+'\n'+text};if(await commit(next)){retryId=null;status('Earlier notes added. Previous readings are withheld until you reply with this new context.');}}
     catch(_){busy=false;status('This checkpoint would exceed the document limit. Your existing document stays.');}
   });
+  document.addEventListener('keydown',event=>{
+    if(!opened||!root||root.hidden)return;
+    const inside=root.contains(document.activeElement);
+    if(event.key==='Escape'&&(inside||phone.matches)&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();leave();return;}
+    if(event.key!=='Tab'||!phone.matches||!inside)return;
+    const items=[...root.querySelectorAll('button:not([disabled]),textarea,input,summary,[href]')].filter(node=>node.getClientRects().length);
+    if(!items.length)return;
+    if(event.shiftKey&&document.activeElement===items[0]){event.preventDefault();items.at(-1).focus();}
+    else if(!event.shiftKey&&document.activeElement===items.at(-1)){event.preventDefault();items[0].focus();}
+  },true);
+  addEventListener('popstate',()=>{if(opened&&!history.state?.explore)close();});
+  window.visualViewport?.addEventListener('resize',fitViewport);
+  window.visualViewport?.addEventListener('scroll',fitViewport);
+  [wide,phone].forEach(query=>query.addEventListener('change',()=>{modality();fitViewport();render();}));
   document.addEventListener('today:memory-change',()=>refreshSources());
   document.addEventListener('today:memory-ready',()=>refreshSources());
   window.addEventListener('storage',event=>{if(event.key==='today_memory')refreshSources();});
   document.addEventListener('today:dropbox-disconnected',()=>{wipe();if(opened)status('Connect Dropbox to reopen your exploration.');});
   window.addEventListener('storage',event=>{if(['dropbox_refresh_token','dropbox_token'].includes(event.key)&&grant()!==activeGrant){wipe();if(opened)status('The Dropbox connection changed. Reopen the document.');}});
-  Today.define('exploration',{open,hide,refreshSources,clearInfluence(){hide();wipe();},document:()=>doc,decorate});
+  Today.define('exploration',{open,hide,close,isOpen:()=>opened,refreshSources,clearInfluence(){hide();wipe();},document:()=>doc,decorate});
 })();

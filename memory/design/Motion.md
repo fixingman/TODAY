@@ -64,6 +64,9 @@ Never write the bare keyword `ease-out`: it is the browser's gentle curve, not `
 
 ## Animation Types
 
+### Explore surface (v3.4.0)
+Wide: the panel slides in from the right (`exSlideIn`, `--dur-slow` / `--ease-out`; out `--dur-base` / `--ease-in`) while the list column re-centres over `--dur-slow`. Phone: head and conversation rise from below (`exRiseIn`) behind a still input row that crossfades (`fadeInPlain`), so the input area reads as fixed. TODAY's next question unfolds with `0fr → 1fr` + `--motion-rise` after a reply and folds away while answering. Reduced motion: none of it moves.
+
 ### Rows: one entry, one exit (v2.106.14)
 Every list row (task, habit, Trello card, AI breakdown, synced task) uses the two helpers in `util.js`:
 

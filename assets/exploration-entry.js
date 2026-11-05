@@ -57,11 +57,12 @@ async function preview(read=true){
         if(!isCurrent())return;
         await explorationUI.open({
           changed(doc){previewEpoch++;previewRead=null;previewState=null;previewGrant=account();explorationLinks(doc);},
+          // Explore sits beside Memory and the list, so closing it leaves both exactly as they were.
           restore(from){
-            if(from.wasOpen)Today.use('memory').render();
-            if (!from.wasOpen) $.memoryPanel.classList.remove('open');
-            Today.use('connections').syncActiveButtons();
-            const target = from.button?.isConnected && from.button.getClientRects().length ? from.button : document.getElementById(from.kind === 'memory' ? 'memoryContinue' : 'explorationEntry');
+            // Return focus to the opener; if it has gone (e.g. Memory closed meanwhile), the
+            // always-present list entry.
+            const visible = node => node?.isConnected && node.getClientRects().length;
+            const target = [from.button, from.kind === 'memory' && document.getElementById('memoryContinue'), document.querySelector('#explorationEntry button')].find(visible);
             target?.focus();
           },
           sources:()=>Today.use('exploration-context').collect(),
@@ -74,7 +75,6 @@ async function preview(read=true){
       } catch (error) { explorationLoading=null;throw error; }
     }
     const explorationObserver = new MutationObserver(()=>{
-      if (explorationUI && !$.memoryPanel.classList.contains('open') && $.memoryPanel.classList.contains('exploration-active')) explorationUI.hide();
       if (explorationDoc) explorationLinks();
       explorationUI?.refreshSources();
     });
@@ -85,5 +85,5 @@ async function preview(read=true){
 function disconnect(){previewEpoch++;previewRead=null;previewState=null;previewGrant='';explorationLinks(null);document.querySelector('#memoryThread')?.replaceChildren();}
 document.addEventListener('today:dropbox-disconnected',disconnect);
 window.addEventListener('storage',event=>{if(['dropbox_refresh_token','dropbox_token'].includes(event.key)&&account()!==previewGrant)disconnect();});
-Today.define('exploration-entry',{preview,open:openExploration,hide:()=>explorationUI?.hide(),clearInfluence:()=>explorationUI?.clearInfluence()});
+Today.define('exploration-entry',{preview,open:openExploration,hide:()=>explorationUI?.hide(),isOpen:()=>!!explorationUI?.isOpen?.(),clearInfluence:()=>explorationUI?.clearInfluence()});
 })();

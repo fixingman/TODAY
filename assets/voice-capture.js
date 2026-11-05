@@ -17,6 +17,8 @@ window._startVoiceCapture = (function() {
     let _starting = false;
     let _session = null;
     let _hideTimer = null;
+    let _sink = null;      // dictation target; null = add the words as a task (Shift+Space)
+    let _localOk = false;
 
     // Only call SpeechRecognition when the browser can explicitly guarantee
     // on-device processing. The legacy API may silently send mic audio to a
@@ -25,7 +27,7 @@ window._startVoiceCapture = (function() {
     if (SR && typeof SR.available === 'function') {
       try {
         _localReady = Promise.resolve(SR.available({ langs: [lang], processLocally: true }))
-          .then(status => status === 'available')
+          .then(status => (_localOk = status === 'available'))
           .catch(() => false);
       } catch (_) {}
     }
@@ -146,6 +148,7 @@ window._startVoiceCapture = (function() {
     function _finish(session, text, outcome) {
       if (!session || session.finalized) return;
       session.finalized = true;
+      if (_sink === session.sink) _sink = null;
       clearTimeout(session.capTimer);
       _stopActivityMeter(session);
       session.stream?.getTracks().forEach(track => track.stop());
@@ -157,7 +160,12 @@ window._startVoiceCapture = (function() {
       session.pieces = [];
       session.apiKey = '';
       session.stream = null;
-      if (clean) {
+      const sink = session.sink;
+      if (sink) {
+        // Dictation hands the words to the field that asked; the field keeps them unsent.
+        _setPillState('hidden');
+        sink(clean, clean ? 'added' : (outcome || 'empty'));
+      } else if (clean) {
         Today.use('task-actions').addTaskFromText(clean);
         _showThenHide('added', 700);
       } else {
@@ -197,7 +205,7 @@ window._startVoiceCapture = (function() {
     function _startLocal() {
       const recognition = new SR();
       const session = {
-        mode: 'local', recognition, pieces: [], finalized: false,
+        mode: 'local', recognition, pieces: [], finalized: false, sink: _sink,
         stopRequested: false, capTimer: null,
       };
       _session = session;
@@ -234,7 +242,7 @@ window._startVoiceCapture = (function() {
 
     async function _startRecorder(apiKey, mimeType) {
       const session = {
-        mode: 'recorder', apiKey, mimeType, recorder: null, stream: null,
+        mode: 'recorder', apiKey, mimeType, recorder: null, stream: null, sink: _sink,
         parts: [], finalized: false, stopRequested: false, capTimer: null,
         activityTimer: null, activityAvailable: false, voicedMs: 0,
         audioContext: null, audioSource: null, audioAnalyser: null,
@@ -246,7 +254,7 @@ window._startVoiceCapture = (function() {
         if (!_held || _session !== session) {
           stream.getTracks().forEach(track => track.stop());
           if (_session === session) _session = null;
-          _starting = false;
+          _starting = false; _sink = null;
           _setPillState('hidden');
           return;
         }
@@ -278,7 +286,7 @@ window._startVoiceCapture = (function() {
       _starting = true;
       _setPillState('starting');
       const local = await _localReady;
-      if (!_held) { _starting = false; _setPillState('hidden'); return; }
+      if (!_held) { _starting = false; _sink = null; _setPillState('hidden'); return; }
       if (local) { _startLocal(); return; }
 
       const apiKey = _geminiKey();
@@ -287,6 +295,7 @@ window._startVoiceCapture = (function() {
       if (apiKey && mediaReady) { _startRecorder(apiKey, mimeType); return; }
 
       _starting = false;
+      if (_sink) { const sink = _sink; _sink = null; _held = false; sink('', 'unavailable'); return; }
       _showThenHide('unavailable', 1800);
     }
 
@@ -327,6 +336,22 @@ window._startVoiceCapture = (function() {
       if (event.code === 'Space') event.preventDefault();
       _releaseCapture();
     });
-    window.addEventListener('blur', () => { if (_held) _releaseCapture(); });
+    window.addEventListener('blur', () => { if (_held && !_sink) _releaseCapture(); });
+
+    // Tap-to-dictate for other fields (Explore). Same privacy order as Shift+Space:
+    // on-device recognition only, otherwise one ephemeral recording through the user's
+    // own Gemini connection; audio is never stored.
+    Today.define('voice-dictation', {
+      available() {
+        return _localOk || !!(_geminiKey() && navigator.mediaDevices?.getUserMedia && _recorderMime() !== null);
+      },
+      start(sink) {
+        if (_held || _starting || _session || typeof sink !== 'function') return false;
+        _sink = sink; _held = true; _startCapture();
+        return true;
+      },
+      stop() { if (_held) _releaseCapture(); },
+      active() { return _held || _starting || !!_session; },
+    });
   };
 }());

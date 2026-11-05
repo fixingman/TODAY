@@ -12,44 +12,39 @@
     let _knownWaitingOpen = false;
     let _computedPatterns = [];
     let explorationLoading = null, explorationUI = null, explorationOpening = 0, explorationPlace = null;
-    function restoreMemoryShell() {
-      explorationUI?.hide();
-      const root=document.getElementById('explorationRoot');if(root)root.hidden=true;
-      ['memoryTitleRow','memoryContent','memoryFooter'].forEach(id=>{document.getElementById(id).hidden=false;});
-      $.memoryPanel.classList.remove('exploration-active');
-      $.memoryPanel.removeAttribute('aria-busy');
-      $.memoryPanel.setAttribute('aria-labelledby','memoryTitle');
+    // Explore lives in its own surface (#explorationRoot.ex-sheet, outside the list column).
+    // Opening or closing it never hides, closes or re-renders Memory.
+    function explorationSheet() {
+      let root=document.getElementById('explorationRoot');
+      if(!root){root=document.createElement('aside');root.id='explorationRoot';document.body.append(root);}
+      root.className='ex-sheet';root.setAttribute('aria-labelledby','exTitle');
+      return root;
     }
     function cancelExplorationOpen() {
       explorationOpening++;
-      restoreMemoryShell();
-      if(explorationPlace?.wasOpen) renderMemoryPanel(); else $.memoryPanel.classList.remove('open');
-      Today.use('connections').syncActiveButtons();
+      explorationUI?.hide();
+      const root=document.getElementById('explorationRoot');if(root){root.hidden=true;root.replaceChildren();}
       explorationPlace?.button?.focus({preventScroll:true});
     }
     Today.ui.register('click','memory.exploration-cancel',cancelExplorationOpen);
     Today.ui.register('click','exploration.open',async(event,button)=>{
       event.stopPropagation();
       const token=++explorationOpening,kind=button.dataset.exOrigin||'memory';
-      const place={kind,button,wasOpen:kind==='memory'&&$.memoryPanel.classList.contains('open'),label:kind==='memory'?'← memory':'← today'};
+      const place={kind,button,wasOpen:kind==='memory'&&$.memoryPanel.classList.contains('open')};
       explorationPlace=place;
-      explorationUI?.hide();
-      let root=document.getElementById('explorationRoot');
-      if(!root){root=document.createElement('section');root.id='explorationRoot';$.memoryPanel.append(root);}
-      root.hidden=false;
-      root.innerHTML=`<div class="config-title-row"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="memory-item-btn" data-today-click="memory.exploration-cancel">${esc(kind==='memory'?'back to Memory':'back to Today')}</button></div><p class="memory-empty" role="status">Opening your exploration…</p>`;
-      ['memoryTitleRow','memoryContent','memoryFooter'].forEach(id=>{document.getElementById(id).hidden=true;});
-      $.memoryPanel.classList.add('exploration-active');
-      $.memoryPanel.setAttribute('aria-busy','true');
-      $.memoryPanel.setAttribute('aria-labelledby','exTitle');
-      if(!$.memoryPanel.classList.contains('open'))toggleMemory({exploration:true});
-      root.querySelector('#exTitle').focus({preventScroll:true});
+      if(explorationUI?.isOpen?.()){explorationUI.hide();}
+      const root=explorationSheet();
+      if(root.hidden||!root.childElementCount){
+        root.hidden=false;root.setAttribute('aria-busy','true');
+        root.innerHTML=`<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="ex-hide" data-today-click="memory.exploration-cancel" aria-label="Hide Explore"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="M12 5l-5 5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="ex-sheet-scroll"><p class="ex-status" role="status">Opening your exploration…</p></div><div class="ex-sheet-foot"></div>`;
+        root.querySelector('#exTitle').focus({preventScroll:true});
+      }
       try {
         explorationLoading ||= import('/assets/exploration-entry.js').then(()=>Today.use('exploration-entry'));
         explorationUI = await explorationLoading;
-        if(token!==explorationOpening||!$.memoryPanel.classList.contains('open')||!$.memoryPanel.classList.contains('exploration-active'))return;
-        await explorationUI.open(event,button,place,()=>token===explorationOpening&&$.memoryPanel.classList.contains('open')&&$.memoryPanel.classList.contains('exploration-active'));
-      } catch (_) { explorationLoading=null; if(token===explorationOpening){$.memoryPanel.removeAttribute('aria-busy');const notice=root.querySelector('[role=status]');if(notice)notice.textContent='Exploration could not open. Try opening it again.';if(window._a11yAnnounce)_a11yAnnounce('Exploration could not open. Try again.');} }
+        if(token!==explorationOpening||root.hidden)return;
+        await explorationUI.open(event,button,place,()=>token===explorationOpening&&!root.hidden);
+      } catch (_) { explorationLoading=null; if(token===explorationOpening){root.removeAttribute('aria-busy');const notice=root.querySelector('[role=status]');if(notice)notice.textContent='Exploration could not open. Try opening it again.';if(window._a11yAnnounce)_a11yAnnounce('Exploration could not open. Try again.');} }
     });
 
     function _parseAIText(data) {
@@ -61,7 +56,6 @@
       const scrollY = window.scrollY;
       const panel = $.memoryPanel;
       const isOpening = !panel.classList.contains('open');
-      if (!options.exploration) { explorationOpening++; restoreMemoryShell(); }
       if (isOpening) {
         Today.use('reflections').endFeedbackVisit();
         panel.style.animation = '';
@@ -112,12 +106,11 @@
       return viewLoading;
     }
     function renderMemoryPanel(){
-      if($.memoryPanel.classList.contains('exploration-active'))return;
       if(memoryView){$.memoryPanel.removeAttribute('aria-busy');memoryView.render(viewOptions());return;}
-      if(!$.memoryPanel.classList.contains('open')||$.memoryPanel.classList.contains('exploration-active'))return;
+      if(!$.memoryPanel.classList.contains('open'))return;
       $.memoryPanel.setAttribute('aria-busy','true');
       const target=document.getElementById('memoryContent');target.textContent='Opening Memory…';
-      prepareMemory().then(()=>{if($.memoryPanel.classList.contains('exploration-active'))return;$.memoryPanel.removeAttribute('aria-busy');if($.memoryPanel.classList.contains('open'))memoryView.render(viewOptions());}).catch(()=>{if($.memoryPanel.classList.contains('exploration-active'))return;$.memoryPanel.removeAttribute('aria-busy');target.textContent='Memory could not open. Try again.';});
+      prepareMemory().then(()=>{$.memoryPanel.removeAttribute('aria-busy');if($.memoryPanel.classList.contains('open'))memoryView.render(viewOptions());}).catch(()=>{if($.memoryPanel.classList.contains('exploration-active'))return;$.memoryPanel.removeAttribute('aria-busy');target.textContent='Memory could not open. Try again.';});
     }
 
     function _memoryGoToConnections() {
