@@ -93,7 +93,7 @@ try{
  await page.goto(base,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.Today&&document.body&&!document.body.hasAttribute('data-booting'),{timeout:20000});await waitForFonts(page);
  const click=async selector=>{for(let attempt=0;;attempt++){try{await page.$eval(selector,node=>node.scrollIntoView({block:"center"}));await page.click(selector);return;}catch(error){if(attempt>=3||!/detached|not clickable/i.test(error.message))throw error;await new Promise(resolve=>setTimeout(resolve,50));}}},wait=fn=>page.waitForFunction(fn,{timeout:10000});
  const send=async()=>{await page.focus('#exThought');await page.keyboard.press('Enter');};
- const start=async()=>{await page.focus('#exQuestion');await page.keyboard.press('Enter');};
+ const start=async()=>{await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await page.focus('#exQuestion');await page.keyboard.press('Enter');};
  // Sub-pages have their own back link; at the conversation the only way out is the hide control.
  const back=async()=>{await click(await page.$('#explorationRoot [data-ex-action="back"]')?'#explorationRoot [data-ex-action="back"]':'#explorationRoot [data-ex-action="hide"]');};
  await page.addScriptTag({content:await readFile(join(ROOT,'scripts/node_modules/axe-core/axe.min.js'),'utf8')});
@@ -129,7 +129,8 @@ try{
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0);
  const captured=await page.evaluate(()=>manualTasks.find(task=>task.text==='CAPTURE_WITH_EXPLORE_FICTION').id);
  await click('.task-delete[data-taskid="'+captured+'"]');await wait(()=>!manualTasks.some(task=>task.text==='CAPTURE_WITH_EXPLORE_FICTION'));
- await page.setViewport({width:1024,height:900});
+ // Crossing the docking width re-renders the surface; let it settle before typing into it.
+ await page.setViewport({width:1024,height:900});await wait(()=>document.getElementById('main-app').inert);await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
 
  await start();await wait(()=>document.querySelector('.ex-status').textContent.includes('Bring an experience'));assert.equal(await page.$('[data-ex-action="reload"]'),null,'Empty first message keeps a useful prompt rather than a reload');
  await page.type('#exQuestion','A fictional exploration');
