@@ -6,6 +6,10 @@
 
 Developer tooling only; application/SW version stays3.3.3. Add a compact fresh owning-suite preflight that excludes ignored state and reuses dependencies/browser; repair Conductor setup/archive hooks without shared-root pulls or hidden failures; add an opt-in candidate-bound `CI-Validation: full` request. Consolidate instruction ownership while preserving historical text, numbered invariants and open reminders. Publishing permissions, exact-commit proof, first-attempt requirements and performance budgets are unchanged. Nothing in this entry grants commit/push authorization.
 
+## Release test repair (app v3.4.0)
+
+The full Linux release run42017315917 retained61 first-pass suites and one nudge fallback-upgrade flake; its diagnostic retry does not approve publication. Hold the fictional AI response until the real5s fallback is visible, mark the fallback touched to exclude automatic late swapping, then exercise the explicit cached-reading backstop. Keep the original overall deadline and all assertions; require the fallback to remain until that backstop. Busy-renderer controls reject the old driver, accept the repaired driver and reject a deliberately suppressed backstop. Product runtime, privacy scope and budgets are unchanged; the repaired commit requires its own full hosted proof.
+
 ## Application releases
 
 | Version | Key change |

@@ -1059,24 +1059,33 @@ try {
       const result = await page.evaluate(async () => {
         localStorage.removeItem('day_nudge_dismissed_' + _localISO());
         localStorage.setItem('today_ai_key_claude', 'test-key'); localStorage.setItem('today_ai_provider', 'claude');
-        window.fetch = () => new Promise(r =>
-          setTimeout(() => r({ ok: true, json: async () => ({ content: 'AI upgraded line.' }) }), 5600)
-        );
-        // Keep the former 6s + fade/3s overall bound, but wait for the prerequisite.
+        // Hold the response until the real 5s cap has rendered the fallback.
+        // A wall-clock response delay also counted unrelated renderer/startup work.
+        let deliver;
+        window.fetch = () => new Promise(resolve => {
+          deliver = () => resolve({ ok: true, json: async () => ({ content: 'AI upgraded line.' }) });
+        });
+        // Keep the former 6s + fade/3s overall bound.
         const deadline = performance.now() + 6000 + _motionDuration('--dur-slow') * 2 + 3000;
         const nudge = document.getElementById('dayNudge');
-        let fallbackObserved = false;
-        checkDayNudge(); // fallback at 5s; asynchronous work can delay cache acceptance past 6s
-        while (localStorage.getItem('day_nudge_ai_' + _localISO()) !== 'AI upgraded line.' && performance.now() < deadline) {
-          fallbackObserved ||= nudge.textContent.includes('still here from yesterday');
+        checkDayNudge();
+        while ((!deliver || !nudge.textContent.includes('still here from yesterday')) && performance.now() < deadline) {
           await new Promise(r => setTimeout(r, 50));
         }
+        const fallbackObserved = nudge.textContent.includes('still here from yesterday');
+        // A touched fallback cannot use the automatic late swap: this case owns the backstop.
+        nudge.dispatchEvent(new Event('pointerdown'));
+        deliver?.();
+        while (localStorage.getItem('day_nudge_ai_' + _localISO()) !== 'AI upgraded line.' && performance.now() < deadline) {
+          await new Promise(r => setTimeout(r, 50));
+        }
+        const fallbackKeptUntilBackstop = nudge.textContent.includes('still here from yesterday');
         const lateCacheReady = localStorage.getItem('day_nudge_ai_' + _localISO()) === 'AI upgraded line.';
         checkDayNudge(); // exercise the real backstop only after its cached line exists
         // Assert the displayed reading inside the same overall bound.
         while (!nudge?.textContent.includes('AI upgraded line.') && performance.now() < deadline) await new Promise(r => setTimeout(r, 50));
         return {
-          fallbackObserved, lateCacheReady,
+          fallbackObserved, fallbackKeptUntilBackstop, lateCacheReady,
           nudgeVisible:    !!(nudge && nudge.classList.contains('visible')),
           hasUpgradedText: !!(nudge && nudge.textContent.includes('AI upgraded line.')),
         };
