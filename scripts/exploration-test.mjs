@@ -197,7 +197,7 @@ try{
  assert.ok((await page.$eval('#explorationRoot',root=>root.textContent)).includes('UNSENT_CONFLICT'),'The earlier exchange stays visible during this visit');
  assert.equal(await page.$('[data-ex-action="reload"],#exTodayContext'),null,'Healthy conversations do not regain administrative controls');
  await page.type('#exThought','UNSENT_TOOLS_FICTION');await click('#exNotes');await click('[data-ex-action="document"]');await checkLayout('document');await click('[data-ex-action="record"]');await checkLayout('markdown');assert.equal(await page.$('#exNotesTitle,#exThought,[data-ex-action="privacy"]'),null,'Raw document replaces the parent');await back();
- assert.ok(await page.$('[data-ex-action="draft-export"]'),'Unsent text export remains available without Document tools');
+ assert.ok(await page.waitForSelector('[data-ex-action="draft-export"]',{timeout:10000}).catch(()=>null),'Unsent text export remains available without Document tools');
  await click('[data-ex-action="draft-clear"]');await back();await back();
  assert.equal(await page.$eval('#exThought',node=>node.value),'');
  await page.evaluate(()=>{__explorationTest.failReplyWrite=true;});await page.type('#exThought','WRITE_RECOVERY_FICTION');await send();
