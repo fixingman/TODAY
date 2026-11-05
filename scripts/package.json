@@ -6,6 +6,8 @@
   },
   "description": "Dev-only tooling for TODAY — not part of the app",
   "scripts": {
+    "check:fresh": "bash dev.sh fresh",
+    "workspace:setup": "bash dev.sh setup",
     "test": "node test-all.mjs",
     "performance": "node performance-test.mjs",
     "performance:write": "node performance-test.mjs --write",

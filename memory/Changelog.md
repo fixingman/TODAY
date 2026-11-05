@@ -2,9 +2,9 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
-## Unreleased engineering changes
+## Engineering workflow (app v3.4.0)
 
-Developer tooling only; application/SW version stays3.3.3. Add a compact fresh owning-suite preflight that excludes ignored state and reuses dependencies/browser; repair Conductor setup/archive hooks without shared-root pulls or hidden failures; add an opt-in candidate-bound `CI-Validation: full` request. Consolidate instruction ownership while preserving historical text, numbered invariants and open reminders. Publishing permissions, exact-commit proof, first-attempt requirements and performance budgets are unchanged. Nothing in this entry grants commit/push authorization.
+Developer tooling only; no additional application/SW version bump. Add a compact fresh owning-suite preflight that excludes ignored state and reuses dependencies/browser; repair Conductor setup/archive hooks without shared-root pulls or hidden failures; add an opt-in candidate-bound `CI-Validation: full` request. Consolidate instruction ownership while preserving historical text, numbered invariants and open reminders. Publishing permissions, exact-commit proof, first-attempt requirements and performance budgets are unchanged. Nothing in this entry grants commit/push authorization.
 
 ## Release test repair (app v3.4.0)
 

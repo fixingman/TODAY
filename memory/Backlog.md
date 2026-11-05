@@ -19,7 +19,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 **Can’s top product priority remains AI continuous improvement, #15.** v3.0.0 is published on master; remaining real-use acceptance and the explicitly deferred style work stay open. Original IDs are preserved; priority below is work rank, not release numbering. A waiting gate does not prevent useful work on a lower row.
 
-**Release verification:** use the [current receipt](../docs/ci-release-evidence.md#latest-verified-release). Product/account follow-ups and existing roadmap gates remain open until their own acceptance conditions are met.
+**Release verification:** use the [recorded proof and exact-candidate contract](../docs/ci-release-evidence.md#recorded-full-release-proof). Product/account follow-ups and existing roadmap gates remain open until their own acceptance conditions are met.
 
 ### Priority table
 

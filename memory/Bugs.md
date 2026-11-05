@@ -15,12 +15,14 @@
 
 ## Status Summary
 
+Current publication/CI evidence is maintained once in the [release contract](../docs/ci-release-evidence.md#recorded-full-release-proof). Historical local and failed-run receipts below remain history; they do not supersede that result. Installed/account/usefulness verdicts remain separate.
+
 > Descriptions state the symptom; status and release/reference have separate columns. Local versions are unreleased candidates.
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 144 | 🔧 Local | Exploration opens late, flashes content and exposes unclear or redundant controls. | v3.3.0 |
-| 143 | 🔧 Local | Exploration rejects valid structured AI replies and suggestions. | v3.3.0 |
+| 144 | ⏳ Verify | Exploration opens late, flashes content and exposes unclear or redundant controls. | v3.3.0 |
+| 143 | ⏳ Verify | Exploration rejects valid structured AI replies and suggestions. | v3.3.0 |
 | 142 | ⏳ Verify | Full release visual gate samples the bottom input fade as page background at320px. | v3.2.2 |
 | 141 | ⏳ Verify | Repeated dev CI failures: legacy feeling-feedback records survive source edits or withdrawal. | v3.0.8 |
 | 140 | ✅ Verified | Morning-reading reason chips and wording panel cut off on phones after "not really". | v2.106.11 |

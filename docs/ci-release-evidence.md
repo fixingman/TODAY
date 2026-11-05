@@ -2,6 +2,12 @@
 
 **Complete — October 30, v2.106.0 on dev/master (`2b5f229cb4f50d2d30559b62698d691aacbbb7c1`).** [Dev40962438500](https://github.com/fixingman/TODAY/actions/runs/40962438500) supplies accepted exact-SHA Linux proof: 61 suites, zero failures/flakes and all five performance runs. [Master40964846722](https://github.com/fixingman/TODAY/actions/runs/40964846722) verified `reuse=true` and passed in 15 seconds. Duplicate functional/performance work and npm/browser setup were skipped; cheap invariants and the final dependency check passed. Source artifact12937236095 and master artifact12937971159 digests/provenance were verified. Missing/incompatible proof keeps the full gate. The helper never promotes branches or changes repository protection.
 
+## Recorded full release proof
+
+v3.4.0 at `150a66e01189ce0c1d4fbe34efc1d3aa1e323c4c` was published on dev/master. [Dev42128795111](https://github.com/fixingman/TODAY/actions/runs/42128795111) passed all62 suites with zero failures/flakes and all five performance runs; [master42129968148](https://github.com/fixingman/TODAY/actions/runs/42129968148) verified reuse and passed. This receipt applies only to that commit; newer candidates require their own evidence. Installed/account/writing acceptance remains separate. Earlier failed receipts remain retained.
+
+Earlier v3.3.3 proof at `275930b2bd88d8aa59a36d229ba0e04b6ca67e6a`: [full dev41936998954](https://github.com/fixingman/TODAY/actions/runs/41936998954) and [master41938698136](https://github.com/fixingman/TODAY/actions/runs/41938698136).
+
 ## Commands
 
 Run from a clean checkout of the exact candidate, using the supported Node version. SHA means a full 40-character commit ID, never a version number or moving branch name.
@@ -12,7 +18,9 @@ npm run release:preflight --prefix scripts -- SHA --run RUN_ID
 npm run release:dispatch --prefix scripts -- SHA
 ```
 
-Status and preflight are read-only apart from refreshing remote-tracking refs and temporary artifact files. Neither pushes or modifies repository protection. Dispatch explicitly starts one full dev workflow for the recorded candidate, then returns; do not poll/wait. The default branch must already contain the same release workflow before dispatch is allowed. Dispatch checks current dev again and supplies `mode=release` plus `candidate=SHA`; the workflow checks that its candidate, checkout and executing workflow SHA agree.
+Status and preflight are read-only apart from refreshing remote-tracking refs and temporary artifact files. Neither pushes or modifies repository protection. For a normal dev push, an exact `CI-Validation: full` line in the candidate commit message additionally requests the complete functional/performance gate. This only escalates validation; default affected selection, shared/unknown fallbacks and all proof/promotion checks remain. The message must belong to the same candidate SHA. The flag never publishes a branch.
+
+Dispatch explicitly starts one full dev workflow for the recorded candidate, then returns; do not poll/wait. The default branch must already contain the same release workflow before dispatch is allowed. Dispatch checks current dev again and supplies `mode=release` plus `candidate=SHA`; the workflow checks that its candidate, checkout and executing workflow SHA agree.
 
 Without `--run`, preflight inspects the current successful dev runs for that SHA once. Missing, pending, failed, cancelled, partial, expired or incompatible evidence requests full release validation. It never silently accepts an old version-equivalent result. A selected-only run is not release approval; an automatic dev full fallback may supply proof only when every suite and all five performance runs actually passed.
 
@@ -48,7 +56,7 @@ Completed sequence:
 3. Exact-SHA preflight accepted v2.106.0 before its authorized identical-SHA master promotion. No metadata commit was added during promotion.
 4. The hosted master receipt verified reuse from dev40962438500/artifact12937236095, with duplicate setup/suites/benchmark skipped and cheap invariants/final dependency checks passing.
 
-All three CI-efficiency phases are complete. The first-of-five release measurement is retained locally in `.context/ci-phase3-enable/.context/release-metrics.json`; record the next four during normal releases, without creating extra runs. Ordinary local work stays targeted; promotion relies on authoritative hosted dev proof. Pending results never approve promotion. After dispatch/push, share the link/status and end the turn; review a compact completion report when asked, without polling. Rollback is `CI_RELEASE_REUSE: 'false'`, restoring full master functional and five-run performance checks; routine phase2 selection is independent. Keep original failures and deployed/installed BUG-135 open. Hosting BUG-138 was verified closed October 30 after Can disabled RUM and both origins stopped injecting it; CI has no dependency on RUM.
+All three CI-efficiency phases are complete. The first-of-five release measurement is retained locally in `.context/ci-phase3-enable/.context/release-metrics.json`; record the next four during normal releases, without creating extra runs. Ordinary local work stays targeted; promotion relies on authoritative hosted dev proof. Pending results never approve promotion. For a dev-only request, share the link/status and hand off; check completion when asked. An explicit dev-and-master request covers verification through the authorized promotion. Keep one release receipt and report meaningful milestones rather than repetitive waiting updates. Rollback is `CI_RELEASE_REUSE: 'false'`, restoring full master functional and five-run performance checks; routine phase2 selection is independent. Keep original failures and deployed/installed BUG-135 open. Hosting BUG-138 was verified closed October 30 after Can disabled RUM and both origins stopped injecting it; CI has no dependency on RUM.
 
 ## GitHub references
 

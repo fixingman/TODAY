@@ -15,12 +15,17 @@ export function executionPolicy(plan, env, event = {}) {
     (env.GITHUB_EVENT_NAME === 'push' && env.GITHUB_REF === 'refs/heads/dev') ||
     (env.GITHUB_EVENT_NAME === 'pull_request' && event.pull_request?.base?.ref === 'dev')
   );
-  const mode = dispatch && requested === 'shadow' ? 'shadow' : routine ? 'selected' : 'full';
+  // This can only add validation. It never permits skipping a required gate or promotion.
+  const explicitFull = env.GITHUB_EVENT_NAME==='push' && env.GITHUB_REF==='refs/heads/dev'
+    && /^CI-Validation:[ \t]*full[ \t]*$/m.test(event.head_commit?.message||'');
+  if(explicitFull && (!plan.head || event.head_commit.id!==plan.head))throw new Error('Full-validation request does not match the candidate commit');
+  const mode = dispatch && requested === 'shadow' ? 'shadow' : explicitFull ? 'full' : routine ? 'selected' : 'full';
   const performance = mode !== 'selected' || plan.performance === true;
   return {
     schema: 1, candidateSha: plan.head, mode, performance,
     runnerArgs: mode === 'selected' ? ['--changed'] : mode === 'shadow' ? ['--shadow'] : [],
-    reason: mode === 'selected' ? 'routine dev validation; planner full fallbacks remain active'
+    reason: explicitFull ? 'full validation explicitly requested by the candidate commit'
+      : mode === 'selected' ? 'routine dev validation; planner full fallbacks remain active'
       : mode === 'shadow' ? 'explicit full shadow checkpoint'
       : 'master/release/non-routine validation or routine selection disabled',
     plan,

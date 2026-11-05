@@ -1,203 +1,63 @@
-# Housekeeping & Maintenance
+# Development routines
 
-> Routines to keep the codebase and documentation optimized.
+Rules owns durable constraints; this file owns procedures. Current priorities are in Backlog, defects in Bugs, release history in Changelog, and proof requirements in the [CI contract](../docs/ci-release-evidence.md). The [previous routines](archive/Structure.md#housekeeping-snapshot-2026-11-05) remain available for historical detail.
 
-**CI efficiency complete (October 30, v2.106.0 dev/master):** routine dev work uses affected-suite selection with full fallbacks. Exact-SHA full Linux dev proof passed 61 suites, zero failures/flakes and all five performance runs; master verified reuse in 15 seconds, skipping duplicate suites/benchmark and dependency/browser setup while running cheap invariants and the final dependency check. Missing/incompatible proof restores the full gate; master-targeting PRs remain full. Local work stays targeted; after pushing, share the link/status and end the turn. [Accepted proof and operating contract](../docs/ci-release-evidence.md); [phase-2 shadow checkpoints](../docs/ci-shadow-checkpoints.md). Deployed/installed BUG-135 remains open. Hosting RUM BUG-138 is verified closed October 30 after Can disabled the setting and both origins stopped injecting the script.
+## Start a task
 
----
+1. Read Rules and the current Backlog priority. Consult the relevant defect, component and architecture entries.
+2. Check branch, worktree and staged changes. Preserve other sessions' edits; use explicit staging paths.
+3. Identify the intended behavior and the smallest useful verification. Design changes use the actual native component/tokens and the agreed design review workflow.
 
-## Pre-Session Checklist
+## Workspace hooks
 
-Before starting work:
+`bash scripts/dev.sh setup` prepares dependencies in this workspace only. It never pulls into the shared repository root and never swallows failures. A matching lockfile/install is reused. The launcher selects the already-installed CI Node for this command; it does not install Node or alter global runtime/routing settings.
 
-### 0. Log the session (3 lines, forces the scan)
-```
-Session N — vX.X.X · Nh
-Unverified bugs: BUG-XXX, BUG-XXX
-Goal: [what we're doing today]
-```
+`bash scripts/dev.sh archive` runs the existing invariants, including all runtime/tooling syntax checks, payload, release-metadata parity, memory inventory and whitespace. It replaces the old single-inline-script compilation.
 
-### 1. Read Tier 1 files
-1. `Rules.md` — Critical constraints + File Guide
-2. `Housekeeping.md` — This file (routines, checklists)
-3. `Backlog.md` — Pending work, watch decisions
-4. `Bugs.md` — Known bugs, fix status, verification steps
-5. `Changelog.md` — Recent changes
+Conductor reads shared repository settings from the remote default branch for local workspaces. Local edits to the hooks require the normal authorized publication before Conductor uses them; direct commands can be tested immediately. The development server and its allocated port remain unchanged.
 
-Then read Tier 2 files relevant to the task (see `Rules.md` File Guide).
+## Fast local verification
 
----
+- `npm run check:fresh --prefix scripts` runs smoke plus cheap invariants.
+- `npm run check:fresh --prefix scripts -- --suites exploration-test` runs that owning suite plus invariants. Multiple explicit suites are comma-separated.
+- The fresh snapshot includes current tracked edits, additions and deletions. It excludes ignored personal/generated state; unknown untracked paths are refused. It reuses Git objects, installed dependencies and the cached locked browser. It does not reinstall packages, download a browser or silently expand to the full gate.
+- Results are compact; detailed evidence stays in `.context/fresh-*/`. Temporary checkouts are removed. This is a local preflight, never hosted release proof.
+- Use affected-suite planning for wider verification when warranted. Shared or unknown changes retain existing full fallbacks. Five-run performance remains a release gate, not a routine fresh-check cost.
 
-## Post-Session Checklist
+## Dependable tests
 
-> **Ownership:** The agent maintains docs and performs independent verification. A reported technical defect may close with deployed checks or reproduction-equivalent actual-component tests when those cover its symptom and withdrawal/failure paths. Can verifies flows that depend on his live accounts, installed PWA or real-device experience; those product/account verdicts stay separate from a technically verified bug. Do not close an unresolved hosted failure from a different local pass.
+Wait for the actual prerequisite and then assert the observable outcome inside a bounded deadline. Use existing fixture clocks/fonts/readiness helpers. When a demonstrated timing bug appears, preserve the failure, build a causal control, repair the driver or product, and verify that a deliberately broken path is still rejected. Do not expand deadlines, remove tests or accept diagnostic retries simply to make the gate green. Track unresolved flake causes honestly.
 
-### 1. Update both Changelogs (per version bump — not just at session end)
-**The two changelogs have different audiences — write them differently:**
+Each fixture owns its output directories and cleanup. Tests must not depend on earlier `.context` files, a live account or another test's browser state. A fresh owning-suite run before publication catches this class of mistake cheaply.
 
-**a) `memory/Changelog.md`** — for dev sessions. Technical detail welcome: root causes, function names, design rationale.
-```markdown
-| **X.X.X** | **Feature name** — Brief description. |
-```
-After adding the new entry, count the rows. If there are more than 20, move the oldest excess rows (bottom of the table) to the top of `memory/archive/Changelog-archive.md` (after its `|---|---|` line). Do this in the same commit — not a separate session.
+## Documentation and versioning
 
-**b) `index.html` CHANGELOG object** — **user-facing** (renders in the About panel). Short, plain language, no lingo. Say what changed for the user, not how. One sentence, two max. No function names, no CSS properties, no root-cause archaeology, no version cross-references.
-```javascript
-'X.X.X': 'Feature name — what changed, in plain words.',
-```
-✗ `'Fix: #errorIndicator sat at top:8px but viewport-fit=cover draws under the status bar — offset by env(safe-area-inset-top).'`
-✓ `'Fix: error dot was hidden behind the status bar on mobile — now visible.'`
+- Update the owning behavior contract when behavior changes. Keep durable constraints in Rules, procedures here, current work/verification in Backlog/Bugs and release history in Changelog.
+- Record engineering-only changes in Changelog's engineering notes. They do not need an app/SW bump or an About announcement. Application changes follow Rules' existing semantic version scale and keep app/SW metadata aligned.
+- For application changes, add the new version at the top of the About CHANGELOG (exactly three entries), align the SW cache version, update DEV_HOURS and the technical changelog. Keep about twenty application rows in the technical changelog; move older excess rows to its archive in the same change. About copy describes the user-visible change in plain language. Engineering-only commit messages need no new app version.
+- Link a single release receipt instead of copying evolving CI narratives across files. Preserve historical receipts and evidence; do not silently close unrelated acceptance gates.
+- After moving documentation, verify critical rules and open reminders survived, relative links resolve and `bash memory/validate-files.sh` passes.
 
-### 2. Review & Update Memory Files
-**Every change should trigger a memory review.** Ask: "Does this change affect any documented behavior?"
-**If the change adds/modifies a recurring surface** (message, badge, panel, animation, AI feature): run the Wallpaper Test gates W1–W2 (`Test-matrix.md` → Design Review Gate). **Passing W1–W2 creates a dated row in `Backlog.md` → Watching** — `Surface | shipped vX.X.X | W3 due <ship date + 14d>` — so the day-14 check is an artifact, not something to remember. The loop only closes when that row is resolved (kept / iterated / removed).
-- Bug fix → `Bugs.md` (update status, add verification steps)
-- New rule → `Rules.md`
-- Data/localStorage change → `architecture/Data.md`
-- Sync behavior → `architecture/Sync.md`
-- AI companion → `architecture/AI.md`
-- Focus/timer → `architecture/Focus.md`
-- UI components → `design/Components.md`
-- Animation → `design/Motion.md`
-- Design philosophy → `design/Philosophy.md`
-- Colors/tokens → `design/Tokens.md`
-- User psychology → `research/Psychology.md`
-- Time/zones → `research/Temporal.md`
-- Integrations → `research/Integrations.md`
-- Prototype work → `Backlog.md`
+## Publish according to the request
 
-### 3. Version Bump
-- `index.html`: **`APP_VERSION` is derived** — `Object.keys(CHANGELOG)[0]`. Don't hand-type it;
-  add the new entry at the **top** of the `CHANGELOG` object and it follows automatically.
-- `index.html`: Update `DEV_HOURS` (add session time to current value)
-- `sw.js`: Update `CACHE_VERSION` to `today-v{newest version}` — the one value still hand-synced.
-  The smoke test asserts it matches and fails the pre-commit gate on drift, so it can't be forgotten.
+1. Review final/staged diffs and run the appropriate local checks. Commit/push only within the user's authorization.
+2. For a dev-only push, provide commit, CI link and current status, then hand off.
+3. For dev and master, request full dev validation on the committed candidate. Existing shared/unknown fallbacks remain. An explicit commit trailer `CI-Validation: full` requests all suites and all five performance runs on a normal dev push, without changing API permissions or application files just to select CI. It does not authorize master publication.
+4. Require complete successful exact-commit Linux evidence with no failed/flaky suites and all performance budgets passing. Run `release:preflight` immediately before the authorized identical-SHA fast-forward to master. Never amend or add a metadata commit between proof and promotion.
+5. Give one concise final receipt: version/commit, branches, CI links/status and remaining acceptance limits. During an end-to-end operation report useful milestones, not repeated descriptions of an unchanged wait.
 
-**Which digit → `Rules.md` § Version Bumping (vA.BB.CC).** Consult the table **before** writing the
-new number — 2.17.x ran 100+ patches (Jun 2026) because bumps were done reflexively without checking
-it; the daily poem should have been 2.18.0. No retroactive renumbering — the next qualifying feature
-rolls the minor.
+The existing `release:status`, `release:preflight` and `release:dispatch` commands remain authoritative. A dedicated end-to-end publish command is a possible follow-up; no new automatic branch-pushing service is enabled by these changes.
 
-**Commit type → segment** (so the type and the bump never disagree):
+## Product acceptance and maintenance
 
-| Commit type | Segment | |
-|---|---|---|
-| `feat` | **BB** (minor) | new feature / UI section / integration — reset CC to 0 |
-| `fix` `refactor` `style` `chore` `docs` | **CC** (patch) | fix / polish / cleanup / docs |
-| breaking / redesign / migration | **A** (major) | reset BB and CC to 0 |
+CI does not establish installed-device feel, live account access or useful AI writing. Retain the relevant manual/account checks in Bugs/Backlog. Recurring surfaces still require W1/W2 review in Test-matrix and a dated Backlog Watching row with the surface, shipped version and W3 due date (ship date + 14 days); do not infer that exposure or a positive unrelated reading unlocks deferred features.
 
-**Mixed commit → the highest applicable segment wins** (a feat+fix is a minor). When in doubt,
-round up — a patch that should have been a minor is the cheaper mistake than the reverse.
+Keep hosting privacy settings and the no-in-app-analytics rule. When those external settings change, verify fresh dev/production responses for unwanted injected scripts. Poem curation, rights checks, design judgments and existing privacy/sync boundaries retain their owning contracts.
 
-### 4. Commit Format
-```
-type: brief description (vX.X.X)
-```
-Types: `feat`, `fix`, `docs`, `refactor`, `style`, `chore`
+### Research and session conventions
 
-**Committing and pushing are human-gated** — prep the bump/changelog/doc updates automatically, but
-wait for Can to say so. When he does, commit and immediately push to `dev` — no separate
-confirmation needed for the push. Push to `master` only when explicitly asked.
-See `Rules.md` § Operating Mode for the full discipline-vs-gate split.
+Poem curation broadens discovery through library, university, regional/bilingual and author/translator archives before narrowing candidates. Use generic poetry sites as leads; verify exact text and public-domain rights. Search for a specific poem/collection before targeted fetching; do not bulk-fetch. Work inline, without agents. Display poems with real line breaks in blockquotes. Coda searches use the established browse skill rather than raw fetching.
 
-### 5. Reflect
-- What broke or was harder than expected?
-- Any pattern worth adding to `Rules.md`?
-- Any routine that failed? Fix it now, not later.
+Periodically review stale Backlog items, unresolved verification and due Wallpaper audits; do not close them because documentation moved. Review the final diff, especially files shared with another session.
 
----
-
-## Production Tests (Can's responsibility)
-
-> Run after deploying to production. Local automation covers many flows, while connected-account and real-device checks still need Can.
-> **See `Test-matrix.md` → Pre-Release Checklist (9 tests)**
-
-Quick smoke test after any deploy:
-- [ ] App loads, splash dismisses
-- [ ] Add task, check task, delete task
-- [ ] Sync triggers (if Dropbox connected)
-- [ ] No red dot appears
-- [ ] Visual intact — no broken layout
-
----
-
-## Periodic Maintenance
-
-> These run on a best-effort basis — not a hard schedule. Do them when the session is light or things feel cluttered.
-
-### Occasionally: Quality Check
-- Run from repo root: `bash memory/validate-files.sh` — checks all memory files are in File Guide
-- Review `Backlog.md` — any stale items to close or move to Not Implementing?
-- Check `Bugs.md` — any "awaiting" bugs that have been soaking for 3+ sessions? Follow up with Can.
-- **Wallpaper audit (W3):** any recurring surface shipped ~2+ weeks ago — ask Can whether it still delivers each time it appears, or has become skippable. Iterate or remove (removal is a valid outcome).
-
-### Occasionally: Documentation Audit
-- Any architecture doc drifting from reality? Spot-check against code
-- Update version references in performance audit, component docs
-
----
-
-## File Size Guidance
-
-No hard limits — but when files get large they slow down Tier 1 reads. Use judgement:
-
-| File | Note |
-|------|------|
-| `Rules.md` | Keep focused — if a rule belongs in a Tier 2 doc, move it there |
-| `Bugs.md` | Grows naturally — archive verified bugs older than ~3 months if file exceeds 400 lines |
-| `Changelog.md` | Keep last ~20 versions. Older entries → `Changelog-archive.md` |
-| Architecture docs | Split if over 200 lines |
-| Research docs | Keep concise — decided research should be < 50 lines |
-
----
-
-## Research and session conventions
-
-| Context | Use |
-|---------|-----|
-| Searching Coda | `/browse` skill — not raw WebFetch or grep |
-| Poem display in chat | Real line breaks, one per line, in a blockquote. Never `/` as an inline separator. |
-
-**Poem curation search process:** Broaden discovery before narrowing candidates — national libraries, university digital collections, regional/bilingual anthologies, oral-literature archives, historical journals, author/translator archives. Generic poetry sites only as leads or cross-checks; Gutenberg, Wikisource, and Internet Archive for exact text and PD verification. WebSearch to identify a specific poem or collection → targeted fetch of the relevant page only; no bulk-fetching. Work inline in the main conversation, not via agents.
-
----
-
-## Code Reading Discipline
-
-- Search filenames and symbols before opening large files; use `rg` when available, otherwise `grep`/`find`.
-- Read a useful surrounding range once. Re-read it if another session or an edit may have changed it.
-- Inspect the final diff before handoff, especially in files shared with another session.
-
----
-
-## Code Hygiene
-
-### Before Committing
-
-**CI handoff (Can, October 28):** after an authorized push, confirm the branch/commit, share the CI run link and current status, then end the turn. CI continues independently. Do not poll, run background watches, sleep or send repeated progress messages while waiting for hosted CI. A later status request gets one concise check; continuous monitoring requires an explicit request. When inspecting results, read the compact summary and only necessary failure logs. Existing validation and publication gates remain required.
-- [ ] **Hosting privacy check after hosting/analytics-setting changes:** keep Netlify RUM disabled. Verify fresh `/` and `/index.html` responses on dev and production contain no injected `netlify-rum-container` or `/.netlify/scripts/rum` script. BUG-138 was verified closed October 30; this external setting is independent of CI proof and performance budgets.
-- [ ] **Run affected checks for routine dev work:** `npm run test:changed --prefix scripts` (use `-- --base origin/dev` for a committed candidate). Inspect the plan/summary; shared or unknown inputs still run everything. Payload and invariants remain included. Selected passes are not release approval.
-- [ ] **After phase3 activation, release/master gate:** run affected local checks, then require one successful full Linux functional/five-run report for the exact committed dev candidate. Check `release:preflight` immediately before an authorized identical-SHA master fast-forward. Reuse a qualifying automatic full dev result; dispatch only when proof is missing. Master verifies proof plus cheap invariants, with full fallback. Do not repeat full local/dev/master gates by habit. Until activation is published, the existing full local/release gate remains in force. Payload limits and all timing budgets stay unchanged.
-- [ ] Run syntax check: `node -e "const fs=require('fs');const c=fs.readFileSync('index.html','utf8');const s=c.slice(c.indexOf('<script>')+8,c.lastIndexOf('</script>'));try{new Function(s);console.log('OK')}catch(e){console.log('ERROR:',e.message)}"`
-- [ ] **Run smoke test** (any change touching index.html/sw.js/assets): `node scripts/smoke-test.mjs` — boots the app headless, splash dismisses, add+check a task, zero uncaught errors. ~10s. First-time setup: `cd scripts && npm install`. Caught a real boot-killing TDZ crash on its first ever run (v2.17.99 dev).
-- [ ] **Run drag test** (any change touching `drag.js`, manual/Trello/habit reorder, or their persistence): `node scripts/drag-test.mjs` — covers desktop and touch reorder for all three lists, persistence/recency/autosave signals, guards, cross-list rejection, long-press cancellation, ghost/class cleanup, module wiring, and SW precaching.
-- [ ] **Run platform test** (any change touching `platform.js`, PWA installation, mobile keyboard positioning, service-worker registration, or bfcache handling): `node scripts/platform-test.mjs` — covers native install events, Safari/Firefox promotion, fixed-height instructions, standalone suppression, `visualViewport`, `/sw.js` registration, and persisted `pageshow` wake dispatch.
-- [ ] **Run service-worker test** (any change touching `sw.js`, the app-shell list, registration/update behavior, or offline fallback): `node scripts/service-worker-test.mjs` — installs the real worker, verifies every shell resource is cached, exercises update takeover and stale-cache purge, then loads both the cached app and branded fallback through failed network paths.
-- [ ] **Run timezone test** (any change touching `_getAppDay`, `_localISO`, habit rollover, or date boundaries): `node scripts/timezone-test.mjs` — fixed instants across Los Angeles, Kiritimati, and Kathmandu, including spring-forward and both fall-back 1am hours.
-- [ ] **Run voice capture test** (any change touching `voice-capture.js`, its Shift+Space gesture, microphone fallback, or transcription states): `node scripts/voice-capture-test.mjs` — verifies explicit on-device recognition, the one-blob Gemini fallback, both modifier-release orders, input/repeat guards, media cleanup, success, and honest failure.
-- [ ] **Run focus test** (any change touching the focus IIFE, `trello.js`, or the renderers): `node scripts/focus-test.mjs` — ~40s, silent on success. **How it works:** focus mode has exactly two legal states — OFF (no `.focused`, no `.focusing`, no persisted session, timer parked in `<body>`) and ON (exactly one `.focused` task that owns the timer, the persisted session and `.focusing`). Anything else is a bug, and every focus bug on record is one of those two being violated. The test defines both states once and re-checks after *every* operation, so it catches bugs we have not had yet — rather than scripting one assertion per past bug. A 12-row operation matrix walks all four reachable exit paths (escape, click-outside, task switch, check-off — BUG-065's root cause was that *every* exit leaked, so testing one would miss the rest), interleaving a render tick after each, plus rapid A→B→A inside the 200ms teardown window. Then: the invariant survives a reload, a render never resurrects focus (cold-start-only restore), cold-start restore still works, a session for an already-done task is discarded, background auto-complete records 25 min silently, and post-midnight completion preserves yesterday (BUG-063). Section 4 adds a **cross-device axis**: `mergeRemoteData()` takes a plain object, so another device is simulated with no Dropbox and no network — a value adopted from another device must arrive stamped as today's and survive the cleanup that runs after the restore (BUG-066), max must still win, and remote's yesterday total must never restore as today (BUG-024). **Why this area:** focus is 16 of 59 recorded bugs (27%). Teeth verified by reverting each of the four real fixes independently — all produce exit 1. Document PiP is behaviorally faked in-page to cover open-on-hide, mirrored state/accessibility, Open, Breathe/Resume, complete/Again, restart, Rest, close, and storage cleanup; real browser PiP remains a manual release check. Not covered (needs `taskStates` internals): `.complete` bleed (BUG-022/028), frozen 00:00 on re-open (BUG-027) — human checks in `Test-matrix.md`. Skip for docs/poem/prompt-only commits. If it goes flaky, delete it rather than nurse it.
-- [ ] **Run design lint** (any change touching CSS or user-facing strings): `node scripts/design-lint.mjs` — static analysis, no browser, ~1s. Catches hardcoded hex/rgba outside `:root` (Rule 19), `transition: all`, undefined CSS vars, banned vocabulary (Philosophy.md), exclamation marks in strings, missing `U+FE0E` emoji selectors (Rule 20, self-calibrated — flags a glyph if the *same* glyph carries the selector elsewhere in the file but this occurrence doesn't), and a soft Rule 27 render-path parity check. Mechanical only — it does not judge voice, taste, or philosophy fit.
-- [ ] **Run accessibility test** (any change touching reachable UI, semantics, contrast, focus, dialogs, or reordering): `node scripts/accessibility-test.mjs` — axe-core plus keyboard/state, hidden-tree, zoom, target-size, and 320px reflow assertions. Manual VoiceOver and real PiP passes remain required for releases that touch those surfaces.
-- [ ] **For anything touching voice, a new/changed recurring surface, or component design** — review against `Design.md` and its linked Philosophy, Tokens, Components, Motion, and Psychology notes, including the Wallpaper Test for recurring surfaces. Claude sessions may use `.claude/commands/design-review.md` for the same judgment review. This complements the mechanical gates.
-- [ ] No console.log debugging left
-- [ ] No hardcoded test values (like 10s idle timer)
-- [ ] Version numbers match across files
-- [ ] SW cache version updated
-
-### Naming Conventions
-- Functions: `camelCase`, prefix private with `_`
-- CSS tokens: `--kebab-case`
-- localStorage keys: `snake_case` with `today_` prefix
-- IDs: `type_timestamp` (e.g., `manual_1234567890`)
-
-**v2.106.0 release integration:** retain the published release-evidence.mjs, release-status.mjs and ci-final.mjs ownership. Retain the separately published v2.105.7 activation; this candidate requires its own verified full dev proof before master promotion. The default branch already contains the v2.105.6 workflow. No automatic branch promotion or post-push monitoring; unavailable proof requests full validation. The parallel unpublished CI alternative is archived under .context/15gd.
+When a repeated failure appears, fix or automate the demonstrated cause before adding another rule. Keep raw technical logs outside the always-read instruction files. File size and reading effort are maintenance signals, not reasons to discard unresolved evidence.

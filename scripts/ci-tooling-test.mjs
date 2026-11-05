@@ -5,6 +5,9 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
+import { existsSync, symlinkSync } from 'node:fs';
+import { freshSnapshot, dependenciesReady, childEnvironment, setupWorkspace, freshCheck } from './workspace-tools.mjs';
 import { PNG } from 'pngjs';
 const DIR = dirname(fileURLToPath(import.meta.url));
 const fixture = mkdtempSync(join(tmpdir(), 'today-ci-'));
@@ -18,6 +21,50 @@ const run = (file, args = [], extraEnv = {}) => spawnSync(process.execPath, [joi
   },
 });
 try {
+  // Developer preflights preserve the working tree while excluding ignored state.
+  {
+    const project=join(fixture,'fresh-project');mkdirSync(project);mkdirSync(join(project,'scripts'));mkdirSync(join(project,'assets'));
+    const git=(args)=>execFileSync('git',args,{cwd:project,encoding:'utf8',stdio:['ignore','pipe','pipe']});
+    git(['init','--quiet']);git(['config','user.email','fixture@example.invalid']);git(['config','user.name','Fixture']);
+    writeFileSync(join(project,'.gitignore'),'.context/\n.env\nscripts/node_modules/\n');
+    writeFileSync(join(project,'assets/state.js'),'original');writeFileSync(join(project,'scripts/removed.mjs'),'original');
+    git(['add','.gitignore','assets/state.js','scripts/removed.mjs']);git(['commit','--quiet','-m','fixture']);
+    const head=git(['rev-parse','HEAD']);
+    writeFileSync(join(project,'assets/state.js'),'working change');writeFileSync(join(project,'scripts/new.mjs'),'new');
+    rmSync(join(project,'scripts/removed.mjs'));mkdirSync(join(project,'.context'));writeFileSync(join(project,'.context','old-output'),'stale');writeFileSync(join(project,'.env'),'fictional-private');
+    const status=git(['status','--porcelain']);
+    const snapshot=freshSnapshot(project);
+    assert.equal(readFileSync(join(snapshot.checkout,'assets/state.js'),'utf8'),'working change');
+    assert.equal(readFileSync(join(snapshot.checkout,'scripts/new.mjs'),'utf8'),'new');
+    assert.ok(!existsSync(join(snapshot.checkout,'scripts/removed.mjs')));
+    assert.ok(!existsSync(join(snapshot.checkout,'.context'))&&!existsSync(join(snapshot.checkout,'.env')));
+    assert.equal(git(['rev-parse','HEAD']),head);assert.equal(git(['status','--porcelain']),status);
+    snapshot.cleanup();assert.ok(!existsSync(snapshot.directory));
+    writeFileSync(join(project,'unclassified.private'),'fictional');assert.throws(()=>freshSnapshot(project),/Classify or ignore/);rmSync(join(project,'unclassified.private'));
+    await assert.rejects(()=>freshCheck(project,['ai-test']),/registered non-live/);
+
+    // Setup operates in this workspace, reuses a matching install and propagates failure.
+    const packages={'':{name:'fixture'},'node_modules/example':{version:'1.0.0',integrity:'fixture'}};
+    writeFileSync(join(project,'scripts/package-lock.json'),JSON.stringify({packages}));
+    mkdirSync(join(project,'scripts/node_modules'));writeFileSync(join(project,'scripts/node_modules/.package-lock.json'),JSON.stringify({packages}));
+    assert.equal(dependenciesReady(project),true);
+    assert.equal(setupWorkspace(project,()=>{throw Error('unneeded install');}),0);
+    writeFileSync(join(project,'scripts/node_modules/.package-lock.json'),JSON.stringify({packages:{}}));
+    assert.equal(dependenciesReady(project),false);
+    assert.equal(setupWorkspace(project,(binary,args,options)=>{assert.equal(binary,'npm');assert.deepEqual(args.slice(0,3),['ci','--prefix','scripts']);assert.equal(options.cwd,project);return {status:7};}),7);
+    assert.throws(()=>setupWorkspace(project,()=>({error:Error('fixture failure')})),/fixture failure/);
+    const env=childEnvironment({GITHUB_OUTPUT:'fixture',GITHUB_SHA:'fixture',GH_TOKEN:'fictional',KEEP:'yes',PATH:'/fixture'});
+    assert.equal(env.KEEP,'yes');assert.ok(!('GITHUB_OUTPUT' in env)&&!('GITHUB_SHA' in env)&&!('GH_TOKEN' in env));
+
+    // Non-interactive hooks can select an already installed CI Node without changing the shell.
+    const bin=join(fixture,'old-node-bin'),nvm=join(fixture,'nvm');mkdirSync(bin);
+    const {chmodSync}=await import('node:fs');
+    writeFileSync(join(bin,'node'),'#!/bin/sh\nif [ "$1" = "--version" ]; then echo v20.0.0; else exit 17; fi\n');chmodSync(join(bin,'node'),0o755);
+    const current=join(nvm,'versions/node',process.version,'bin');mkdirSync(current,{recursive:true});symlinkSync(process.execPath,join(current,'node'));
+    const runtime=spawnSync('bash',[join(DIR,'dev.sh'),'runtime'],{encoding:'utf8',env:{...process.env,NVM_DIR:nvm,PATH:bin+':'+process.env.PATH}});
+    assert.equal(runtime.status,0,runtime.stderr);assert.equal(runtime.stdout.trim(),process.version);
+    console.log('  ✓ fresh snapshot includes working changes/deletions, excludes private/generated state, leaves source untouched; setup is scoped, cached and failure-visible; CI runtime selection is local');
+  }
   const runner = readFileSync(join(DIR, 'test-all.mjs'), 'utf8');
   writeFileSync(join(scripts, 'ci-policy.mjs'), `export const SUITE=['design-lint','fixture-test']; export const EXCLUDED={}; export const NON_TEST_SUITE=new Set(['design-lint']); export const GROUPS={fixture:{files:[],suites:SUITE}}; export const BASE=SUITE; export const DOC_BASE=SUITE;`);
   writeFileSync(join(scripts, 'ci-plan.mjs'), readFileSync(join(DIR, 'ci-plan.mjs')));
@@ -75,7 +122,7 @@ try {
   console.log('  ✓ full summaries retain counts, timings, environment and both attempts; failures/flakes still fail');
 
   // Exercise execution modes independently from selector classification.
-  writeFileSync(join(scripts,'ci-plan.mjs'), `export const auditPolicy=()=>[]; export const createRepoPlan=()=>({mode:'selected',suites:['design-lint'],reasons:['fixture plan']});`);
+  writeFileSync(join(scripts,'ci-plan.mjs'), `export const auditPolicy=()=>[]; export const createRepoPlan=()=>({head:'${'a'.repeat(40)}',mode:'selected',suites:['design-lint'],reasons:['fixture plan']});`);
   writeFileSync(join(scripts,'fixture-test.mjs'), 'console.error("outside selection");process.exit(1);');
   const shadow=run('test-all.mjs',['--shadow']);
   assert.equal(shadow.status,1);
@@ -94,6 +141,14 @@ try {
   const routineEnv = { CI_ROUTINE_SELECTION: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/dev', GITHUB_EVENT_PATH: eventPath };
   writeFileSync(eventPath, '{}');
   assert.equal(run('ci-execution.mjs', ['--run'], routineEnv).status, 0, 'routine entry point runs the selection');
+  writeFileSync(eventPath,JSON.stringify({head_commit:{id:'a'.repeat(40),message:'Release fixture\n\nCI-Validation: full'}}));
+  assert.equal(run('ci-execution.mjs',['--run'],routineEnv).status,1,'explicit full request retains failure outside the normal selection');
+  const fullRequest=JSON.parse(readFileSync(join(fixture,'.context/ci-execution.json'),'utf8'));
+  assert.equal(fullRequest.mode,'full');assert.equal(fullRequest.performance,true);assert.deepEqual(fullRequest.runnerArgs,[]);
+  writeFileSync(eventPath,JSON.stringify({head_commit:{id:'b'.repeat(40),message:'CI-Validation: full'}}));
+  const mismatched=run('ci-execution.mjs',['--run'],routineEnv);
+  assert.notEqual(mismatched.status,0);assert.match(mismatched.stderr,/does not match the candidate/);
+  writeFileSync(eventPath,'{}');
   assert.equal(run('ci-execution.mjs', ['--run'], { ...routineEnv, GITHUB_REF: 'refs/heads/master' }).status, 1, 'master cannot skip the failing suite');
   assert.equal(run('ci-execution.mjs', ['--run'], { ...routineEnv, CI_ROUTINE_SELECTION: 'false' }).status, 1, 'rollback restores full execution');
   for (const mode of ['release', 'shadow']) {
