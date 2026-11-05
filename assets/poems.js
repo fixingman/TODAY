@@ -248,12 +248,6 @@ const POEMS = [
     source: 'Rubáiyát, trans. Le Gallienne, 1897 — core two lines, stanza trimmed',
   },
   {
-    text: 'Awake! for Morning in the Bowl of Night\nHas flung the Stone that puts the Stars to Flight:\nAnd Lo! the Hunter of the East has caught\nThe Sultan\'s Turret in a Noose of Light.',
-    author: 'Omar Khayyám',
-    season: null,
-    source: "Rubáiyát I, trans. FitzGerald (1st ed. 1859), Gutenberg #246 (FitzGerald d. 1883)",
-  },
-  {
     text: 'Two men look out through the same bars:\nOne sees the mud, and one the stars.',
     author: 'Frederick Langbridge',
     season: null,

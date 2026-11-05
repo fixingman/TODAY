@@ -1,7 +1,7 @@
 # Backlog
 
 > **Forward-looking only: what to build next, what is parked, and which decisions remain.**
-> Reviewed 2026-11-04. Remote source: dev/master v3.2.2 (`8bdb1be7`), before this documentation update. Branch publication, hosted validation and installed/usefulness verdicts are separate. Release/handoff history lives in [the archive](archive/Backlog-archive.md#release-and-handoff-snapshots--october-30-2026); defects belong to [Bugs.md](Bugs.md).
+> Current release evidence: [CI contract](../docs/ci-release-evidence.md). Branch publication, hosted verification and installed/usefulness verdicts are separate. Defects belong to [Bugs](Bugs.md); release history belongs to Changelog and its archive.
 
 ---
 
@@ -19,7 +19,7 @@ The experience is calm. Opening TODAY in the morning shows an imprint of your li
 
 **Can’s top product priority remains AI continuous improvement, #15.** v3.0.0 is published on master; remaining real-use acceptance and the explicitly deferred style work stay open. Original IDs are preserved; priority below is work rank, not release numbering. A waiting gate does not prevent useful work on a lower row.
 
-**Current release checkpoint (November 4):** v3.2.2 is published on dev/master. [Full dev release validation](https://github.com/fixingman/TODAY/actions/runs/41900718090) passed all 62 suites with zero failures/flakes and all five performance runs; [master CI](https://github.com/fixingman/TODAY/actions/runs/41902705951) verified reuse and passed. BUG-137 is verified fixed; the retained BUG-141 failures are historical and the current full gate covers that repair. BUG-135 deployed/installed performance remains open. CI-efficiency phases 1–3 are complete, with earlier exact-SHA proof [archived](archive/Backlog-archive.md#ci-efficiency-completion).
+**Release verification:** use the [current receipt](../docs/ci-release-evidence.md#latest-verified-release). Product/account follow-ups and existing roadmap gates remain open until their own acceptance conditions are met.
 
 ### Priority table
 
@@ -136,7 +136,7 @@ M2 recurrence is on-device over existing images/people, not new AI matching or a
 
 ### 2: Poem corpus
 
-**Current verified count:** 159 — winter 18, spring 18, summer 15, autumn 18, year-round 90. Summer needs one to reach the existing target of 16; the other seasonal pools already exceed it. Expansion is ongoing, not an unresolved shuffle fix.
+**Current verified count:** 158 — winter 18, spring 18, summer 15, autumn 18, year-round 89. Summer needs one to reach the existing target of 16; the other seasonal pools already exceed it. Expansion is ongoing, not an unresolved shuffle fix.
 
 **Next search:** broaden geography/voice, especially Africa, Latin America, Middle East and Southeast Asia, and ordinary lived detail around choosing/keeping/loosening/returning. Diversity is a tie-breaker, not a quota. New candidates are human-written, spare, concrete, held/affirming and 2–6 displayed lines; grandfathered longer approvals are not a new precedent.
 
@@ -309,3 +309,17 @@ These already-shipped mechanisms still need a confirmed release/exposure date or
 ---
 
 *Completed build/study/release records and superseded handoffs are archived; current runtime contracts live in the architecture/design files. Product priorities and unaccepted verdicts above are unchanged.*
+
+
+## Verification reminders carried from Rules
+
+Defect IDs and technical status are owned by [Bugs](Bugs.md); their old versioned narratives remain in [the preserved context](archive/Structure.md#operating-context-snapshot-2026-11-05). Passing CI does not close live account, installed performance or writing/usefulness checks. Existing #15 and roadmap gates above remain authoritative.
+
+The following uncoded reminders were retained verbatim during the cleanup; none was marked complete:
+
+- **v2.64.23 ⏳** — verify appMemory convergence across two devices after a few 7s sync cycles: `today_memory.semantic.length` and newly confirmed inferences should match without manual Restore Backup.
+- **v2.64.22 ⏳** — verify overnight sync hardening: streak does not re-inflate from yesterday, newest check/uncheck wins, and Trello configuration reaches the second device.
+- **v2.62.1 ⏳** — verify: `appMemory.patterns.triageUndos` increments on triage undo; `soonPulls` increments on pull-from-soon; `reviveReasons` populated on revive; letting the undo toast expire records letgoReasons.
+- **v2.62.0 ⏳** — verify: triage → completion screen → list is already clean behind overlay → Undo button visible → tap Undo → state fully restored → triage bar reappears. Also: wait 3s without tapping Undo → overlay closes → list stays clean.
+- **Meeting attribution accuracy — ask Can:** after a few real meetings, ask "how's meeting attribution doing?" and read `appMemory.meetingAttribution` (`mineKept/mineShown` precision, `othersSelected/othersShown` recall).
+- **Noticed 7-signal expansion (v2.38.0)** — if it still reads as noise, ask whether Noticed needs a different shape.
