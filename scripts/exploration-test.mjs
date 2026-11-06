@@ -58,6 +58,11 @@ const errors=[];let testPage;
 try{
  const page=await browser.newPage();testPage=page;page.on('pageerror',error=>errors.push(error.message));await page.setBypassServiceWorker(true);await page.setViewport({width:1024,height:900});await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
  await page.evaluateOnNewDocument(()=>{
+  // Focus is a desktop capability. Pin the fixture's hardware model instead of
+  // inheriting macOS/Linux headless hover differences; width/motion remain native.
+  const nativeMedia=window.matchMedia.bind(window);
+  const hardware={'(hover: hover)':true,'(hover: none)':false,'(pointer: fine)':true,'(pointer: coarse)':false,'(pointer: none)':false};
+  window.matchMedia=query=>Object.hasOwn(hardware,query)?{matches:hardware[query],media:query,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){},dispatchEvent(){return false;},onchange:null}:nativeMedia(query);
   localStorage.clear();localStorage.setItem('splash_shown_at',String(Date.now()));
   localStorage.setItem('dropbox_token','fictional-access');localStorage.setItem('dropbox_refresh_token','fictional-grant');localStorage.setItem('dropbox_token_expiry',String(Date.now()+3600000));
   localStorage.setItem('today_manual',JSON.stringify([{id:'manual_'+Date.now(),text:'Fictional project'}]));
@@ -91,6 +96,20 @@ try{
   };
  });
  await page.goto(base,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.Today&&document.body&&!document.body.hasAttribute('data-booting'),{timeout:20000});await waitForFonts(page);
+ // Match the established focus-test JS/CSS input fixture. Only hardware
+ // predicates change; selectors, declarations, viewport and motion stay native.
+ const inputModel=await page.evaluate(()=>{
+  const before=[],after=[];let mapped=0;
+  const visit=rules=>{for(const rule of rules){
+   if(rule.type===CSSRule.STYLE_RULE)before.push(rule.cssText);
+   if(rule.type===CSSRule.MEDIA_RULE)rule.media.mediaText=rule.conditionText.replace(/\((hover|pointer):\s*(hover|none|fine|coarse)\)/g,(_all,kind,value)=>{mapped++;return (kind==='hover'?value==='hover':value==='fine')?'(min-width: 0px)':'(max-width: 0px)';});
+   if(rule.cssRules)visit(rule.cssRules);
+   if(rule.type===CSSRule.STYLE_RULE)after.push(rule.cssText);
+  }};
+  for(const sheet of document.styleSheets)visit(sheet.cssRules);
+  return {mapped:mapped>0,intact:JSON.stringify(before)===JSON.stringify(after),focus:typeof window._focusOnCheck==='function'};
+ });
+ assert.deepEqual(inputModel,{mapped:true,intact:true,focus:true},'Desktop Focus and CSS use the same explicit input model');
  const click=async selector=>{for(let attempt=0;;attempt++){try{await page.$eval(selector,node=>node.scrollIntoView({block:"center"}));await page.click(selector);return;}catch(error){if(attempt>=3||!/detached|not clickable/i.test(error.message))throw error;await new Promise(resolve=>setTimeout(resolve,50));}}},wait=fn=>page.waitForFunction(fn,{timeout:10000});
  const send=async()=>{await page.focus('#exThought');await page.keyboard.press('Enter');};
  const start=async()=>{await page.mouse.move(page.viewport().width-20,200);await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await wait(()=>getComputedStyle(document.getElementById('exQuestion')).visibility==='visible');await click('#exQuestion');await page.keyboard.press('Enter');};

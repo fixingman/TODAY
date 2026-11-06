@@ -21,8 +21,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 147 | 🔧 Local | Desktop Explore covers Today, dismisses unexpectedly, and exposes competing inputs and chat controls. | v3.4.2 |
-| 146 | 🔧 Local | Linked Explore controls crowd daily/focus task rows. | v3.4.2 |
+| 147 | ⏳ Verify | Desktop Explore covers Today, dismisses unexpectedly, and exposes competing inputs and chat controls. | v3.4.2 |
+| 146 | ⏳ Verify | Linked Explore controls crowd daily/focus task rows. | v3.4.2 |
 | 144 | ⏳ Verify | Exploration opens late, flashes content and exposes unclear or redundant controls. | v3.3.0 |
 | 143 | ⏳ Verify | Exploration rejects valid structured AI replies and suggestions. | v3.3.0 |
 | 142 | ⏳ Verify | Full release visual gate samples the bottom input fade as page background at320px. | v3.2.2 |
@@ -51,6 +51,9 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Repair:** dock above600px, reserve space for the complete Today column, keep both desktop panes usable, and dim only the inactive pane without intercepting clicks. Pointer and keyboard focus select the visible/reachable composer; drafts remain separate. Header close is the sidebar dismissal; Escape only returns from secondary views. Move Chat/Living note/Earlier/Sources into header navigation and retain immutable wording changes in the note. Render submitted observations immediately while Dropbox confirms; request AI only after confirmation. Inline dots use token-timed WAAPI and respect reduced motion. Release waiting uses one logged watcher, without repeated status checks.
 
 **Verification:** Five fresh first-attempt checks pass after scoping the composer fade to Explore: invariants, Exploration, Focus, design lint and visual regression (39.7s, zero flakes/failures). About and nudge-feedback passed in the preceding owning run. Final captures retain736/1024/1440px docking, complete header containment and both active panes. Evidence: `.context/explore-dock/local-verified/`; the original Focus regression and development failures remain retained. Hosted full proof is still required; no installed/live-account acceptance is claimed.
+
+
+**Linux release follow-up:** Full Linux run42175964210 retained61 passing suites and failed Exploration twice before desktop Focus opened; performance correctly did not run. Native Linux headless hover was false, unlike the local browser. Reuse the established Focus fixture contract by explicitly pinning mouse hardware in JS and mapping only CSS hardware predicates, preserving selectors/declarations, native width/motion and all deadlines. Assert that desktop Focus is actually installed. A deliberately touch-only control rejects that assertion; it cannot silently skip Focus coverage. Runtime code and budgets are unchanged; the repaired exact commit needs new full hosted proof.
 
 ---
 

@@ -705,3 +705,5 @@ W1: optional fixed concerns can address a concrete expression problem on the nex
 ### Explore dock regression (v3.4.2)
 
 `exploration-test` checks logo/header/list containment at736/1024/1440px, pointer-controlled dimming and exclusive composers with draft retention, click/Escape persistence, one Sources navigation item, and no inline chat toolbars. A held Dropbox write proves the submitted observation appears before acknowledgement while AI waits; thinking dots animate with WAAPI and stay still under reduced motion. Fictional phone/desktop captures are retained under `.context/ci-test-results/explore-dock/`. Save conflicts, retry, source withdrawal, amendments and account fences retain their existing tests. Installed PWA feel remains a separate acceptance check.
+
+The Exploration suite explicitly models desktop mouse hardware in JS/CSS, matching the Focus fixture. It asserts Focus is installed, keeps native width/motion predicates and verifies CSS declarations survive mapping unchanged; Linux no-hover defaults must not disable the tested desktop path.

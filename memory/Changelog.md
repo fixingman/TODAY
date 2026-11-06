@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Release fixture repair (app v3.4.2)
+
+Full Linux run42175964210 retained61 passing suites and failed Exploration twice before desktop Focus opened; performance correctly did not run. Native Linux headless hover was false, unlike the local browser. Reuse the established Focus fixture contract by explicitly pinning mouse hardware in JS and mapping only CSS hardware predicates, preserving selectors/declarations, native width/motion and all deadlines. Assert that desktop Focus is actually installed. A deliberately touch-only control rejects that assertion; it cannot silently skip Focus coverage. Runtime code and budgets are unchanged; the repaired exact commit needs new full hosted proof.
+
 ## Engineering workflow (app v3.4.0)
 
 Developer tooling only; no additional application/SW version bump. Add a compact fresh owning-suite preflight that excludes ignored state and reuses dependencies/browser; repair Conductor setup/archive hooks without shared-root pulls or hidden failures; add an opt-in candidate-bound `CI-Validation: full` request. Consolidate instruction ownership while preserving historical text, numbered invariants and open reminders. Publishing permissions, exact-commit proof, first-attempt requirements and performance budgets are unchanged. Nothing in this entry grants commit/push authorization.
