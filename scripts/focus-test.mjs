@@ -341,6 +341,41 @@ try {
       await page.close();
     }
 
+    // BUG-151 follow-up: the header must dim before blurring. SVG reference
+    // filters snap on instead of interpolating, creating a bright hazy logo.
+    {
+      const {page,errors}=await openPage();
+      await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'no-preference'}]);
+      await page.click('.task-text');
+      const transition=await page.evaluate(async()=>{
+        const header=document.getElementById('sticky-header');
+        const animations=header.getAnimations();
+        animations.forEach(a=>a.pause());
+        const samples=[];
+        for(const time of [0,60,120,150,180]){
+          animations.forEach(a=>a.currentTime=time);
+          await new Promise(resolve=>requestAnimationFrame(resolve));
+          const style=getComputedStyle(header);
+          samples.push({time,opacity:Number(style.opacity),filter:style.filter});
+        }
+        animations.forEach(a=>a.play());
+        return {hasBlurTransition:animations.some(a=>a.transitionProperty==='filter'),samples};
+      });
+      await mkdir(join(ROOT,'.context/ci-test-results/focus-header'),{recursive:true});
+      await writeFile(join(ROOT,'.context/ci-test-results/focus-header/blur-sequence.json'),JSON.stringify(transition,null,2));
+      const blur=sample=>Number(sample.filter.match(/blur\(([\d.]+)px\)/)?.[1]||0);
+      await expectAll('Header dims before its blur grows',{
+        animated:transition.hasBlurTransition,
+        clearWhileFading:transition.samples.filter(s=>s.time<=120).every(s=>blur(s)<0.01&&!s.filter.includes('url(')),
+        dimBeforeBlur:transition.samples.find(s=>s.time===120).opacity<0.1,
+        gradualBlur:blur(transition.samples[3])>0&&blur(transition.samples[3])<6,
+        settledBlur:Math.abs(blur(transition.samples[4])-6)<0.01,
+        noErrors:!errors.length,
+      });
+      await page.keyboard.press('Escape');
+      await page.close();
+    }
+
     // Locking focus may soften the header, but cannot reflow its logo/navigation.
     for(const {docked,width,deep} of [{docked:false,width:1280},...[736,1024,1440].map(width=>({docked:true,width})),{docked:false,width:1280,deep:true},{docked:true,width:1024,deep:true}]) {
       const {page,errors}=await openPage(deep?{extraSeed:{today_manual:JSON.stringify(Array.from({length:42},(_,i)=>({id:'manual_motion_'+i,text:'Fictional focus task number '+i})))}}:{});
@@ -1472,7 +1507,7 @@ try {
     }
     ok('habit Ask: no configured AI or touch device makes no request');
 
-    console.log('\nFocus tests passed (post-extraction, 30 check groups).');
+    console.log('\nFocus tests passed (post-extraction, 31 check groups).');
   }
 } finally {
   if (browser) await browser.close();

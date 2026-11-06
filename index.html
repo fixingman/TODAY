@@ -205,7 +205,7 @@
       left: 0;
       transition: opacity var(--dur-exit) var(--ease-out), filter calc(var(--dur-exit) / 2) var(--ease-std) var(--dur-exit);
       opacity: var(--opacity-recede-chrome) !important;
-      filter: url(#noise) blur(6px);
+      filter: blur(6px);
     }
 
     /* Checkbox — accent border in focus */
@@ -4791,14 +4791,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '400h';
+const DEV_HOURS     = '401h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.5.3': 'The header fades before gently blurring when you enter Focus.',
   '3.5.2': 'Explore has a continuous soft background, clearer speaker labels and questions, and an integrated desktop window header where supported.',
   '3.5.1': 'Focus keeps the header in place on long lists and beside Explore. Undo and review bars follow Today, and earlier suggestion errors clear when reopened.',
-  '3.5.0': 'Explore carries understanding and optional steps into later conversations, with one reply and a clearer living note.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

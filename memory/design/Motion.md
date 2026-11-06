@@ -128,6 +128,7 @@ One-shot gradient glint that fires when a tagged task (e.g. `work: ...`) is newl
 - Recede begins at the selected row and travels outward: the nearest non-focused row starts immediately and the farthest starts one `--dur-fast` later, with intermediate delays derived from visual distance. Each row dims over `--dur-fast` / `--ease-out`; its noise-blur follows one `--dur-fast` beat later. The focused row stays still. Exit reverses without a stagger — blur dissolves before opacity returns, so no opaque-blurry box appears.
 - Chrome recedes on the same beat (v2.82.4): morning nudge, triage bar and the sticky header, to 8%. Only the add bar and mic stay crisp
 - The header is pinned `position: fixed` for scroll lock (BUG-098). Local v3.5.1 preserves its current viewport top, including an already scrolled-out logo, and its Today-column width beside Explore (BUG-151). It softens in place instead of reappearing or re-centring. Matching body padding still preserves flow; unlock clears the owned top and restores the adjusted document scroll.
+- Header blur uses an interpolable CSS blur (v3.5.3): dim first, then soften. A reference filter snaps on and defeats this entry sequence.
 - Timer bar pulses gently when complete
 - Controls slide up with spring easing
 - Reduced motion skips the outward delay and applies the focused state immediately.

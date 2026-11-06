@@ -97,6 +97,8 @@ from two devices. New progress refreshes the row and heals stale remote copies (
 - The header keeps pointer-events — its buttons exit focus and open their panel (v2.75.15). Nudge and triage bar go `pointer-events: none`.
 - The triage bar and the nudge's sibling reaction strip also join `_setFocusInert`'s reversible `inert`/`aria-hidden` state. Their low-opacity treatment is purely visual; Review and “landed / not really” cannot remain keyboard or screen-reader targets during focus, and return on exit.
 
+**Header entry (v3.5.3, BUG-151 follow-up):** fade chrome over `--dur-exit`, then animate CSS blur from0 to6px over half that beat. The header alone omits the SVG noise reference: switching from `none` to a reference filter snaps to full blur before dimming, leaving a bright haze. Preserve its glass background, pinned geometry and final receded opacity.
+
 ### Scroll lock and the header (BUG-098)
 - Entering focus sets `body { position: fixed; top: -scrollY }` and animates `top` for the nudge. A `position: sticky` header has nothing to stick to inside a fixed body: it sits at the top of the body, which is off-screen by `scrollY`, and then rides the nudge — seen as the nav being shoved up when a task near the bottom enters focus.
 - Fix: the lock adds `body.focus-locked`, under which the header is fixed at its current viewport top (v3.5.1; formerly forced to0), and pads the body by the header's height so nothing below shifts when it leaves the flow. `_doUnfix()` clears both. The lock also clears the splash's leftover inline opacity transition on the header so the recede beat governs.
