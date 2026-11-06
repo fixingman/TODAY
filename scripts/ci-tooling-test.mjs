@@ -176,6 +176,17 @@ try {
   summary = JSON.parse(readFileSync(join(fixture, '.context/ci-test-results/summary.json'), 'utf8'));
   assert.equal(summary.status, 'failed');
   assert.ok(summary.suites[1].attempts.every(attempt => attempt.timedOut && attempt.signal === 'SIGTERM'));
+  // A browser/child can handle the deadline signal and exit 0. It still timed out.
+  writeFileSync(join(scripts,'fixture-test.mjs'),'process.on("SIGTERM",()=>process.exit(0));setInterval(()=>{},100);');
+  const fastRunner=runner.replace('const SUITE_TIMEOUT_MS = 120000;','const SUITE_TIMEOUT_MS = 150;');
+  writeFileSync(join(scripts,'test-all.mjs'),fastRunner.replace('const passed=result.status===0&&!result.error&&!result.signal;','const passed=result.status===0;'));
+  const falseGreen=run('test-all.mjs');assert.equal(falseGreen.status,0,'Original exit-only control falsely accepts the handled timeout');
+  const falseReport=JSON.parse(readFileSync(join(fixture,'.context/ci-test-results/summary.json'),'utf8'));assert.ok(falseReport.suites[1].attempts[0].timedOut);
+  writeFileSync(join(scripts,'test-all.mjs'),fastRunner);
+  result=run('test-all.mjs');assert.equal(result.status,1);
+  summary=JSON.parse(readFileSync(join(fixture,'.context/ci-test-results/summary.json'),'utf8'));
+  assert.equal(summary.status,'failed');
+  assert.ok(summary.suites[1].attempts.every(attempt=>attempt.timedOut&&attempt.exitCode===0),'A handled timeout is never accepted as a passing attempt');
   console.log('  ✓ inventory errors and real child timeouts retain failing summaries');
 
   const workflow = readFileSync(join(DIR, '../.github/workflows/test.yml'), 'utf8');

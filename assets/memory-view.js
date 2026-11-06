@@ -3,7 +3,7 @@
 'use strict';
 let hooks, previewEpoch=0, visit=0, preparedVisit=-1,freshVisit=true;
 const h=value=>esc(String(value??''));
-function model() {
+function model(retained = new Set()) {
  const m=appMemory;
  if(!m)return {known:[],waiting:[],patterns:[],lately:[],coverage:[]};
       const _dowNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -51,10 +51,10 @@ function model() {
         const _peakRun = _runs.find(r => r.includes(parseInt(peakHour))) || [parseInt(peakHour)];
         if (_peakRun.length >= 2) {
           const _s = _peakRun[0], _e = _peakRun[_peakRun.length - 1];
-          semanticItems.push({ record_id:'fact:peak-hour',text: `most tasks done between ${_fmtH(_s)}–${_fmtH(_e)}` });
+          semanticItems.push({ record_id:'fact:peak-hour',semantic_basis:_hourCounts,text: `most tasks done between ${_fmtH(_s)}–${_fmtH(_e)}` });
         } else {
           const h = parseInt(peakHour);
-          semanticItems.push({ record_id:'fact:peak-hour',text: `most tasks done around ${_fmtH(h)}` });
+          semanticItems.push({ record_id:'fact:peak-hour',semantic_basis:_hourCounts,text: `most tasks done around ${_fmtH(h)}` });
         }
       }
       const samples = m.patterns?.taskLifespanSamples || [];
@@ -64,11 +64,11 @@ function model() {
         if (avg < 0.5) lifespanText = 'most tasks close the same day';
         else if (avg < 1.5) lifespanText = 'tasks typically take about a day to close';
         else lifespanText = `tasks typically close in about ${Math.round(avg)} day${Math.round(avg) === 1 ? '' : 's'}`;
-        semanticItems.push({ record_id:'fact:lifespan',text: lifespanText });
+        semanticItems.push({ record_id:'fact:lifespan',semantic_basis:[...samples].sort((a,b)=>a-b),text: lifespanText });
       }
       const best = m.patterns?.bestStreak || 0;
       const _curStreak = parseInt(localStorage.getItem('stat_streak') || '0');
-      if (best >= 3 && best > _curStreak) semanticItems.push({ record_id:'fact:streak',text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
+      if (best >= 3 && best > _curStreak) semanticItems.push({ record_id:'fact:streak',semantic_basis:[best,_curStreak],text: `longest streak: ${best} day${best === 1 ? '' : 's'}` });
       if (allDailyHistory.length >= 14) {
         const byDow = {};
         allDailyHistory.forEach(e => {
@@ -83,7 +83,7 @@ function model() {
           const [bestDow, bestAvg] = dowAvgs.sort(([, a], [, b]) => b - a)[0];
           const secondAvg = dowAvgs[1][1];
           if (bestAvg >= 2 && bestAvg > secondAvg * 1.2) {
-            semanticItems.push({ record_id:'fact:weekday',text: `most done on ${_dowNames[bestDow]}s` });
+            semanticItems.push({ record_id:'fact:weekday',semantic_basis:allDailyHistory.map(e=>[e.date,e.tasksDone]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),text: `most done on ${_dowNames[bestDow]}s` });
           }
         }
       }
@@ -114,13 +114,13 @@ function model() {
         episodicItems.push({ text: `${_sn} task${_sn === 1 ? '' : 's'} started — still open` });
       }
       (m.memory?.episodic || []).filter(i => hooks.live(i)).forEach(i => {
-        episodicItems.push({ text: i.text, isNew: i.isNew, rejectKey: `episodic:${i.id}`, basis: [i.lastSeen,i.seenWeeks], source: 'TODAY’s reading · this week only' });
+        episodicItems.push({ text: i.text, isNew: i.isNew, rejectKey: `episodic:${i.id}`, basis: [i.lastSeen,i.seenWeeks], semantic_basis:meaning(i), source: 'TODAY’s reading · this week only' });
       });
 
-      semanticItems.push(...hooks.outcomes(m).map(row=>({...row,record_id:row.text.startsWith('most common')?'fact:letgo-reason':row.text.startsWith('obligation')?'fact:obligation-outcomes':'fact:returns'})));
+      semanticItems.push(...hooks.outcomes(m).map(row=>({...row,semantic_basis:row.text.startsWith('most common')?m.patterns?.letgoReasons:(m.taskOutcomes||[]).map(e=>[e.key||e.id,e.date,e.outcome,e.obligation]).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))),record_id:row.text.startsWith('most common')?'fact:letgo-reason':row.text.startsWith('obligation')?'fact:obligation-outcomes':'fact:returns'})));
       hooks.computed(semanticItems.map(i => i.text));
       for (const i of hooks.inferences()) {
-        semanticItems.push({ text: i.text, isNew: i.isNew, rejectKey: `${i.type}:${i.id}`, basis: [i.lastSeen,i.seenWeeks], source: `TODAY’s reading · recurred in ${i.seenWeeks.length} weeks · unconfirmed by you` });
+        semanticItems.push({ text: i.text, isNew: i.isNew, rejectKey: `${i.type}:${i.id}`, basis: [i.lastSeen,i.seenWeeks], semantic_basis:meaning(i), source: `TODAY’s reading · recurred in ${i.seenWeeks.length} weeks · unconfirmed by you` });
       }
 
       const metaItems = [];
@@ -156,13 +156,13 @@ function model() {
       const _returning = Object.entries(m.returningTasks || {})
         .filter(([id, t]) => t && t.text && !_revoked['rt:' + id])
         .sort(([, a], [, b]) => Number((parseInt(b.focusSessions) || 0) > 0) - Number((parseInt(a.focusSessions) || 0) > 0)
-          || (b.dayCount || 0) - (a.dayCount || 0))
-        .slice(0, 5);
-      for (const [_rtId, t] of _returning) {
+          || (b.dayCount || 0) - (a.dayCount || 0));
+      for (const [index, [_rtId, t]] of _returning.entries()) {
+        if (index >= 5 && !retained.has('known:rt:' + _rtId)) continue;
         const n = parseInt(t.focusSessions) || 0;
         knownItems.push({ text: `returning · "${_strip(t.text)}" — on the list ${t.dayCount} days, ` +
           (n > 0 ? `${n} focus session${n > 1 ? 's' : ''}` : 'no focus sessions recorded'),
-          revokeKey: 'rt:' + _rtId });
+          revokeKey: 'rt:' + _rtId, supportOnly: index >= 5 });
       }
 
       const _soonList = typeof soonTasks !== 'undefined' && Array.isArray(soonTasks) ? soonTasks : [];
@@ -170,19 +170,19 @@ function model() {
         .filter(t => t && t.id && t.text && t.zoneChangedAt && !_revoked['sn:' + t.id])
         .map(t => ({ t, days: Math.floor((Date.now() - new Date(t.zoneChangedAt).getTime()) / 86400000) }))
         .filter(e => e.days >= 7)
-        .sort((a, b) => b.days - a.days)
-        .slice(0, 5);
-      const waitingItems = _soonWaiting.map(({ t, days }) => ({
-        text: `in Soon · "${_strip(t.text)}" — kept here ${days} days`, revokeKey: 'sn:' + t.id,
-      }));
+        .sort((a, b) => b.days - a.days);
+      const waitingItems = _soonWaiting.flatMap(({ t, days }, index) => index < 5 || retained.has('known:sn:' + t.id) ? [{
+        text: `in Soon · "${_strip(t.text)}" — kept here ${days} days`, revokeKey: 'sn:' + t.id, supportOnly: index >= 5,
+      }] : []);
 
       const _pendingObl = (m.obligationHistory || [])
         .filter(e => e && e.text && !e.done && !e.letgo)
         .filter(e => !_revoked['oh:' + e.date + '|' + (e.text || '').slice(0, 40)])
-        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, 5);
-      for (const e of _pendingObl) {
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+      for (const [index, e] of _pendingObl.entries()) {
+        if (index >= 5 && !retained.has('known:oh:' + e.date + '|' + e.text.slice(0, 40))) continue;
         knownItems.push({ text: `obligation · "${_strip(e.text)}" — added ${_fmtDay(e.date)}, still open`,
-          revokeKey: 'oh:' + e.date + '|' + (e.text || '').slice(0, 40) });
+          revokeKey: 'oh:' + e.date + '|' + (e.text || '').slice(0, 40), supportOnly: index >= 5 });
       }
 
       const _floor = new Date(); _floor.setDate(_floor.getDate() - 30);
@@ -195,15 +195,21 @@ function model() {
 
  return {known:knownItems,waiting:waitingItems,patterns:semanticItems,lately:episodicItems,coverage:metaItems};
 }
-function records() {
- const m=model();
- return [...m.known,...m.waiting,...m.patterns].map(row=>({
+function records(supportIds = []) {
+ const m=model(new Set(supportIds.slice(0,96)));
+ const rows=[...m.known,...m.waiting,...m.patterns];
+ return [...rows.filter(row=>!row.supportOnly),...rows.filter(row=>row.supportOnly)].map(row=>({
    id:row.rejectKey?'memory:'+row.rejectKey:row.revokeKey?'known:'+row.revokeKey:row.record_id||'fact:'+row.text,
    signature_text:row.revokeKey?row.text.replace(/on the list \d+ days|kept here \d+ days|\d+ focus sessions?/g,'recorded activity'):row.text,
    text:row.text,source_type:row.source || (row.rejectKey?'AI reading · unconfirmed':row.revokeKey?'task record':'counted from tasks'),
-   evidence_kind:row.rejectKey?'AI interpretation':row.revokeKey?'task record':'counted fact',basis:row.basis || [],cleared_at:appMemory?.clearedAt || ''
+   evidence_kind:row.rejectKey?'AI interpretation':row.revokeKey?'task record':'counted fact',basis:row.basis || [],cleared_at:appMemory?.clearedAt || '',
+   semantic_basis:row.semantic_basis??row.basis??[],
+   ...(row.supportOnly?{selectable:false}:{})
  }));
 }
+// Re-observation and display flags are housekeeping. Retain all other stored
+// provenance, including actual supporting weeks, status and supplied evidence.
+function meaning(item){const {lastSeen,isNew,...rest}=item;return {...rest,seenWeeks:[...(rest.seenWeeks||[])].sort()};}
       function itemRow(item, extraClass = '') {
         return `<div class="memory-item${extraClass ? ' ' + extraClass : ''}">` +
                 (item.isNew ? `<span class="memory-item-new"></span>` : '') +

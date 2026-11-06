@@ -1,0 +1,84 @@
+/* Approved exploration session, scoped to Memory's sub-view. */
+#explorationRoot { font-size: var(--text-task); line-height: 1.6; overflow-wrap: anywhere; }
+#explorationRoot h2:not(.config-title) { font-size: var(--text-md); font-weight: 400; margin: 0 0 var(--space-3); }
+#explorationRoot h3, #explorationRoot h4 { font-weight: 400; margin: 0 0 var(--space-2); }
+#explorationRoot p { margin: var(--space-2) 0; white-space: pre-wrap; }
+#explorationRoot .ex-muted, #explorationRoot .ex-status { color: var(--muted); font-size: var(--text-sm2); }
+#explorationRoot .ex-status:empty { display: none; }
+#explorationRoot .ex-turn { margin: var(--space-4) 0; }
+#explorationRoot .ex-you p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
+#explorationRoot .ex-turn > p { font-size: var(--text-task); }
+#explorationRoot .ex-resume { margin-bottom: var(--space-5); }
+#explorationRoot .ex-resume p { color: var(--text); font-size: var(--text-task); }
+#explorationRoot label { display: block; margin-bottom: var(--space-2); }
+#explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { box-sizing: border-box; width: 100%; padding: var(--space-3); background: var(--bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); line-height: 1.6; }
+#explorationRoot textarea { resize: vertical; }
+#explorationRoot .ex-send { display: flex; justify-content: flex-end; margin-top: var(--space-2); }
+#explorationRoot .ex-send button { border-color: var(--accent-glow); color: var(--accent); }
+#explorationRoot .ex-send button:disabled { border-color: var(--border); }
+#explorationRoot .ex-send button:not(:disabled):is(:hover,:focus-visible) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+#explorationRoot button:disabled { color: var(--muted); cursor: default; }
+#explorationRoot .ex-context { margin: var(--space-3) 0; }
+#explorationRoot summary { list-style: none; display: inline-block; min-height: var(--space-6); padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-2)); border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--text-sm2); letter-spacing: normal; color: var(--muted); cursor: pointer; }
+#explorationRoot summary::-webkit-details-marker { display: none; }
+#explorationRoot summary:hover, #explorationRoot summary:focus-visible { border-color: var(--border); color: var(--text); }
+#explorationRoot details[open] > summary { color: var(--text); }
+#explorationRoot .ex-source { display: block; color: var(--muted); font-size: var(--text-xs); }
+#explorationRoot .memory-item { flex-wrap: wrap; }
+#explorationRoot pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm2); padding: var(--space-3); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
+#explorationRoot .ex-file { display: block; }
+#explorationRoot input[type=file] { display: block; max-width: 100%; margin: var(--space-2) 0; font-family: var(--font-mono); }
+#explorationRoot .memory-item-text { min-width: 0; font-size: var(--text-task); line-height: 1.7; }
+@media (max-width: 600px) {
+  #explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { font-size: var(--text-lg); }
+}
+
+#explorationRoot .ex-today { margin-top: var(--space-3); font-size: var(--text-task); }
+#explorationRoot .ex-secondary { margin-top: var(--space-4); }
+#explorationRoot [data-ex-action=forget]:hover { color: var(--danger); }
+
+#explorationRoot .ex-today .memory-item-btn { opacity: 1; }
+
+/* Conversation prose and panel navigation are not compact Memory-row metadata. */
+#explorationRoot .memory-item-btn { font-size: var(--text-sm2); letter-spacing: normal; }
+#explorationRoot .ex-source { font-size: var(--text-sm2); letter-spacing: normal; }
+#explorationRoot .ex-turn > .memory-type-name { font-size: var(--text-sm2); letter-spacing: normal; text-transform: none; }
+/* Production version of the reviewed conversation / focused-page design. */
+#explorationRoot h3 { font-size: var(--text-md); line-height: 1.6; margin-bottom: var(--space-4); }
+#explorationRoot h4 { font-size: var(--text-base); line-height: 1.7; margin-bottom: var(--space-2); }
+#explorationRoot .ex-links { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+#explorationRoot .ex-note-section { padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: 1px solid var(--border); }
+#explorationRoot .ex-bounds { margin: var(--space-4) 0; }
+#explorationRoot .ex-bounds > div { margin-bottom: var(--space-3); }
+#explorationRoot .ex-bounds dt { color: var(--muted); font-size: var(--text-sm2); }
+#explorationRoot .ex-bounds dd { margin: 0; }
+#explorationRoot .ex-body > p + p { margin-top: var(--space-3); }
+
+/* v3.4.0 side panel. Sub-pages lead with their own way back; the header only hides Explore. */
+#explorationRoot .ex-subnav { display: inline-flex; margin: 0 0 var(--space-3) calc(-1 * var(--space-2)); }
+#explorationRoot .ex-thinking p { color: var(--muted); }
+#explorationRoot .ex-turn:last-of-type { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
+/* Composer: the daily add bar's tokens, so both input rows read as one place. */
+#explorationRoot .ex-prompt { display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateY(var(--motion-rise));
+  transition: grid-template-rows var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+#explorationRoot .ex-prompt.show { grid-template-rows: 1fr; opacity: 1; transform: none; }
+#explorationRoot .ex-prompt.arriving { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
+#explorationRoot .ex-prompt > p { min-height: 0; overflow: hidden; margin: 0; font-size: var(--text-task); line-height: 1.6; white-space: normal; }
+#explorationRoot .ex-prompt.show > p { padding-bottom: var(--space-3); }
+#explorationRoot .ex-input-row { display: flex; align-items: flex-end; gap: var(--space-2); }
+#explorationRoot textarea.ex-input {
+  flex: 1; min-width: 0; height: 44px; min-height: 44px; max-height: 40vh; resize: none;
+  padding: 11px 14px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--control-border); border-radius: var(--radius-lg);
+  font-family: var(--font-mono); font-size: var(--text-md); line-height: 20px;
+  transition: border-color var(--dur-fast); touch-action: manipulation;
+}
+#explorationRoot textarea.ex-input::placeholder { color: var(--muted); }
+#explorationRoot textarea.ex-input:hover { border-color: var(--muted); }
+#explorationRoot textarea.ex-input:focus { border-color: var(--accent); outline: none; }
+#explorationRoot .ex-mic { display: flex; }
+@media (max-width: 600px) { #explorationRoot textarea.ex-input { font-size: var(--text-lg); } }
+@media (prefers-reduced-motion: reduce) {
+  #explorationRoot .ex-prompt { transition: none; transform: none; }
+  #explorationRoot .ex-prompt.arriving, #explorationRoot .ex-turn:last-of-type { animation: none; }
+}

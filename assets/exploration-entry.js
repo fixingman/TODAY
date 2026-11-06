@@ -18,9 +18,10 @@ async function preview(read=true){
  if(token!==previewEpoch||grant!==account())return {doc:null};
  if(previewState)return previewState;
  const doc=explorationDoc;if(!doc)return {doc:null};
- const sources=await Today.use('exploration-context').collect();if(token!==previewEpoch||grant!==account())return {doc:null};
+ const sources=await Today.use('exploration-context').collect(Today.use('exploration-core').supportIds(doc));if(token!==previewEpoch||grant!==account())return {doc:null};
  const reading=Today.use('exploration-core').current(doc,sources);
- return {doc,reading:!!reading,summary:reading?.summary || 'Bring an experience, a contradiction, or something you want to understand.'};
+ const own=reading&&Today.use('exploration-core').amendments(doc,reading.id).filter(row=>Today.use('exploration-core').included(doc,row.id)).at(-1);
+ return {doc,reading:!!reading,summary:own?.text||reading?.summary||doc.entries.findLast(row=>row.kind==='observation'&&Today.use('exploration-core').included(doc,row.id))?.text||doc.question};
 }
     function rememberDocument(doc) { explorationDoc = doc; }
     async function openExploration(event, button, place, isCurrent = ()=>true) {
@@ -47,7 +48,7 @@ async function preview(read=true){
             const target = [from.button, from.kind === 'memory' && document.getElementById('memoryContinue'), document.querySelector('#explorationEntry button')].find(visible);
             target?.focus();
           },
-          sources:()=>Today.use('exploration-context').collect(),
+          sources:supportIds=>Today.use('exploration-context').collect(supportIds),
           connections:()=>Today.use('memory').openConnections(),
           addTask(text){
             const existing = manualTasks.find(task=>task.text === text && !doneIds.has(task.id));

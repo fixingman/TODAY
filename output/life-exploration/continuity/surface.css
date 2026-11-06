@@ -1,0 +1,7 @@
+/* Only fixture scaffolding. Explore's layout, density, marks, buttons and type are native. */
+[hidden] { display: none !important; }
+.fictional-tasks { list-style: none; padding: var(--space-5) 0; }
+.fictional-tasks li { padding: var(--space-3) 0; font-size: var(--text-task); }
+.prototype-label { font-size: var(--text-sm2); color: var(--muted); margin-top: var(--space-8); }
+#explorationRoot :focus-visible { outline: 2px solid var(--accent); outline-offset: var(--space-1); }
+#explorationRoot [tabindex="-1"]:focus { outline: none; }

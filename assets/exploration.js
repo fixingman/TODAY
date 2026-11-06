@@ -149,7 +149,11 @@
         retryId=doc.entries.at(-1)?.kind==='observation'?doc.entries.at(-1).id:null;
         retryReading=!!retryId;
       }
-      catch (_) { doc = null; revision = result.rev; imported = result.text; message = 'This Markdown needs importing before TODAY can update it. Its contents will be preserved.'; }
+      catch (error) {
+        doc=null;revision=result.rev;
+        if(error.message==='document-version'){loaded=false;imported='';message='This exploration needs a newer version of TODAY. Its document has not been changed.';}
+        else{imported=result.text;message='This Markdown needs importing before TODAY can update it. Its contents will be preserved.';}
+      }
     } else if (result.notFound) { doc = null; revision = null; }
     else { message = 'Connect Dropbox or come back online to open your exploration.'; recovery = 'reload'; }
     await refreshSources(false);if(!validSession(token))return;
@@ -158,6 +162,7 @@
     byId('exTitle')?.focus({preventScroll:true});
   }
   async function commit(next) {
+    next={...next,schema_version:3};
     const body = core.stringify(next);
     const token = epoch, account = activeGrant;
     busy = true; render();
@@ -181,12 +186,12 @@
   async function refreshSources(update=true){
     if(!opened||!doc)return;
     const token=epoch,generation=++sourceGeneration,prior=chosenReading();
-    let next;try{next=await host.sources();}catch(_){if(validSession(token)&&generation===sourceGeneration){abortAI();liveSources=[];message='TODAY context is unavailable. Your notes stay; reopen to retry.';if(update)render();}return;}
+    let next;try{next=await host.sources(core.supportIds(doc));}catch(_){if(validSession(token)&&generation===sourceGeneration){abortAI();liveSources=[];message='TODAY context is unavailable. Your notes stay; reopen to retry.';if(update)render();}return;}
     if(!validSession(token)||generation!==sourceGeneration)return;
     const changed=JSON.stringify(next.map(row=>[row.id,row.signature]))!==JSON.stringify(liveSources.map(row=>[row.id,row.signature]));
     liveSources=next;
     if(changed&&pendingReading&&!dataContext().supports(pendingSources,next)){abortAI();retryReading=!!retryId;message='TODAY’s sources changed. Your words are kept; ask again with the current context.';}
-    if(prior&&!chosenReading())message='A supporting TODAY record changed or is no longer available. Its earlier reading is withheld until the same supported records are available.';
+    if(prior&&!chosenReading())message='';
     if(changed&&update)render();
   }
   function todayHTML(disabled){
@@ -217,7 +222,25 @@
     return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p>${text && !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : ''}</div>`;
   }
   function turnsHTML(entries,reading) {
-    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && core.supportedReading(doc,entry,liveSources) ? `<div class="ex-turn" data-ex-reading="${h(entry.id)}"><span class="ex-source">TODAY · a possibility</span><p>${h(core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
+    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && core.supportedReading(doc,entry,liveSources) ? `<div class="ex-turn" data-ex-reading="${h(entry.id)}"><span class="ex-source">TODAY</span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
+  }
+  function readingExplanation() {
+    const state=core.readingStatus(doc,core.latest(doc),liveSources);
+    const source=state.sourceId?.startsWith('task:')?'A task':'A Memory record';
+    const explanations={
+      'opening-changed':'You added earlier notes after this interpretation. Continue the conversation to read them together.',
+      'context-off':'TODAY context is off, so its earlier interpretation is hidden. Your notes are still saved.',
+      'context-changed':'You changed which TODAY records this exploration can use. Continue the conversation for a new interpretation.',
+      'source-left-out':'You left out a record used in the earlier interpretation, so it is hidden. Your notes are still saved.',
+      'note-left-out':'You changed which notes this exploration can use, so its earlier interpretation is hidden. Your notes are still saved.',
+      'source-changed':source+' used in the earlier interpretation has changed. Continue the conversation for a new interpretation.',
+      'source-unavailable':source+' used in the earlier interpretation is unavailable. Your notes are still saved.'
+    };
+    return explanations[state.reason]||'';
+  }
+  function readingNotice(reading) {
+    const text=!reading&&readingExplanation();
+    return text?`<p class="ex-muted" id="exReadingNotice">${h(text)}</p>`:'';
   }
   const title=(text,id='exViewTitle')=>`<h3 id="${id}" tabindex="-1">${h(text)}</h3>`;
   function conversationHTML(reading,disabled) {
@@ -225,33 +248,36 @@
     const latestUser=sessionEntries.some(entry=>entry.kind==='observation');
     const currentReply=reading&&sessionEntries.some(entry=>entry.id===reading.id);
     let html=title(doc.question);
-    if(!latestUser&&!currentReply&&doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-resume"><span class="ex-source">Where we left off</span><p>${h(reading?.summary || 'Bring an experience, a contradiction, or something you want to understand.')}</p></div>`;
+    if(!latestUser&&!currentReply&&doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-resume"><span class="ex-source">${reading?'Where we left off':'Your words'}</span><p>${h(reading?(core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1)?.text||reading.summary):doc.entries.findLast(entry=>entry.kind==='observation'&&core.included(doc,entry.id))?.text||doc.question)}</p></div>`;
     html+=turnsHTML(pendingObservation && !sessionEntries.some(entry=>entry.id===pendingObservation.id)?[...sessionEntries,pendingObservation]:sessionEntries,reading);
     if(pendingReading||awaitingReply)html+=thinkingHTML();
-    if(!reading&&doc.entries.some(entry=>entry.kind==='reading'))html+='<p class="ex-muted">The earlier reading is withheld because its sources changed. Your words remain.</p>';
+    html+=readingNotice(reading);
     if(draftWorkspace&&draftWorkspace!==doc.workspace_id)html+=`<p>Your draft belongs to a different document. ${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</p>`;
     html+=incomingHTML(disabled);
     if(retryReading&&retryId&&!busy&&!pendingReading)html+=`<p class="ex-muted">Your last reply is kept. ${action('retry-ai','try reply again',disabled)}</p>`;
+    const step=core.activeStep(doc,liveSources);
+    if(step)html+=`<div class="ex-links">${action('step',step.decision==='kept'?'the step you kept':'something to try')}</div>`;
     return html;
   }
   function notesHTML(reading,disabled) {
-    const own=reading&&core.amendments(doc,reading.id).at(-1);
+    const own=reading&&core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1);
     const withheldEdit=!reading&&doc.entries.filter(entry=>entry.kind==='amendment').at(-1);
-    const observations=doc.entries.filter(entry=>entry.kind==='observation');
-    return title('Living note','exNotesTitle')+`<div class="ex-note-section"><h4>Your account</h4>${observations.slice(-3).map(entry=>`<p>${h(entry.text)}</p>`).join('')||'<p>No observation recorded yet.</p>'}${observations.length>3?action('history','earlier conversation'):''}</div>
-      <div class="ex-note-section"><h4>A possibility</h4><p>${h(reading?own?.text||reading.text:doc.entries.some(entry=>entry.kind==='reading')?'The earlier reading is withheld because its sources changed. Your words remain.':'A reading will appear after you reply.')}</p>${reading?`<p class="ex-muted">${own?'Your wording · does not verify the interpretation':'AI interpretation · unconfirmed by you'}</p><div class="ex-links">${action('correct','correct this',disabled)}</div>`:''}</div>
-      ${withheldEdit?`<div class="ex-note-section"><span class="ex-source">Your wording about an earlier reading · support changed</span><p>${h(withheldEdit.text)}</p></div>`:''}<div class="ex-note-section"><h4>Still open</h4><p>${h(reading?.next_question||'Bring an experience or something you want to understand. A question can take shape as we talk.')}</p>${reading?`<p class="ex-muted">${h(reading.summary)}</p>`:''}</div>
+    const observations=doc.entries.filter(entry=>entry.kind==='observation'&&core.included(doc,entry.id));
+    return title('Living note','exNotesTitle')+readingNotice(reading)+
+      (reading?`<div class="ex-note-section"><h4>So far</h4><p>${h(own?.text||reading.summary)}</p><p class="ex-muted">${own?'Your wording · does not verify the interpretation':'AI summary · possibilities remain unconfirmed'}</p><div class="ex-links">${action('correct','correct this',disabled)}</div></div>`:`<div class="ex-note-section"><h4>Your words</h4>${observations.slice(-3).map(entry=>`<p>${h(entry.text)}</p>`).join('')||'<p>No included observation recorded yet.</p>'}</div>`)+
+      `${withheldEdit?`<div class="ex-note-section"><span class="ex-source">Your wording about an earlier reading · support changed</span><p>${h(withheldEdit.text)}</p></div>`:''}${(reading?reading.next_question:doc.question)?`<div class="ex-note-section"><h4>Still open</h4><p>${h(reading?reading.next_question:doc.question)}</p></div>`:''}
       <div class="ex-links">${action('step','something to try')}${action('document','your document')}</div>`;
   }
   function sourcesHTML(reading,disabled) {
     let html=title('Sources')+'<p>What supports this exploration. Leave out anything you don’t want used in future replies.</p>';
-    html+=`<div class="ex-note-section"><h4>Your notes</h4>${core.sources(doc).slice(-sourceWindow).map(entry=>`<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${entry.kind==='observation'?'Your words':h(entry.source_type)}${core.included(doc,entry.id)?'':' · left out'}</span>${h(entry.text)}</span>${action('source',core.included(doc,entry.id)?'leave out':'include',`data-entry-id="${h(entry.id)}" ${busy?'disabled':''}`)}</div>`).join('')||'<p>No observations recorded yet.</p>'}${core.sources(doc).length>sourceWindow?action('more-sources','show earlier sources'):''}</div>`;
-    if(reading?.today_sources?.length)html+=`<details id="exReadingSources" open><summary>TODAY records used in this reading · ${reading.today_sources.length}</summary>${reading.today_sources.map(ref=>{const source=liveSources.find(row=>row.id===ref.id&&row.signature===ref.signature);return `<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${h(source?.source_type||'source unavailable')}</span>${h(source?.text||'This source is no longer available here.')}</span></div>`;}).join('')}</details>`;
+    html+=`<div class="ex-note-section"><h4>Your notes</h4>${core.sources(doc).slice(-sourceWindow).map(entry=>`<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${entry.kind==='observation'?'Your words':entry.kind==='amendment'?'Your correction':h(entry.source_type)}${core.included(doc,entry.id)?'':' · left out'}</span>${h(entry.text)}</span>${action('source',core.included(doc,entry.id)?'leave out':'include',`data-entry-id="${h(entry.id)}" ${busy?'disabled':''}`)}</div>`).join('')||'<p>No observations recorded yet.</p>'}${core.sources(doc).length>sourceWindow?action('more-sources','show earlier sources'):''}</div>`;
+    if(reading?.today_sources?.length)html+=`<details id="exReadingSources" open><summary>TODAY records used in this reading · ${reading.today_sources.length}</summary>${reading.today_sources.map(ref=>{const source=liveSources.find(row=>row.id===ref.id&&dataContext().matches(ref,row));return `<div class="memory-item"><span class="memory-item-text"><span class="ex-source">${h(source?.source_type||'source unavailable')}</span>${h(source?.text||'This source is no longer available here.')}</span></div>`;}).join('')}</details>`;
     return html+todayHTML(disabled)+'<p class="ex-muted">Including a source again does not revive a reading withheld after you left it out. Feelings, dreams, email and Calendar stay separate.</p>';
   }
   function stepHTML(reading,disabled) {
-    const step=reading?.experiment;
-    return title('Something to try')+`<p>A possible next step, only if you want it. Understanding or leaving this open can also be useful.</p>${action('experiment','suggest something',disabled)}<p class="ex-status" id="exSuggestionStatus" role="status">${h(suggestionMessage)}</p>${step?`<div class="ex-note-section"><p>${h(step.action)}</p><dl class="ex-bounds">${[['Question',step.question],['Notice',step.signal],['Limit',step.effort],['Review',step.review],['Stop',step.stop]].map(([key,value])=>`<div><dt>${key}</dt><dd>${h(value)}</dd></div>`).join('')}</dl>${doc.entries.some(entry=>entry.kind==='task'&&entry.target===reading.id)?'<p>Added to Today. What it helps remains open.</p>':action('task','add to Today',disabled)}</div>`:''}`;
+    const retained=core.stepState(doc,liveSources),step=retained?.decision!=='declined'&&retained?.reading.experiment;
+    const target=retained?`data-step-id="${h(retained.reading.id)}" ${disabled}`:disabled;
+    return title('Something to try')+`<p>A possible next step, only if you want it. Understanding or leaving this open can also be useful.</p>${action('experiment','suggest something',disabled)}<p class="ex-status" id="exSuggestionStatus" role="status">${h(suggestionMessage)}</p>${retained?.decision==='declined'?'<p>You left the earlier step there. Nothing is waiting to be completed.</p>':''}${step?`<div class="ex-note-section"><p>${h(step.action)}</p><dl class="ex-bounds">${[['Question',step.question],['Notice',step.signal],['Limit',step.effort],['Review',step.review],['Stop',step.stop]].map(([key,value])=>`<div><dt>${key}</dt><dd>${h(value)}</dd></div>`).join('')}</dl><p class="ex-muted">${retained.decision==='kept'?'You kept this step. No reminder is scheduled.':'A suggestion, not a commitment.'}</p><div class="ex-links">${retained.decision!=='kept'?action('step-keep','keep this step',target):''}${action('step-revise','change it',target)}${action('step-decline','leave it',target)}</div>${doc.entries.some(entry=>entry.kind==='task'&&entry.target===retained.reading.id)?'<p>Added to Today. What it helps remains open.</p>':action('task','add to Today',target)}</div>`:''}`;
   }
   function documentHTML(disabled) {
     return title('Your document')+`<p>Your words, corrections and readings stay together in your Dropbox.</p><div class="ex-links">${action('record','read Markdown')}${action('export','export document')}${action('privacy','privacy &amp; forget')}${action('import','bring in earlier notes')}</div>${draft?`<div class="ex-links">${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</div>`:''}`;
@@ -368,7 +394,7 @@
     try {
       // A descriptive title comes from the person's own words, never an invented interpretation.
       let next=imported.startsWith('<!-- today-exploration ')?core.parse(imported):core.create((setupQuestion.split('\n').find(line=>line.trim())||'Earlier notes').slice(0,120),imported,id(),now());
-      next={...next,schema_version:2,today_context:next.today_context||{enabled:true,epoch:id(),excluded:[]}};
+      next={...next,schema_version:3,today_context:next.today_context||{enabled:true,epoch:id(),excluded:[]}};
       visitStart=next.entries.length;
       const observation=setupQuestion?row('observation',setupQuestion):null;
       if(includeIncoming&&incoming)next=core.append(next,row('context',incoming.text,{source_type:incoming.source_type,source_id:incoming.source_id||null}));
@@ -408,23 +434,29 @@
     const selectedLive=selectedSources();
     const selected = core.context(doc,liveSources,selectedLive); snapshot = selected;
     const previous = chosenReading();
-    const sourceIds = [...new Set([...selected.records.filter(entry=>!selectedLive.some(source=>source.id===entry.id)).map(entry=>entry.id), ...(previous?.source_ids || previous?.evidence_ids || []).filter(id=>doc.entries.some(entry=>entry.id===id))])];
-    pendingSources=[...new Map([...(previous?.today_sources||[]),...selectedLive.map(source=>({id:source.id,signature:source.signature}))].map(ref=>[ref.id,ref])).values()];
+    const retained=core.stepState(doc,liveSources),inputs=[previous,retained?.reading].filter(Boolean);
+    const sourceIds = [...new Set([...selected.records.filter(entry=>!selectedLive.some(source=>source.id===entry.id)).map(entry=>entry.id), ...inputs.flatMap(input=>(input.source_ids||input.evidence_ids).filter(id=>doc.entries.some(entry=>entry.id===id)))])];
+    const amendmentIds=[...new Set([...inputs.flatMap(input=>input.amendment_ids||[]),...(selected.prior_hypothesis?.corrections||[]).map(edit=>edit.id)])];
+    // Legacy dependencies may adopt current semantic identity only during this
+    // new generation, after their original fingerprints have been validated.
+    pendingSources=[...new Map([...inputs.flatMap(input=>input.today_sources||[]).map(ref=>dataContext().reference(liveSources.find(source=>source.id===ref.id))),...selectedLive.map(source=>dataContext().reference(source))].map(ref=>[ref.id,ref])).values()];
+    if(pendingSources.length>96){retryReading=!!retryId;status('This thread uses too many TODAY records. Use only your notes or narrow its sources before replying.');return;}
     pendingReading = true; awaitingReply=false; message='';recovery='';suggestionMessage=wantExperiment?'Thinking…':'';const requestController = new AbortController(); aiController = requestController; render();
     const timeout = setTimeout(()=>requestController.abort(),25000);
     try {
       const result = await fetch('/.netlify/functions/ai-assist',{method:'POST',headers:{'Content-Type':'application/json'},signal:aiController.signal,
         body:JSON.stringify({provider,apiKey:key,systemPrompt:core.systemPrompt,messages:[{role:'user',content:JSON.stringify({context:selected,request:wantExperiment ? 'Suggest one small reversible experiment, with all six bounds.' : 'Continue the exploration from the latest observation. No experiment unless asked.'})}]})});
       const data = await result.json();
-      const freshSources=await host.sources();
+      const freshSources=await host.sources(pendingSources.map(ref=>ref.id));
       if (!validSession(token) || aiController !== requestController || doc.workspace_id !== workspace || revision !== baseRevision || provider !== connection()._aiGetProvider() || key !== connection()._aiGetKey()) return;
+      if(requestController.signal.aborted)throw new Error('reply-expired');
       if(!dataContext().supports(pendingSources,freshSources)){liveSources=freshSources;throw new Error('sources-changed');}
       if (!result.ok || data.error) throw new Error('reply-unavailable');
       const reply = core.response(typeof data.reply==='string'?data:data.content || data.message,selected.records.map(entry=>entry.id));
       if(wantExperiment&&!reply.experiment)throw new Error('suggestion-empty');
       pendingReading = false;
-      const entry = row('reading',reply.reply,{next_question:reply.next_question,summary:reply.summary,evidence_ids:reply.evidence_ids,source_ids:sourceIds,today_sources:pendingSources,today_epoch:doc.today_context?.epoch||'',opening_revision:doc.source_revision||'',
-        experiment:wantExperiment ? reply.experiment : null});
+      const entry = row('reading',reply.reply,{synthesis_version:1,next_question:reply.next_question,summary:reply.summary,evidence_ids:reply.evidence_ids,source_ids:sourceIds,amendment_ids:amendmentIds,today_sources:pendingSources,today_epoch:doc.today_context?.epoch||'',opening_revision:doc.source_revision||'',
+        ...(retained?{step_origin:retained.reading.id}:{}),experiment:reply.experiment||null});
       if (await commit(core.append(doc,entry))) { retryId = null;retryReading=false;suggestionMessage=''; }
       else if(wantExperiment)suggestionMessage='Dropbox has not confirmed this suggestion. Your earlier notes stay.';
       else retryReading=recovery!=='reload'&&!!retryId;
@@ -441,7 +473,7 @@
   }
   function decorate() { host?.changed?.(doc); }
   const actions = {
-    async 'today-toggle'(){abortAI();const policy=doc.today_context||{enabled:false,excluded:[]};const next={...doc,schema_version:2,revision:doc.revision+1,updated_at:now(),today_context:{enabled:!policy.enabled,epoch:id(),excluded:policy.excluded,included:policy.included||[]}};if(await commit(next)){await refreshSources(false);render();}},
+    async 'today-toggle'(){abortAI();const policy=doc.today_context||{enabled:false,excluded:[]};const next={...doc,schema_version:3,revision:doc.revision+1,updated_at:now(),today_context:{enabled:!policy.enabled,epoch:id(),excluded:policy.excluded,included:policy.included||[]}};if(await commit(next)){await refreshSources(false);render();}},
     async 'today-pin'(button){abortAI();const source=liveSources.find(row=>row.id===button.dataset.todaySourceId&&row.selectable!==false),policy=doc.today_context;if(!source||!policy)return;const ids=[...new Set([...(policy.included||[]).filter(id=>liveSources.some(row=>row.id===id&&row.selectable!==false)),source.id])];if(ids.length>8||ids.filter(id=>liveSources.find(row=>row.id===id)?.evidence_kind==='AI interpretation').length>2)return status('Choose up to eight records, including at most two AI readings. Leave one out to make room.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),included:ids,excluded:policy.excluded.filter(id=>id!==source.id)}}))render();},
     async 'today-source'(button){abortAI();const target=button.dataset.todaySourceId,policy=doc.today_context;if(!policy||!liveSources.some(source=>source.id===target))return;const excluded=policy.excluded.includes(target)?policy.excluded.filter(value=>value!==target):[...policy.excluded,target];if(excluded.length>96)return status('Disconnect TODAY context to clear all its influence.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),excluded,included:(policy.included||[]).filter(id=>id!==target)}}))render();},
     back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'more-history'(){historyWindow+=24;render();},
@@ -449,11 +481,17 @@
     connections(){hide();host.connections();}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
     'retry-ai'(){return ask(false);}, experiment(){return ask(true);},
-    correct(){const reading=chosenReading();if(!reading)return;if(correctionTarget!==reading.id){correctionTarget=reading.id;correctionText=core.amendments(doc,reading.id).at(-1)?.text||reading.text;}go('correct');byId('exCorrection')?.focus({preventScroll:true});}, 'cancel-correction'(){correctionTarget=null;correctionText='';leave();},
+    correct(){const reading=chosenReading();if(!reading)return;if(correctionTarget!==reading.id){correctionTarget=reading.id;correctionText=core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1)?.text||reading.summary;}go('correct');byId('exCorrection')?.focus({preventScroll:true});}, 'cancel-correction'(){correctionTarget=null;correctionText='';leave();},
     async amend(){const value=byId('exCorrection')?.value.trim(),visit=navigation,target=correctionTarget;const reading=chosenReading();if(value&&reading&&reading.id===target&&await commit(core.append(doc,row('amendment',value,{target:reading.id})))){if(correctionTarget===target){correctionTarget=null;correctionText='';}if(view==='correct'&&navigation===visit)leave();else render();}},
     async source(button){abortAI();const target=button.dataset.entryId;if(doc&&await commit(core.append(doc,row('source','',{target,include:!core.included(doc,target)})))){message='Source choice kept; earlier dependent readings stay withheld.';render();}},
-    async task(){
-      const reading=chosenReading();if(!reading?.experiment||busy)return;
+    async 'step-keep'(button){return chooseStep(button,'kept');},
+    async 'step-decline'(button){return chooseStep(button,'declined');},
+    'step-revise'(button){
+      const retained=core.activeStep(doc,liveSources);if(!retained||retained.reading.id!==button.dataset.stepId)return;
+      draft='I’d like to change the step: ';draftWorkspace=doc.workspace_id;view='conversation';trail=[];render();byId('exThought')?.focus();
+    },
+    async task(button){
+      const reading=core.activeStep(doc,liveSources)?.reading;if(!reading?.experiment||busy||reading.id!==button.dataset.stepId)return;
       let taskId=taskPending?.target===reading.id ? taskPending.task_id : null;
       if(!taskId){taskId=host.addTask(reading.experiment.action);taskPending={target:reading.id,task_id:taskId};}
       if(taskId&&await commit(core.append(doc,row('task',reading.experiment.action,{target:reading.id,task_id:taskId})))) taskPending=null;
@@ -474,6 +512,11 @@
     export(){if(doc)download('life-exploration.md',core.stringify(doc));},
     'draft-export'(){download('exploration-unsent.md',draft||(!doc?setupQuestion:''));},'draft-clear'(){draft='';draftWorkspace=null;render();}
   };
+  async function chooseStep(button,decision){
+    const retained=core.activeStep(doc,liveSources);
+    if(!retained||busy||pendingReading||retained.reading.id!==button.dataset.stepId)return;
+    if(await commit(core.append(doc,row('step','',{target:retained.reading.id,decision}))))render();
+  }
   Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(button.dataset.exNav){navigation++;view=button.dataset.exAction;trail=view==='conversation'?[]:[{view:'conversation',scroll:0}];confirmForget=false;render();byId('exViewTitle')?.focus({preventScroll:true});return;}if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
   Today.ui.register('input','exploration.draft',(_event,input)=>{fitInput(input);promptFor(input.value);draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
   Today.ui.register('input','exploration.correction',(_event,input)=>{correctionText=input.value;});
@@ -485,7 +528,7 @@
     const file=input.files?.[0];if(!file||!doc||busy||pendingReading)return;
     if(file.size>core.limit)return status('Choose a Markdown document smaller than 500 KB.');
     const token=epoch,workspace=doc.workspace_id,text=await file.text();if(!validSession(token)||doc.workspace_id!==workspace)return;
-    try{const next={...doc,schema_version:2,revision:doc.revision+1,updated_at:now(),source_revision:id(),source_md:doc.source_md+'\n\n## Checkpoint added '+now()+'\n'+text};if(await commit(next)){retryId=null;status('Earlier notes added. Previous readings are withheld until you reply with this new context.');}}
+    try{const next={...doc,schema_version:3,revision:doc.revision+1,updated_at:now(),source_revision:id(),source_md:doc.source_md+'\n\n## Checkpoint added '+now()+'\n'+text};if(await commit(next)){retryId=null;status('Earlier notes added. Previous readings are withheld until you reply with this new context.');}}
     catch(_){busy=false;status('This checkpoint would exceed the document limit. Your existing document stays.');}
   });
   document.addEventListener('keydown',event=>{

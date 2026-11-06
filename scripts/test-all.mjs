@@ -168,13 +168,14 @@ async function runSuite(name, attempt, suite) {
     durationMs: Math.round(performance.now() - began), log,
     outputBytes,
   };
-  if (result.status !== 0) detail.excerpt = [
+  const passed=result.status===0&&!result.error&&!result.signal;
+  if (!passed) detail.excerpt = [
     detail.timedOut ? `Timed out after ${SUITE_TIMEOUT_MS / 1000}s` : result.error?.message,
     await excerpt(path),
   ].filter(Boolean).join('\n');
   suite.attempts.push(detail);
   saveReport();
-  return result.status === 0;
+  return passed;
 }
 
 for (const name of SUITE) {

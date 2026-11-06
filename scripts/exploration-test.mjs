@@ -5,7 +5,8 @@ import {createServer} from 'node:http';
 import {extname,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
-import {waitForFonts} from './browser-fixture.mjs';
+import {webcrypto} from 'node:crypto';
+import {waitForFonts,installFixtureClock} from './browser-fixture.mjs';
 const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..');
 let core;vm.runInNewContext(await readFile(join(ROOT,'assets/exploration-core.js'),'utf8'),{Today:{define:(_name,api)=>core=api},TextEncoder});
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -38,6 +39,96 @@ let selector;vm.runInNewContext(await readFile(join(ROOT,'assets/exploration-con
 assert.equal(selector.select([{id:'no-match',text:'unrelated inventory',evidence_kind:'task record'}],'Sketching by a window').length,0);
 const candidates=Array.from({length:20},(_,i)=>({id:'candidate-'+i,text:'sketching example '+i,evidence_kind:i<8?'AI interpretation':'task record'}));
 const selection=selector.select(candidates,'sketching');assert.ok(selection.length<=8);assert.ok(selection.filter(row=>row.evidence_kind==='AI interpretation').length<=2);
+// Existing dependencies are checked against their stores, independently of display/selection windows.
+{
+ const modules={},storage=new Map(),memory={returningTasks:{kept:{text:'Fictional sketching project',focusSessions:1,dayCount:1}}};
+ const state={Today:{define:(name,api)=>modules[name]=api,use:name=>name==='memory'?{records:ids=>modules['memory-view'].records(ids)}:name==='nudge'?{memoryReady:()=>!state.unready}:modules[name]},TextEncoder,crypto:webcrypto,appMemory:memory,
+  manualTasks:[{id:'kept',text:'Fictional sketching project'}],doneIds:new Set(),soonTasks:[],safeJSON:()=>[],
+  localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},_localISO:date=>(date||new Date()).toISOString().slice(0,10)};
+ const scope=vm.createContext(state);
+ for(const file of ['memory-view','exploration-context'])vm.runInContext(await readFile(join(ROOT,'assets/'+file+'.js'),'utf8'),scope);
+ modules['memory-view'].configure({outcomes:()=>[],inferences:()=>[],computed:()=>{},live:()=>true});
+ const project=modules['exploration-context'];
+ let live=await project.collect();const known=live.find(row=>row.id==='known:rt:kept'),task=live.find(row=>row.id==='task:kept');
+ const linkedReading=source=>{const d=core.append(core.create('Sketching','','retained-fiction',stamp),entry('reading','retained-reading','A possibility',{summary:'Open',next_question:'What happened?',evidence_ids:[source.id],today_sources:[{id:source.id,signature:source.signature}],today_epoch:'permission'}));d.today_context={enabled:true,epoch:'permission',excluded:[]};return d;};
+ const knownDoc=linkedReading(known),taskDoc=linkedReading(task);
+ for(let i=0;i<5;i++)memory.returningTasks['new'+i]={text:'Unrelated task '+i,focusSessions:2,dayCount:2};
+ state.manualTasks.unshift(...Array.from({length:100},(_,i)=>({id:'new'+i,text:'Unrelated task '+i})));
+ live=await project.collect([...core.supportIds(knownDoc),...core.supportIds(taskDoc)]);
+ assert.ok(core.current(knownDoc,live),'An unchanged record below five visible returns still supports its reading');
+ assert.ok(core.current(taskDoc,live),'An unchanged task below 100 candidates still supports its reading');
+ assert.equal(modules['memory-view'].records().filter(row=>row.id.startsWith('known:rt:')).length,5,'Memory keeps its existing display window');
+ assert.equal(project.select(live,'sketching',[],[known.id,task.id]).length,0,'Support-only lookups do not enlarge writer selection, even when previously pinned');
+ memory.returningTasks.kept.text='Edited fictional wording';
+ assert.equal(core.readingStatus(knownDoc,core.latest(knownDoc),await project.collect(core.supportIds(knownDoc))).reason,'source-changed');
+ memory.returningTasks.kept.text='Fictional sketching project';memory.revokedKnownItems={'rt:kept':stamp};
+ assert.equal(core.current(knownDoc,await project.collect(core.supportIds(knownDoc))),null,'A revoked record is never restored by support lookup');
+ delete memory.revokedKnownItems;memory.clearedAt=stamp;
+ assert.equal(core.current(taskDoc,await project.collect(core.supportIds(taskDoc))),null,'Memory clear still invalidates support');
+ delete memory.clearedAt;state.manualTasks=state.manualTasks.filter(row=>row.id!=='kept');
+ assert.equal(core.readingStatus(taskDoc,core.latest(taskDoc),await project.collect(core.supportIds(taskDoc))).reason,'source-unavailable','Real deletion stays unavailable');
+ storage.set('dropbox_token','fictional');state.unready=true;
+ assert.equal((await project.collect(core.supportIds(knownDoc))).length,0,'Support lookup never bypasses initial source readiness');
+ assert.equal(core.readingStatus(stale,core.latest(stale),[{id:'task:one',signature:'a'.repeat(64)}]).reason,'context-changed');
+ console.log('  ✓ source windows retain unchanged dependencies without broadening selection or bypassing withdrawal, clear or readiness');
+}
+// One accepted record supplies reply and cumulative note; steps and corrections retain actual dependencies.
+{
+ let d=core.append(core.create('Fictional continuity','','continuity',stamp),entry('observation','own-1','A difficult start.'));
+ const experiment={question:'Does the starting condition matter?',action:'Try one small shape',signal:'Whether starting feels different',effort:'Five minutes',review:'If returning',stop:'If unwelcome'};
+ d=core.append(d,entry('reading','understanding-1','A conversation reply.',{synthesis_version:1,summary:'The first experience leaves time and expectations unresolved.',next_question:'What happened on another day?',evidence_ids:['own-1'],source_ids:['own-1'],experiment}));
+ d=core.append(d,entry('step','keep-1','',{target:'understanding-1',decision:'kept'}));
+ d=core.append(d,entry('amendment','edit-1','The expectation mattered, rather than company.',{target:'understanding-1'}));
+ const projected=core.context(d);
+ assert.equal(projected.prior_hypothesis.text,d.entries[1].summary);
+ assert.equal(projected.prior_hypothesis.retained_step.status,'kept');
+ assert.equal(projected.prior_hypothesis.corrections[0].id,'edit-1');
+ assert.ok(!projected.records.some(row=>row.kind==='amendment'),'Corrections keep their separate bounded input role');
+ d=core.append(d,entry('observation','own-2','A free afternoon was a counterexample.'));
+ d=core.append(d,entry('reading','understanding-2','A later reply.',{synthesis_version:1,summary:'The counterexample makes time an incomplete explanation; expectations remain possible.',next_question:'',evidence_ids:['own-2'],source_ids:['own-1','own-2'],amendment_ids:['edit-1'],step_origin:'understanding-1',experiment:null}));
+ assert.equal(core.activeStep(d).reading.id,'understanding-1','Ordinary replies do not displace an eligible kept step');
+ assert.ok(core.context(d).prior_hypothesis.corrections.some(row=>row.id==='edit-1'),'Inherited corrections remain usable');
+ assert.equal(core.parse(core.stringify(d)).entries.at(-1).summary,d.entries.at(-1).summary);
+ const large=structuredClone(d);large.entries.at(-1).summary='x'.repeat(1200);large.entries[1].experiment=Object.fromEntries(Object.keys(experiment).map(key=>[key,'y'.repeat(500)]));
+ const bounded=core.context(large).prior_hypothesis;
+ assert.ok(bounded.text.length+JSON.stringify(bounded.retained_step).length<=2400,'Summary and retained-step input fit the former prior-reading allocation');
+ d=core.append(d,entry('step','decline-1','',{target:'understanding-1',decision:'declined'}));
+ assert.equal(core.activeStep(d),null);assert.deepEqual(plain(core.context(d).prior_hypothesis.retained_step),{status:'declined'});
+ d=core.append(d,entry('source','leave-edit','',{target:'edit-1',include:false}));
+ assert.equal(core.current(d),null,'Withdrawing a consumed correction hides the dependent summary and reply');
+ d=core.append(d,entry('source','include-edit','',{target:'edit-1',include:true}));
+ assert.equal(core.current(d),null,'Re-inclusion does not revive dependent understanding');
+ assert.throws(()=>core.validate({...d,schema_version:2}),'Older schema cannot claim new step/source semantics');
+ const legacy=core.create('Old document','','legacy',stamp);legacy.schema_version=2;
+ assert.equal(core.parse(core.stringify(legacy)).schema_version,2);assert.equal(core.append(legacy,entry('observation','upgrade','Deliberate write')).schema_version,3);
+ assert.throws(()=>core.response({reply:'Reply',summary:'',next_question:'',evidence_ids:[],experiment:null},[]));
+ console.log('  ✓ single-result synthesis, inherited correction withdrawal, retained/declined steps, schema compatibility and bounded prior context');
+}
+// Meaning changes and eligibility are independent of freshness/display metadata.
+{
+ const modules={},storage=new Map(),inference={id:'stable',type:'semantic',text:'Fictional pottery needs room for an unfinished result',source:'ai_abstract',status:'confirmed',addedAt:'2026-10-01',lastSeen:'2026-11-05',seenWeeks:['2026-10-26','2026-11-02'],isNew:true};
+ const m={memory:{semantic:[inference]},patterns:{taskLifespanSamples:[1,1,1,1,1]}};
+ const env={Today:{define:(name,api)=>modules[name]=api,use:name=>name==='memory'?{records:ids=>modules['memory-view'].records(ids)}:name==='nudge'?{memoryReady:()=>true}:modules[name]},TextEncoder,crypto:webcrypto,appMemory:m,manualTasks:[],doneIds:new Set(),soonTasks:[],safeJSON:()=>[],localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},_localISO:date=>(date||new Date()).toISOString().slice(0,10)};
+ const scope=vm.createContext(env);
+ for(const file of ['memory-view','exploration-context'])vm.runInContext(await readFile(join(ROOT,'assets/'+file+'.js'),'utf8'),scope);
+ const owner=await readFile(join(ROOT,'assets/memory-panel.js'),'utf8');
+ vm.runInContext('const HYPO_FADE_DAYS=28,HYPO_EPISODIC_DAYS=7;function _daysSince(date){return (Date.parse("2026-11-06")-Date.parse(date))/86400000;}'+owner.slice(owner.indexOf('function _hypoLive('),owner.indexOf('function _hypoTombstone(')),scope);
+ modules['memory-view'].configure({outcomes:()=>[],inferences:()=>m.memory.semantic.filter(item=>scope._hypoLive(item)),computed:()=>{},live:item=>scope._hypoLive(item)});
+ const projection=modules['exploration-context'],initial=await projection.collect(),source=initial.find(row=>row.id==='memory:semantic:stable');
+ const make=ref=>{const doc=core.append(core.create('Pottery','','freshness',stamp),entry('reading','freshness-reading','A reply',{summary:'A continuing note',next_question:'What differed?',evidence_ids:[ref.id],today_sources:[ref],today_epoch:'allowed'}));doc.today_context={enabled:true,epoch:'allowed',excluded:[]};return doc;};
+ const semantic=make(projection.reference(source)),legacy=make({id:source.id,signature:source.signature});
+ inference.lastSeen='2026-11-06';inference.isNew=false;inference.seenWeeks.reverse();
+ let live=await projection.collect();assert.ok(core.current(semantic,live),'Freshness and display/order changes preserve new semantic references');assert.equal(core.current(legacy,live),null,'Legacy hashes are not silently reinterpreted');
+ inference.seenWeeks.push('2026-11-09');assert.equal(core.current(semantic,await projection.collect()),null,'Changed actual supporting weeks still invalidate');inference.seenWeeks.pop();
+ inference.evidence_ids=['different-evidence'];assert.equal(core.current(semantic,await projection.collect()),null,'Same wording with changed stored evidence invalidates');delete inference.evidence_ids;
+ inference.lastSeen='2026-01-01';assert.equal(core.current(semantic,await projection.collect()),null,'Meaning identity cannot bypass real expiry');inference.lastSeen='2026-11-06';
+ m.clearedAt=stamp;assert.equal(core.current(semantic,await projection.collect()),null,'Clear watermark remains meaningful');delete m.clearedAt;
+ const fact=initial.find(row=>row.id==='fact:lifespan'),factDoc=make(projection.reference(fact));m.patterns.taskLifespanSamples=[1,1,1,1,1.1];
+ assert.equal((await projection.collect()).find(row=>row.id===fact.id).text,fact.text);assert.equal(core.current(factDoc,await projection.collect()),null,'Rounded identical fact wording does not conceal changed numerical evidence');
+ m.memory.semantic=[];assert.equal(core.current(semantic,await projection.collect()),null,'Removal/remote withdrawal stays unavailable');
+ console.log('  ✓ semantic freshness/order controls, changed underlying evidence, legacy conservatism, expiry, deletion and clear');
+}
+
 // Exercise the real proxy's structured result without any provider/network access.
 const structured={reply:'A tentative connection.',summary:'Still open.',next_question:'What changed?',evidence_ids:[],experiment:null};
 const proxy={exports:{},process:{env:{}},fetch:async()=>({ok:true,text:async()=>JSON.stringify({content:[{type:'text',text:JSON.stringify(structured)}],stop_reason:'end_turn'})})};
@@ -57,6 +148,7 @@ const browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH||'/
 const errors=[];let testPage;
 try{
  const page=await browser.newPage();testPage=page;page.on('pageerror',error=>errors.push(error.message));await page.setBypassServiceWorker(true);await page.setViewport({width:1024,height:900});await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
+ await page.emulateTimezone('Europe/Amsterdam');await installFixtureClock(page,Date.parse('2026-11-06T08:00:00Z'));
  await page.evaluateOnNewDocument(()=>{
   // Focus is a desktop capability. Pin the fixture's hardware model instead of
   // inheriting macOS/Linux headless hover differences; width/motion remain native.
@@ -88,7 +180,7 @@ try{
     const body=JSON.parse(opts.body);if(!body.systemPrompt?.includes('life exploration'))return json({content:''});
     s.ai.push(body);if(s.hold)await new Promise(resolve=>{s.release=resolve;});
     if(s.malformed){s.malformed=false;return json({content:'malformed reply'});}
-    if(s.failReplyWrite){s.failReplyWrite=false;s.rejectNextWrite=true;}const context=JSON.parse(body.messages[0].content);const reply={reply:'One fictional account leaves several explanations open.',summary:'Materials and timing remain possibilities.',next_question:'What changed this time?',evidence_ids:context.context.records.map(row=>row.id),experiment:context.request.startsWith('Suggest')?{question:'Does a smaller setup help?',action:'Try a fictional short session',signal:'Whether starting feels easier',effort:'One minute',review:'When returning',stop:'If it becomes burdensome'}:null};if(s.emptySuggestion)reply.experiment=null;if(s.badEvidence)reply.evidence_ids=['invented'];if(s.failSuggestion)return json({error:'Fictional unavailable'},503);return s.wrapped?json({content:JSON.stringify(reply)}):json(reply);
+    if(s.failReplyWrite){s.failReplyWrite=false;s.rejectNextWrite=true;}const context=JSON.parse(body.messages[0].content);const reply={reply:'One fictional account leaves several explanations open.',summary:'Materials and timing remain possibilities.',next_question:'What changed this time?',evidence_ids:context.context.records.map(row=>row.id),experiment:(context.request.startsWith('Suggest')||/something (?:small )?to try|change the step/i.test(context.context.records.filter(row=>row.kind==='observation').at(-1)?.text||''))?{question:'Does a smaller setup help?',action:'Try a fictional short session',signal:'Whether starting feels easier',effort:'One minute',review:'When returning',stop:'If it becomes burdensome'}:null};if(s.nextReply){Object.assign(reply,s.nextReply);s.nextReply=null;}if(s.emptySuggestion)reply.experiment=null;if(s.badEvidence)reply.evidence_ids=['invented'];if(s.failSuggestion)return json({error:'Fictional unavailable'},503);return s.wrapped?json({content:JSON.stringify(reply)}):json(reply);
    }
    if(target.includes('/.netlify/functions/'))return json({});
    if(/^https?:/.test(target)&&!target.startsWith(location.origin))throw new Error('Unexpected external request');
@@ -208,6 +300,49 @@ try{
  await checkLayout('step');
  await page.evaluate(()=>{__explorationTest.wrapped=true;});await click('[data-ex-action="experiment"]');await wait(()=>!document.querySelector('[data-ex-action="experiment"]').disabled);await click('[data-ex-action="task"]');await wait(()=>document.querySelectorAll('#manualList .task').length===2);
  assert.ok(await page.evaluate(()=>!__explorationTest.remote.includes('"beneficial":true')));
+
+ // The same accepted result updates conversation and cumulative note, without a second writer.
+ const chat=async()=>{await click('.ex-nav [data-ex-action="conversation"]');await wait(()=>document.getElementById('exThought'));};
+ const callsBeforeKeep=await page.evaluate(()=>__explorationTest.ai.length);
+ await click('[data-ex-action="step-keep"]');await wait(()=>Today.use('exploration-core').activeStep(Today.use('exploration').document()).decision==='kept');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),callsBeforeKeep,'Keeping a step makes no model call');
+ await chat();
+ const paired=await page.evaluate(()=>({calls:__explorationTest.ai.length,summary:Today.use('exploration-core').latest(Today.use('exploration').document()).summary}));
+ await page.evaluate(()=>{__explorationTest.nextReply={reply:'That counterexample leaves time as only part of the story.',summary:'You postponed making things on a free afternoon, but enjoyed it on a tired evening without an expected result. Expectations may matter; that remains uncertain.',next_question:'What happens when there is nothing to finish?',experiment:null};});
+ await page.type('#exThought','I had a free afternoon and still did not start; a tired evening without an expected result felt different.');await send();await wait(()=>!document.getElementById('exThought').readOnly);
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),paired.calls+1,'One explicit turn makes exactly one model request');
+ assert.equal(await page.evaluate(()=>JSON.parse(__explorationTest.ai.at(-1).messages[0].content).context.prior_hypothesis.text),paired.summary);
+ assert.equal(await page.evaluate(()=>JSON.parse(__explorationTest.ai.at(-1).messages[0].content).context.prior_hypothesis.retained_step.status),'kept');
+ const savedSummary=await page.evaluate(()=>Today.use('exploration-core').latest(Today.use('exploration').document()).summary);
+ await click('#exNotes');assert.equal(await page.$eval('.ex-note-section p',node=>node.textContent),savedSummary,'Living note uses the same saved result’s summary, not its reply or last three observations');
+ await mkdir(join(ROOT,'.context/ci-test-results/explore-continuity'),{recursive:true});
+ for(const width of [390,1024]){await page.setViewport({width,height:900});await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-continuity/living-note-${width}.png`),fullPage:true});}
+ const callsBeforeReturn=await page.evaluate(()=>__explorationTest.ai.length);
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
+ assert.equal(await page.$eval('.ex-resume p',node=>node.textContent),savedSummary,'A later visit resumes the saved understanding');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),callsBeforeReturn,'Returning makes no model request');
+ await click('[data-ex-action="step"]');assert.ok(await page.$('[data-ex-action="step-decline"]'),'Chosen step survives ordinary reply and reopen');await checkLayout('retained-step');
+ await click('[data-ex-action="step-decline"]');await wait(()=>document.querySelector('.ex-note-section')===null&&document.getElementById('exViewTitle')?.textContent==='Something to try');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),callsBeforeReturn,'Declining makes no model call');
+ await chat();await page.type('#exThought','I want to leave the step behind for now.');await send();await wait(()=>!document.getElementById('exThought').readOnly);
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(__explorationTest.ai.at(-1).messages[0].content).context.prior_hypothesis.retained_step),{status:'declined'});
+ assert.equal(await page.$('[data-ex-action="step"]'),null,'A declined step does not remain in conversation guidance');
+ await page.type('#exThought','Could you suggest something small to try?');await send();await wait(()=>!document.getElementById('exThought').readOnly);await click('[data-ex-action="step"]');
+ assert.ok(await page.$('[data-ex-action="step-keep"]'),'An ordinary conversational request can produce the bounded optional step');
+ const beforeRevise=await page.evaluate(()=>__explorationTest.ai.length);await click('[data-ex-action="step-revise"]');await wait(()=>document.getElementById('exThought'));
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeRevise,'Change it prepares words without sending');
+ assert.ok(await page.$eval('#exThought',node=>node.value.includes('change the step')));
+ await page.type('#exThought','make it shorter.');await send();await wait(()=>!document.getElementById('exThought').readOnly);
+
+ const beforeDeadline=await page.evaluate(()=>({id:Today.use('exploration-core').latest(Today.use('exploration').document()).id,readings:Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length}));
+ await page.evaluate(()=>{const native=setTimeout;__explorationTest.restoreTimeout=()=>{window.setTimeout=native;};window.setTimeout=(callback,delay,...args)=>{if(delay===25000)__explorationTest.expire=callback;return native(callback,delay,...args);};__explorationTest.hold=true;__explorationTest.release=null;});
+ await page.type('#exThought','A fictional observation before a delayed response.');await send();await wait(()=>typeof __explorationTest.release==='function'&&typeof __explorationTest.expire==='function');
+ await page.evaluate(()=>{__explorationTest.expire();__explorationTest.hold=false;__explorationTest.release();__explorationTest.restoreTimeout();});await wait(()=>document.querySelector('[data-ex-action="retry-ai"]'));
+ assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length),beforeDeadline.readings,'Late headers/body after the existing deadline cannot append a reply or summary even if transport ignores abort');
+ assert.equal(await page.evaluate(()=>Today.use('exploration-core').latest(Today.use('exploration').document()).id),beforeDeadline.id,'The preceding saved understanding stays intact after timeout');
+ await click('[data-ex-action="retry-ai"]');await wait(()=>!document.getElementById('exThought').readOnly);
+ await click('#exNotes');await click('[data-ex-action="step"]');
+ console.log('  ✓ Real app: one-call cumulative note, matching return without AI, kept/declined steps across turns, natural request and deliberate revision');
  console.log('  ✓ Real app: create, durable observation before AI, correction history, direct/wrapped proxy results, suggestion failure/empty/pending/success and optional action');
  await back();await back();await back();
  // A saved conversation and a linked experiment must not add controls to daily task rows.
@@ -321,7 +456,7 @@ try{
  await wait(()=>Today.use('exploration').document().entries.some(row=>row.kind==='reading')&&!document.querySelector('#exThought').readOnly);
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeFirstSend+1,'One explicit first Send makes exactly one AI request');
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='observation').length),1,'First message is kept as one durable observation');
- assert.equal(await page.evaluate(()=>Today.use('exploration').document().schema_version),2);
+ assert.equal(await page.evaluate(()=>Today.use('exploration').document().schema_version),3);
  await page.type('#exThought','The fictional project started in a different setting.');await send();await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  const linked=await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').at(-1));assert.ok(linked.today_sources.length>0&&linked.today_sources.length<=8);
  assert.ok(await page.evaluate(()=>JSON.stringify(__explorationTest.ai.at(-1)).includes('RAW_TASK_FICTION')));
@@ -329,6 +464,15 @@ try{
  assert.ok(!(await page.evaluate(()=>__explorationTest.remote)).includes('RAW_TASK_FICTION'),'The journal stores live references, not duplicate raw source text');
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().source_md),'','A connected conversation works before any earlier notes are imported');
  await page.screenshot({path:join(ROOT,'.context/exploration-layout-restored/test-fixture-reply.png'),fullPage:true});await checkLayout('reply');
+ // The actual component must retain a reading after unrelated tasks move its source beyond the selection window.
+ const beforeWindowShift=await page.evaluate(()=>({calls:__explorationTest.ai.length,reading:Today.use('exploration-core').latest(Today.use('exploration').document()).id}));
+ await page.evaluate(()=>{manualTasks.unshift(...Array.from({length:100},(_,i)=>({id:'window-fixture-'+i,text:'Unrelated inventory '+i})));_saveMemory();});
+ await click('#exNotes');await wait(()=>document.querySelector('#exNotesTitle'));
+ assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.ex-note-section h4')].some(node=>node.textContent==='So far')),'Living note shows its interpretation after an unrelated selection-window change');
+ assert.equal(await page.$('#exReadingNotice'),null,'An unchanged retained source does not produce the unavailable notice');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeWindowShift.calls,'Source verification and navigation make no new AI request');
+ assert.equal(await page.evaluate(()=>Today.use('exploration-core').latest(Today.use('exploration').document()).id),beforeWindowShift.reading);
+ await page.evaluate(()=>{manualTasks=manualTasks.filter(row=>!row.id.startsWith('window-fixture-'));_saveMemory();});await back();
  const openingPath=join(ROOT,'.context/exploration-integration/opening-fiction.md');await mkdir(dirname(openingPath),{recursive:true});await writeFile(openingPath,'Original fictional checkpoint retained.');
  await click('#exNotes');assert.ok(await page.$eval('#addTaskBar',node=>getComputedStyle(node).display!=='none'),'Daily capture stays visible in exploration Notes');assert.equal(await page.$('input[type=file]'),null,'File import is absent from the living note');await click('[data-ex-action="document"]');await click('[data-ex-action="import"]');assert.equal(await page.$('#exThought,#exNotesTitle'),null,'Import replaces its parent view');await checkLayout('import');
  await (await page.$('[data-today-change="exploration.checkpoint"]')).uploadFile(openingPath);await wait(()=>__explorationTest.remote.includes('Original fictional checkpoint retained.'));assert.equal(await page.evaluate(()=>Today.use('exploration').document().today_context.enabled),true,'Adding earlier notes preserves the TODAY connection');await back();await back();await back();
@@ -340,6 +484,14 @@ try{
  assert.ok(await page.evaluate(()=>document.activeElement.id==='exViewTitle'||document.activeElement.dataset.exAction==='today-pin'),'A source choice keeps meaningful focus');
  await back();await page.type('#exThought','The fictional project has a new possibility.');await send();await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  assert.ok(await page.evaluate(()=>{const rows=JSON.parse(__explorationTest.ai.at(-1).messages[0].content).context.records;return rows.some(row=>row.id==='memory:semantic:MEMORY_FICTION'&&row.evidence_kind==='AI interpretation'&&row.source_type.includes('unconfirmed'));}),'Chosen Memory interpretations reach the writer with their unconfirmed provenance');
+
+ const beforeFreshness=await page.evaluate(()=>({calls:__explorationTest.ai.length,id:Today.use('exploration-core').latest(Today.use('exploration').document()).id}));
+ await page.evaluate(()=>{const item=appMemory.memory.semantic[0];const prior=new Date();prior.setDate(prior.getDate()-1);item.lastSeen=_localISO(prior);item.isNew=!item.isNew;item.seenWeeks.reverse();_saveMemory();});
+ await click('#exNotes');await wait(()=>document.getElementById('exNotesTitle'));
+ assert.equal(await page.$('#exReadingNotice'),null,'Same-meaning freshness/display/sync-order update keeps the actual living note');
+ assert.equal(await page.evaluate(()=>Today.use('exploration-core').latest(Today.use('exploration').document()).id),beforeFreshness.id);
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeFreshness.calls,'Freshness handling does not regenerate prose');
+ await back();
  await click('[data-ex-action="sources"]');await checkLayout('sources');assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#explorationRoot details')].find(node=>node.querySelector('summary')?.textContent.startsWith('TODAY records used')).textContent.includes('NONCE_MEMORY_FICTION')),'Notes exposes the actual live records used by this reading');await back();
  await page.evaluate(()=>{doneIds.add(manualTasks[0].id);Today.use('connections').renderManual();});
  assert.equal(await page.evaluate(async()=>!!Today.use('exploration-core').current(Today.use('exploration').document(),await Today.use('exploration-context').collect())),true,'Completion alone does not invalidate the same task wording');
@@ -355,12 +507,17 @@ try{
  await back();await click('[data-ex-action="retry-ai"]');await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  await page.evaluate(()=>{__explorationTest.hold=true;__explorationTest.release=null;});await page.type('#exThought','A fictional project follow-up.');await send();await wait(()=>typeof __explorationTest.release==='function');
  await page.evaluate(()=>{manualTasks[0].text='Edited task after the request';Today.use('connections').renderManual();_saveMemory();});
- await wait(()=>document.querySelector('.ex-status').textContent.includes('supporting TODAY record')&&!document.querySelector('#exThought').readOnly);
+ await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('A task used in the earlier interpretation has changed')&&!document.querySelector('#exThought').readOnly);
  const beforeEdit=await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length);
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await new Promise(resolve=>setTimeout(resolve,100));
  await page.waitForFunction(()=>!document.querySelector('[data-ex-reading]'));
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length),beforeEdit);
- await click('#exNotes');await click('[data-ex-action="document"]');await click('[data-ex-action="import"]');
+ await click('#exNotes');
+ assert.equal(await page.evaluate(()=>[...document.querySelectorAll('.ex-note-section h4')].some(node=>node.textContent==='So far')),false,'Unavailable status never occupies an interpretation section');
+ assert.ok(await page.$eval('#exReadingNotice',node=>node.textContent.includes('A task')&&node.textContent.includes('changed')));
+ assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.ex-note-section p')].some(node=>node.textContent===Today.use('exploration').document().question)),'The open question stays meaningful when the interpretation is unavailable');
+ await checkLayout('unavailable-note');
+ await click('[data-ex-action="document"]');await click('[data-ex-action="import"]');
  const checkpointPath=join(ROOT,'.context/exploration-integration/checkpoint-fiction.md');await mkdir(dirname(checkpointPath),{recursive:true});await writeFile(checkpointPath,'Fictional checkpoint appended through the native import.');
  await page.evaluate(()=>{manualTasks[0].text+=' changed again';_saveMemory();});await wait(()=>document.querySelector('[data-today-change="exploration.checkpoint"]'));assert.equal(await page.$('#exThought,#exNotesTitle,#exTodayContext'),null,'Source refresh preserves the focused import view');const file=await page.$('[data-today-change="exploration.checkpoint"]');await file.uploadFile(checkpointPath);await wait(()=>__explorationTest.remote.includes('Fictional checkpoint appended'));
  assert.ok(await page.evaluate(()=>Today.use('exploration').document().source_revision));assert.ok(await page.evaluate(()=>Today.use('exploration').document().source_md.includes('Original fictional checkpoint retained.')));
@@ -449,6 +606,11 @@ try{
  console.log('  ✓ Live TODAY records work without importing notes; explained creation and saved opt-out are respected; sensitive stores stay separate; fingerprints/epochs fence edits and exclusion; completion stays valid; checkpoint append preserves history');
  assert.ok(await page.evaluate(()=>Object.keys(localStorage).every(key=>!key.startsWith('today_exploration'))));assert.ok(await page.evaluate(()=>__explorationTest.backup.every(body=>!body.includes('OBS_FICTION')&&!body.includes('CORRECTION_FICTION'))));assert.deepEqual(errors,[]);
  await mkdir(join(ROOT,'.context/exploration-integration'),{recursive:true});await page.screenshot({path:join(ROOT,'.context/exploration-integration/forgotten.png'),fullPage:true});
+
+ const futureBefore=await page.evaluate(()=>{__explorationTest.remote=__explorationTest.remote.replace(/"schema_version":3/, '"schema_version":99');return {remote:__explorationTest.remote,calls:__explorationTest.ai.length,uploads:__explorationTest.uploads.length};});
+ await click('[data-ex-origin="list"]');await wait(()=>document.querySelector('.ex-status')?.textContent.includes('newer version'));
+ assert.equal(await page.$('#exQuestion,input[type=file]'),null,'Unsupported native versions cannot be re-imported as a downgraded new thread');
+ assert.equal(await page.evaluate(()=>__explorationTest.remote),futureBefore.remote);assert.equal(await page.evaluate(()=>__explorationTest.ai.length),futureBefore.calls);assert.equal(await page.evaluate(()=>__explorationTest.uploads.length),futureBefore.uploads);
  console.log('  ✓ Source withdrawal fences delayed AI, re-inclusion cannot revive, widths stay contained, conditional forget clears page and Dropbox; no journal in backup/storage');
-}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('explorationRoot')?.innerHTML,announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
+}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('explorationRoot')?.innerHTML,announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 console.log('✓ EXPLORATION TEST PASSED');

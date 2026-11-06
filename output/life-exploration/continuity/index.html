@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; font-src 'self'; script-src 'self'; frame-src 'self'; connect-src 'none'; img-src 'none'; form-action 'none'; base-uri 'none'">
+  <title>TODAY — Explore continuity review</title>
+  <link rel="stylesheet" href="native.css">
+  <link rel="stylesheet" href="study.css">
+  <script src="study.js" defer></script>
+</head>
+<body class="study">
+  <header class="study-controls">
+    <p>Earlier prototype · independent-note design withdrawn · nothing saved · no AI</p>
+    <div class="study-actions">
+      <label for="scene">Journey</label>
+      <select id="scene">
+        <option value="first">1 · First conversation</option>
+        <option value="first-note">2 · First living note</option>
+        <option value="refined">3 · A counterexample</option>
+        <option value="correction">4 · A correction</option>
+        <option value="overnight">5 · Routine app updates</option>
+        <option value="return">6 · Return days later</option>
+        <option value="request">7 · Ask for a small step</option>
+        <option value="step-return">8 · Later reply and return</option>
+        <option value="outcome">9 · Discuss what happened</option>
+        <option value="task-withdrawn">10 · Task context withdrawn</option>
+        <option value="note-withdrawn">11 · Personal note left out</option>
+      </select>
+      <button type="button" id="previous" class="memory-item-btn" aria-label="Previous journey scene">‹ previous</button>
+      <button type="button" id="next" class="memory-item-btn" aria-label="Next journey scene">next ›</button>
+      <button type="button" id="example" class="memory-item-btn">fill example reply</button>
+      <label for="size">Preview</label>
+      <select id="size"><option value="fit">fit window</option><option value="phone">390px phone</option><option value="narrow">320px phone</option></select>
+    </div>
+    <p id="sceneDetail" role="status"></p>
+  </header>
+  <main class="study-preview"><iframe id="preview" title="Explore prototype with fictional notes" src="surface.html?scene=first"></iframe></main>
+</body>
+</html>

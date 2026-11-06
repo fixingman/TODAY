@@ -528,7 +528,7 @@
         toggle: toggleMemory,
         render: renderMemoryPanel,
         prepare: prepareMemory,
-        async records(){const view=await prepareMemory();view.configure(viewOptions());return view.records();},
+        async records(supportIds){const view=await prepareMemory();view.configure(viewOptions());return view.records(supportIds);},
         openConnections: _memoryGoToConnections,
         requestClear: _memoryClearRequest,
         cancelClear: _memoryClearCancel,

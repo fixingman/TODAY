@@ -318,3 +318,7 @@ A separate canonical Markdown document in the user's Dropbox holds the explorati
 ## Native Memory data extension — v3.2.0
 
 Native document schema 2 adds shared context permission/exclusions and live-source reference fingerprints. It does not create another appMemory/localStorage or backup field. Original source records retain their existing lifetime. AI reply history can quote them and remains in Markdown/export until explicit Forget; withholding is not deletion. Reader supports 1/2 and older writers refuse 2. New checkpoints append with an opening-material revision. See [the integration contract](../../docs/exploration-data-integration.md).
+
+## Separate Explore journal — local v3.5.0
+
+The canonical Dropbox Markdown journal is outside task backup/localStorage/appMemory. Its native schema3 reads schemas1/2 and adds semantic live-reference version2, single-result synthesis version1, consumed amendment IDs and explicit kept/declined step records. Deliberate writes upgrade, opening does not. General backup schema stays5.5 and task-sync merge rules are unchanged. A future unsupported native schema cannot be imported/replaced through the setup fallback. Keep a compatible reader for rollback; never downgrade the journal. Concrete format, bounds, provenance and withdrawal rules: [Explore contract](../../docs/exploration-integration.md).

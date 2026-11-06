@@ -1,5 +1,7 @@
 # Life Exploration in TODAY — first design study
 
+**November 6 product review:** Can has used Explore but its purpose/progression remains confusing, and the plausible-understanding/open-question/optional-action journey has not been experienced. The [current journey review](exploration-journey-review.md) documents automatic source-change triggers, implementation gaps and a concrete fictional return journey. Earlier integration/layout approval does not establish this product acceptance; no broader redesign or source-policy change is approved by that review.
+
 Status: the session shipped to dev as v3.1.0; Can approved integrating the Memory landing and real TODAY data on 4 November. The native v3.2 implementation is specified in [the data integration contract](exploration-data-integration.md). The studies remain fictional design history. [Runtime/file contract](exploration-integration.md). The first study is [output/life-exploration/index.html](../output/life-exploration/index.html). It contains only fictional examples. No personal record, stage assignment, candidate endorsement, observation or checkpoint is stored in this document.
 
 ## Problem and success signal
