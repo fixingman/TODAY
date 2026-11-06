@@ -33,8 +33,6 @@
   #explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { font-size: var(--text-lg); }
 }
 
-.exploration-task-action { margin-right: var(--space-4); }
-@media (hover: hover) { .exploration-task-action { opacity: 0; } .task:hover .exploration-task-action, .task:focus-within .exploration-task-action { opacity: 1; } }
 #explorationRoot .ex-today { margin-top: var(--space-3); font-size: var(--text-task); }
 #explorationRoot .ex-secondary { margin-top: var(--space-4); }
 #explorationRoot [data-ex-action=forget]:hover { color: var(--danger); }
@@ -59,7 +57,7 @@
 /* v3.4.0 side panel. Sub-pages lead with their own way back; the header only hides Explore. */
 #explorationRoot .ex-subnav { display: inline-flex; margin: 0 0 var(--space-3) calc(-1 * var(--space-2)); }
 #explorationRoot .ex-thinking p { color: var(--muted); }
-#explorationRoot .ex-turn:last-of-type { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
+#explorationRoot .ex-turn:last-of-type { animation: fadeIn var(--dur-fast) var(--ease-out) both; }
 /* Composer: the daily add bar's tokens, so both input rows read as one place. */
 #explorationRoot .ex-prompt { display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateY(var(--motion-rise));
   transition: grid-template-rows var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
@@ -84,3 +82,11 @@
   #explorationRoot .ex-prompt { transition: none; transform: none; }
   #explorationRoot .ex-prompt.arriving, #explorationRoot .ex-turn:last-of-type { animation: none; }
 }
+
+/* One page navigation, outside the conversation, on desktop and phones. */
+#explorationRoot .ex-nav { display: flex; flex-basis: 100%; gap: var(--space-1); overflow-x: auto; }
+#explorationRoot .ex-nav-item { min-height: 44px; flex-shrink: 0; padding: var(--space-2); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: inherit; font-size: var(--text-sm2); cursor: pointer; transition: color var(--dur-fast), border-color var(--dur-fast); }
+#explorationRoot .ex-nav-item:is(:hover,:focus-visible) { color: var(--text); }
+#explorationRoot .ex-nav-item[aria-current] { color: var(--text); border-bottom-color: var(--accent); }
+#explorationRoot .ex-thinking-dots { display: inline-flex; gap: var(--space-1); padding: var(--space-2) 0; }
+#explorationRoot .ex-thinking-dots i { display: block; width: var(--space-1); height: var(--space-1); border-radius: var(--radius-full); background: var(--muted); }

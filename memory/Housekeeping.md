@@ -44,7 +44,7 @@ Each fixture owns its output directories and cleanup. Tests must not depend on e
 2. For a dev-only push, provide commit, CI link and current status, then hand off.
 3. For dev and master, request full dev validation on the committed candidate. Existing shared/unknown fallbacks remain. An explicit commit trailer `CI-Validation: full` requests all suites and all five performance runs on a normal dev push, without changing API permissions or application files just to select CI. It does not authorize master publication.
 4. Require complete successful exact-commit Linux evidence with no failed/flaky suites and all performance budgets passing. Run `release:preflight` immediately before the authorized identical-SHA fast-forward to master. Never amend or add a metadata commit between proof and promotion.
-5. Give one concise final receipt: version/commit, branches, CI links/status and remaining acceptance limits. During an end-to-end operation report useful milestones, not repeated descriptions of an unchanged wait.
+5. Give one concise final receipt: version/commit, branches, CI links/status and remaining acceptance limits. During an end-to-end operation report useful milestones, not repeated descriptions of an unchanged wait. Be token mindful: start one CI watcher with output redirected to local logs, wait for completion, and inspect the final result once. Do not repeatedly query an unchanged run, reread logs or send waiting updates. Recheck only on a failure, an actionable change or a user status request.
 
 The existing `release:status`, `release:preflight` and `release:dispatch` commands remain authoritative. A dedicated end-to-end publish command is a possible follow-up; no new automatic branch-pushing service is enabled by these changes.
 

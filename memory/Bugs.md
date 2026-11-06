@@ -21,6 +21,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 147 | 🔧 Local | Desktop Explore covers Today, dismisses unexpectedly, and exposes competing inputs and chat controls. | v3.4.2 |
+| 146 | 🔧 Local | Linked Explore controls crowd daily/focus task rows. | v3.4.2 |
 | 144 | ⏳ Verify | Exploration opens late, flashes content and exposes unclear or redundant controls. | v3.3.0 |
 | 143 | ⏳ Verify | Exploration rejects valid structured AI replies and suggestions. | v3.3.0 |
 | 142 | ⏳ Verify | Full release visual gate samples the bottom input fade as page background at320px. | v3.2.2 |
@@ -39,6 +41,32 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-147 — Persistent desktop Explore and responsive chat
+
+**Report (Can, November 6):** the sidebar should push the logo, navigation and tasks aside, stay open until its header close control is used, and follow pointer location for dimming and the active input. Chat thinking lacks animation, sent messages render late, and repeated Sources/correction links crowd the conversation.
+
+**Repair:** dock above600px, reserve space for the complete Today column, keep both desktop panes usable, and dim only the inactive pane without intercepting clicks. Pointer and keyboard focus select the visible/reachable composer; drafts remain separate. Header close is the sidebar dismissal; Escape only returns from secondary views. Move Chat/Living note/Earlier/Sources into header navigation and retain immutable wording changes in the note. Render submitted observations immediately while Dropbox confirms; request AI only after confirmation. Inline dots use token-timed WAAPI and respect reduced motion. Release waiting uses one logged watcher, without repeated status checks.
+
+**Verification:** Five fresh first-attempt checks pass after scoping the composer fade to Explore: invariants, Exploration, Focus, design lint and visual regression (39.7s, zero flakes/failures). About and nudge-feedback passed in the preceding owning run. Final captures retain736/1024/1440px docking, complete header containment and both active panes. Evidence: `.context/explore-dock/local-verified/`; the original Focus regression and development failures remain retained. Hosted full proof is still required; no installed/live-account acceptance is claimed.
+
+---
+
+## BUG-146 — Linked Explore tasks crowd the daily task row
+
+**Report (Can, November 6):** inline Explore buttons conflict with the existing task-row pattern; layout appears broken on desktop and mobile.
+
+**Cause and coverage gap:** entry coordination appends a Memory-style button after the native task controls when a saved conversation references the task or an experiment creates it. The six canonical screenshot scenes do not load that saved conversation; Explore's containment checks inspect the Explore surface, not the daily rows after closing it.
+
+**Follow-up (Can):** the permanent “explore this →” below the nudge and task-level CTA in desktop focus also feel scattered or break layout. Keep daily-reading exploration beside the revealed feedback actions in the nudge and About instead.
+
+**Local repair:** remove row-button injection and the permanent below-nudge CTA; add a separate non-voting contextual Explore action beside the daily reading’s existing feedback in both places. Opening snapshots the exact clicked AI wording as optional, initially unselected context, without a vote, model request or journal write. Desktop focus keeps its native controls.
+
+**Original task-row repair:** remove row-button injection; retain the normal list/Memory entrances and task references/experiments within Explore. Add actual-component coverage that creates a saved conversation and linked experiment, closes Explore, rerenders tasks at390/320/1024px, and checks native controls and containment. The original published implementation fails the new assertion with an unexpected `explore` action; receipts and fictional images are in `.context/task-row-explore/`. Verification: the published implementation fails the new row-control assertion. The isolated repair passes invariants, design lint, six-scene visual regression and Exploration (four first-attempt passes, zero flakes/failures,17.4s). The combined local candidate also passes those four checks in17.4s (`.context/fresh-80HWJv/receipt.json`). Phone/desktop fictional captures were inspected. No live personal journal is read or changed. Publication and any further layout reports remain separate.
+
+**Final contextual-entry verification:** fresh receipt `.context/fresh-lP3saa/receipt.json` passes seven owning checks in44.0s with zero flakes/failures (invariants, Exploration, About, nudge feedback, Focus, design lint and visual regression). Actual-component coverage checks linked tasks in desktop Focus, no permanent below-nudge CTA, both reading-to-Explore handoffs, unselected exact AI wording, unchanged votes/model requests/journal entry count, stale-reading refusal and320/390/1024px action containment. Reading payload metadata uses its own attribute rather than the rendered-reading marker. Captures are retained under `ci-test-results/task-row-explore` so hosted artifacts and fresh-check receipts keep them. Source/app changes remain local and uncommitted.
 
 ---
 

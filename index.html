@@ -3021,7 +3021,7 @@
      wide screens, a drawer over it on medium screens, the whole screen on phones. Content
      styles stay lazy in assets/exploration.css; this is only the shell, so it is styled the
      instant it opens. */
-  :root { --ex-sheet-width: 420px; }
+  :root { --ex-sheet-width: min(420px, 45vw); }
   .ex-sheet {
     position: fixed; top: 0; right: 0; bottom: 0; z-index: var(--z-modal);
     width: var(--ex-sheet-width); max-width: 100vw;
@@ -3031,7 +3031,7 @@
   }
   .ex-sheet[hidden] { display: none; }
   .ex-sheet-head {
-    display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0;
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex-shrink: 0;
     padding: calc(env(safe-area-inset-top, 0px) + var(--space-3)) var(--space-2) var(--space-3) var(--space-5);
     border-bottom: 1px solid var(--border);
   }
@@ -3045,11 +3045,6 @@
     transition: color var(--dur-fast), border-color var(--dur-fast), opacity var(--dur-fast);
   }
   .ex-hide:hover, .ex-hide:focus-visible { color: var(--text); border-color: var(--control-border); }
-  /* Mouse: the way out appears with intent; keyboard focus reveals it. Touch: always visible. */
-  @media (hover: hover) and (pointer: fine) {
-    .ex-hide { opacity: 0; }
-    .ex-sheet-head:hover .ex-hide, .ex-hide:focus-visible { opacity: 1; }
-  }
   .ex-sheet-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-5) var(--space-5) var(--space-4); }
   /* The composer strip sits on the page background like the add bar, so it uses the
      main-surface control tokens, not the panel's elevated ones. */
@@ -3060,23 +3055,28 @@
   .ex-sheet.leaving { animation: exSlideOut var(--dur-base) var(--ease-in) both; }
   @keyframes exSlideIn { from { transform: translateX(var(--space-8)); opacity: 0; } to { transform: none; opacity: 1; } }
   @keyframes exSlideOut { from { transform: none; opacity: 1; } to { transform: translateX(var(--space-8)); opacity: 0; } }
-  .ex-scrim { position: fixed; inset: 0; z-index: calc(var(--z-modal) - 1); background: var(--bg); opacity: 0.6; }
+  .ex-scrim { position: fixed; inset: 0 var(--ex-sheet-width) 0 0; z-index: calc(var(--z-modal) - 1); background: var(--bg); opacity: var(--opacity-dim); pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); }
   .ex-scrim[hidden] { display: none; }
-  /* Wide: docked. The list column and the add bar re-centre in the space left of the panel. */
-  @media (min-width: 1120px) {
-    body, .add-task-row { transition: padding-right var(--dur-slow) var(--ease-out), right var(--dur-slow) var(--ease-out); }
+  /* Desktop: reserve space for the whole Today column, including its logo and navigation.
+     The inactive pane dims without intercepting clicks or dismissing Explore. */
+  @media (min-width: 601px) {
+    body { transition: padding-right var(--dur-slow) var(--ease-out); }
     body.ex-open { padding-right: var(--ex-sheet-width); }
+    body.ex-open .header { flex-wrap: wrap; gap: var(--space-2); }
+    body.ex-open .today-logo { font-size: clamp(30px, 5vw, 52px); }
+    .add-task-row { transition: right var(--dur-slow) var(--ease-out); }
+    body.ex-open .add-task-row, body.ex-closing .add-task-row { transition: right var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility var(--dur-base); }
     body.ex-open .add-task-row { right: var(--ex-sheet-width); }
     body.ex-open #addTaskBar {
       padding-left: max(var(--space-6), calc((100vw - var(--ex-sheet-width) - 680px) / 2 + var(--space-6)));
       padding-right: max(var(--space-6), calc((100vw - var(--ex-sheet-width) - 680px) / 2 + var(--space-6)));
     }
-    .ex-scrim { display: none; }
-  }
-  /* Medium: a drawer over the list (inert, dimmed); daily capture stays usable beside it. */
-  @media (min-width: 601px) and (max-width: 1119px) {
-    body.ex-open .add-task-row { right: var(--ex-sheet-width); z-index: var(--z-modal); }
-    body.ex-open #addTaskBar { padding-left: var(--space-6); padding-right: var(--space-6); }
+    body.ex-open:not(.ex-task-active) #addTaskBar { visibility: hidden; opacity: 0 !important; transform: translateY(var(--motion-rise)); pointer-events: none; }
+    .ex-sheet-foot { max-height: 50vh; overflow: hidden; transition: max-height var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), padding var(--dur-slow) var(--ease-out), visibility var(--dur-base); }
+    body.ex-task-active .ex-sheet-foot { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; visibility: hidden; }
+    .ex-sheet::after { content: ''; position: absolute; inset: 0; background: var(--bg); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); }
+    body.ex-task-active .ex-sheet::after { opacity: var(--opacity-dim); }
+    body.ex-task-active .ex-scrim { opacity: 0; }
   }
   /* Phone: the whole screen. The conversation rises from behind the input row, which holds
      still and crossfades from daily capture to the reply field; capture is hidden meanwhile. */
@@ -3100,7 +3100,7 @@
   @keyframes exFadeOut { from { opacity: 1; } to { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) {
     .ex-sheet.entering, .ex-sheet.leaving, .ex-sheet.entering *, .ex-sheet.leaving * { animation: none !important; }
-    body, .add-task-row { transition: none; }
+    body, .add-task-row, .ex-sheet-foot, .ex-sheet::after, .ex-scrim { transition: none !important; }
   }
 
   #infoStats {
@@ -3226,14 +3226,15 @@
     transition: max-height var(--dur-fast), opacity var(--dur-fast), margin-top var(--dur-fast);
   }
   .nudge-react.open, .nudge-react:focus-within { max-height: 32px; opacity: 1; margin-top: 2px; }
-  .nudge-react-btn {
+  .nudge-react-btn, .nudge-explore-btn {
     background: none; border: 0; padding: 6px 0; min-height: 28px;
     font-family: var(--font-mono); font-size: var(--text-xs);
     letter-spacing: 0.06em;
     color: var(--muted); cursor: pointer;
     transition: color var(--dur-fast);
   }
-  .nudge-react-btn:hover, .nudge-react-btn:focus-visible { color: var(--text); }
+  .nudge-react-btn:hover, .nudge-react-btn:focus-visible,
+  .nudge-explore-btn:hover, .nudge-explore-btn:focus-visible { color: var(--text); }
   .nudge-react-btn.on { color: var(--accent); }
   .pool-wording-btn { background: none; border: 0; padding: 6px 0; min-height: 28px; font: inherit; color: var(--muted); cursor: pointer; }
   .nudge-react > .pool-wording-btn { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; }
@@ -4577,7 +4578,6 @@
   <button class="morning-nudge" id="dayNudge" type="button" aria-label="Dismiss morning summary"></button>
   <div class="morning-nudge-react" id="dayNudgeReact"></div>
 
-  <div id="explorationNudge" hidden><button type="button" class="memory-item-btn" data-today-click="exploration.open" data-ex-origin="nudge">explore this →</button></div>
   <!-- Explore shares the native Memory sheet; its reply input is independent of daily task capture. -->
   <div class="section" id="explorationEntry"><button type="button" class="section-header zone-header" data-today-click="exploration.open" data-ex-origin="list"><span class="section-label">✦︎ Explore</span></button></div>
 
@@ -4788,14 +4788,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '396h';
+const DEV_HOURS     = '398h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.4.2': 'Explore stays beside Today, follows your attention, and keeps the conversation clear and responsive.',
   '3.4.0': 'Explore opens beside your list on wide screens and full screen on phones, with dictation and a quieter way back.',
   '3.3.4': 'Poem corpus: removed the Omar Khayyám opening quatrain (Rubáiyát I, trans. FitzGerald).',
-  '3.3.3': 'Explore — clearer conversations, living notes, and an easier-to-read Memory.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

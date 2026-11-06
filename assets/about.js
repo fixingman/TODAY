@@ -202,7 +202,7 @@
       const btn = (r, label) => '<button type="button" class="nudge-react-btn' + (line.reaction === r ? ' on' : '') + '"' +
         ' data-react="' + r + '" data-surface="' + esc(surface) + '" aria-pressed="' + (line.reaction === r) + '">' + label + '</button>';
       return '<div class="nudge-react" role="group" aria-label="Did this land?">' +
-        btn('landed', 'landed') + btn('missed', 'not really') + (wordingText === line.text ? _poolWordingAPI.button(line) : '') + '</div>' +
+        btn('landed', 'landed') + btn('missed', 'not really') + (surface === 'morning nudge' && wordingText === line.text ? '<button type="button" class="nudge-explore-btn" data-today-click="exploration.open" data-ex-origin="nudge" data-ex-nudge-text="' + esc(wordingText) + '" aria-label="Explore this daily reading">explore</button>' : '') + (wordingText === line.text ? _poolWordingAPI.button(line) : '') + '</div>' +
         _memoryMissReasonHTML(surface, line);
     }
 

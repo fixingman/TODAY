@@ -320,7 +320,7 @@ window._startNudge = (function() {
           reactEl.onclick = null;
           if (spokenToday) {
             const btn = (r, label) => `<button type="button" class="nudge-react-btn${spokenToday.reaction === r ? ' on' : ''}" data-react="${r}" aria-pressed="${spokenToday.reaction === r}">${label}</button>`;
-            reactEl.innerHTML = `<div class="morning-nudge-react-body"><div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}${spokenToday.text === text ? Today.use('pool-wording').button(spokenToday) : ''}</div>` +
+            reactEl.innerHTML = `<div class="morning-nudge-react-body"><div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}${spokenToday.text === text ? `<button type="button" class="nudge-explore-btn" data-today-click="exploration.open" data-ex-origin="nudge" data-ex-nudge-text="${esc(text)}" aria-label="Explore this daily reading">explore</button>` : ''}${spokenToday.text === text ? Today.use('pool-wording').button(spokenToday) : ''}</div>` +
               _memoryMissReasonHTML('morning nudge', spokenToday) + '</div>';
             reactEl.onclick = e => {
               if (e.target.closest('[data-pool-source]')) {clearTimeout(_reasonDismissTimer);_reasonDismissTimer=null;}

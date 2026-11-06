@@ -71,7 +71,7 @@ try{
     if(target.includes('/files/download'))return exploration&&s.remote!==null?new Response(s.remote,{status:200,headers:{'Dropbox-API-Result':JSON.stringify({rev:String(s.rev).padStart(9,'0')})}}):json({error_summary:'path/not_found/'},409);
     if(target.includes('/files/upload')){
      if(!exploration){s.backup.push(opts.body);return json({rev:'backup-rev'});}
-     s.uploads.push({args,body:opts.body});if(s.rejectNextWrite){s.rejectNextWrite=false;return json({error:'Fictional write failure'},503);}
+     s.uploads.push({args,body:opts.body});if(s.holdWrite)await new Promise(resolve=>{s.releaseWrite=resolve;});if(s.rejectNextWrite){s.rejectNextWrite=false;return json({error:'Fictional write failure'},503);}
      if(s.conflict){s.conflict=false;s.rev++;return json({error_summary:'path/conflict/'},409);}
      if((args.mode==='add'&&s.remote!==null)||(args.mode?.['.tag']==='update'&&(s.remote===null||args.mode.update!==String(s.rev).padStart(9,'0'))))return json({error_summary:'path/conflict/'},409);
      s.remote=opts.body;s.rev++;if(s.lost){s.lost=false;throw new TypeError('simulated lost acknowledgement');}return json({rev:String(s.rev).padStart(9,'0')});
@@ -93,7 +93,7 @@ try{
  await page.goto(base,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.Today&&document.body&&!document.body.hasAttribute('data-booting'),{timeout:20000});await waitForFonts(page);
  const click=async selector=>{for(let attempt=0;;attempt++){try{await page.$eval(selector,node=>node.scrollIntoView({block:"center"}));await page.click(selector);return;}catch(error){if(attempt>=3||!/detached|not clickable/i.test(error.message))throw error;await new Promise(resolve=>setTimeout(resolve,50));}}},wait=fn=>page.waitForFunction(fn,{timeout:10000});
  const send=async()=>{await page.focus('#exThought');await page.keyboard.press('Enter');};
- const start=async()=>{await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await page.focus('#exQuestion');await page.keyboard.press('Enter');};
+ const start=async()=>{await page.mouse.move(page.viewport().width-20,200);await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await wait(()=>getComputedStyle(document.getElementById('exQuestion')).visibility==='visible');await click('#exQuestion');await page.keyboard.press('Enter');};
  // Sub-pages have their own back link; at the conversation the only way out is the hide control.
  const back=async()=>{await click(await page.$('#explorationRoot [data-ex-action="back"]')?'#explorationRoot [data-ex-action="back"]':'#explorationRoot [data-ex-action="hide"]');};
  await page.addScriptTag({content:await readFile(join(ROOT,'scripts/node_modules/axe-core/axe.min.js'),'utf8')});
@@ -120,17 +120,17 @@ try{
  await page.screenshot({path:join(ROOT,'.context/exploration-layout-restored/test-fixture-start.png'),fullPage:true});
  assert.equal(await page.$('input[type=file],#exUseToday'),null,'Starting accepts an experience without file import or record assembly');await checkLayout('start');
  assert.equal(await page.$eval('#explorationEntry button',node=>node.textContent.trim()),'✦︎ Explore','Task-list entry has no arrow or tiny saved-question counter');
- assert.ok(await page.$eval('#addTaskBar',node=>getComputedStyle(node).display!=='none'&&!node.inert),'Daily capture stays visible and usable beside the Explore drawer');
+ assert.ok(await page.$eval('#addTaskBar',node=>node.inert),'Only the active pane offers its composer');
  // Docked width: the list itself stays usable while Explore is open.
  await page.setViewport({width:1440,height:900});await wait(()=>!document.getElementById('main-app').inert);
- await page.type('#newTask','CAPTURE_WITH_EXPLORE_FICTION');await page.keyboard.press('Enter');
+ await page.mouse.move(80,300);await wait(()=>!document.getElementById('addTaskBar').inert);await click('#newTask');await wait(()=>document.activeElement?.id==='newTask');await page.type('#newTask','CAPTURE_WITH_EXPLORE_FICTION');await page.keyboard.press('Enter');
  await wait(()=>manualTasks.some(task=>task.text==='CAPTURE_WITH_EXPLORE_FICTION'));
  assert.equal(await page.evaluate(()=>__explorationTest.remote),null,'Daily capture does not create an exploration or send a reply');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0);
  const captured=await page.evaluate(()=>manualTasks.find(task=>task.text==='CAPTURE_WITH_EXPLORE_FICTION').id);
  await click('.task-delete[data-taskid="'+captured+'"]');await wait(()=>!manualTasks.some(task=>task.text==='CAPTURE_WITH_EXPLORE_FICTION'));
  // Crossing the docking width re-renders the surface; let it settle before typing into it.
- await page.setViewport({width:1024,height:900});await wait(()=>document.getElementById('main-app').inert);await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ await page.setViewport({width:1024,height:900});await wait(()=>!document.getElementById('main-app').inert);await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
 
  await start();await wait(()=>document.querySelector('.ex-status').textContent.includes('Bring an experience'));assert.equal(await page.$('[data-ex-action="reload"]'),null,'Empty first message keeps a useful prompt rather than a reload');
  await page.type('#exQuestion','A fictional exploration');
@@ -146,7 +146,7 @@ try{
  assert.ok(await page.$('[data-ex-action="draft-export"]'),'A failed first save offers export before leaving');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0,'A failed first save never requests AI');
  assert.equal(await page.evaluate(()=>__explorationTest.remote),null,'A rejected first write does not claim persistence');
- await page.focus('#exQuestion');await page.keyboard.press('Enter');await wait(()=>document.getElementById('exThought'));
+ await wait(()=>getComputedStyle(document.getElementById('exQuestion')).visibility==='visible');await click('#exQuestion');await page.keyboard.press('Enter');await wait(()=>document.getElementById('exThought'));
  assert.ok(await page.evaluate(()=>__explorationTest.remote.includes('A fictional exploration')));
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().today_context.enabled),true,'New exploration uses explained TODAY context without a separate setup step');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0,'An unconfigured first Send keeps the observation without a model request');
@@ -159,7 +159,16 @@ try{
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0,'Shift+Enter inserts a line without sending');
  await page.$eval('#exThought',node=>{for(const props of [{isComposing:true},{keyCode:229},{repeat:true}])node.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true,...props}));});
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0,'IME confirmation and repeated Enter do not submit');
- await page.keyboard.press('Enter');await wait(()=>typeof __explorationTest.release==='function');
+ await page.evaluate(()=>{__explorationTest.holdWrite=true;__explorationTest.releaseWrite=null;});
+ await page.keyboard.press('Enter');await wait(()=>typeof __explorationTest.releaseWrite==='function');
+ assert.ok(await page.$$eval('.ex-you',nodes=>nodes.some(node=>node.textContent.includes('OBS_FICTION'))),'The sent message renders before Dropbox acknowledges it');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0,'AI waits for the durable observation');
+ assert.equal(await page.$$eval('.ex-thinking-dots i',nodes=>nodes.length),3,'A compact thinking state appears inline immediately');
+ assert.equal(await page.evaluate(()=>document.querySelector('.ex-thinking-dots i').getAnimations().length),0,'Reduced motion has no looping dots');
+ await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'no-preference'}]);
+ await page.evaluate(()=>{__explorationTest.holdWrite=false;__explorationTest.releaseWrite();});await wait(()=>typeof __explorationTest.release==='function');
+ assert.ok(await page.evaluate(()=>document.querySelector('.ex-thinking-dots i').getAnimations().some(a=>a.playState==='running')),'Thinking uses a WAAPI loop with motion enabled');
+ await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'exThought','Enter retains focus while the reply is pending');
  assert.equal(await page.$('[data-ex-action="retry-ai"]'),null,'Retry appears only after a real failure');
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
@@ -182,6 +191,75 @@ try{
  assert.ok(await page.evaluate(()=>!__explorationTest.remote.includes('"beneficial":true')));
  console.log('  ✓ Real app: create, durable observation before AI, correction history, direct/wrapped proxy results, suggestion failure/empty/pending/success and optional action');
  await back();await back();await back();
+ // A saved conversation and a linked experiment must not add controls to daily task rows.
+ // Check the actual list after closing Explore, including its render/observer path.
+ await mkdir(join(ROOT,'.context/ci-test-results/task-row-explore'),{recursive:true});
+ for(const width of [390,320,1024]){
+  await page.setViewport({width,height:900});
+  await page.evaluate(()=>Today.use('connections').renderManual());
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  const rows=await page.$$eval('#manualList .task',nodes=>nodes.map(row=>({
+   extraActions:[...row.querySelectorAll('button')].filter(button=>!button.matches('.task-check,.task-copy,.task-delete')).map(button=>button.textContent.trim()),
+   completion:!!row.querySelector('.task-check'),remove:!!row.querySelector('.task-delete'),
+   fits:row.getBoundingClientRect().right<=innerWidth+1&&row.scrollWidth<=row.clientWidth+1
+  })));
+  await page.screenshot({path:join(ROOT,`.context/ci-test-results/task-row-explore/linked-tasks-${width}.png`),fullPage:true});
+  assert.ok(rows.length>=2,'The saved conversation has its original task and linked experiment');
+  assert.deepEqual(rows.flatMap(row=>row.extraActions),[],`Linked tasks keep native row controls at ${width}px`);
+  assert.ok(rows.every(row=>row.completion&&row.remove&&row.fits),`Native task controls remain present without overflow at ${width}px`);
+ }
+ await page.setViewport({width:1024,height:900});
+ await page.focus('#manualList .task:last-child');await page.keyboard.press('Enter');
+ await wait(()=>document.querySelector('.task.focused'));
+ const focusedRow=await page.$eval('.task.focused',row=>({
+  extraActions:[...row.querySelectorAll(':scope > button')].filter(button=>!button.matches('.task-check,.task-copy,.task-delete')).map(button=>button.textContent.trim()),
+  fits:row.getBoundingClientRect().right<=innerWidth+1&&row.querySelector('.task-text').getBoundingClientRect().right<=row.getBoundingClientRect().right+1
+ }));
+ await page.screenshot({path:join(ROOT,'.context/ci-test-results/task-row-explore/focused-task-1024.png'),fullPage:true});
+ assert.deepEqual(focusedRow.extraActions,[],'A linked task keeps native focus-mode controls without Explore CTAs');
+ assert.ok(focusedRow.fits,'The focused task text stays within its desktop row');
+ await page.keyboard.press('Escape');await wait(()=>!document.querySelector('.focusing,.task.focused')&&!document.body.classList.contains('focus-locked')&&document.querySelector('.focus-timer')?.parentElement===document.body);
+ const contextualState=await page.evaluate(()=>{
+  const text='A fictional daily reading.';
+  _memoryRecordSpokenLine('morning nudge',text,null);
+  localStorage.setItem('day_nudge_ai_'+_localISO(),text);
+  localStorage.removeItem('day_nudge_dismissed_'+_localISO());checkDayNudge._setMemoryReady();checkDayNudge();
+  return {calls:__explorationTest.ai.length,entries:Today.use('exploration').document().entries.length,reaction:_memoryLineFor('morning nudge',_localISO()).reaction||null};
+ });
+ await wait(()=>document.getElementById('dayNudge').classList.contains('visible'));
+ assert.equal(await page.$('#explorationNudge'),null,'There is no permanent Explore CTA below the daily nudge');
+ assert.equal(await page.$('[data-ex-origin="task"]'),null,'Linked tasks have no inline Explore button');
+ assert.equal(await page.$$eval('#explorationEntry [data-ex-origin="list"]',nodes=>nodes.length),1,'The task list has one deliberate Explore entry');
+ assert.equal(await page.$eval('#dayNudgeReact',node=>node.classList.contains('open')),false,'Reading actions start collapsed');
+ await click('#dayNudge');await wait(()=>document.getElementById('dayNudgeReact').classList.contains('open'));
+ for(const width of [320,390,1024]){
+  await page.setViewport({width,height:900});
+  assert.ok(await page.$eval('#dayNudgeReact .nudge-react',group=>[...group.querySelectorAll('button')].every(button=>button.getBoundingClientRect().right<=group.getBoundingClientRect().right+1)),`Reading feedback and Explore fit at ${width}px`);
+ }
+ await page.screenshot({path:join(ROOT,'.context/ci-test-results/task-row-explore/nudge-actions-1024.png'),fullPage:true});
+ await click('#dayNudgeReact [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#explorationRoot .ex-context')).catch(async error=>{console.error('Reading handoff state',await page.evaluate(()=>({rootHidden:document.getElementById('explorationRoot').hidden,rootText:document.getElementById('explorationRoot').textContent.slice(0,240),backgroundInert:document.getElementById('main-app').inert,focusLocked:document.body.classList.contains('focus-locked'),context:document.querySelector('#dayNudgeReact [data-ex-origin="nudge"]')?.dataset})));throw error;});
+ const assertReadingEntry=async label=>{
+  assert.ok(await page.$eval('#explorationRoot .ex-context',node=>node.textContent.includes('A fictional daily reading.')&&node.textContent.includes('AI reading')),'The exact clicked reading opens as AI context');
+  assert.equal(await page.$eval('[data-ex-action="include"]',node=>node.textContent),'include in reply','The reading starts unselected');
+  assert.deepEqual(await page.evaluate(()=>({calls:__explorationTest.ai.length,entries:Today.use('exploration').document().entries.length,reaction:_memoryLineFor('morning nudge',_localISO()).reaction||null})),contextualState,label+' neither votes, requests AI nor changes the journal merely by opening');
+  await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);
+ };
+ await assertReadingEntry('Nudge Explore');
+ await click('#infoBtn');await wait(()=>document.querySelector('#infoPanel.open #todayNudgeBlock [data-ex-origin="nudge"]'));
+ await click('#todayNudgeBlock .week-summary');
+ assert.ok(await page.$eval('#todayNudgeBlock .nudge-react',node=>node.classList.contains('open')),'About reveals Explore beside the feedback controls');
+ await page.setViewport({width:390,height:900});
+ assert.ok(await page.$eval('#todayNudgeBlock .nudge-react',group=>[...group.querySelectorAll('button')].every(button=>button.getBoundingClientRect().right<=group.getBoundingClientRect().right+1)),'About reading actions fit on a phone');
+ await page.screenshot({path:join(ROOT,'.context/ci-test-results/task-row-explore/about-reading-actions-390.png'),fullPage:true});
+ await click('#todayNudgeBlock [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#explorationRoot .ex-context'));
+ await assertReadingEntry('About Explore');
+ await page.evaluate(()=>localStorage.setItem('day_nudge_ai_'+_localISO(),'A replacement daily reading.'));
+ await click('#todayNudgeBlock [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#explorationRoot #exThought'));
+ assert.equal(await page.$('#explorationRoot .ex-context'),null,'A stale reading control cannot supply withdrawn text or silently substitute a new reading');
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);
+ await page.evaluate(()=>localStorage.setItem('day_nudge_ai_'+_localISO(),'A fictional daily reading.'));
+ await click('#infoBtn');await wait(()=>!document.getElementById('infoPanel').classList.contains('open'));
+ await page.setViewport({width:1024,height:900});
  assert.equal(await page.evaluate(()=>['memoryTitleRow','memoryContent','memoryFooter'].every(id=>!document.getElementById(id).hidden)),true,'Explore never hides Memory sections');
  await click('#todayLogo');await wait(()=>document.getElementById('memoryPanel').classList.contains('open'));
  assert.ok(await page.$eval('#memoryContent',node=>node.getClientRects().length>0),'Memory is visible after returning');assert.ok(await page.$eval('#addTaskBar',node=>getComputedStyle(node).display!=='none'),'Memory follows the normal sheet capture-bar behavior');
@@ -193,7 +271,7 @@ try{
  await click('[data-ex-action="reload"]');await wait(()=>document.querySelector('#exThought')&&!document.querySelector('#exThought').readOnly);await page.evaluate(()=>{__explorationTest.lost=true;__explorationTest.malformed=true;});await send();await wait(()=>document.querySelector('[data-ex-action="retry-ai"]'));
  assert.equal((await page.evaluate(()=>__explorationTest.remote)).split('UNSENT_CONFLICT').length-1,1);
  await click('[data-ex-action="retry-ai"]');await wait(()=>!document.querySelector('[data-ex-action="retry-ai"]')&&!document.querySelector('#exThought').readOnly);
- await page.type('#exThought','SECOND_TURN_FICTION');await send();await wait(()=>document.querySelectorAll('#explorationRoot .ex-body > .ex-turn.ex-you').length===2&&document.querySelectorAll('#explorationRoot .ex-body > .ex-turn:not(.ex-you)').length===2);
+ await page.type('#exThought','SECOND_TURN_FICTION');await send();await wait(()=>document.querySelectorAll('#explorationRoot .ex-body > .ex-turn.ex-you').length===2&&document.querySelectorAll('#explorationRoot .ex-body > [data-ex-reading]').length===2&&!document.getElementById('exThought').readOnly);
  assert.ok((await page.$eval('#explorationRoot',root=>root.textContent)).includes('UNSENT_CONFLICT'),'The earlier exchange stays visible during this visit');
  assert.equal(await page.$('[data-ex-action="reload"],#exTodayContext'),null,'Healthy conversations do not regain administrative controls');
  await page.type('#exThought','UNSENT_TOOLS_FICTION');await click('#exNotes');await click('[data-ex-action="document"]');await checkLayout('document');await click('[data-ex-action="record"]');await checkLayout('markdown');assert.equal(await page.$('#exNotesTitle,#exThought,[data-ex-action="privacy"]'),null,'Raw document replaces the parent');await back();
@@ -275,7 +353,7 @@ try{
  }
  await back();await back();await click('[data-ex-action="sources"]');
  await page.screenshot({path:join(ROOT,'.context/exploration-layout-restored/test-fixture-connected-notes.png'),fullPage:true});
- await back();await back();await back();
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);
  const downloadsBefore=await page.evaluate(()=>__explorationTest.downloads);
  // Explore opened from Memory leaves Memory open behind it; start a fresh Memory visit.
  if(await page.$eval('#memoryPanel',node=>node.classList.contains('open')))await click('#todayLogo');
@@ -309,11 +387,32 @@ try{
  await click('#memoryContinue');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  const sheetAI=await page.evaluate(()=>__explorationTest.ai.length);
  await page.type('#exThought','UNSENT_SHEET_SWITCH_FICTION');
- assert.equal(await page.evaluate(()=>document.getElementById('main-app').inert&&!document.getElementById('addTaskBar').inert),true,'Below the docking width the list behind the drawer is inert while daily capture stays usable');
+ assert.equal(await page.evaluate(()=>!document.getElementById('main-app').inert&&document.getElementById('addTaskBar').inert),true,'Desktop keeps tasks interactive while the chat composer is active');
  await page.setViewport({width:390,height:844});await wait(()=>document.getElementById('explorationRoot').getAttribute('aria-modal')==='true');
  assert.equal(await page.evaluate(()=>document.getElementById('addTaskBar').inert&&getComputedStyle(document.getElementById('addTaskBar')).display==='none'),true,'On phones Explore is full screen and daily capture is hidden');
  await page.setViewport({width:1440,height:900});await wait(()=>!document.getElementById('main-app').inert);
  assert.equal(await page.$eval('#explorationRoot',node=>node.getAttribute('role')),'complementary','Wide screens dock Explore beside the list');
+ // Both desktop sizes push logo/navigation and rows, keep the panel persistent, and switch composers.
+ await mkdir(join(ROOT,'.context/ci-test-results/explore-dock'),{recursive:true});
+ for(const width of [736,1024,1440]){
+  await page.setViewport({width,height:900});
+  await page.mouse.move(width-20,200);
+  await wait(()=>{const sheet=document.getElementById('explorationRoot').getBoundingClientRect();return Math.abs(parseFloat(getComputedStyle(document.body).paddingRight)-sheet.width)<1&&['main-app','sticky-header','todayLogo','infoBtn','memoryPanel'].every(id=>document.getElementById(id).getBoundingClientRect().right<=sheet.left+1);});
+  await page.focus('#exThought');await page.keyboard.press('Escape');
+  assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'Escape cannot dismiss the sidebar');
+  assert.equal(await page.$$eval('.ex-nav [data-ex-action="sources"]',nodes=>nodes.length),1,'Sources has one navigation entrance');
+  assert.equal(await page.$('.ex-turn [data-ex-action="sources"],.ex-turn [data-ex-action="correct"]'),null,'Chat has no repeated source/correction toolbars');
+  await page.mouse.move(80,300);await wait(()=>!document.getElementById('addTaskBar').inert&&getComputedStyle(document.getElementById('exScrim')).opacity==='0');
+  assert.equal(await page.evaluate(()=>document.body.classList.contains('ex-task-active')&&getComputedStyle(document.getElementById('exScrim')).opacity==='0'&&document.querySelector('.ex-sheet-foot').inert),true,'Pointer on Today clears its dim and parks the chat composer');
+  await page.click('#dateTag');
+  assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'Clicking Today cannot dismiss Explore');
+  await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/tasks-active-${width}.png`),fullPage:false});
+  await page.mouse.move(width-20,200);await wait(()=>document.getElementById('addTaskBar').inert&&!document.querySelector('.ex-sheet-foot').inert&&getComputedStyle(document.getElementById('explorationRoot'),'::after').opacity==='0');
+  assert.equal(await page.$eval('#exThought',node=>node.value),'UNSENT_SHEET_SWITCH_FICTION','Pane switching preserves the unsent chat draft');
+  assert.ok(await page.evaluate(()=>getComputedStyle(document.getElementById('explorationRoot'),'::after').opacity==='0'),'Pointer on Explore clears its dim');
+  await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/chat-active-${width}.png`),fullPage:false});
+ }
+ await page.setViewport({width:1440,height:900});
  // The list column slides aside (--dur-slow); once settled it never sits under the panel.
  await wait(()=>{const app=document.querySelector('.app').getBoundingClientRect(),sheet=document.getElementById('explorationRoot').getBoundingClientRect();return app.right<=sheet.left+1;});
  for(const peer of ['#infoBtn','#habitsBtn','#trelloBtn']){
@@ -332,5 +431,5 @@ try{
  assert.ok(await page.evaluate(()=>Object.keys(localStorage).every(key=>!key.startsWith('today_exploration'))));assert.ok(await page.evaluate(()=>__explorationTest.backup.every(body=>!body.includes('OBS_FICTION')&&!body.includes('CORRECTION_FICTION'))));assert.deepEqual(errors,[]);
  await mkdir(join(ROOT,'.context/exploration-integration'),{recursive:true});await page.screenshot({path:join(ROOT,'.context/exploration-integration/forgotten.png'),fullPage:true});
  console.log('  ✓ Source withdrawal fences delayed AI, re-inclusion cannot revive, widths stay contained, conditional forget clears page and Dropbox; no journal in backup/storage');
-}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({root:document.getElementById('explorationRoot')?.innerHTML,announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
+}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('explorationRoot')?.innerHTML,announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
 console.log('✓ EXPLORATION TEST PASSED');

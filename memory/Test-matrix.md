@@ -93,6 +93,7 @@ URL and retains its JSON for 30 days. Run
   and takes two captures per scene. Each capture must match its baseline and repeat 2 must also
   match repeat 1, tolerating only anti-aliasing noise plus 200 changed pixels. Missing baselines,
   clock drift, viewport drift, larger visual differences, or uncaught page errors fail the test.
+- `exploration-test` also creates a fictional saved conversation and linked experiment, closes Explore, and rerenders the daily list at390/320/1024px. It asserts native task-row and desktop focus-mode controls without overflow. It also checks the accepted nudge has no permanent CTA, contextual Explore beside nudge/About feedback fits phone widths, the exact clicked reading opens unselected, and opening neither votes, calls AI nor writes the journal; screenshots support visual review. This persisted-state case is distinct from the six static screenshot baselines.
 - The triage scene waits until its sheet entrance and content reveal finish, then captures the
   full review. `triage-test.mjs` also checks token-based header-to-card alignment at 1200px and 390px.
 - `platform-test.mjs` checks the mobile header's solid background/no-backdrop CSS contract alongside
@@ -700,3 +701,7 @@ W1: optional fixed concerns can address a concrete expression problem on the nex
 **Final upstream reconciliation:** origin/dev advanced to d32ee2d1 (v2.105.7) before this publication. Preserve its activated workflow and added CLI refusal tests. Product runtime is unchanged from the 61-suite/benchmark snapshot after strict metadata normalization; only the About history, workflow and two CI test files differ. Validate those paths with affected checks. This new commit still needs its own full hosted proof; no master promotion is authorized by local results.
 
 **Final publication checkpoint:** Final reconciliation with d32ee2d1 preserves the separately published v2.105.7 guarded reuse activation. Eight affected checks pass (zero flakes/failures, 17.4s). The only source differences from the 61-suite/benchmark snapshot are strict About metadata, the upstream workflow and its two CI test files; normalized product runtime equality is verified. Both failed local benchmarks remain open under BUG-135. This new dev SHA needs its own complete hosted proof before any authorized identical-SHA master promotion.
+
+### Explore dock regression (v3.4.2)
+
+`exploration-test` checks logo/header/list containment at736/1024/1440px, pointer-controlled dimming and exclusive composers with draft retention, click/Escape persistence, one Sources navigation item, and no inline chat toolbars. A held Dropbox write proves the submitted observation appears before acknowledgement while AI waits; thinking dots animate with WAAPI and stay still under reduced motion. Fictional phone/desktop captures are retained under `.context/ci-test-results/explore-dock/`. Save conflicts, retry, source withdrawal, amendments and account fences retain their existing tests. Installed PWA feel remains a separate acceptance check.

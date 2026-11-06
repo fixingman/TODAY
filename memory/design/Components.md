@@ -41,6 +41,7 @@
 - Keyboard: focus the row; Enter starts focus, Space toggles completion, Option+Up/Down reorders and persists
 - Completion particles receive checkbox client coordinates; the celebration canvas converts them to its backing-buffer coordinates so mobile viewport sizing cannot offset the visible burst
 - Runtime ownership: `assets/task-actions.js` owns delegated copy/check/delete activation, copy feedback, mutations, aggregate task stats, and the progress favicon. Re-rendered manual/Trello rows require no per-row listener rebinding.
+- Exploration keeps task connections inside its own views; it never appends an inline CTA to a daily task row.
 - Inline AI helper: rendered as a full-width sibling, owned by `data-taskid`; reorder and full-list render paths reattach the existing helper immediately after its task so DOM position never becomes ownership.
 
 ### Task Aging
@@ -262,6 +263,8 @@ Fixed top-right. Pulses when errors exist.
 ---
 
 ## Day Nudge (unified, v2.19.0)
+
+**Contextual Explore:** appears beside landed/not really in the nudge’s revealed reaction tray and About’s Today reading actions. Use the same feedback tokens and a separate non-voting handler; keep the strip and daily/focused task rows free of standalone Explore CTAs. Opening offers the clicked AI wording for explicit inclusion without voting, generating or appending a journal entry.
 
 Single `.morning-nudge` strip (`#dayNudge`) positioned **between the SOON and Trello sections**, visible before noon. Replaces the separate `#morningNudge` (under Your tasks) and `#trelloNudge` (under From Trello) that existed through v2.18.x — Can: "two nudges were too much to concentrate and focus on."
 
@@ -574,13 +577,14 @@ Keep the spoken sentence isolated. In the existing reactions on an actually disp
 
 The approved Memory sub-view leads with a question, short resumption and directly labelled composer; the current exchange leads after a reply. Notes replaces the conversation to inspect interpretations, sources, corrections, raw document/privacy and explicitly requested experiments. Back returns through Notes → conversation → invoking place. The daily task composer remains visible during this session, with its original task/Enter behavior independent of the reply field. Sources/reading/task completion never imply endorsement or benefit. Entry coordination, transport and UI load lazily. [Integrated behavior](../../docs/exploration-integration.md); [Memory landing study](../../output/memory-landing/README.md) records the approved design history.
 
-**Explore surface, v3.4.0:** Explore is its own surface, not a Memory sub-view (study: `output/life-exploration/sidebar/`).
-- **Layout:** ≥1120px docks a 420px panel on the right; the list column and add bar re-centre beside it and stay usable. 601–1119px: a drawer over the dimmed, inert list; daily capture stays usable. ≤600px: full screen; daily capture is hidden (Can, November 5).
-- **Way out:** one header control, and it only hides Explore: a thin 1.5px chevron in the mic's drawing style, `‹` on wide screens and `⌄` on phones, in a 44px target at top right. Mouse users see it on header hover (keyboard focus always reveals it); touch shows it always. Sub-pages (living note, sources, document…) lead with a quiet `‹ conversation` link instead of reusing the header control. Escape and the phone back gesture follow the same path.
-- **Composer:** pinned at the panel foot and built from the add bar's tokens (44px, 11/14px padding, `--text-md`, 16px on phones, `--radius-lg`, main-surface control border, `.add-mic-btn`, `--space-2` gap), so both input rows read as one place. No send button or key hint: Enter sends, Shift+Enter adds a line, and phones show "send" on the return key. TODAY's next question rises in with a reply and folds away while you answer.
-- **Motion:** wide slides in from the right (`--dur-slow` / `--ease-out`). On phones the conversation rises from behind a still input row that crossfades from capture to reply. Reduced motion: no movement.
-- **Dictation:** `voice-dictation` (in `voice-capture.js`) keeps the Shift+Space privacy order; words land in the field unsent.
-- **Return:** Memory stays open behind Explore; closing returns focus to the opener, or to the list's ✦︎ Explore entry if the opener has gone.
+**Explore surface, v3.4.2:** Explore is its own surface, not a Memory sub-view (study: `output/life-exploration/sidebar/`).
+- **Layout:** above600px, reserve a right pane up to420px (45vw at narrower widths). The Today logo, top navigation, task list and task composer re-centre in the remaining space. Neither desktop pane is modal or blocks clicks. At600px and below Explore is full screen and daily capture is hidden.
+- **Way out:** the always-visible44px header close/hide control dismisses the sidebar. Clicking Today or pressing Escape does not dismiss it; Escape may return from a secondary page. Phone system Back retains the native full-screen return behavior. Closing restores the opener.
+- **Pane attention and input:** desktop pointer location and keyboard focus select the active pane. The inactive pane dims with a non-intercepting token-based shade. Only the active pane's composer is visible/reachable; task and exploration drafts remain separate. Switching does not move keyboard focus to a different input or send anything. Task Enter still creates a task; chat Enter sends, Shift+Enter adds a line.
+- **Navigation:** Chat, Living note, Earlier and Sources appear once in the sidebar header on desktop and phones. Chat has no duplicate source/correction toolbar; natural corrections can be sent in chat, and immutable wording edits remain in Living note.
+- **Feedback:** a submitted observation appears immediately with inline thinking dots, before Dropbox acknowledges it. Only the confirmed observation goes to AI; a failed save restores the unsent text without claiming persistence. Dots use a token-timed WAAPI loop; reduced motion uses still dots.
+- **Motion:** the reserved column and pane entrance use `--dur-slow` / `--ease-out`; attention/input fades use `--dur-base`. Sent turns use `--dur-fast`. On phones conversation rises behind the composer. Reduced motion disables these movements.
+- **Dictation:** `voice-dictation` retains its privacy order and inserts words unsent. Memory remains a separate sheet. Storage/source/consent boundaries are unchanged.
 
 ## Native Memory landing — v3.2.0
 

@@ -32,7 +32,7 @@
       const token=++explorationOpening,kind=button.dataset.exOrigin||'memory';
       const place={kind,button,wasOpen:kind==='memory'&&$.memoryPanel.classList.contains('open')};
       explorationPlace=place;
-      if(explorationUI?.isOpen?.()){explorationUI.hide();}
+      if(explorationUI?.isOpen?.()&&kind!=='nudge'){document.getElementById('exTitle')?.focus({preventScroll:true});return;}
       const root=explorationSheet();
       if(root.hidden||!root.childElementCount){
         root.hidden=false;root.setAttribute('aria-busy','true');
