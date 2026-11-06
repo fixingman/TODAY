@@ -36,7 +36,7 @@
       const root=explorationSheet();
       if(root.hidden||!root.childElementCount){
         root.hidden=false;root.setAttribute('aria-busy','true');
-        root.innerHTML=`<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="ex-hide" data-today-click="memory.exploration-cancel" aria-label="Hide Explore"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="M12 5l-5 5 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="ex-sheet-scroll"><p class="ex-status" role="status">Opening your exploration…</p></div><div class="ex-sheet-foot"></div>`;
+        root.innerHTML=`<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="ex-hide" data-today-click="memory.exploration-cancel" aria-label="Hide Explore"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="${matchMedia('(max-width: 600px)').matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="ex-sheet-scroll"><p class="ex-status" role="status">Opening your exploration…</p></div><div class="ex-sheet-foot"></div>`;
         root.querySelector('#exTitle').focus({preventScroll:true});
       }
       try {

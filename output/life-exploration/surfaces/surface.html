@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'none'; img-src 'none'; form-action 'none'; base-uri 'none'">
+  <title>TODAY — fictional surface preview</title>
+  <link rel="stylesheet" href="native.css"><link rel="stylesheet" href="component.css"><link rel="stylesheet" href="surface.css">
+  <script src="surface.js" defer></script>
+</head>
+<body class="ex-open" data-option="1" data-dimming="none">
+  <div class="window-bar" aria-hidden="true"><span></span><span></span><span></span><span class="window-name">TODAY</span></div>
+  <header class="sticky-header" id="dailyHeader"><div class="sticky-header-inner"><div class="header"><h1 class="today-brand"><button class="today-logo" type="button" aria-label="Today">TO<span>DAY</span></button></h1><button type="button" class="memory-item-btn" id="openExplore">✦︎ Explore</button></div></div></header>
+  <main class="app" id="daily"><p class="app-date">friday, 6 november</p><h2 class="section-title">Today</h2><ul class="fictional-tasks" aria-label="Fictional tasks"><li><label><input type="checkbox"> Reply to the studio</label></li><li><label><input type="checkbox"> Pick up the parcel</label></li><li><label><input type="checkbox"> Water the plants</label></li></ul></main>
+  <div class="add-task-row" id="addTaskBar"><label class="visually-hidden" for="dailyInput">New task</label><input id="dailyInput" class="add-task-input" autocomplete="off" placeholder="What's on your mind?"></div>
+  <div class="ex-scrim" id="exScrim" aria-hidden="true"></div>
+  <aside class="ex-sheet" id="explorationRoot" aria-labelledby="exTitle">
+    <div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button class="ex-hide" id="hideExplore" aria-label="Hide Explore" type="button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><nav class="ex-nav" aria-label="Explore pages"><button class="ex-nav-item" data-view="chat" aria-current="page" type="button">Chat</button><button class="ex-nav-item" data-view="notes" type="button">Living note</button><button class="ex-nav-item" data-view="earlier" type="button">Earlier</button><button class="ex-nav-item" data-view="sources" type="button">Sources</button></nav></div>
+    <div class="ex-sheet-scroll"><div class="ex-body" id="conversation"></div></div>
+    <div class="ex-sheet-foot"><div class="ex-prompt show"><p id="exPrompt">What feels different when there is nothing to finish?</p></div><div class="ex-input-row"><label class="visually-hidden" for="exThought">Your reply</label><textarea class="ex-input" id="exThought" rows="1" placeholder="In your own words…" autocomplete="off" aria-describedby="exPrompt"></textarea><button class="add-mic-btn ex-mic" type="button" aria-label="Dictation unavailable in this preview" disabled><svg width="15" height="20" viewBox="0 0 15 20" fill="none" aria-hidden="true"><rect x="4.75" y="1" width="5.5" height="10.5" rx="2.75" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8.5v1a6 6 0 0 0 12 0v-1M7.5 15.5V19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div></div>
+  </aside>
+  <p class="visually-hidden" id="previewStatus" role="status"></p>
+</body>
+</html>

@@ -246,7 +246,7 @@ Scale is numeric, 4px base:
 | `--z-header` | `11` | Sticky header |
 | `--z-modal` | `100` | Panels, overlays, triage bar |
 | `--z-splash` | `500` | Loading splash overlay |
-| `--z-overlay` | `999` | Top-level overlays |
+| `--z-overlay` | `999` | Top-level overlays; native-overlay title-bar drag region (only the free system-control rectangle) |
 
 **Hardcoded (not tokenised):**
 | Value | Element | Reason |
@@ -257,3 +257,7 @@ Scale is numeric, 4px base:
 | `600` | Splash canvas (star burst) | Above splash overlay (500); burst fires on top of the splash |
 | `9998` | Error panel | Above all app content |
 | `9999` | Error dot | Always on top |
+
+### Desktop PWA window geometry (v3.5.2)
+
+In native `window-controls-overlay` mode, `--window-titlebar-height` derives from `env(titlebar-area-height, 0px)`. Drag placement uses the matching x/y/width environment values; it does not create another colour or spacing scale. Explore remains `--surface` to the top edge with a `--bg` input and elevated text/control tokens. Unsupported/ordinary-tab layouts expose no drag region or added title-bar spacing.

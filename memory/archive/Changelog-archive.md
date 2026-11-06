@@ -4,6 +4,7 @@
 
 | Version | Key change |
 |---|---|
+| **3.0.8** | Feeling feedback follows edits and deletions correctly. A synced dismissal keeps the evening prompt hidden. |
 | **3.0.7** | HOW DAYS FELT voted records now distinguish genuine feeling edits (drop) from task-outcome-only changes (expire) via a feeling-only fingerprint. |
 | **3.0.6** | Soon list open no longer flashes: entrance animation moved to WAAPI so first paint is always after opacity: 0 is established. |
 | **3.0.5** | HOW DAYS FELT "not really" vote now survives evidence changes: voted records expire instead of being dropped when task data updates. |

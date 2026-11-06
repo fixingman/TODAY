@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>TODAY — Explore surface comparison</title>
+  <link rel="stylesheet" href="native.css"><link rel="stylesheet" href="study.css">
+  <script src="study.js" defer></script>
+</head>
+<body class="study">
+  <header class="review-controls">
+    <h1>Explore · two continuous surfaces</h1>
+    <p>Same layout and fictional conversation. No AI, personal data or saving.</p>
+    <div class="review-actions">
+      <label for="layout">View</label>
+      <select id="layout"><option value="compare">Side by side</option><option value="1">1 · Continuous dark pane</option><option value="2">2 · Continuous soft pane</option></select>
+      <label for="width">Viewport</label>
+      <select id="width"><option value="1280">1280px desktop</option><option value="1440">1440px desktop</option><option value="736">736px compact</option><option value="390">390px phone</option></select>
+      <label for="dimming">Dimming</label>
+      <select id="dimming"><option value="none">Off · compare colours</option><option value="explore">Explore active</option><option value="tasks">Today active</option><option value="pointer">Follow pointer / keyboard</option></select>
+      <label class="bar-control"><input type="checkbox" id="windowBar" checked> Simulated dark window bar</label>
+      <label for="speakers">Speakers</label>
+      <select id="speakers"><option value="wordmark">Mini TODAY wordmark + You</option><option value="symbols">Small symbols + names</option><option value="text">Original text labels</option></select>
+      <label class="bar-control"><input type="checkbox" id="promptStructure" checked> Group the question</label>
+    </div>
+  </header>
+  <main class="comparisons">
+    <section class="comparison" data-option="1" aria-labelledby="option1">
+      <h2 id="option1">1 · Continuous dark pane</h2><p>Page background throughout · softer input</p>
+      <div class="preview"><iframe title="Option 1: continuous dark Explore pane" src="surface.html?option=1"></iframe></div>
+    </section>
+    <section class="comparison" data-option="2" aria-labelledby="option2">
+      <h2 id="option2">2 · Continuous soft pane</h2><p>Surface background throughout · darker input</p>
+      <div class="preview"><iframe title="Option 2: continuous soft Explore pane" src="surface.html?option=2"></iframe></div>
+    </section>
+  </main>
+</body>
+</html>

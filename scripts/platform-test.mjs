@@ -62,6 +62,10 @@ async function openPage(options = {}) {
         return { matches: !!opts.coarse, media: query, onchange: null,
           addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; } };
       }
+      if (query === '(display-mode: window-controls-overlay)') {
+        return { matches: !!opts.windowControlsOverlay, media: query, onchange: null,
+          addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; } };
+      }
       if (query === '(display-mode: standalone)') {
         return { matches: !!opts.standalone, media: query, onchange: null,
           addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; } };
@@ -120,7 +124,8 @@ async function openPage(options = {}) {
     maxTouchPoints: options.maxTouchPoints,
     coarse: !!options.coarse,
     standalone: !!options.standalone,
-    suppressInstallPrompt: !!options.userAgent || !!options.standalone,
+    windowControlsOverlay: !!options.windowControlsOverlay,
+    suppressInstallPrompt: !!options.userAgent || !!options.standalone || !!options.windowControlsOverlay,
     viewportHeight: options.viewport?.height || 600,
   });
 
@@ -153,6 +158,71 @@ try {
     if (!swSrc.includes("'/assets/platform.js'")) failures.push('service-worker precache');
     if (failures.length) await fail('platform module wiring regression', failures);
     ok('platform module wiring and service-worker precache');
+  }
+
+  // Native window chrome cannot be drawn headlessly. Exercise the actual overlay CSS
+  // with left/right/compact browser-reported geometry, without changing selectors or
+  // non-geometry declarations. Ordinary-tab fallback stays the real native media result.
+  {
+    const manifest = JSON.parse(await readFile(join(ROOT, 'manifest.json'), 'utf8'));
+    if (manifest.display !== 'standalone' || !manifest.display_override?.includes('window-controls-overlay'))
+      await fail('desktop overlay manifest or standalone fallback missing');
+    const { page, errors } = await openPage({ windowControlsOverlay: true });
+    const fallback = await page.$eval('#windowDragRegion', node => getComputedStyle(node).display === 'none' && node.getAttribute('aria-hidden') === 'true' && node.tabIndex < 0);
+    if (!fallback) await fail('ordinary browser tab exposed the overlay drag region');
+    const installed = await page.evaluate(() => getComputedStyle(document.getElementById('installBtn')).display === 'none'
+      && getComputedStyle(document.getElementById('pwaInstallSection')).display === 'none');
+    if (!installed) await fail('overlay PWA offered installation again');
+    await page.evaluate(() => {
+      document.body.classList.add('ex-open');
+      const pane = document.createElement('aside');
+      pane.id = 'explorationRoot'; pane.className = 'ex-sheet';
+      pane.innerHTML = '<div class="ex-sheet-head"><h2 class="config-title">Explore</h2><button class="ex-hide" type="button">Close</button></div><div class="ex-sheet-scroll">Fictional conversation</div><div class="ex-sheet-foot">A question</div>';
+      document.body.append(pane);
+      window.__overlayFixtureRules = [];
+      for (const sheet of document.styleSheets) for (const media of sheet.cssRules) {
+        if (!(media instanceof CSSMediaRule) || media.conditionText !== '(display-mode: window-controls-overlay)') continue;
+        window.__overlayFixtureRules.push({media, original: media.media.mediaText,
+          rules: [...media.cssRules].map(rule => ({rule, original: rule.style.cssText}))});
+      }
+      if (window.__overlayFixtureRules.length !== 1) throw Error('Expected one native overlay CSS block');
+    });
+    for (const profile of [
+      {name:'left controls', width:1280, x:80, free:1200, height:32},
+      {name:'right controls', width:1280, x:0, free:1140, height:32},
+      {name:'compact window', width:736, x:0, free:596, height:40},
+      {name:'overlay turned off', width:1280, x:0, free:1280, height:0},
+    ]) {
+      await page.setViewport({width:profile.width,height:800});
+      const result = await page.evaluate(profile => {
+        const values = {'titlebar-area-x':profile.x,'titlebar-area-y':0,'titlebar-area-width':profile.free,'titlebar-area-height':profile.height};
+        for (const item of window.__overlayFixtureRules) {
+          item.media.media.mediaText = 'all';
+          for (const saved of item.rules) saved.rule.style.cssText = saved.original.replace(/env\((titlebar-area-[a-z]+), 0px\)/g, (_,name) => values[name]+'px');
+        }
+        const drag=document.getElementById('windowDragRegion'), pane=document.getElementById('explorationRoot');
+        const rect=drag.getBoundingClientRect(),close=pane.querySelector('button').getBoundingClientRect();
+        const header=document.querySelector('.sticky-header').getBoundingClientRect();
+        const common={drag:rect.x===profile.x&&rect.width===profile.free&&rect.height===profile.height,
+          draggable:getComputedStyle(drag).getPropertyValue('-webkit-app-region')==='drag',
+          header:header.top>=profile.height,close:close.top>=profile.height,
+          paneToTop:pane.getBoundingClientRect().top===0,
+          continuous:getComputedStyle(pane).backgroundColor===getComputedStyle(pane.querySelector('.ex-sheet-foot')).backgroundColor,
+          separator:getComputedStyle(pane.querySelector('.ex-sheet-foot')).borderTopWidth==='0px'};
+        document.body.classList.add('focus-locked');
+        common.focusHeader=document.querySelector('.sticky-header').getBoundingClientRect().top>=profile.height;
+        document.body.classList.remove('focus-locked');
+        return common;
+      },profile);
+      if (Object.values(result).some(value=>!value)) await fail('window overlay geometry: '+profile.name,result);
+    }
+    await page.evaluate(() => {
+      for (const item of window.__overlayFixtureRules) { item.media.media.mediaText=item.original;for(const saved of item.rules)saved.rule.style.cssText=saved.original; }
+    });
+    if (!await page.$eval('#windowDragRegion',node=>getComputedStyle(node).display==='none')) await fail('overlay fallback did not restore');
+    if(errors.length)await fail('uncaught overlay fixture errors',errors);
+    ok('overlay install detection, native fallback and left/right/compact CSS control clearance');
+    await page.close();
   }
 
   // Android/Chromium beforeinstallprompt + appinstalled lifecycle.

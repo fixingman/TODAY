@@ -1,7 +1,6 @@
 // TODAY — browser platform integration (Roadmap #3 module extraction)
 //
-// Loaded before the main script, but intentionally inert until index.html calls
-// window._startPlatform() at the original end-of-script platform boundary.
+// Inert until the main script calls window._startPlatform().
 (function() {
   let _platformStarted = false;
 
@@ -25,7 +24,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
           if (document.visibilityState === 'visible') reg.update().catch(() => {});
         });
 
-        // When a new SW is waiting (downloaded in background), activate it
+        // Activate waiting updates.
         function _activateWaiting(sw) {
           if (sw.state === 'installed' && navigator.serviceWorker.controller) {
             // New version ready, old one is controlling — safe to take over
@@ -36,9 +35,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 
         function _onNewSW(sw) {
           console.log('[SW] New service worker detected, state:', sw.state);
-          // Check immediately in case it's already installed
           _activateWaiting(sw);
-          // Also listen for state changes
           sw.addEventListener('statechange', () => {
             console.log('[SW] State changed to:', sw.state);
             _activateWaiting(sw);
@@ -54,8 +51,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
           if (reg.installing) _onNewSW(reg.installing);
         });
 
-        // Reload when new SW takes control — but only if we HAD a previous controller
-        // (first install doesn't need reload, page is already fresh)
+        // Reload updates, never first installation.
         const hadController = !!navigator.serviceWorker.controller;
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -71,10 +67,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
   });
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// Mobile Keyboard Handling
-// Use visualViewport API to position input bar above keyboard
-// ══════════════════════════════════════════════════════════════════════════
+// Mobile keyboard: preserve scroll while the fixed input follows visualViewport.
 (function() {
   const bar = document.getElementById('addTaskBar');
   const input = document.getElementById('newTask');
@@ -100,13 +93,12 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 
   function preserveListDuringKeyboardOpen() {
     if (!isIOS || !scrollAnchor || scrollAnchor.userScrolled || !vv) return;
-    // Rotation changes the layout itself; the old document Y is no longer a
-    // meaningful anchor in that case.
+    // Rotation invalidates the saved scroll anchor.
     if (window.innerWidth !== scrollAnchor.viewportWidth) {
       clearScrollAnchor();
       return;
     }
-    // A hardware keyboard or a simple focus must not trigger scroll correction.
+    // Correct only actual keyboard opening.
     if (scrollAnchor.viewportHeight - vv.height < 100) return;
     if (Math.abs(window.scrollY - scrollAnchor.y) > 2) {
       window.scrollTo(window.scrollX, scrollAnchor.y);
@@ -124,15 +116,12 @@ if ('serviceWorker' in navigator && canRegisterSW) {
       // Calculate where bottom of visual viewport is
       const keyboardTop = vv.offsetTop + vv.height;
 
-      // Use transform for GPU-accelerated smooth positioning
       const targetTop = keyboardTop - bar.offsetHeight;
       bar.style.transform = `translateY(${targetTop}px)`;
       bar.style.position = 'fixed';
       bar.style.top = '0';
       bar.style.bottom = 'auto';
-      // WebKit may scroll the document to reveal the focused fixed input while
-      // opening the keyboard. Once the bar is above the keyboard, that scroll
-      // is unnecessary and otherwise persists after the keyboard closes.
+      // Undo WebKit keyboard scroll after positioning the fixed bar.
       preserveListDuringKeyboardOpen();
     });
   }
@@ -146,8 +135,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
     bar.style.bottom = '';
   }
 
-  // Capture before the browser's default focus action, which can scroll before
-  // the focus event itself. Programmatic focus falls back to its current Y.
+  // Anchor before native focus scrolling; programmatic focus uses current Y.
   input.addEventListener('pointerdown', () => {
     tapAnchor = { y: window.scrollY, viewportHeight: vv?.height, at: performance.now() };
   }, { passive: true });
@@ -161,14 +149,11 @@ if ('serviceWorker' in navigator && canRegisterSW) {
       userScrolled: false,
     };
     tapAnchor = null;
-    // Limit correction to the keyboard-opening transition. Later page scrolls
-    // (including app-driven changes while typing) remain untouched.
+    // Bound correction to keyboard opening; preserve later scrolls.
     if (anchorTimer) clearTimeout(anchorTimer);
     anchorTimer = setTimeout(clearScrollAnchor, 1200);
     bar.classList.add('keyboard-open');
-    // Small delay for keyboard to start opening
-    // Keep the bar above the visual viewport without scrolling the input into
-    // view; the short-lived anchor handles WebKit's own focus scroll instead.
+    // Position above the keyboard without scrolling the input into view.
     setTimeout(positionBar, 100);
   });
 
@@ -261,7 +246,8 @@ window.addEventListener('appinstalled', () => {
 });
 
 // Also hide install button if already in standalone mode (already installed)
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+if (window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: window-controls-overlay)').matches || window.navigator.standalone) {
   console.log('[PWA] Running in standalone mode — already installed');
   Today.ready('DOMContentLoaded', () => {
     const btn = document.getElementById('installBtn');
@@ -289,6 +275,7 @@ function _pwaCopyLink(btn) {
 }
 (function () {
   const _isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: window-controls-overlay)').matches ||
                         window.navigator.standalone;
   if (_isStandalone) return;
   const ua = navigator.userAgent;
@@ -352,8 +339,7 @@ function _pwaCopyLink(btn) {
   section.style.display = 'block';
 })();
 
-// Handle bfcache restoration — browser may restore page with stale .focusing class
-// but JS state is reset, leaving app visually stuck in focus mode
+// bfcache can restore stale focus CSS after JS state resets; run wake recovery.
 window.addEventListener('pageshow', (e) => {
   if (e.persisted) {
     // bfcache restore — run full wake sequence

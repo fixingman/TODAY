@@ -214,7 +214,7 @@
     const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
     const pages=[['conversation','Chat'],['notes','Living note'],['history','Earlier'],['sources','Sources']];
     const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label])=>action(page,label,`data-ex-nav="true" ${page==='notes'?'id="exNotes" ':''}${view===page?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
-    return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M12 5l-5 5 5 5'),`aria-label="${label}"`,'ex-hide')}${nav}`;
+    return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${nav}`;
   }
   function backLink() {
     const parent=trail.at(-1)?.view;
@@ -226,7 +226,7 @@
     return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p>${text && !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : ''}</div>`;
   }
   function turnsHTML(entries,reading) {
-    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && core.supportedReading(doc,entry,liveSources) ? `<div class="ex-turn" data-ex-reading="${h(entry.id)}"><span class="ex-source">TODAY</span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
+    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source ex-speaker-you">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && core.supportedReading(doc,entry,liveSources) ? `<div class="ex-turn" data-ex-reading="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
   }
   function readingExplanation() {
     const state=core.readingStatus(doc,core.latest(doc),liveSources);
@@ -354,7 +354,7 @@
   function fitInput(input) { if(!input)return; input.style.height=''; input.style.height=Math.min(input.scrollHeight+2, innerHeight*0.4)+'px'; }
   function promptFor(value) { byId('exPromptWrap')?.classList.toggle('show', !value.trim() && !pendingReading); }
   function thinkingHTML() {
-    return '<div class="ex-turn ex-thinking" role="status" aria-label="TODAY is thinking"><span class="ex-source">TODAY</span><span class="ex-thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>';
+    return '<div class="ex-turn ex-thinking" role="status" aria-label="TODAY is thinking"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><span class="ex-thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>';
   }
   function animateThinking() {
     thinkingMotion.forEach(animation=>animation.cancel());thinkingMotion=[];

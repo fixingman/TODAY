@@ -246,9 +246,16 @@ try{
 
  await start();await wait(()=>document.querySelector('.ex-status').textContent.includes('Bring an experience'));assert.equal(await page.$('[data-ex-action="reload"]'),null,'Empty first message keeps a useful prompt rather than a reload');
  await page.type('#exQuestion','A fictional exploration');
- // The reply row is built like the daily add bar: same type, size, padding, radius and border tokens.
+ // The reply row is built like the daily add bar: same type, size, padding and radius; elevated borders match the soft pane.
  await page.evaluate(()=>{document.getElementById('newTask').blur();document.getElementById('exQuestion').blur();});await page.mouse.move(0,0);await new Promise(resolve=>setTimeout(resolve,400));
- assert.deepEqual(await page.evaluate(()=>{const pick=node=>{const c=getComputedStyle(node);return [c.fontSize,c.fontFamily,c.height,c.paddingTop,c.paddingLeft,c.borderTopLeftRadius,c.borderTopColor];};return JSON.stringify(pick(document.getElementById('exQuestion')))===JSON.stringify(pick(document.getElementById('newTask')));}),true,'Explore reply field matches the daily capture input');
+ assert.deepEqual(await page.evaluate(()=>{const pick=node=>{const c=getComputedStyle(node);return [c.fontSize,c.fontFamily,c.height,c.paddingTop,c.paddingLeft,c.borderTopLeftRadius];};return JSON.stringify(pick(document.getElementById('exQuestion')))===JSON.stringify(pick(document.getElementById('newTask')));}),true,'Explore reply field matches the daily capture input');
+ assert.deepEqual(await page.evaluate(()=>{
+  const pane=document.getElementById('explorationRoot'),foot=pane.querySelector('.ex-sheet-foot'),input=document.getElementById('exQuestion');
+  const root=getComputedStyle(document.documentElement),sheet=getComputedStyle(pane),footer=getComputedStyle(foot),field=getComputedStyle(input);
+  const rgb=value=>{const node=document.createElement('span');node.style.color=value;document.body.append(node);const colour=getComputedStyle(node).color;node.remove();return colour;};
+  return [sheet.backgroundColor===footer.backgroundColor,footer.borderTopWidth==='0px',
+   field.backgroundColor===rgb(root.getPropertyValue('--bg')),field.borderTopColor===rgb(root.getPropertyValue('--color-control-border-elevated'))];
+ }),[true,true,true,true],'Continuous soft conversation/question/composer, darker input and elevated control contrast');
  assert.deepEqual(await page.$eval('#exTitle',node=>{const own=getComputedStyle(node),native=getComputedStyle(document.getElementById('memoryTitle'));return [own.fontSize===native.fontSize,own.fontWeight===native.fontWeight,own.fontFamily===native.fontFamily];}),[true,true,true],'Explore uses the native sheet-title role exactly');
  assert.equal(await page.$eval('#exViewTitle',node=>getComputedStyle(node).fontSize),await page.$eval(':root',node=>getComputedStyle(node).getPropertyValue('--text-md').trim()));
  assert.ok(await page.$('#exSetupSources'),'Data scope stays visible as a compact disclosure');
@@ -285,6 +292,11 @@ try{
  assert.equal(await page.$('[data-ex-action="retry-ai"]'),null,'Retry appears only after a real failure');
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'exThought','Reply completion retains composer focus');
+ assert.deepEqual(await page.evaluate(()=>{
+  const you=document.querySelector('.ex-you .ex-speaker-you'),today=document.querySelector('[data-ex-reading] .ex-speaker-logo'),prompt=document.querySelector('.ex-prompt.show');
+  return [you?.textContent==='You',today?.textContent==='TODAY',getComputedStyle(today).fontFamily.includes('Syne'),getComputedStyle(prompt.querySelector('p')).borderLeftWidth==='2px',parseFloat(getComputedStyle(prompt).marginBottom)>0];
+ }),[true,true,true,true,true],'Speaker names remain readable and the question has its own inset grouping');
+ await checkLayout('speaker-and-question');
  assert.ok(await page.evaluate(()=>__explorationTest.remote.includes('OBS_FICTION')));assert.equal(await page.evaluate(()=>__explorationTest.uploads.filter(row=>row.args.mode==='add').length),2);
  await click('#exNotes');await checkLayout('note');assert.equal(await page.$('#exThought'),null,'The living note replaces the conversation');await click('[data-ex-action="correct"]');await checkLayout('correct');assert.equal(await page.$('#exNotesTitle,#exThought'),null,'Correction replaces its parent');await page.$eval('#exCorrection',input=>{input.value='CORRECTION_FICTION: timing may matter.';});await click('[data-ex-action="amend"]');await wait(()=>__explorationTest.remote.includes('CORRECTION_FICTION')&&!document.querySelector('#exCorrection')&&document.querySelector('[data-ex-action="step"]'));
  assert.equal(await page.$('#exTaskNote,#exDocumentTools,[data-ex-action="task-context"]'),null,'Notes removes duplicate task snapshots and generic tools');
