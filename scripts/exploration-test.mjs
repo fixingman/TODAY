@@ -180,6 +180,7 @@ try{
     const body=JSON.parse(opts.body);if(!body.systemPrompt?.includes('life exploration'))return json({content:''});
     s.ai.push(body);if(s.hold)await new Promise(resolve=>{s.release=resolve;});
     if(s.malformed){s.malformed=false;return json({content:'malformed reply'});}
+    if(s.replyFailure)return json(s.replyFailure.body,s.replyFailure.status);
     if(s.failReplyWrite){s.failReplyWrite=false;s.rejectNextWrite=true;}const context=JSON.parse(body.messages[0].content);const reply={reply:'One fictional account leaves several explanations open.',summary:'Materials and timing remain possibilities.',next_question:'What changed this time?',evidence_ids:context.context.records.map(row=>row.id),experiment:(context.request.startsWith('Suggest')||/something (?:small )?to try|change the step/i.test(context.context.records.filter(row=>row.kind==='observation').at(-1)?.text||''))?{question:'Does a smaller setup help?',action:'Try a fictional short session',signal:'Whether starting feels easier',effort:'One minute',review:'When returning',stop:'If it becomes burdensome'}:null};if(s.nextReply){Object.assign(reply,s.nextReply);s.nextReply=null;}if(s.emptySuggestion)reply.experiment=null;if(s.badEvidence)reply.evidence_ids=['invented'];if(s.failSuggestion)return json({error:'Fictional unavailable'},503);return s.wrapped?json({content:JSON.stringify(reply)}):json(reply);
    }
    if(target.includes('/.netlify/functions/'))return json({});
@@ -291,9 +292,41 @@ try{
  const beforeSuggestion=await page.evaluate(()=>Today.use('exploration').document().entries.length);
  await page.evaluate(()=>{__explorationTest.emptySuggestion=true;});await click('[data-ex-action="experiment"]');await wait(()=>document.querySelector('#exSuggestionStatus')?.textContent.includes('No suggestion came back'));
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.length),beforeSuggestion,'Empty suggestion never commits a replacement reading');
- await page.evaluate(()=>{__explorationTest.emptySuggestion=false;__explorationTest.failSuggestion=true;});await click('[data-ex-action="experiment"]');await wait(()=>document.querySelector('#exSuggestionStatus')?.textContent.includes('could not be completed'));
+ await page.evaluate(()=>{__explorationTest.emptySuggestion=false;__explorationTest.failSuggestion=true;});await click('[data-ex-action="experiment"]');await wait(()=>document.querySelector('#exSuggestionStatus')?.textContent.includes('could not answer'));
+ await page.evaluate(()=>{__explorationTest.failSuggestion=false;});
+ for(const failure of [
+  {status:502,body:{error:'Exploration response incomplete',code:'exploration-incomplete'},notice:'cut short'},
+  {status:401,body:{error:'Fictional credential problem'},notice:'Check your AI connection'},
+  {status:429,body:{error:'Fictional request limit'},notice:'request limit'},
+  {status:200,body:{content:'{"reply":"Fictional unfinished'},notice:'unreadable'},
+  {status:200,body:{reply:'Fictional reply',summary:'Still open.',next_question:'',evidence_ids:[],experiment:{action:'Missing other bounds'}},notice:'missing details'},
+  {status:200,body:{reply:'Fictional reply',summary:'Still open.',next_question:'',evidence_ids:['invented'],experiment:null},notice:'could not be checked'}
+ ]){
+  const beforeFailure=await page.evaluate(failure=>{__explorationTest.replyFailure=failure;return {calls:__explorationTest.ai.length,remote:__explorationTest.remote};},failure);
+  await click('[data-ex-action="experiment"]');
+  await page.waitForFunction(notice=>document.querySelector('#exSuggestionStatus')?.textContent.includes(notice)&&!document.querySelector('[data-ex-action="experiment"]').disabled,{},failure.notice);
+  const afterFailure=await page.evaluate(()=>({calls:__explorationTest.ai.length,remote:__explorationTest.remote,surface:__explorationTest.ai.at(-1).surface}));
+  assert.equal(afterFailure.calls,beforeFailure.calls+1,'Suggestion failures never trigger automatic retry');
+  assert.equal(afterFailure.remote,beforeFailure.remote,'A failed suggestion never replaces the saved understanding or step');
+  assert.equal(afterFailure.surface,'exploration','The completion fence is scoped to Explore');
+ }
+ const beforeReopen=await page.evaluate(()=>({calls:__explorationTest.ai.length,remote:__explorationTest.remote}));
+ await back();await click('[data-ex-action="step"]');
+ assert.equal(await page.$eval('#exSuggestionStatus',node=>node.textContent),'','Reopening Something to try must not present an earlier failed attempt as current');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeReopen.calls,'Opening the step page never requests or retries a suggestion');
+ assert.equal(await page.evaluate(()=>__explorationTest.remote),beforeReopen.remote,'Clearing a stale view status never writes the journal');
+ await page.evaluate(()=>{__explorationTest.replyFailure=null;const native=setTimeout;__explorationTest.restoreTimeout=()=>{window.setTimeout=native;};window.setTimeout=(callback,delay,...args)=>{if(delay===25000)__explorationTest.expire=callback;return native(callback,delay,...args);};__explorationTest.hold=true;__explorationTest.release=null;});
+ const beforeSuggestionDeadline=await page.evaluate(()=>({calls:__explorationTest.ai.length,remote:__explorationTest.remote}));
+ await click('[data-ex-action="experiment"]');await wait(()=>typeof __explorationTest.release==='function');
+ await page.evaluate(()=>{__explorationTest.expire();__explorationTest.hold=false;__explorationTest.release();__explorationTest.restoreTimeout();});
+ await wait(()=>document.querySelector('#exSuggestionStatus')?.textContent.includes('took too long')&&!document.querySelector('[data-ex-action="experiment"]').disabled);
+ assert.equal(await page.evaluate(()=>__explorationTest.remote),beforeSuggestionDeadline.remote,'A late suggestion cannot replace the saved note');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeSuggestionDeadline.calls+1);
  await page.evaluate(()=>{__explorationTest.failSuggestion=false;__explorationTest.hold=true;__explorationTest.release=null;});await click('[data-ex-action="experiment"]');await wait(()=>typeof __explorationTest.release==='function');
+ const whilePending=await page.evaluate(()=>__explorationTest.ai.length);
+ await back();await click('[data-ex-action="step"]');
  assert.equal(await page.$eval('#exSuggestionStatus',node=>node.textContent),'Thinking…');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),whilePending,'Returning during an active request retains its status without another request');
  assert.equal(await page.$('[data-ex-action="retry-ai"]'),null,'No duplicate reply retry during a suggestion request');
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await wait(()=>document.querySelector('[data-ex-action="task"]'));
 
@@ -570,7 +603,7 @@ try{
  assert.equal(await page.$eval('#explorationRoot',node=>node.getAttribute('role')),'complementary','Wide screens dock Explore beside the list');
  // Both desktop sizes push logo/navigation and rows, keep the panel persistent, and switch composers.
  await mkdir(join(ROOT,'.context/ci-test-results/explore-dock'),{recursive:true});
- for(const width of [736,1024,1440]){
+ for(const width of [601,736,1024,1440]){
   await page.setViewport({width,height:900});
   await page.mouse.move(width-20,200);
   await wait(()=>{const sheet=document.getElementById('explorationRoot').getBoundingClientRect();return Math.abs(parseFloat(getComputedStyle(document.body).paddingRight)-sheet.width)<1&&['main-app','sticky-header','todayLogo','infoBtn','memoryPanel'].every(id=>document.getElementById(id).getBoundingClientRect().right<=sheet.left+1);});
@@ -582,6 +615,32 @@ try{
   assert.equal(await page.evaluate(()=>document.body.classList.contains('ex-task-active')&&getComputedStyle(document.getElementById('exScrim')).opacity==='0'&&document.querySelector('.ex-sheet-foot').inert),true,'Pointer on Today clears its dim and parks the chat composer');
   await page.click('#dateTag');
   assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'Clicking Today cannot dismiss Explore');
+  await page.evaluate(()=>{const hours=Date.prototype.getHours;Date.prototype.getHours=()=>21;try{Today.use('triage').checkTriageBar();}finally{Date.prototype.getHours=hours;}});
+  await wait(()=>document.getElementById('triageBar').classList.contains('visible'));
+  const triageLayout=await page.evaluate(()=>{const bar=document.getElementById('triageBar').getBoundingClientRect(),app=document.getElementById('main-app').getBoundingClientRect(),sheet=document.getElementById('explorationRoot').getBoundingClientRect();return {centre:bar.x+bar.width/2,appCentre:app.x+app.width/2,left:bar.left,right:bar.right,sheetLeft:sheet.left};});
+  assert.ok(Math.abs(triageLayout.centre-triageLayout.appCentre)<=1&&triageLayout.left>=0&&triageLayout.right<=triageLayout.sheetLeft,'Evening Review must share Today’s available column');
+  await page.evaluate(()=>Today.use('triage').checkTriageBar());await wait(()=>document.getElementById('triageBar').classList.contains('hidden'));
+  // Fixed task controls are outside .app: body padding alone cannot re-centre them.
+  // Use the actual delete action, not a toast-only fixture or a static screenshot.
+  const removedId=await page.evaluate(()=>{
+   const id='manual_'+Date.now();manualTasks.push({id,text:'UnbrokenFictionalTaskNameXX for docked undo'});
+   Today.use('connections').renderManual();return id;
+  });
+  await click(`.task[data-taskid="${removedId}"] .task-delete`);
+  await wait(()=>document.querySelector('#undoToast.show:not([hidden])')&&document.querySelectorAll('#undoReasonRow button').length===4);
+  const undoLayout=await page.evaluate(()=>{
+   const toast=document.getElementById('undoToast').getBoundingClientRect(),app=document.getElementById('main-app').getBoundingClientRect(),sheet=document.getElementById('explorationRoot').getBoundingClientRect();
+   const controls=[...document.querySelectorAll('#undoToast button')].filter(node=>!node.hidden).map(node=>{const r=node.getBoundingClientRect();return {label:node.textContent,left:r.left,right:r.right,top:r.top,bottom:r.bottom,hit:node.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};});
+   return {toast:{left:toast.left,right:toast.right,top:toast.top,bottom:toast.bottom,centre:toast.x+toast.width/2},appCentre:app.x+app.width/2,sheetLeft:sheet.left,controls};
+  });
+  await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/undo-${width}.png`),fullPage:false});
+  assert.ok(Math.abs(undoLayout.toast.centre-undoLayout.appCentre)<=1,'Undo/reasons must centre on Today while Explore is docked: '+JSON.stringify({width,...undoLayout}));
+  assert.ok(undoLayout.toast.left>=0&&undoLayout.toast.right<=undoLayout.sheetLeft,'Undo/reasons must fit beside the sidebar');
+  assert.ok(undoLayout.controls.every(r=>r.left>=undoLayout.toast.left&&r.right<=undoLayout.toast.right+1&&r.top>=undoLayout.toast.top&&r.bottom<=undoLayout.toast.bottom&&r.hit),'Every undo/reason control must remain contained and pointer-accessible');
+  await page.focus('#undoToast [data-today-click="tasks.undo"]');await page.keyboard.press('Enter');
+  await page.waitForFunction(id=>!!document.querySelector(`.task[data-taskid="${id}"]`)&&document.getElementById('undoToast').hidden,{},removedId);
+  assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'Keyboard Undo must keep Explore open');
+  await page.evaluate(id=>{manualTasks=manualTasks.filter(task=>task.id!==id);Today.use('connections').renderManual();},removedId);
   await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/tasks-active-${width}.png`),fullPage:false});
   await page.mouse.move(width-20,200);await wait(()=>document.getElementById('addTaskBar').inert&&!document.querySelector('.ex-sheet-foot').inert&&getComputedStyle(document.getElementById('explorationRoot'),'::after').opacity==='0');
   assert.equal(await page.$eval('#exThought',node=>node.value),'UNSENT_SHEET_SWITCH_FICTION','Pane switching preserves the unsent chat draft');

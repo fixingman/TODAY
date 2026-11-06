@@ -91,6 +91,28 @@ try {
   assert.equal(lastRequest.body.generationConfig.maxOutputTokens, 512);
   assert.deepEqual(lastRequest.body.generationConfig.thinkingConfig, { thinkingBudget: 0 });
   ok('Gemini plain-text reply arrives whole');
+
+  // A structured Explore result must be complete before the client may save it.
+  // Even parseable JSON is incomplete when the provider reports its token cap.
+  const exploration = JSON.stringify({reply:'Fictional reply',summary:'Still uncertain.',next_question:'',evidence_ids:[],experiment:null});
+  for (const provider of ['claude','gemini']) {
+    for (const capped of [false,true]) {
+      stub(provider === 'claude'
+        ? {content:[{type:'text',text:exploration}],stop_reason:capped?'max_tokens':'end_turn'}
+        : {candidates:[{content:{parts:[{text:exploration}]},finishReason:capped?'MAX_TOKENS':'STOP'}]});
+      r = await run(provider,'exploration');
+      assert.equal(r.status,capped?502:200,provider+' Explore completion fence');
+      if(capped)assert.deepEqual(r.body,{error:'Exploration response incomplete',code:'exploration-incomplete'},'Do not return partial/private model text');
+      else assert.equal(r.body.reply,'Fictional reply');
+      assert.equal(provider==='claude'?lastRequest.body.max_tokens:lastRequest.body.generationConfig.maxOutputTokens,512,'Explore retains its existing output ceiling');
+      assert.deepEqual(provider==='claude'?lastRequest.body.thinking:lastRequest.body.generationConfig.thinkingConfig,provider==='claude'?{type:'disabled'}:{thinkingBudget:0});
+      if(capped){
+        const unmarked=await run(provider);
+        assert.equal(unmarked.status,200,'Other callers keep their existing behavior');
+      }
+    }
+  }
+  ok('Explore rejects provider-capped results without changing budgets, thinking or other surfaces');
 } finally {
   globalThis.fetch = realFetch;
 }

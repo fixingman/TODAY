@@ -1,5 +1,11 @@
 # Exploration — native v3.5.0 (local)
 
+## Requested-step reliability — local v3.5.1
+
+An earlier failed suggestion’s page-held status no longer appears as a fresh failure when **Something to try** is reopened. Entering that view clears a terminal status without a request, journal write or retry. A still-active request retains its thinking status across navigation; its existing fences/deadline continue. Fully reopening Explore already clears the status; the defect was navigation between pages inside the same open session.
+
+An `exploration` request marker enables only completion checking: Claude `max_tokens` / Gemini `MAX_TOKENS` returns a fixed incomplete code without partial model prose. It changes no upstream routing, model, thinking, prompt or request/output limits. New failures distinguish incomplete/unreadable/invalid answers, missing experiment details,25-second expiry, source change, credentials, rate limit and service failure. A failed or late result saves nothing and retains the previous note/step; only a new explicit tap retries. The earlier catch-all cannot establish the cause of the original failed attempt, and seeing it on opening does not prove a new failure. No generation/retry on navigation or writing-policy change.
+
 ## Continuity in one result — v3.5.0
 
 The approved [single-request revision](exploration-continuity-plan.md) uses the existing response's `reply`, `summary` and `next_question`. One explicit turn makes one provider request with the existing25-second deadline and unchanged output ceiling; opening/returning makes none. The summary carries accumulated experiences, corrections, competing explanations and uncertainty within its existing1200-character cap. It supplies **So far** in the living note and the next visit's resumption. The latest reply stays in Chat; it is not duplicated as the note. A useful unresolved question appears separately when supplied. The summary is labelled as AI wording, not a quotation or verified explanation. When real support is unavailable, show included original words and the actual topic with a separate notice. No separate personal-synthesis writer, store, branch or background update exists.

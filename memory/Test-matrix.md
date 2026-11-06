@@ -10,6 +10,18 @@
 
 **BUG-139 accepted-reading contract (v2.106.2 dev candidate):** the real-startup shared-word before-control fails on the original code. `nudge-test` checks cached prose after one shared word, a full task mention and an unrelated completion without regeneration. `nudge-delivery-test` checks desktop/touch completion and sync, About voting, no replacement request, noon retaining About while hiding the strip, and the next local day withholding yesterday’s cache. Writer bytes are compared with the before-control. Existing delivery and dismissal tests remain. All eight affected suites, design lint and CI invariants pass on Node24.14.0 / Chrome152.0.7977.75 with unchanged inputs. The delivery suite has56 desktop/touch cases. Results: `.context/nudge-retention-fix/verification.json` and `checks/`; the original shared-word failure and controlled feedback-animation fixture failures are retained. Local checks do not approve publication or the broader #15A writing verdict.
 
+## Focus header motion beside Explore — local v3.5.1
+
+`scripts/focus-test.mjs` samples the actual header/logo/navigation rectangles every animation frame for550ms across both Focus entry and exit, with Explore closed and docked at736/1024/1440px. Add42-task scrolled cases with/without Explore and trigger sampling from the actual click/Escape. Entry geometry may drift at most1px. On deep exit the restored document scroll can move offscreen chrome farther out of view; it cannot reveal the hidden logo/navigation, and the scroll offset must match the locked position. Retain normal-motion timing, loaded fonts, actual lock/blur and sidebar lifetime. Traces are in `ci-test-results/focus-header/`. Checking only settled filter/opacity or only static sidebar containment cannot catch this sticky-to-fixed reflow. Existing BUG-098 scroll/padding, touch guard, timer/session and Focus Ask checks remain.
+
+## Docked Explore with task controls — local v3.5.1
+
+`scripts/exploration-test.mjs` uses actual task deletion while Explore is open at601/736/1024/1440px. Assert Undo/reasons centre on Today, fit before the sidebar edge, every visible action is inside the toast and hit-testable, keyboard Undo restores the task, Explore remains open and its draft survives. Check the actual evening Review callout in the same column. Captures: `ci-test-results/explore-dock/undo-*.png`. `scripts/task-actions-test.mjs` retains closed-sidebar deletion/restoration and checks normal viewport centring. Static sidebar scenes and isolated deletion are insufficient for this interaction; fixed body controls need their own geometry assertions. Existing phone/full-screen and motion/keyboard/axe coverage remains.
+
+## Explore requested-step failure recovery — local v3.5.1
+
+`scripts/ai-assist-unit-test.mjs` exercises real handler completion metadata for both providers, including parseable-but-capped JSON, unchanged512-token/thinking policy and other caller behavior. `scripts/exploration-test.mjs` exercises the native requested-step action with cutoff, invalid evidence, missing bounds, unreadable text, authentication, rate limit and late-after25-second results. Every failed explicit tap must make exactly one request, keep the same canonical note/step bytes, restore the action and show a reason-specific status. Back/reopen must clear an earlier terminal status without another call or journal write, while returning during a held request retains Thinking without a duplicate call. Existing success, source/permission/revision/deletion and keyboard/axe/320px coverage remains. Fictional transport proves recovery, not real writing quality or the reported session’s cause.
+
 ## Pre-Release Checklist (REQUIRED)
 
 ### Live console diagnostics

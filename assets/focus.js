@@ -626,7 +626,10 @@ window._startFocus = (function() {
 
 
     const _hdr = document.getElementById('sticky-header');
-    if (_hdr) _hdr.style.transition = '';
+    if (_hdr) {
+      _hdr.style.top = _hdr.getBoundingClientRect().top + 'px';
+      _hdr.style.transition = '';
+    }
     document.body.classList.add('focus-locked');
 
     appEl.classList.add('focusing');
@@ -759,6 +762,7 @@ window._startFocus = (function() {
       document.body.style.left = '';
       document.body.style.right = '';
       document.body.style.paddingTop = '';
+      document.getElementById('sticky-header')?.style.removeProperty('top');
       document.body.classList.remove('focus-locked');
       window.scrollTo(0, lockY);
       if (_savedTaskTop >= 0 && _driftAnchor) {

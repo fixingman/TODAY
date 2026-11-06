@@ -99,7 +99,8 @@ from two devices. New progress refreshes the row and heals stale remote copies (
 
 ### Scroll lock and the header (BUG-098)
 - Entering focus sets `body { position: fixed; top: -scrollY }` and animates `top` for the nudge. A `position: sticky` header has nothing to stick to inside a fixed body: it sits at the top of the body, which is off-screen by `scrollY`, and then rides the nudge — seen as the nav being shoved up when a task near the bottom enters focus.
-- Fix: the lock adds `body.focus-locked`, under which the header is `position: fixed; top: 0`, and pads the body by the header's height so nothing below shifts when it leaves the flow. `_doUnfix()` clears both. The lock also clears the splash's leftover inline opacity transition on the header so the recede beat governs.
+- Fix: the lock adds `body.focus-locked`, under which the header is fixed at its current viewport top (v3.5.1; formerly forced to0), and pads the body by the header's height so nothing below shifts when it leaves the flow. `_doUnfix()` clears both. The lock also clears the splash's leftover inline opacity transition on the header so the recede beat governs.
+- **Header continuity (local v3.5.1, BUG-151):** capture the current viewport top before pinning, including a partially/offscreen header on a long list; clear that owned inline top on unlock. With Explore docked, retain the available Today-column width instead of expanding to the viewport. Logo/navigation geometry stays fixed while the existing blur/opacity changes; entry and exit are sampled frame by frame with the sidebar open/closed. Scroll lock, task positioning and restored padding remain unchanged.
 
 ---
 

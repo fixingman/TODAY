@@ -111,15 +111,19 @@
     root.style.top = fit ? visualViewport.offsetTop + 'px' : '';
   }
   const scroller = () => root?.querySelector('.ex-sheet-scroll');
+  function enterView(next) {
+    if(next==='step'&&view!==next&&!pendingReading)suggestionMessage='';
+    view=next;
+  }
   function go(next, trigger = document.activeElement) {
     navigation++;trail.push({view, scroll:scroller()?.scrollTop||0, action:trigger?.dataset.exAction, id:trigger?.id});
-    view=next; confirmForget=false; render();
+    enterView(next); confirmForget=false; render();
     byId('exViewTitle')?.focus({preventScroll:true});
     const box=scroller(); if(box)box.scrollTop=0;
   }
   function leave() {
     if (trail.length) {
-      navigation++;const previous=trail.pop();view=previous.view;confirmForget=false;render();
+      navigation++;const previous=trail.pop();enterView(previous.view);confirmForget=false;render();
       const target=(previous.id&&byId(previous.id)) || [...root.querySelectorAll('[data-ex-action]')].find(node=>node.dataset.exAction===previous.action);
       (target||byId('exViewTitle')||byId('exTitle'))?.focus({preventScroll:true});
       const box=scroller(); if(box)box.scrollTop=previous.scroll;return;
@@ -445,13 +449,13 @@
     const timeout = setTimeout(()=>requestController.abort(),25000);
     try {
       const result = await fetch('/.netlify/functions/ai-assist',{method:'POST',headers:{'Content-Type':'application/json'},signal:aiController.signal,
-        body:JSON.stringify({provider,apiKey:key,systemPrompt:core.systemPrompt,messages:[{role:'user',content:JSON.stringify({context:selected,request:wantExperiment ? 'Suggest one small reversible experiment, with all six bounds.' : 'Continue the exploration from the latest observation. No experiment unless asked.'})}]})});
+        body:JSON.stringify({provider,apiKey:key,surface:'exploration',systemPrompt:core.systemPrompt,messages:[{role:'user',content:JSON.stringify({context:selected,request:wantExperiment ? 'Suggest one small reversible experiment, with all six bounds.' : 'Continue the exploration from the latest observation. No experiment unless asked.'})}]})});
       const data = await result.json();
       const freshSources=await host.sources(pendingSources.map(ref=>ref.id));
       if (!validSession(token) || aiController !== requestController || doc.workspace_id !== workspace || revision !== baseRevision || provider !== connection()._aiGetProvider() || key !== connection()._aiGetKey()) return;
       if(requestController.signal.aborted)throw new Error('reply-expired');
       if(!dataContext().supports(pendingSources,freshSources)){liveSources=freshSources;throw new Error('sources-changed');}
-      if (!result.ok || data.error) throw new Error('reply-unavailable');
+      if (!result.ok || data.error) throw new Error(data.code==='exploration-incomplete'?'exploration-incomplete':result.status===401||result.status===403?'ai-credentials':result.status===429?'ai-limit':'reply-unavailable');
       const reply = core.response(typeof data.reply==='string'?data:data.content || data.message,selected.records.map(entry=>entry.id));
       if(wantExperiment&&!reply.experiment)throw new Error('suggestion-empty');
       pendingReading = false;
@@ -461,7 +465,7 @@
       else if(wantExperiment)suggestionMessage='Dropbox has not confirmed this suggestion. Your earlier notes stay.';
       else retryReading=recovery!=='reload'&&!!retryId;
     } catch (error) { if (validSession(token) && aiController===requestController) {
-      if(wantExperiment){suggestionMessage=error.message==='suggestion-empty'?'No suggestion came back. You can ask again.':'The suggestion could not be completed. Try again.';render();}
+      if(wantExperiment){suggestionMessage=core.failureMessage(error);render();}
       else {retryReading=true;status('TODAY could not reply. Your words are kept.');}
     } }
     finally { clearTimeout(timeout); if (aiController === requestController) {pendingReading = false; aiController = null; if (validSession(token)) render();} }

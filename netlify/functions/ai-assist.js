@@ -120,6 +120,13 @@ exports.handler = async function(event) {
         };
       }
       
+      if (surface === 'exploration' && data?.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+        return {
+          statusCode: 502,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Exploration response incomplete', code: 'exploration-incomplete' }),
+        };
+      }
       responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       if (!responseText) {
         // Check for blocked content
@@ -202,6 +209,13 @@ exports.handler = async function(event) {
           statusCode: 502,
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
           body: JSON.stringify({ error: 'Daily nudge response incomplete' }),
+        };
+      }
+      if (surface === 'exploration' && data.stop_reason === 'max_tokens') {
+        return {
+          statusCode: 502,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Exploration response incomplete', code: 'exploration-incomplete' }),
         };
       }
       responseText = (data?.content || []).filter(b => b.type === 'text').map(b => b.text).join('');

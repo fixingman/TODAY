@@ -73,19 +73,9 @@
     src: url('/fonts/syne/syne-v24-latin_latin-ext-800.woff2') format('woff2');
   }
 
-  /* ─
-     FOCUS MODE (Pomodoro) — desktop only (@media hover:hover)
-     Animation contract — sequenced to avoid the blurry-opaque-box artifact:
-       Enter:  focused bg+border snap in (no transition). Others recede outward
-               from the chosen row across one --dur-fast delay span; each row dims
-               over --dur-fast, then blur follows one --dur-fast beat later. Blur
-               only ever touches an already-dim element — no visible blurry box.
-       Exit:   blur dissolves 200ms (clarity first), opacity returns 260ms at
-               80ms delay. Blur is gone before opacity rises high — no opaque+blurry
-               box at any point in the sequence.
-       Timer: slides open downward via max-height var(--dur-fast) — two distinct beats.
-     See Design.md § Motion > Focus mode animation rules.
-  ─ */
+  /* Desktop Focus: rows dim outward, then blur once dim. Exit clears blur before
+     restoring opacity; the timer unfolds below its task. Motion tokens and the
+     full sequence live in memory/design/Motion.md. */
 
   /* Quiet bordered CTA shared by focus-copy and About's contextual actions. */
   .copy-cta {
@@ -1105,7 +1095,6 @@
   }
 
   /* ── Component: Header ─ */
-  /* Sticky header — mobile only. Desktop scrolls normally. */
   /* Sticky header — active on all viewports */
   .sticky-header {
     position: sticky;
@@ -1767,7 +1756,7 @@
     max-width: 90vw;
     cursor: pointer;
     opacity: 0;
-    transition: opacity var(--dur-slow) var(--ease-out);
+    transition: opacity var(--dur-slow) var(--ease-out), left var(--dur-slow) var(--ease-out), max-width var(--dur-slow) var(--ease-out);
     pointer-events: none;
   }
   #triageBar:hover {
@@ -3017,10 +3006,8 @@
 
   .config-panel.open { display: block; animation: fadeIn var(--dur-base) var(--ease-out); }
 
-  /* ── Explore surface (v3.4.0): one panel outside the list column. Docked beside the list on
-     wide screens, a drawer over it on medium screens, the whole screen on phones. Content
-     styles stay lazy in assets/exploration.css; this is only the shell, so it is styled the
-     instant it opens. */
+  /* Explore shell: dock beside Today above600px; full screen on phones.
+     Content styles load lazily in assets/exploration.css. */
   :root { --ex-sheet-width: min(420px, 45vw); }
   .ex-sheet {
     position: fixed; top: 0; right: 0; bottom: 0; z-index: var(--z-modal);
@@ -3046,8 +3033,7 @@
   }
   .ex-hide:hover, .ex-hide:focus-visible { color: var(--text); border-color: var(--control-border); }
   .ex-sheet-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-5) var(--space-5) var(--space-4); }
-  /* The composer strip sits on the page background like the add bar, so it uses the
-     main-surface control tokens, not the panel's elevated ones. */
+  /* The composer shares the add bar's main-surface tokens. */
   .ex-sheet-foot { flex-shrink: 0; padding: var(--space-2) var(--space-5) calc(env(safe-area-inset-bottom, 0px) + var(--space-3)); border-top: 1px solid var(--border); background: var(--bg);
     --muted: var(--color-muted); --control-border: var(--color-control-border); }
   .ex-sheet-foot:empty { display: none; }
@@ -3057,16 +3043,21 @@
   @keyframes exSlideOut { from { transform: none; opacity: 1; } to { transform: translateX(var(--space-8)); opacity: 0; } }
   .ex-scrim { position: fixed; inset: 0 var(--ex-sheet-width) 0 0; z-index: calc(var(--z-modal) - 1); background: var(--bg); opacity: var(--opacity-dim); pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); }
   .ex-scrim[hidden] { display: none; }
-  /* Desktop: reserve space for the whole Today column, including its logo and navigation.
-     The inactive pane dims without intercepting clicks or dismissing Explore. */
+  /* Reserve Today’s column; inactive panes dim without blocking clicks. */
   @media (min-width: 601px) {
     body { transition: padding-right var(--dur-slow) var(--ease-out); }
     body.ex-open { padding-right: var(--ex-sheet-width); }
     body.ex-open .header { flex-wrap: wrap; gap: var(--space-2); }
     body.ex-open .today-logo { font-size: clamp(30px, 5vw, 52px); }
+    body.ex-open.focus-locked .sticky-header { width: calc(100% - var(--ex-sheet-width)); }
     .add-task-row { transition: right var(--dur-slow) var(--ease-out); }
     body.ex-open .add-task-row, body.ex-closing .add-task-row { transition: right var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility var(--dur-base); }
     body.ex-open .add-task-row { right: var(--ex-sheet-width); }
+    /* These controls are fixed outside .app, so reserve the same Today column. */
+    body.ex-open :is(#undoToast, #triageBar) { left: calc((100% - var(--ex-sheet-width)) / 2); }
+    body.ex-open #undoToast { max-width: min(var(--panel-max-width), calc(100% - var(--ex-sheet-width) - var(--space-8))); }
+    body.ex-open #undoToast .undo-main { flex-wrap: wrap; }
+    body.ex-open #triageBar { max-width: calc((100% - var(--ex-sheet-width)) * 0.9); }
     body.ex-open #addTaskBar {
       padding-left: max(var(--space-6), calc((100vw - var(--ex-sheet-width) - 680px) / 2 + var(--space-6)));
       padding-right: max(var(--space-6), calc((100vw - var(--ex-sheet-width) - 680px) / 2 + var(--space-6)));
@@ -3078,8 +3069,7 @@
     body.ex-task-active .ex-sheet::after { opacity: var(--opacity-dim); }
     body.ex-task-active .ex-scrim { opacity: 0; }
   }
-  /* Phone: the whole screen. The conversation rises from behind the input row, which holds
-     still and crossfades from daily capture to the reply field; capture is hidden meanwhile. */
+  /* Phone: full screen; conversation rises behind its composer. */
   @media (max-width: 600px) {
     :root { --ex-sheet-width: 100vw; }
     .ex-sheet { border-left: 0; height: 100dvh; bottom: auto; background: transparent; }
@@ -3538,7 +3528,7 @@
     box-shadow: var(--shadow-panel-sm);
     opacity: 0;
     pointer-events: none;
-    transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-base) var(--ease-std);
+    transition: transform var(--dur-slow) var(--ease-spring), opacity var(--dur-base) var(--ease-std), left var(--dur-slow) var(--ease-out), max-width var(--dur-slow) var(--ease-out);
     z-index: var(--z-modal);
     overflow: hidden;
   }
@@ -4788,14 +4778,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '399h';
+const DEV_HOURS     = '400h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.5.1': 'Focus keeps the header in place on long lists and beside Explore. Undo and review bars follow Today, and earlier suggestion errors clear when reopened.',
   '3.5.0': 'Explore carries understanding and optional steps into later conversations, with one reply and a clearer living note.',
   '3.4.3': 'A new Epicurus reading on friendship and sharing a meal.',
-  '3.4.2': 'Explore stays beside Today, follows your attention, and keeps the conversation clear and responsive.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

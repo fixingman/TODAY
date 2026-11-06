@@ -21,6 +21,9 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 151 | ⏳ Verify | Entering desktop Focus moves/reveals the header on scrolled lists and re-centres it beside Explore. | v3.5.1 |
+| 150 | ⏳ Verify | Delete undo/reason bar stays centred on the window and overlaps Explore instead of following Today. | v3.5.1 |
+| 149 | ⏳ Verify | Explore shows an earlier suggestion failure when reopening Something to try, without a new request. | v3.5.1 |
 | 148 | ⏳ Verify | Functional runner accepts a timed-out child when its signal handler exits with code zero. | v3.5.0 tooling |
 | 147 | ⏳ Verify | Desktop Explore covers Today, dismisses unexpectedly, and exposes competing inputs and chat controls. | v3.4.2 |
 | 146 | ⏳ Verify | Linked Explore controls crowd daily/focus task rows. | v3.4.2 |
@@ -43,6 +46,46 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-151 — Focus entrance moves or reveals the header
+
+**Report (November 6):** entering desktop Focus makes the logo/chrome appear to move rather than blur; exit does not show the same noticed effect. Can clarified that a long list and a task toward the bottom make it worse, briefly showing TODAY; Explore can also be open.
+
+**Two reproduced causes:** (1) Focus switches the sticky header to fixed positioning for scroll lock (BUG-098). Beside Explore, `width:100%` then resolves against the whole viewport. At1280px it gains419.33px and logo/navigation move209.67px in the first29ms. The same short-list control with Explore closed records zero drift. (2) On a42-task scrolled list without Explore, the header was already partially scrolled out (`top:-77.80px`, logo bottom:-5.80px). Focus forces `top:0`, moving it77.80px and bringing the logo back into view before dimming. The long-list before-control still fails after the width-only repair. Original traces/failures: `.context/focus-header-motion/before.log`, `before-closed.json`, `before-docked.json`, `scrolled-before.log`, `before-scrolled.json`.
+
+**Local v3.5.1:** capture the header’s actual viewport top before pinning and clear that owned inline top on unlock. Keep its available Today width when Explore is docked. Preserve scroll lock, flow-space padding, task adjustment, blur/opacity sequence, timer and restored document scrolling. No background/lifecycle/sync change. Shorten stale shell comments without changing budgets.
+
+**Coverage gap and repair:** earlier tests checked settled pinning/dimming/filter and a static sidebar, not the transition or a genuinely scrolled long list. New native tests sample actual header/logo/navigation on every animation frame, anchored to click/Escape, across entry/exit. Include closed/sidebar widths736/1024/1440px and42-task scrolled cases with and without Explore. Entry geometry must remain within1px. On deep exit the document legitimately restores its nudged scroll position, so offscreen chrome may move farther offscreen but cannot reappear; verify the restored scroll and retain all raw frames. The intermediate strict all-y exit assertion is retained in `scrolled-after.log` as test development evidence, not a runtime regression claim.
+
+**Verification:** final fresh combined check passes12 suites with zero failures/flakes in78.2s (`.context/fresh-1h4UhX/receipt.json`), including Focus, Explore, task actions, triage, accessibility, visual, smoke/SW/component/AI-handler, design and invariants/payload. Both42-task entrance traces keep header/logo/navigation geometry unchanged across34 sampled frames, with and without Explore; exit restores the nudged scroll without revealing offscreen chrome. Captured runtime/test input hashes still match the workspace after the check. Owning initial width-only check and `.context/fresh-mLgaAF/` predate the long-list repair and remain historical. Earlier controls and the legitimate deep-exit test correction are retained. Dev publication authorized November6; hosted and installed acceptance remain separate.
+
+---
+
+## BUG-150 — Fixed task bars ignore the Explore column
+
+**Report (November 6):** deleting a task with the sidebar open leaves the undo/reason bar at the window centre rather than shifting with Today.
+
+**Cause:** desktop docking re-centres body content and the task composer; fixed `#undoToast` and `#triageBar` live outside that flow and retain `left:50%` and viewport-wide caps. At601px, the actual delete control produces a toast centred at300.5px while Today’s centre is165.28px. Its right edge reaches499.91px beyond the sidebar’s330.56px left edge; Edit, Undo and two reason buttons are covered. Before-control and screenshot: `.context/explore-undo-alignment/before.log`, `before-601.png`.
+
+**Why tests missed it:** sidebar coverage asserted logo/header/list/composer placement and screenshots without a removal toast. Separate task-action tests checked removal/toast visibility/restoration without an open sidebar. Existing containment checks scoped to Explore descendants could not inspect a body-level fixed control. The combined delete-with-sidebar interaction was omitted; the old passing tests did not prove this layout.
+
+**Local v3.5.1:** centre both fixed task bars in the same remaining Today column and bound their width to it; wrap the undo main row when narrow. Preserve existing positions at600px and below and with Explore closed. Left/width changes use existing motion tokens and reduced-motion handling. No delete, undo, reason, triage countdown, sync or persistence behavior changes. Extend the actual Explore test with native delete/reasons/keyboard Undo at601/736/1024/1440px, hit-testing every control, draft/sidebar preservation, screenshots and the real evening Review callout. The original undo assertion fails on the published layout. Closed-sidebar task-action coverage also asserts viewport centring.
+
+**Verification:** final fresh combined check passes11 suites with zero failures/flakes in52.3s (`.context/fresh-e52gcO/receipt.json`): invariants/payload, Explore, task actions, triage, accessibility, design, smoke, service worker, visual, component and AI-handler checks. Native delete/reasons/keyboard Undo and evening Review alignment pass at601/736/1024/1440px. Earlier combined receipt `.context/fresh-6z69s3/` retains ten passing suites and a payload failure389 bytes over the existing raw limit; shortening480 bytes of outdated/redundant Explore-shell comments repairs it without changing budgets or behavior. Final payload1205.9KiB decoded /341.1KiB Brotli /38 eager scripts passes. Before/after601px captures and the failed original assertion remain under `.context/explore-undo-alignment/`. Dev publication authorized November6; hosted and installed acceptance remain separate.
+
+---
+
+## BUG-149 — Earlier suggestion error survives page navigation
+
+**Report (November 6):** Can opened **Something to try** and “The suggestion could not be completed. Try again.” was already present. It was not a newly observed request timeout. Personal journal/credentials were not inspected.
+
+**Reproduction:** a fictional real-component failure followed by Back and reopening the step page retains the old error despite no new request. The before-control fails the empty-status assertion in `.context/explore-suggestion-repair/stale-status-before.log`. Full Explore reopening already clears the page-held message; navigation inside the same open session did not.
+
+**Local v3.5.1:** clear a terminal suggestion status on entering the step view, preserving an active request’s thinking state. Navigation makes no request/retry or journal write. Also distinguish fresh cutoff, timeout, changed support, missing bounds, unreadable/invalid output, credential or rate-limit failures beside the existing action. Both providers’ token-cap metadata gets an Explore-only incomplete-response code without partial prose; the actual-handler before-control returned200 for that capped result (`.context/explore-suggestion-repair/before.log`). This is a separate confirmed error-handling gap, not proof that the original attempt hit its cap. One explicit request,25-second deadline, output ceiling, existing prompt, strict validation and acknowledgements remain. A proposed brevity change was withdrawn after Can clarified that the error was already there on opening. No provider/routing/model/thinking, collection/schema or writing-policy change.
+
+**Verification:** final fresh check passes seven suites with zero failures/flakes in22.5s (`.context/fresh-FiMufF/receipt.json`): invariants, native Explore, both-provider handler unit, design lint, smoke, service worker and component contracts. Actual-component assertions reproduce the old status on Back/reopen, then prove clearing with no request/write, retained thinking during a held request, all reason-specific failure cases and late-body rejection. Earlier seven-suite receipts (`.context/fresh-TUoPJn/`, `.context/fresh-1fxsxZ/`) precede the navigation fix and remain historical. Live writing and the older failed attempt’s cause remain unverified. Dev publication authorized November6; hosted and installed acceptance remain separate.
 
 ---
 

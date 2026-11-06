@@ -303,10 +303,12 @@ try {
         await new Promise(r => setTimeout(r, _motionDuration('--dur-slow') + 100)); // row exit + buffer
         const toastShows  = document.getElementById('undoToast').classList.contains('show');
         const taskGone    = !manualTasks.find(t => t.id === 'task_1');
+        const toastRect = document.getElementById('undoToast').getBoundingClientRect();
+        const toastCentred = Math.abs(toastRect.x + toastRect.width / 2 - document.documentElement.clientWidth / 2) <= 1;
         Today.use('task-actions')._undoDelete();
         await new Promise(r => setTimeout(r, 100));
         const taskRestored = !!manualTasks.find(t => t.id === 'task_1');
-        return { toastShows, taskGone, taskRestored };
+        return { toastShows, taskGone, taskRestored, toastCentred };
       });
       await expectAll('deleteManual + undo toast + _undoDelete', { ...result, noErrors: errors.length === 0 });
       ok('deleteManual: task removed from manualTasks, #undoToast shows; _undoDelete: task restored');

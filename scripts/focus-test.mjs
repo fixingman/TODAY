@@ -10,7 +10,7 @@ import { waitForFonts, installFixtureClock } from './browser-fixture.mjs';
 //   node scripts/focus-test.mjs
 
 import { createServer } from 'node:http';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
@@ -340,6 +340,54 @@ try {
       ok('BUG-098: header pinned, receded and clickable during focus; add bar crisp; everything released on exit');
       await page.close();
     }
+
+    // Locking focus may soften the header, but cannot reflow its logo/navigation.
+    for(const {docked,width,deep} of [{docked:false,width:1280},...[736,1024,1440].map(width=>({docked:true,width})),{docked:false,width:1280,deep:true},{docked:true,width:1024,deep:true}]) {
+      const {page,errors}=await openPage(deep?{extraSeed:{today_manual:JSON.stringify(Array.from({length:42},(_,i)=>({id:'manual_motion_'+i,text:'Fictional focus task number '+i})))}}:{});
+      await page.setViewport({width,height:900});
+      await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'no-preference'}]);
+      if(docked){
+        await page.click('[data-ex-origin="list"]');
+        await page.waitForFunction(()=>document.body.classList.contains('ex-open')&&document.getElementById('explorationRoot')&&!document.getElementById('explorationRoot').hidden);
+        await page.waitForFunction(()=>Math.abs(parseFloat(getComputedStyle(document.body).paddingRight)-document.getElementById('explorationRoot').getBoundingClientRect().width)<1&&!document.body.getAnimations().some(a=>a.playState==='running'));
+      }
+      const target=deep?'.task[data-taskid=\"manual_motion_28\"] .task-text':'.task-text';
+      if(deep){
+        await page.$eval(target,node=>scrollBy(0,node.getBoundingClientRect().top-(innerHeight-180)));
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      }
+      for(const phase of ['entry','exit']){
+        await page.evaluate(phase=>{
+          const rects=()=>Object.fromEntries(['sticky-header','todayLogo','infoBtn','habitsBtn','trelloBtn'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return [id,{x:r.x,y:r.y,width:r.width,height:r.height}];}));
+          window.__headerMotion={before:rects(),frames:[],done:false,lockedScroll:Math.abs(parseInt(document.body.style.top||'0'))};
+          document.addEventListener(phase==='entry'?'click':'keydown',()=>{
+            const start=performance.now();
+            function sample(){__headerMotion.frames.push({ms:performance.now()-start,rects:rects()});if(performance.now()-start<550)requestAnimationFrame(sample);else __headerMotion.done=true;}
+            requestAnimationFrame(sample);
+          },{once:true,capture:true});
+        },phase);
+        if(phase==='entry')await page.click(target);else await page.keyboard.press('Escape');
+        await page.waitForFunction(()=>window.__headerMotion.done);
+        const motion=await page.evaluate(()=>__headerMotion);
+        await mkdir(join(ROOT,'.context/ci-test-results/focus-header'),{recursive:true});
+        await writeFile(join(ROOT,`.context/ci-test-results/focus-header/${docked?'docked':'closed'}-${width}-${deep?'scrolled-':''}${phase}.json`),JSON.stringify(motion,null,2));
+        const drift=motion.frames.flatMap(frame=>Object.entries(frame.rects).flatMap(([id,r])=>Object.entries(r).filter(([axis])=>!(deep&&phase==='exit'&&axis==='y')).map(([axis,value])=>({id,axis,delta:Math.abs(value-motion.before[id][axis]),ms:frame.ms})))).sort((a,b)=>b.delta-a.delta)[0];
+        if(drift.delta>1)await fail(`Focus ${phase} keeps header geometry (${docked?'docked':'closed'}, ${width}px${deep?', scrolled list':''})`,drift);
+        if(deep&&phase==='exit'){
+          // Unlock restores the nudged document scroll position. Offscreen chrome
+          // may move farther out of view; it must never flash back into view.
+          for(const id of ['todayLogo','infoBtn','habitsBtn','trelloBtn']){
+            const before=motion.before[id];
+            if(before.y+before.height<=0&&motion.frames.some(f=>f.rects[id].y+f.rects[id].height>0))await fail('Unlock cannot reveal offscreen chrome',{id,width,docked});
+          }
+          await expectAll('Unlock restores the nudged document position',{scrollRestored:Math.abs(await page.evaluate(()=>scrollY)-motion.lockedScroll)<=2});
+        }
+        await expectAll('Focus '+phase+' state',{expectedLock:await page.evaluate(phase=>document.body.classList.contains('focus-locked')===(phase==='entry'),phase),noErrors:!errors.length});
+        if(docked)await expectAll('Focus keeps Explore open',{stillOpen:await page.$eval('#explorationRoot',node=>!node.hidden)});
+      }
+      await page.close();
+    }
+    ok('Focus entrance preserves header position/width; exit restores scroll without revealing offscreen chrome, alone and beside Explore');
 
     // 3c. Focus starts as an outward row wave, derived from existing motion tokens.
     {
@@ -1424,7 +1472,7 @@ try {
     }
     ok('habit Ask: no configured AI or touch device makes no request');
 
-    console.log('\nFocus tests passed (post-extraction, 29 check groups).');
+    console.log('\nFocus tests passed (post-extraction, 30 check groups).');
   }
 } finally {
   if (browser) await browser.close();
