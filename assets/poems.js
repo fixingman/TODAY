@@ -1062,4 +1062,12 @@ const POEMS = [
     season: null,
     source: "'A Word', Poems: Third Series (1896), no. VI, complete — Dickinson d. 1886, PD worldwide; verified verbatim against the Wikisource transcription of the 1896 scan",
   },
+
+  // ── Can's selection (November 2026) — friendship at the table ──
+  {
+    text: 'You must reflect carefully beforehand\nwith whom you are to eat and drink,\nrather than what you are to eat and drink.\nFor a dinner of meats without the company of a friend\nis like the life of a lion or a wolf.',
+    author: 'Epicurus',
+    season: null,
+    source: 'Epicurus, fragment 542 Usener, quoted by Seneca, Moral Letters to Lucilius 19.10 (trans. Richard Mott Gummere, 1917); wording supplied and selected by Can, reflowed without changes. https://en.wikisource.org/wiki/Moral_letters_to_Lucilius/Letter_19 — Gummere d. 1969; US public domain, not verified worldwide public domain.',
+  },
 ];

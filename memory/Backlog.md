@@ -136,7 +136,7 @@ M2 recurrence is on-device over existing images/people, not new AI matching or a
 
 ### 2: Poem corpus
 
-**Current verified count:** 158 — winter 18, spring 18, summer 15, autumn 18, year-round 89. Summer needs one to reach the existing target of 16; the other seasonal pools already exceed it. Expansion is ongoing, not an unresolved shuffle fix.
+**Current verified count:** 159 — winter 18, spring 18, summer 15, autumn 18, year-round 90. Summer needs one to reach the existing target of 16; the other seasonal pools already exceed it. Expansion is ongoing, not an unresolved shuffle fix.
 
 **Next search:** broaden geography/voice, especially Africa, Latin America, Middle East and Southeast Asia, and ordinary lived detail around choosing/keeping/loosening/returning. Diversity is a tie-breaker, not a quota. New candidates are human-written, spare, concrete, held/affirming and 2–6 displayed lines; grandfathered longer approvals are not a new precedent.
 
