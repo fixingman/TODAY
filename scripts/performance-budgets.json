@@ -2,11 +2,11 @@
   "schema": 1,
   "iterations": 5,
   "payload": {
-    "runtimeShellRaw": 1234944,
+    "runtimeShellRaw": 1239040,
     "runtimeShellBrotli": 358400,
     "indexBrotli": 71680,
     "fontBytes": 102400,
-    "eagerScripts": 38
+    "eagerScripts": 39
   },
   "targets": {
     "cold.fcp": 1800,

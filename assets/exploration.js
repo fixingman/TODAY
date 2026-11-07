@@ -22,14 +22,13 @@
   let activePane = 'explore', pendingObservation = null, awaitingReply = false, thinkingMotion = [];
   const wide = matchMedia('(min-width: 601px)'), phone = matchMedia('(max-width: 600px)');
   const status = (text, nextAction = '') => { message = text; recovery = nextAction; render(); };
+  const sidebar = () => Today.use('sidebar');
+  // CSS loader only — root is set in mount() when sidebar activates Explore.
   function ensureRoot() {
     stylesLoading ||= new Promise((resolve,reject)=>{
       const style = document.createElement('link'); style.id = 'explorationStyles'; style.rel = 'stylesheet'; style.href = '/assets/exploration.css';
       style.onload=resolve;style.onerror=()=>{style.remove();stylesLoading=null;reject(new Error('exploration-styles'));};document.head.append(style);
     });
-    root = byId('explorationRoot');
-    if (!root) { root = document.createElement('aside'); root.id = 'explorationRoot'; root.hidden = true; document.body.append(root); }
-    root.className = 'ex-sheet'; root.setAttribute('aria-labelledby','exTitle');
     return stylesLoading;
   }
   const validSession = token => opened && token === epoch && activeGrant === grant();
@@ -45,14 +44,8 @@
   function hide() {
     arrivalMotion?.cancel();
     opened = false; pendingObservation = null; awaitingReply = false; thinkingMotion.forEach(a=>a.cancel()); thinkingMotion=[]; epoch++; controller?.abort(); abortAI(); busy = false; dictation()?.stop();
-    if (root) { root.hidden = true; root.replaceChildren(); root.classList.remove('entering','leaving'); root.removeAttribute('aria-busy'); }
-    surface(false);
-  }
-  // ── Desktop docks beside Today; full screen on phones is modal.
-  function scrim() {
-    let node = byId('exScrim');
-    if (!node) { node = document.createElement('div'); node.id = 'exScrim'; node.className = 'ex-scrim'; node.hidden = true; document.body.append(node); }
-    return node;
+    if (root) { root.replaceChildren(); root.removeAttribute('aria-busy'); }
+    root = null;
   }
   // Desktop panes stay interactive. Only the phone presentation is modal.
   function activatePane(next) {
@@ -62,16 +55,11 @@
     activePane=next; modality();
   }
   function modality() {
-    const shown = opened && root && !root.hidden, modal = shown && phone.matches;
-    const app=byId('main-app'); if(app)app.inert=modal;
-    const header=byId('sticky-header'); if(header)header.inert=modal;
+    const shown = opened, modal = shown && phone.matches;
+    sidebar().modality(shown);
     const bar=byId('addTaskBar'); if(bar)bar.inert=modal || (shown && activePane==='explore');
     document.body.classList.toggle('ex-task-active',shown && activePane==='tasks');
-    scrim().hidden=!shown || modal;
-    if(!root)return;
-    const foot=root.querySelector('.ex-sheet-foot'); if(foot)foot.inert=shown && !modal && activePane==='tasks';
-    root.setAttribute('role',modal?'dialog':'complementary');
-    if(modal)root.setAttribute('aria-modal','true');else root.removeAttribute('aria-modal');
+    const foot=root?.querySelector('.ex-sheet-foot'); if(foot)foot.inert=shown && !modal && activePane==='tasks';
   }
   document.addEventListener('pointermove',event=>{
     if(!opened || phone.matches || event.pointerType==='touch')return;
@@ -83,32 +71,9 @@
     if(root.contains(event.target))activatePane('explore');
     else if(event.target.closest('#main-app,#sticky-header,#addTaskBar'))activatePane('tasks');
   });
-  function surface(open) {
-    document.body.classList.toggle('ex-open', open);
-    if(!open)document.body.classList.remove('ex-closing');
-    modality(); fitViewport();
-    if (!open && history.state?.explore) history.back();
-  }
-  function motion(cls) {
-    if (!root || _motionReduced()) return Promise.resolve();
-    root.classList.remove('entering','leaving'); void root.offsetWidth; root.classList.add(cls);
-    // Wide: the panel slides. Phone: head and scroll rise while the composer crossfades. Wait for all.
-    const running = root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||''));
-    return Promise.all(running.map(a=>a.finished.catch(()=>{}))).then(()=>root.classList.remove(cls));
-  }
   function close() {
     if (!opened) return;
-    const place = origin;
-    document.body.classList.add('ex-closing');
-    document.body.classList.remove('ex-open');
-    motion('leaving').then(()=>{ hide(); host.restore(place); });
-  }
-  // Phone keyboard: 100dvh ignores the iOS keyboard, so size the surface to the visual viewport.
-  function fitViewport() {
-    if (!root) return;
-    const fit = opened && !root.hidden && phone.matches && window.visualViewport;
-    root.style.height = fit ? visualViewport.height + 'px' : '';
-    root.style.top = fit ? visualViewport.offsetTop + 'px' : '';
+    sidebar().close();
   }
   const scroller = () => root?.querySelector('.ex-sheet-scroll');
   function enterView(next) {
@@ -131,15 +96,16 @@
     close();
   }
   async function open(hooks, place, context) {
-    const styles=ensureRoot(), token=++epoch; host = hooks; origin = place; opened = true; view = 'conversation'; trail = []; forgot = false; message = '';
+    await ensureRoot();
+    sidebar().open('explore', { hooks, place, context });
+  }
+  function _mount(container, ctx) {
+    const { hooks, place, context } = ctx || {};
+    root = container; root.setAttribute('aria-labelledby','exTitle');
+    const token=++epoch; host = hooks; origin = place; opened = true; view = 'conversation'; trail = []; forgot = false; message = '';
     activePane='explore'; incoming = context || null; includeIncoming = false; correctionTarget = null; correctionText = '';suggestionMessage='';
-    const arriving = root.hidden || !root.childElementCount;
-    root.hidden = false; shownPrompt = ''; turnCount = 0; surface(true);
-    if (phone.matches && !history.state?.explore) history.pushState({explore:true}, ''); // back gesture closes Explore
-    if (arriving) motion('entering');
-    await styles;
-    if(!opened||token!==epoch)return;
-    await load();
+    shownPrompt = ''; turnCount = 0;
+    load();
   }
   async function load() {
     arrivalMotion?.cancel();
@@ -552,15 +518,17 @@
     if(event.shiftKey&&document.activeElement===items[0]){event.preventDefault();items.at(-1).focus();}
     else if(!event.shiftKey&&document.activeElement===items.at(-1)){event.preventDefault();items[0].focus();}
   },true);
-  addEventListener('popstate',()=>{if(opened&&!history.state?.explore)close();});
-  window.visualViewport?.addEventListener('resize',fitViewport);
-  window.visualViewport?.addEventListener('scroll',fitViewport);
-  [wide,phone].forEach(query=>query.addEventListener('change',()=>{modality();fitViewport();render();}));
+  [wide,phone].forEach(query=>query.addEventListener('change',()=>{modality();sidebar().fitViewport();render();}));
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',()=>{if(root)animateThinking();});
   document.addEventListener('today:memory-change',()=>refreshSources());
   document.addEventListener('today:memory-ready',()=>refreshSources());
   window.addEventListener('storage',event=>{if(event.key==='today_memory')refreshSources();});
   document.addEventListener('today:dropbox-disconnected',()=>{wipe();if(opened)status('Connect Dropbox to reopen your exploration.');});
   window.addEventListener('storage',event=>{if(['dropbox_refresh_token','dropbox_token'].includes(event.key)&&grant()!==activeGrant){wipe();if(opened)status('The Dropbox connection changed. Reopen the document.');}});
+  Today.use('sidebar').register('explore', {
+    mount: _mount,
+    unmount() { const place = origin; hide(); host?.restore?.(place); },
+    label: 'Explore', icon: '✦︎', order: 1,
+  });
   Today.define('exploration',{open,hide,close,isOpen:()=>opened,refreshSources,clearInfluence(){hide();wipe();},document:()=>doc,decorate});
 })();

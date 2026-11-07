@@ -12,19 +12,9 @@
     let _knownWaitingOpen = false;
     let _computedPatterns = [];
     let explorationLoading = null, explorationUI = null, explorationOpening = 0, explorationPlace = null;
-    // Explore lives in its own surface (#explorationRoot.ex-sheet, outside the list column).
-    // Opening or closing it never hides, closes or re-renders Memory.
-    function explorationSheet() {
-      let root=document.getElementById('explorationRoot');
-      if(!root){root=document.createElement('aside');root.id='explorationRoot';document.body.append(root);}
-      root.className='ex-sheet';root.setAttribute('aria-labelledby','exTitle');
-      return root;
-    }
     function cancelExplorationOpen() {
       explorationOpening++;
-      explorationUI?.hide();
-      const root=document.getElementById('explorationRoot');if(root){root.hidden=true;root.replaceChildren();}
-      explorationPlace?.button?.focus({preventScroll:true});
+      Today.use('sidebar').close();
     }
     Today.ui.register('click','memory.exploration-cancel',cancelExplorationOpen);
     Today.ui.register('click','exploration.open',async(event,button)=>{
@@ -32,19 +22,13 @@
       const token=++explorationOpening,kind=button.dataset.exOrigin||'memory';
       const place={kind,button,wasOpen:kind==='memory'&&$.memoryPanel.classList.contains('open')};
       explorationPlace=place;
-      if(explorationUI?.isOpen?.()&&kind!=='nudge'){document.getElementById('exTitle')?.focus({preventScroll:true});return;}
-      const root=explorationSheet();
-      if(root.hidden||!root.childElementCount){
-        root.hidden=false;root.setAttribute('aria-busy','true');
-        root.innerHTML=`<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="ex-hide" data-today-click="memory.exploration-cancel" aria-label="Hide Explore"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="${matchMedia('(max-width: 600px)').matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="ex-sheet-scroll"><p class="ex-status" role="status">Opening your exploration…</p></div><div class="ex-sheet-foot"></div>`;
-        root.querySelector('#exTitle').focus({preventScroll:true});
-      }
+      if(Today.use('sidebar').isOpen('explore')&&kind!=='nudge'){document.getElementById('exTitle')?.focus({preventScroll:true});return;}
       try {
         explorationLoading ||= import('/assets/exploration-entry.js').then(()=>Today.use('exploration-entry'));
         explorationUI = await explorationLoading;
-        if(token!==explorationOpening||root.hidden)return;
-        await explorationUI.open(event,button,place,()=>token===explorationOpening&&!root.hidden);
-      } catch (_) { explorationLoading=null; if(token===explorationOpening){root.removeAttribute('aria-busy');const notice=root.querySelector('[role=status]');if(notice)notice.textContent='Exploration could not open. Try opening it again.';if(window._a11yAnnounce)_a11yAnnounce('Exploration could not open. Try again.');} }
+        if(token!==explorationOpening)return;
+        await explorationUI.open(event,button,place,()=>token===explorationOpening);
+      } catch (_) { explorationLoading=null; if(window._a11yAnnounce)_a11yAnnounce('Exploration could not open. Try opening it again.'); }
     });
 
     function _parseAIText(data) {

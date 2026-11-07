@@ -13,6 +13,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>TODAY</title>
 <link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/assets/sidebar.css">
 <link rel="preload" as="font" type="font/woff2" crossorigin
       href="/fonts/syne/syne-v24-latin_latin-ext-800.woff2">
 <link rel="preload" as="font" type="font/woff2" crossorigin
@@ -4755,6 +4756,7 @@
 <script src="assets/drag.js"></script>
 <script src="assets/zones.js"></script>
 <script src="assets/triage.js"></script>
+<script src="/assets/sidebar.js"></script>
 <script src="assets/memory-panel.js"></script>
 <script src="assets/dreambank.js"></script>
 <script src="assets/meeting.js"></script>
@@ -4796,9 +4798,9 @@ const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.6.0': 'Explore opens in a sidebar that will also host Memory, Habits, and About — one consistent panel across the app.',
   '3.5.8': 'Explore keeps desktop typing focus while replying, without reopening the phone keyboard.',
   '3.5.7': 'Opening Explore on mobile no longer animates existing conversation content.',
-  '3.5.6': 'Desktop window controls sit on one continuous dark strip above Today and Explore.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.
@@ -5070,5 +5072,6 @@ window._startPlatform(); yield;
 
 
 </script>
+<aside id="sidebarRoot" class="ex-sheet" hidden></aside>
 </body>
 </html>
