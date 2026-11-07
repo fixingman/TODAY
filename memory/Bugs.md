@@ -51,6 +51,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ## BUG-151 — Focus entrance moves or reveals the header
 
+**November 7 CI driver follow-up:** distinguish native pre-click preparation from Focus motion, and the app’s legitimate anchor correction from failed scroll restoration. Repair the fixture input boundary and verify visible task restoration without changing tolerances/deadlines. CPU4 and deliberately broken-runtime controls are recorded in Changelog and `.context/explore-ci-repair/`. This changes no runtime or installed acceptance verdict.
+
 **Report (November 6):** entering desktop Focus makes the logo/chrome appear to move rather than blur; exit does not show the same noticed effect. Can clarified that a long list and a task toward the bottom make it worse, briefly showing TODAY; Explore can also be open.
 
 **Two reproduced causes:** (1) Focus switches the sticky header to fixed positioning for scroll lock (BUG-098). Beside Explore, `width:100%` then resolves against the whole viewport. At1280px it gains419.33px and logo/navigation move209.67px in the first29ms. The same short-list control with Explore closed records zero drift. (2) On a42-task scrolled list without Explore, the header was already partially scrolled out (`top:-77.80px`, logo bottom:-5.80px). Focus forces `top:0`, moving it77.80px and bringing the logo back into view before dimming. The long-list before-control still fails after the width-only repair. Original traces/failures: `.context/focus-header-motion/before.log`, `before-closed.json`, `before-docked.json`, `scrolled-before.log`, `before-scrolled.json`.
@@ -129,6 +131,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 ## BUG-145 — Living-note interpretation disappears behind a generic warning
+
+**November 7 conversation-return follow-up (v3.5.4; regression added):** Can reports a task-source warning while returning to a conversation and does not report changing a task. The warning proves a parsed document has a source-dependent reading, not a failed document download. The exact cause of the missing live dependency remains unverified. A fictional missing-source control shows ordinary saved replies withheld with no readable conversation recovery. Add deliberate **read saved conversation** inspection with historical labelling and no current-reading marker/composer. Preserve normal-view/source/clear/permission fences and future-context filtering; the owner can inspect the same retained record already exposed as Markdown/export. No live journal was copied or changed and no live AI was called. Do not describe this as proving a task was completed/deleted or repairing every missing-source cause.
 
 **Report (Can, November 6):** the living note repeatedly shows “The earlier reading is withheld because its sources changed. Your words remain.” under “A possibility”; no useful interpretation has been seen there.
 

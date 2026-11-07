@@ -292,6 +292,25 @@ try{
  assert.equal(await page.$('[data-ex-action="retry-ai"]'),null,'Retry appears only after a real failure');
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'exThought','Reply completion retains composer focus');
+ // The phone keyboard must stay dismissed through pending and completed replies.
+ await page.setViewport({width:390,height:900});
+ await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
+ await page.evaluate(()=>{
+  __explorationTest.hold=true;__explorationTest.release=null;__explorationTest.mobileFocus=[];
+  __explorationTest.restoreFocus=HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus=function(...args){if(this.id==='exThought')__explorationTest.mobileFocus.push(this.readOnly);return __explorationTest.restoreFocus.apply(this,args);};
+ });
+ try {
+  await page.type('#exThought','MOBILE_FOCUS_FICTION: a small observation.');await page.keyboard.press('Enter');
+  await wait(()=>typeof __explorationTest.release==='function');
+  assert.equal(await page.evaluate(()=>document.activeElement.id==='exThought'),false,'Phone Send does not refocus its locked reply field');
+  assert.equal(await page.evaluate(()=>__explorationTest.mobileFocus.some(readOnly=>readOnly)),false,'Phone pending renders never focus the readonly reply field');
+  const focused=await page.evaluate(()=>__explorationTest.mobileFocus.length);
+  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});
+  await wait(()=>!document.getElementById('exThought').readOnly);
+  assert.equal(await page.evaluate(()=>__explorationTest.mobileFocus.length),focused,'Phone reply completion does not reopen the dismissed keyboard');
+ } finally {await page.evaluate(()=>{HTMLElement.prototype.focus=__explorationTest.restoreFocus;delete __explorationTest.restoreFocus;});}
+ await page.setViewport({width:1024,height:900});
  assert.deepEqual(await page.evaluate(()=>{
   const you=document.querySelector('.ex-you .ex-speaker-you'),today=document.querySelector('[data-ex-reading] .ex-speaker-logo'),prompt=document.querySelector('.ex-prompt.show');
   return [you?.textContent==='You',today?.textContent==='TODAY',getComputedStyle(today).fontFamily.includes('Syne'),getComputedStyle(prompt.querySelector('p')).borderLeftWidth==='2px',parseFloat(getComputedStyle(prompt).marginBottom)>0];
@@ -562,6 +581,34 @@ try{
  assert.ok(await page.$eval('#exReadingNotice',node=>node.textContent.includes('A task')&&node.textContent.includes('changed')));
  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.ex-note-section p')].some(node=>node.textContent===Today.use('exploration').document().question)),'The open question stays meaningful when the interpretation is unavailable');
  await checkLayout('unavailable-note');
+ // A missing live dependency must not be presented as a missing saved document.
+ const savedReturn=await page.evaluate(()=>{
+  const d=Today.use('exploration').document(),core=Today.use('exploration-core');
+  const ref=core.latest(d).today_sources.find(row=>row.id.startsWith('task:')&&manualTasks.some(task=>'task:'+task.id===row.id));
+  const index=manualTasks.findIndex(task=>'task:'+task.id===ref?.id);if(index<0)throw Error('Missing fictional task fixture');
+  __explorationTest.returnTask={index,task:manualTasks.splice(index,1)[0]};Today.use('connections').renderManual();
+  return {document:core.stringify(d),reply:core.latest(d).text,ai:__explorationTest.ai.length,writes:__explorationTest.uploads.length};
+ });
+ await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('unavailable'));
+ assert.ok(await page.$('[data-ex-action="original-history"]'),'Missing supporting context offers the original saved conversation');
+ await click('[data-ex-action="original-history"]');
+ assert.ok(await page.$$eval('[data-ex-saved-reading]',(nodes,text)=>nodes.some(node=>node.textContent.includes(text)),savedReturn.reply),'Original saved AI reply remains readable on deliberate record inspection');
+ assert.equal(await page.$('[data-ex-reading],#exThought'),null,'Historical inspection has no current-reading marker or composer');
+ assert.ok(await page.$eval('#exHistoryNotice',node=>node.textContent.includes('Saved history only')));
+ assert.deepEqual(await page.evaluate(()=>{
+  const core=Today.use('exploration-core'),d=Today.use('exploration').document();
+  return [core.stringify(d),__explorationTest.ai.length,__explorationTest.uploads.length,core.context(d,[]).prior_hypothesis];
+ }),[savedReturn.document,savedReturn.ai,savedReturn.writes,null],'Inspecting saved replies never writes, calls AI or restores unsupported understanding');
+ await checkLayout('saved-conversation');
+ await back();assert.equal(await page.$('[data-ex-saved-reading]'),null,'Leaving record inspection restores filtered ordinary views');
+ await click('.ex-nav [data-ex-action="history"]');
+ assert.equal(await page.evaluate(()=>!!document.querySelector('[data-ex-reading="'+Today.use('exploration-core').latest(Today.use('exploration').document()).id+'"]')),false,'Normal Earlier still withholds the unsupported reply');
+ assert.equal(await page.$('[data-ex-saved-reading]'),null,'Normal Earlier never opts into original history automatically');
+ await click('[data-ex-action="original-history"]');
+ assert.equal(await page.$eval('.ex-nav [data-ex-action="history"]',node=>node.getAttribute('aria-current')),'page','Saved conversation belongs to the Earlier navigation item');
+ await back();await click('#exNotes');
+ await page.evaluate(()=>{const {index,task}=__explorationTest.returnTask;manualTasks.splice(index,0,task);Today.use('connections').renderManual();});
+ await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('changed'));
  await click('[data-ex-action="document"]');await click('[data-ex-action="import"]');
  const checkpointPath=join(ROOT,'.context/exploration-integration/checkpoint-fiction.md');await mkdir(dirname(checkpointPath),{recursive:true});await writeFile(checkpointPath,'Fictional checkpoint appended through the native import.');
  await page.evaluate(()=>{manualTasks[0].text+=' changed again';_saveMemory();});await wait(()=>document.querySelector('[data-today-change="exploration.checkpoint"]'));assert.equal(await page.$('#exThought,#exNotesTitle,#exTodayContext'),null,'Source refresh preserves the focused import view');const file=await page.$('[data-today-change="exploration.checkpoint"]');await file.uploadFile(checkpointPath);await wait(()=>__explorationTest.remote.includes('Fictional checkpoint appended'));

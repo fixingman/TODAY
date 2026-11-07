@@ -394,7 +394,7 @@
     const nextBox=scroller(); if(nextBox) nextBox.scrollTop = view==='conversation'&&newer ? nextBox.scrollHeight : keep;
     fitInput(byId('exThought')||byId('exQuestion'));
     root.querySelectorAll('details[id]').forEach(node=>{const saved=detailState.find(state=>state.key===node.id);if(saved)node.open=saved.open;});
-    if(editing){const input=byId(editing.id);if(input&&!input.disabled&&!input.readOnly){input.focus({preventScroll:true});input.setSelectionRange(editing.start,editing.end);}}
+    if(editing){const input=byId(editing.id);if(input&&!input.disabled&&(!input.readOnly||(!phone.matches&&!matchMedia('(pointer: coarse)').matches))){input.focus({preventScroll:true});input.setSelectionRange(editing.start,editing.end);}}
     else if(focused){const target=focusId?byId(focusId):[...root.querySelectorAll('[data-ex-action]')].find(node=>JSON.stringify({...node.dataset})===focusData);(target&&!target.disabled?target:byId('exViewTitle')||byId('exNotesTitle'))?.focus({preventScroll:true});}
   }
   async function createDocument() {

@@ -394,8 +394,14 @@ try {
       for(const phase of ['entry','exit']){
         await page.evaluate(phase=>{
           const rects=()=>Object.fromEntries(['sticky-header','todayLogo','infoBtn','habitsBtn','trelloBtn'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return [id,{x:r.x,y:r.y,width:r.width,height:r.height}];}));
-          window.__headerMotion={before:rects(),frames:[],done:false,lockedScroll:Math.abs(parseInt(document.body.style.top||'0'))};
-          document.addEventListener(phase==='entry'?'click':'keydown',()=>{
+          // Native click preparation can scroll before dispatch. Compare Focus against
+          // the geometry at its actual input event, before application handlers run.
+          window.__headerMotion={prepared:rects(),before:null,frames:[],done:false,lockedScroll:0};
+          document.addEventListener(phase==='entry'?'click':'keydown',event=>{
+            if(phase==='entry')window.__focusInputOrigin={scroll:scrollY,top:event.target.closest('.task,.habit').getBoundingClientRect().top};
+            __headerMotion.origin=window.__focusInputOrigin;
+            __headerMotion.before=rects();
+            __headerMotion.lockedScroll=Math.abs(parseInt(document.body.style.top||'0'));
             const start=performance.now();
             function sample(){__headerMotion.frames.push({ms:performance.now()-start,rects:rects()});if(performance.now()-start<550)requestAnimationFrame(sample);else __headerMotion.done=true;}
             requestAnimationFrame(sample);
@@ -415,7 +421,11 @@ try {
             const before=motion.before[id];
             if(before.y+before.height<=0&&motion.frames.some(f=>f.rects[id].y+f.rects[id].height>0))await fail('Unlock cannot reveal offscreen chrome',{id,width,docked});
           }
-          await expectAll('Unlock restores the nudged document position',{scrollRestored:Math.abs(await page.evaluate(()=>scrollY)-motion.lockedScroll)<=2});
+          const restored=await page.$eval(target,node=>({scroll:scrollY,bodyTop:document.body.style.top,position:document.body.style.position,taskTop:node.closest('.task,.habit').getBoundingClientRect().top,timerHidden:document.querySelector('.focus-timer')?.hidden}));
+          // Focus may correct the scroll offset to preserve the original task anchor.
+          // Assert that visible result, not the pre-correction window scroll number.
+          const expectedTop=motion.origin.top-(motion.lockedScroll-motion.origin.scroll);
+          if(Math.abs(restored.taskTop-expectedTop)>2||restored.position==='fixed'||restored.bodyTop||!restored.timerHidden)await fail('Unlock restores the nudged task position',{width,docked,expectedTop,lockedScroll:motion.lockedScroll,actual:restored});
         }
         await expectAll('Focus '+phase+' state',{expectedLock:await page.evaluate(phase=>document.body.classList.contains('focus-locked')===(phase==='entry'),phase),noErrors:!errors.length});
         if(docked)await expectAll('Focus keeps Explore open',{stillOpen:await page.$eval('#explorationRoot',node=>!node.hidden)});
