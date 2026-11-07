@@ -1087,12 +1087,7 @@
     /* No top padding — sticky header sits directly above */
     padding: 0 var(--space-6) 0;
     padding-bottom: var(--add-task-bar-height);
-    /* No overflow clipping here (BUG-050 sixth pass): even overflow-x: clip on an
-       ancestor demotes position:sticky descendants to main-thread positioning on
-       iOS WebKit — the section headers lagged the compositor scroll by a frame
-       (the logo header, a direct child of body with no clipping ancestor, never
-       jittered — that asymmetry was the tell). Horizontal protection lives on
-       the root: html { overflow-x: hidden }. */
+    /* Keep overflow off sticky ancestors (BUG-050); root owns horizontal clipping. */
   }
 
   /* ── Component: Header ─ */
@@ -1109,6 +1104,8 @@
        is cleared by focus.js at lock time so this one governs. */
     transition: filter var(--dur-slow) var(--ease-std), opacity var(--dur-base) var(--ease-std);
   }
+  body .sticky-header[data-focus-outside] { visibility: hidden; filter: none; transition: none; }
+  .sticky-header [data-focus-outside] { visibility: hidden; }
   
   /* Fade gradient below header — content softens before clipping */
   .sticky-header::after {
@@ -1318,21 +1315,9 @@
     .section-header:has(+ .task-list > .task:first-child:hover)::after { display: none; }
   }
 
-  /* BUG-050 sixth pass — continuous tracking via scroll math, no jitter.
-     Previous passes tried getBoundingClientRect() (iOS compositor lag) and
-     scroll-driven animation of `top` (layout property, main-thread lag). The
-     solution: Math.min(h, Math.max(0, bodyH − scrollY)) — pure arithmetic from
-     scroll position, matches the sticky-header's visible bottom during departure
-     without reading from the compositor. Constants saturate the formula outside
-     the departure zone, so writes only fire during the ~h-pixel crossing. */
+  /* Sticky offsets follow scroll arithmetic, avoiding iOS compositor lag (BUG-050). */
 
-  /* Status-bar scrim (BUG-050 fifth pass) — once the sticky-header departs,
-     section headers pin below the status bar (safe-area clamp), leaving the
-     0→inset strip uncovered: raw content showed through under the status bar.
-     A fixed --bg strip covers it. z 5: above content (1), below the pinned
-     sticky-header (10) so its glass look is untouched, and below section
-     headers (9). Desktop: inset = 0 → zero height, invisible. Same --bg as
-     the splash backdrop, so no Rule-5 opacity dance is needed. */
+  /* Cover the iOS safe area after the header departs; below sticky chrome (BUG-050). */
   #statusBarScrim {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -3101,7 +3086,7 @@
     #windowDragRegion { display:block; position:fixed; top:env(titlebar-area-y, 0px); left:env(titlebar-area-x, 0px); width:env(titlebar-area-width, 0px); height:var(--window-titlebar-height); z-index:var(--z-overlay); -webkit-app-region:drag; app-region:drag; }
     .sticky-header, body.focus-locked .sticky-header { top:var(--window-titlebar-height); }
     .section-header { top:calc(var(--sec-sticky-top) + var(--window-titlebar-height)); }
-    .ex-sheet { top:var(--window-titlebar-height); height:auto; bottom:0; }
+    .ex-sheet-head { padding-top:calc(max(env(safe-area-inset-top, 0px), var(--window-titlebar-height)) + var(--space-3)); }
     #errorIndicator { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 8px); }
     #errorPanel { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 24px); }
   }
@@ -4793,14 +4778,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '402.5h';
+const DEV_HOURS     = '403.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.6.1': 'Explore fills the desktop window to the top again. Focus keeps offscreen chrome out of its blur.',
   '3.6.0': 'Explore opens in a sidebar that will also host Memory, Habits, and About — one consistent panel across the app.',
   '3.5.8': 'Explore keeps desktop typing focus while replying, without reopening the phone keyboard.',
-  '3.5.7': 'Opening Explore on mobile no longer animates existing conversation content.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

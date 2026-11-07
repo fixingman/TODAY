@@ -21,8 +21,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 152 | ⏳ Verify | Desktop window-control backplate looks detached from the soft Explore pane. | v3.5.7 / geometry regression |
-| 151 | ⏳ Verify | Focus header haze during entry; the earlier movement repair is shipped. | v3.5.3 follow-up |
+| 152 | ⏳ Verify | Dark strip returns above Explore and survives Chromium’s title-bar toggle. | v3.6.1 correction |
+| 151 | ⏳ Verify | Offscreen TODAY can flash as moving haze when entering Focus on a long list, with or without Explore. | v3.6.1 follow-up |
 | 150 | ⏳ Verify | Delete undo/reason bar stays centred on the window and overlaps Explore instead of following Today. | v3.5.1 |
 | 149 | ⏳ Verify | Explore shows an earlier suggestion failure when reopening Something to try, without a new request. | v3.5.1 |
 | 148 | ⏳ Verify | Functional runner accepts a timed-out child when its signal handler exits with code zero. | v3.5.0 tooling |
@@ -52,6 +52,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ## BUG-152 — Desktop window controls sit on a mismatched background
 
+**November 7 correction (v3.6.1):** Can rejects the dark strip introduced in v3.5.6 and carried into v3.5.7–8. Its fixture asserted that strip and could not catch the design regression. Restore Explore to the top edge, place native clearance inside the header, and match native overlay theme colour to the pane while open/closing. Restore the original colour when closed or when Chromium exits overlay mode. No icon replacement or claim of native transparency. The corrected regression fails shipped v3.5.8 for both pane top and control/pane colour; retain `.context/window-overlay-correction/before.log`. Nine fresh suites pass with zero failures/flakes in62.1s (`.context/fresh-p9J3cr/receipt.json`). Installed icon paint remains acceptance work; the isolated installation attempt did not yield a stable PWA window.
+
 **Report (November 7):** after enabling Chromium’s title-bar chevron in v3.5.2, the browser-owned controls form a dark rectangle over Explore’s softer surface. Screenshot: `.context/attachments/qYalXB/Screenshot 2026-11-07 at 11.42.41 AM.png`.
 
 **Local v3.5.6:** keep one continuous `--bg` window-control strip, matching the existing manifest/meta theme colour. Start Explore below the native title-bar height and let it fill the remaining height, including narrow desktop windows. Retain ordinary header padding, softer panel/composer, native drag bounds and header/Focus clearance. Tabs and mobile retain their existing layout. No theme/provider/sync/storage change.
@@ -64,6 +66,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 ## BUG-151 — Focus entrance moves or reveals the header
+
+**November 7 offscreen-paint follow-up (v3.6.1):** Can still sees the offscreen logo as moving haze on long lists, with Explore both open and closed. On120 fictional tasks, geometry and a CPU4 screencast keep the logo offscreen; this does not reproduce the full installed rendering flash. The older test only compared rectangles and allowed offscreen chrome to enter the blur surface. Add paint eligibility assertions: exclude fully offscreen header groups before pinning; a wholly offscreen header creates no filter/transition layer. Keep visible/partially visible chrome on its existing fade/blur sequence. Restore normal visibility after exit animations, with the existing generation fence protecting rapid re-entry. Preserve scroll/anchor geometry, a11y for visible chrome, motion tokens and limits. The old runtime fails the offscreen-paint guard at42 tasks; include120-task and rapid-reentry cases with/without Explore. Final fresh combined check passes ten suites without failures/flakes in71.3s (`.context/fresh-AVMk3j/receipt.json`). Evidence `.context/focus-offscreen/`. Installed confirmation remains open.
 
 **November 7 CI driver follow-up:** distinguish native pre-click preparation from Focus motion, and the app’s legitimate anchor correction from failed scroll restoration. Repair the fixture input boundary and verify visible task restoration without changing tolerances/deadlines. CPU4 and deliberately broken-runtime controls are recorded in Changelog and `.context/explore-ci-repair/`. This changes no runtime or installed acceptance verdict.
 

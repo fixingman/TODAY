@@ -627,6 +627,10 @@ window._startFocus = (function() {
 
     const _hdr = document.getElementById('sticky-header');
     if (_hdr) {
+      // Offscreen chrome must not enter a newly composited blur surface.
+      for (const part of [_hdr, ..._hdr.querySelectorAll('.header-left,.header-actions,.subheader')]) {
+        part.toggleAttribute('data-focus-outside', part.getBoundingClientRect().bottom <= 0);
+      }
       _hdr.style.top = _hdr.getBoundingClientRect().top + 'px';
       _hdr.style.transition = '';
     }
@@ -812,6 +816,12 @@ window._startFocus = (function() {
     localStorage.removeItem('today_focus_session');
 
     const myGen = ++focusGen;
+    const closingHeader = document.getElementById('sticky-header');
+    Promise.all((closingHeader?.getAnimations() || []).map(a => a.finished.catch(() => {}))).then(() => {
+      if (myGen !== focusGen) return;
+      closingHeader?.removeAttribute('data-focus-outside');
+      closingHeader?.querySelectorAll('[data-focus-outside]').forEach(part => part.removeAttribute('data-focus-outside'));
+    });
     setTimeout(() => {
       if (closingTask && closingTask !== uiTaskEl) {
         closingTask.classList.remove('focused');

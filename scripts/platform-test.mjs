@@ -57,14 +57,17 @@ async function openPage(options = {}) {
     };
 
     const originalMatchMedia = window.matchMedia.bind(window);
+    const overlay = new EventTarget();
+    overlay.matches = !!opts.windowControlsOverlay;
+    overlay.media = '(display-mode: window-controls-overlay)';
+    window.__setOverlay = visible => { overlay.matches = visible; overlay.dispatchEvent(new Event('change')); };
     window.matchMedia = query => {
       if (query === '(pointer: coarse)') {
         return { matches: !!opts.coarse, media: query, onchange: null,
           addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; } };
       }
       if (query === '(display-mode: window-controls-overlay)') {
-        return { matches: !!opts.windowControlsOverlay, media: query, onchange: null,
-          addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; } };
+        return overlay;
       }
       if (query === '(display-mode: standalone)') {
         return { matches: !!opts.standalone, media: query, onchange: null,
@@ -175,10 +178,9 @@ try {
     if (!installed) await fail('overlay PWA offered installation again');
     await page.evaluate(() => {
       document.body.classList.add('ex-open');
-      const pane = document.createElement('aside');
-      pane.id = 'explorationRoot'; pane.className = 'ex-sheet';
+      const pane = document.getElementById('sidebarRoot');
+      pane.hidden = false;
       pane.innerHTML = '<div class="ex-sheet-head"><h2 class="config-title">Explore</h2><button class="ex-hide" type="button">Close</button></div><div class="ex-sheet-scroll">Fictional conversation</div><div class="ex-sheet-foot">A question</div>';
-      document.body.append(pane);
       window.__overlayFixtureRules = [];
       for (const sheet of document.styleSheets) for (const media of sheet.cssRules) {
         if (!(media instanceof CSSMediaRule) || media.conditionText !== '(display-mode: window-controls-overlay)') continue;
@@ -193,15 +195,18 @@ try {
       {name:'compact window', width:736, x:0, free:596, height:40},
       {name:'narrow desktop window', width:390, x:80, free:310, height:32},
       {name:'overlay turned off', width:1280, x:0, free:1280, height:0},
+      {name:'overlay restored', width:1280, x:80, free:1200, height:32},
     ]) {
       await page.setViewport({width:profile.width,height:800});
-      const result = await page.evaluate(profile => {
+      const result = await page.evaluate(async profile => {
         const values = {'titlebar-area-x':profile.x,'titlebar-area-y':0,'titlebar-area-width':profile.free,'titlebar-area-height':profile.height};
         for (const item of window.__overlayFixtureRules) {
           item.media.media.mediaText = 'all';
           for (const saved of item.rules) saved.rule.style.cssText = saved.original.replace(/env\((titlebar-area-[a-z]+), 0px\)/g, (_,name) => values[name]+'px');
         }
-        const drag=document.getElementById('windowDragRegion'), pane=document.getElementById('explorationRoot');
+        window.__setOverlay(profile.height > 0);
+        await Promise.resolve();
+        const drag=document.getElementById('windowDragRegion'), pane=document.getElementById('sidebarRoot');
         const rect=drag.getBoundingClientRect(),close=pane.querySelector('button').getBoundingClientRect();
         const header=document.querySelector('.sticky-header').getBoundingClientRect();
         const probe=document.createElement('span');probe.style.color=document.querySelector('meta[name=theme-color]').content;document.body.append(probe);
@@ -211,11 +216,11 @@ try {
         const common={drag:rect.x===profile.x&&rect.width===profile.free&&rect.height===profile.height,
           draggable:getComputedStyle(drag).getPropertyValue('-webkit-app-region')==='drag',
           header:header.top>=profile.height,close:close.top>=profile.height,
-          paneBelowStrip:pane.getBoundingClientRect().top===profile.height,
+          paneToTop:pane.getBoundingClientRect().top===0,
           paneFits:pane.getBoundingClientRect().bottom===innerHeight,
-          stripMatchesControls:getComputedStyle(document.body).backgroundColor===theme,
+          controlsMatchPane:profile.height===0 ? getComputedStyle(document.body).backgroundColor===theme : panelColor===theme,
           transparentDrag:getComputedStyle(drag).backgroundColor==='rgba(0, 0, 0, 0)',
-          softerPane:panelColor!==theme,
+          softerPane:panelColor!==getComputedStyle(document.body).backgroundColor,
           continuous:panelColor===getComputedStyle(pane.querySelector('.ex-sheet-foot')).backgroundColor,
           separator:getComputedStyle(pane.querySelector('.ex-sheet-foot')).borderTopWidth==='0px'};
         document.body.classList.add('focus-locked');
@@ -228,11 +233,24 @@ try {
       await page.screenshot({path:join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'.png'),clip:{x:0,y:0,width:profile.width,height:180}});
       if (Object.values(result).some(value=>!value)) await fail('window overlay geometry: '+profile.name,result);
     }
+    const closedTheme = await page.evaluate(async () => {
+      document.body.classList.remove('ex-open');
+      document.body.classList.add('ex-closing');
+      await Promise.resolve();
+      const meta=document.querySelector('meta[name=theme-color]');
+      const leaving=meta.content.trim()===getComputedStyle(document.documentElement).getPropertyValue('--surface').trim();
+      document.body.classList.remove('ex-closing');
+      await Promise.resolve();
+      return leaving && meta.content==='#0e0e10';
+    });
+    if (!closedTheme) await fail('native controls must blend through Explore close and restore the original theme');
     await page.evaluate(() => {
+      window.__setOverlay(false);
       for (const item of window.__overlayFixtureRules) { item.media.media.mediaText=item.original;for(const saved of item.rules)saved.rule.style.cssText=saved.original; }
+      document.body.classList.add('ex-open');
     });
     if (!await page.$eval('#windowDragRegion',node=>getComputedStyle(node).display==='none')) await fail('overlay fallback did not restore');
-    if (!await page.$eval('#explorationRoot',node=>node.getBoundingClientRect().top===0)) await fail('ordinary-tab Explore gained a title-bar gap');
+    if (!await page.$eval('#sidebarRoot',node=>node.getBoundingClientRect().top===0)) await fail('ordinary-tab Explore gained a title-bar gap');
     if(errors.length)await fail('uncaught overlay fixture errors',errors);
     ok('overlay install detection, native fallback and left/right/compact CSS control clearance');
     await page.close();

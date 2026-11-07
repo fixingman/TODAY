@@ -99,6 +99,8 @@ from two devices. New progress refreshes the row and heals stale remote copies (
 
 **Header entry (v3.5.3, BUG-151 follow-up):** fade chrome over `--dur-exit`, then animate CSS blur from0 to6px over half that beat. The header alone omits the SVG noise reference: switching from `none` to a reference filter snaps to full blur before dimming, leaving a bright haze. Preserve its glass background, pinned geometry and final receded opacity.
 
+**Offscreen paint (v3.6.1, BUG-151):** capture which header/groups are wholly above the viewport before lock and suppress their painting, without removing flow space or moving geometry. A fully offscreen header skips filter/transition compositing. Visible groups retain their fade/blur. Restore visibility after actual exit animations finish; an older exit cannot clear a newer session’s guard. This addresses a rendering exposure independently of rectangle continuity; installed Chrome confirmation remains separate.
+
 ### Scroll lock and the header (BUG-098)
 - Entering focus sets `body { position: fixed; top: -scrollY }` and animates `top` for the nudge. A `position: sticky` header has nothing to stick to inside a fixed body: it sits at the top of the body, which is off-screen by `scrollY`, and then rides the nudge — seen as the nav being shoved up when a task near the bottom enters focus.
 - Fix: the lock adds `body.focus-locked`, under which the header is fixed at its current viewport top (v3.5.1; formerly forced to0), and pads the body by the header's height so nothing below shifts when it leaves the flow. `_doUnfix()` clears both. The lock also clears the splash's leftover inline opacity transition on the header so the recede beat governs.

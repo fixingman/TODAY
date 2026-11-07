@@ -8,6 +8,21 @@
     if (_platformStarted) return;
     _platformStarted = true;
 
+// Native controls use theme-color. Blend into Explore instead of adding a strip.
+const overlayMode = matchMedia('(display-mode: window-controls-overlay)');
+const windowTheme = document.querySelector('meta[name="theme-color"]');
+const originalTheme = windowTheme?.content;
+function updateWindowTheme() {
+  if (!windowTheme) return;
+  const exploring = document.body.classList.contains('ex-open') || document.body.classList.contains('ex-closing');
+  const colour = overlayMode.matches && exploring
+    ? getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() : originalTheme;
+  if (windowTheme.content !== colour) windowTheme.content = colour;
+}
+new MutationObserver(updateWindowTheme).observe(document.body, {attributes:true, attributeFilter:['class']});
+overlayMode.addEventListener('change', updateWindowTheme);
+updateWindowTheme();
+
 // ─── Service Worker registration + auto-update ────────────────────────────────
 // Only register SW on actual deployment domains, skip preview iframes and local dev
 const SW_ALLOWED_HOSTS = ['today-here.netlify.app', 'dev--today-here.netlify.app', 'localhost', '127.0.0.1'];
