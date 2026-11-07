@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Window-overlay CI completion (app v3.5.8)
+
+Full Linux42367097472 passes61 suites with zero flakes and fails Platform twice because the older fixture still expects Explore at y0. The v3.5.7 shell already starts it below the native control strip. Commit the missing geometry fixture/owning contracts: exact strip offset, remaining height, clear controls, matching theme strip, transparent drag region, softer pane and ordinary-tab fallback, including390px desktop windows. Retain the failed receipt and reject a deliberately broken pane-at-zero control. The corrected platform/visual/design/invariant fresh check passes four suites without failures/flakes in10.9s; the pane-at-zero control is rejected. Runtime, version and budgets remain unchanged; the new exact commit requests complete hosted validation. Evidence: `.context/explore-ci-repair/window-overlay/`.
+
 ## CI geometry fixture repair (app v3.5.8)
 
 Retain failed Linux42363844191 (45 selected suites passed; Focus failed both attempts) and fresh-iThYjI (one Focus diagnostic retry, not accepted as clean proof). CPU4 reproduces3px of pre-click preparation scrolling: capture the baseline at native input before application handlers, preserving the1px/550ms geometry checks. A second trace proves the app correctly adjusts1114→1118px to restore its chosen task anchor; assert that visible task position within the existing2px limit instead of rejecting the correction. CPU4 plus an8px controlled layout shift passes all31 Focus groups. Broken pinning is rejected by137.8px; disabled anchor correction is rejected by8.8px. Original runtime is restored after both controls. Commit saved-conversation regression/docs for explicit read-only historical inspection with no AI call/write or current-understanding revival. Focus runtime, privacy boundaries and budgets are unchanged. The subsequent desktop reply-focus regression in v3.5.5 requires the app patch below. Controls and final receipts: `.context/explore-ci-repair/`.

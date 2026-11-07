@@ -5,7 +5,7 @@
 // Run from repo root: node scripts/platform-test.mjs
 
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -191,6 +191,7 @@ try {
       {name:'left controls', width:1280, x:80, free:1200, height:32},
       {name:'right controls', width:1280, x:0, free:1140, height:32},
       {name:'compact window', width:736, x:0, free:596, height:40},
+      {name:'narrow desktop window', width:390, x:80, free:310, height:32},
       {name:'overlay turned off', width:1280, x:0, free:1280, height:0},
     ]) {
       await page.setViewport({width:profile.width,height:800});
@@ -203,23 +204,35 @@ try {
         const drag=document.getElementById('windowDragRegion'), pane=document.getElementById('explorationRoot');
         const rect=drag.getBoundingClientRect(),close=pane.querySelector('button').getBoundingClientRect();
         const header=document.querySelector('.sticky-header').getBoundingClientRect();
+        const probe=document.createElement('span');probe.style.color=document.querySelector('meta[name=theme-color]').content;document.body.append(probe);
+        const theme=getComputedStyle(probe).color;probe.remove();
+        const panelStyle=getComputedStyle(pane).backgroundColor;
+        const panelColor=panelStyle==='rgba(0, 0, 0, 0)'?getComputedStyle(pane.querySelector('.ex-sheet-scroll')).backgroundColor:panelStyle;
         const common={drag:rect.x===profile.x&&rect.width===profile.free&&rect.height===profile.height,
           draggable:getComputedStyle(drag).getPropertyValue('-webkit-app-region')==='drag',
           header:header.top>=profile.height,close:close.top>=profile.height,
-          paneToTop:pane.getBoundingClientRect().top===0,
-          continuous:getComputedStyle(pane).backgroundColor===getComputedStyle(pane.querySelector('.ex-sheet-foot')).backgroundColor,
+          paneBelowStrip:pane.getBoundingClientRect().top===profile.height,
+          paneFits:pane.getBoundingClientRect().bottom===innerHeight,
+          stripMatchesControls:getComputedStyle(document.body).backgroundColor===theme,
+          transparentDrag:getComputedStyle(drag).backgroundColor==='rgba(0, 0, 0, 0)',
+          softerPane:panelColor!==theme,
+          continuous:panelColor===getComputedStyle(pane.querySelector('.ex-sheet-foot')).backgroundColor,
           separator:getComputedStyle(pane.querySelector('.ex-sheet-foot')).borderTopWidth==='0px'};
         document.body.classList.add('focus-locked');
         common.focusHeader=document.querySelector('.sticky-header').getBoundingClientRect().top>=profile.height;
         document.body.classList.remove('focus-locked');
         return common;
       },profile);
+      await mkdir(join(ROOT,'.context/ci-test-results/window-strip'),{recursive:true});
+      await writeFile(join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'.json'),JSON.stringify(result,null,2));
+      await page.screenshot({path:join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'.png'),clip:{x:0,y:0,width:profile.width,height:180}});
       if (Object.values(result).some(value=>!value)) await fail('window overlay geometry: '+profile.name,result);
     }
     await page.evaluate(() => {
       for (const item of window.__overlayFixtureRules) { item.media.media.mediaText=item.original;for(const saved of item.rules)saved.rule.style.cssText=saved.original; }
     });
     if (!await page.$eval('#windowDragRegion',node=>getComputedStyle(node).display==='none')) await fail('overlay fallback did not restore');
+    if (!await page.$eval('#explorationRoot',node=>node.getBoundingClientRect().top===0)) await fail('ordinary-tab Explore gained a title-bar gap');
     if(errors.length)await fail('uncaught overlay fixture errors',errors);
     ok('overlay install detection, native fallback and left/right/compact CSS control clearance');
     await page.close();

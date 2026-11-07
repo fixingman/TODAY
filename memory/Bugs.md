@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 152 | ⏳ Verify | Desktop window-control backplate looks detached from the soft Explore pane. | v3.5.7 / geometry regression |
 | 151 | ⏳ Verify | Focus header haze during entry; the earlier movement repair is shipped. | v3.5.3 follow-up |
 | 150 | ⏳ Verify | Delete undo/reason bar stays centred on the window and overlaps Explore instead of following Today. | v3.5.1 |
 | 149 | ⏳ Verify | Explore shows an earlier suggestion failure when reopening Something to try, without a new request. | v3.5.1 |
@@ -46,6 +47,19 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-152 — Desktop window controls sit on a mismatched background
+
+**Report (November 7):** after enabling Chromium’s title-bar chevron in v3.5.2, the browser-owned controls form a dark rectangle over Explore’s softer surface. Screenshot: `.context/attachments/qYalXB/Screenshot 2026-11-07 at 11.42.41 AM.png`.
+
+**Local v3.5.6:** keep one continuous `--bg` window-control strip, matching the existing manifest/meta theme colour. Start Explore below the native title-bar height and let it fill the remaining height, including narrow desktop windows. Retain ordinary header padding, softer panel/composer, native drag bounds and header/Focus clearance. Tabs and mobile retain their existing layout. No theme/provider/sync/storage change.
+
+**Verification:** the old layout fails the new pane-below-strip assertion with the existing native geometry fixture. Preserve before evidence in `.context/window-strip/`. Test left/right controls, compact/narrow desktop windows, zero-height overlay and ordinary-tab fallback; screenshots emulate native geometry and cannot establish browser-owned control paint. Fresh check retains five first-attempt passes (platform, visual, design, smoke and invariants) and one Explore failure in21.2s (`.context/fresh-pnzufE/receipt.json`). The same pending-reply focus assertion fails at the same line on unchanged v3.5.5 (`fb95fb13`), without the title-bar patch; preserve `.context/window-strip/control.log`. No failed assertion was weakened. Owning runtime/test hashes still match. Installed browser control paint remains to be checked; this was the pre-publication local receipt.
+
+
+**CI completion:** the strip layout is already present in the published v3.5.7 shell. Full Linux42367097472 passes61 suites and fails the obsolete pane-at-zero assertion; this follow-up commits the missing geometry regression and owning documentation. Native browser control paint remains manual acceptance.
 
 ---
 
