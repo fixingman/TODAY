@@ -57,7 +57,7 @@
 /* v3.4.0 side panel. Sub-pages lead with their own way back; the header only hides Explore. */
 #explorationRoot .ex-subnav { display: inline-flex; margin: 0 0 var(--space-3) calc(-1 * var(--space-2)); }
 #explorationRoot .ex-thinking p { color: var(--muted); }
-#explorationRoot .ex-turn:last-of-type { animation: fadeIn var(--dur-fast) var(--ease-out) both; }
+#explorationRoot .ex-turn.ex-turn-in { animation: fadeIn var(--dur-fast) var(--ease-out) both; }
 /* Composer: the daily add bar's tokens, so both input rows read as one place. */
 #explorationRoot .ex-prompt { display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateY(var(--motion-rise));
   transition: grid-template-rows var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out), margin-bottom var(--dur-slow) var(--ease-out); }
@@ -84,7 +84,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   #explorationRoot .ex-prompt { transition: none; transform: none; }
-  #explorationRoot .ex-prompt.arriving, #explorationRoot .ex-turn:last-of-type, #explorationRoot .ex-view-in { animation: none; }
+  #explorationRoot .ex-prompt.arriving, #explorationRoot .ex-turn.ex-turn-in, #explorationRoot .ex-view-in { animation: none; }
 }
 
 /* One page navigation, outside the conversation, on desktop and phones. */

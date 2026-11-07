@@ -389,6 +389,7 @@
       else if(!busy&&loaded)html+=`<p>You don’t need a finished question. Bring something that happened, or something you’re unsure about.</p><div class="ex-setup">${incomingHTML(disabled)}<details id="exSetupSources"><summary>Uses relevant tasks &amp; Memory</summary><p class="ex-muted">Your words and relevant TODAY records support this reply, kept in Dropbox. You can review or change sources before the next reply. Feelings and dreams stay separate.</p></details>${imported?`<div class="ex-send">${action('create','continue with this document',disabled)}</div>`:''}</div>`;
     }else html+=view==='conversation'?conversationHTML(reading,disabled):secondaryHTML(reading,disabled);
     root.innerHTML=`<div class="ex-sheet-head">${controls()}</div><div class="ex-sheet-scroll">${html}</div></div><div class="ex-sheet-foot">${composerHTML()}</div>`;
+    if(view==='conversation'&&turns>visitStart&&!pendingReading)scroller()?.querySelector('.ex-turn:last-of-type')?.classList.add('ex-turn-in');
     modality();animateThinking();
     const nextBox=scroller(); if(nextBox) nextBox.scrollTop = view==='conversation'&&newer ? nextBox.scrollHeight : keep;
     fitInput(byId('exThought')||byId('exQuestion'));

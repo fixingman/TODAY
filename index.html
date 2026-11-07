@@ -3100,7 +3100,7 @@
     #windowDragRegion { display:block; position:fixed; top:env(titlebar-area-y, 0px); left:env(titlebar-area-x, 0px); width:env(titlebar-area-width, 0px); height:var(--window-titlebar-height); z-index:var(--z-overlay); -webkit-app-region:drag; app-region:drag; }
     .sticky-header, body.focus-locked .sticky-header { top:var(--window-titlebar-height); }
     .section-header { top:calc(var(--sec-sticky-top) + var(--window-titlebar-height)); }
-    .ex-sheet-head { padding-top:calc(max(env(safe-area-inset-top, 0px), var(--window-titlebar-height)) + var(--space-3)); }
+    .ex-sheet { top:var(--window-titlebar-height); height:auto; bottom:0; }
     #errorIndicator { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 8px); }
     #errorPanel { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 24px); }
   }
@@ -4791,14 +4791,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '401h';
+const DEV_HOURS     = '402h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.5.7': 'Opening Explore on mobile no longer animates existing conversation content.',
+  '3.5.6': 'Desktop window controls sit on one continuous dark strip above Today and Explore.',
   '3.5.5': 'Sending a message in Explore no longer re-opens the mobile keyboard while waiting for a reply.',
-  '3.5.4': 'Explore sidebar tabs are now pill-shaped with a chat icon, animate on switch, and collapse when the mobile keyboard opens.',
-  '3.5.3': 'The header fades before gently blurring when you enter Focus.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.
