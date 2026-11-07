@@ -14,7 +14,7 @@
     let _sundayPending = null; // source key of the in-flight Sunday request; a re-render reuses it instead of paying twice
     document.addEventListener('today:memory-ready', event => {
       sundayReady = !!event.detail?.ready;
-      if (sundayReady && $.infoPanel?.classList.contains('open')) renderInfoStats();
+      if (sundayReady && Today.use('sidebar')?.isOpen?.('about')) renderInfoStats();
     });
 
     let _poolWordingUI, _poolWordingLoading;
@@ -70,38 +70,33 @@
     }
 
     function toggleInfo() {
-      const scrollY = window.scrollY; // Preserve scroll position
-      const panel = $.infoPanel;
-      const isOpening = !panel.classList.contains('open');
-      if (isOpening) {
-        panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
-        panel.classList.add('open');
-      } else {
-        panel.classList.remove('open');
-      }
+      if (Today.use('sidebar').isOpen('about')) { Today.use('sidebar').close(); return; }
+      Today.use('sidebar').open('about');
+    }
+    function _mountAbout(container) {
+      const ph = matchMedia('(max-width: 600px)').matches;
+      const chevron = ph
+        ? `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      container.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="aboutTitle" tabindex="-1">ℹ&#xFE0E; About</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide About">${chevron}</button></div><div class="ex-sheet-scroll" id="infoContent"><div id="sundayBlock" style="display:none"></div><div id="todayNudgeBlock" style="display:none"></div><div id="noticedBlock" style="display:none"></div><div id="infoStats"></div><div class="panel-section" id="weekSection" style="display:none"><div class="config-label">This week</div><button id="weekMoreBtn" class="copy-cta" data-today-click="memory.toggle" aria-label="Open memory">see more</button><div id="weekGrid"></div></div><div class="panel-section"><div class="config-label">Read me</div><div class="panel-haiku"><button type="button" class="poem-block" id="poemBlock" aria-label="Share today's poem" data-today-click="about.poem"><div id="dailyPoem">Only today shows<br>Done rests, quietly proud<br>Morning clears the slate</div><span id="poemShareBtn" class="btn-poem-share copy-cta" aria-hidden="true">share</span></button><button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" data-today-click="platform.install"><span class="install-icon">⬇&#xFE0E;</span> Install app</button></div></div><div class="panel-section"><div class="config-label">Changelog</div><div id="changelogPanel"></div></div><div class="panel-section panel-section--flush"><a id="coffeeBtn" href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a><div id="devHours" class="dev-hours" title="Hours spent building this with Claude"><span class="dev-hours-val"></span></div></div></div><div class="ex-sheet-foot"></div>`;
       $.configPanel.classList.remove('open');
       Today.use('connections')._endConnectionsPrivacyVisit();
-      $.habitsPanel.classList.remove('open');
-      $.memoryPanel?.classList.remove('open');
-      Today.use('connections').syncActiveButtons();
-      window.scrollTo(0, scrollY); // Restore scroll position
-
-      if (!isOpening && typeof checkDayNudge === 'function') checkDayNudge(false);
-      if (isOpening) {
-        renderInfoStats();
-        renderDailyPoem();
-        const _ib = document.getElementById('infoBtn');
-        if (_ib && _ib.classList.contains('btn-icon-week')) {
-          _ib.classList.remove('btn-icon-week');
-          localStorage.setItem('sunday_nudge_seen_' + _localISO(), '1');
-          _pruneLS('sunday_nudge_seen_', 'sunday_nudge_seen_' + _localISO());
-        }
-        if (_ib && _ib.classList.contains('btn-icon-version')) {
-          _ib.classList.remove('btn-icon-version');
-          localStorage.setItem('today_seen_version', APP_VERSION);
-          Today.use('memory').breatheVersionBadge();
-        }
+      renderInfoStats();
+      renderDailyPoem();
+      const _ib = document.getElementById('infoBtn');
+      if (_ib && _ib.classList.contains('btn-icon-week')) {
+        _ib.classList.remove('btn-icon-week');
+        localStorage.setItem('sunday_nudge_seen_' + _localISO(), '1');
+        _pruneLS('sunday_nudge_seen_', 'sunday_nudge_seen_' + _localISO());
       }
+      if (_ib && _ib.classList.contains('btn-icon-version')) {
+        _ib.classList.remove('btn-icon-version');
+        localStorage.setItem('today_seen_version', APP_VERSION);
+        Today.use('memory').breatheVersionBadge();
+      }
+      _renderChangelog();
+      document.getElementById('aboutTitle')?.focus({ preventScroll: true });
+      Today.use('connections').syncActiveButtons();
     }
 
 
@@ -275,7 +270,7 @@
 
     function renderInfoStats() {
       let _nudgeStagger = 0; // increments per visible block for staggered entrance
-      _wireReactions($.infoPanel || document.getElementById('infoPanel'));
+      _wireReactions(document.getElementById('infoContent') || $.infoPanel || document.getElementById('infoPanel'));
       // Pull stats from localStorage
       const focusMinsToday = parseInt(localStorage.getItem('stat_focus_mins_today') || '0');
       const streak = parseInt(localStorage.getItem('stat_streak') || '1');
@@ -484,7 +479,7 @@
           _fetchWeekThemeAI().then(text => {
             if (text) {
               _aiSurfaceSet('week_theme_ai', text);
-              if ($.infoPanel && $.infoPanel.classList.contains('open')) renderInfoStats();
+              if (Today.use('sidebar').isOpen('about')) renderInfoStats();
             } else if (navigator.onLine) {
 
 
@@ -867,30 +862,30 @@
       }
     });
 
-    if (typeof CHANGELOG !== 'undefined' && typeof HISTORY_SHOWN !== 'undefined') {
+    function _renderChangelog() {
+      if (typeof CHANGELOG === 'undefined' || typeof HISTORY_SHOWN === 'undefined') return;
       const _clPanel  = document.getElementById('changelogPanel');
+      if (!_clPanel) return;
       const _versions = Object.keys(CHANGELOG);
       const _shown    = _versions.slice(0, 1 + HISTORY_SHOWN);
-      if (_clPanel) {
-        _clPanel.innerHTML = _shown.map((v, i) => {
-          if (i === 0) {
-            const bullets = CHANGELOG[v].split(' | ').map(b =>
-              `<div class="changelog-line"><span>${b}</span></div>`
-            ).join('');
-            return `<div class="changelog-entry">
-              <span class="changelog-version">v${v}</span>
-              <div class="changelog-entry-body">
-                <span class="version-badge">CURRENT</span>
-                <div class="changelog-text">${bullets}</div>
-              </div>
-            </div>`;
-          }
-          return `<div class="changelog-old">
+      _clPanel.innerHTML = _shown.map((v, i) => {
+        if (i === 0) {
+          const bullets = CHANGELOG[v].split(' | ').map(b =>
+            `<div class="changelog-line"><span>${b}</span></div>`
+          ).join('');
+          return `<div class="changelog-entry">
             <span class="changelog-version">v${v}</span>
-            <span class="changelog-text">${CHANGELOG[v].split(' | ')[0]}</span>
+            <div class="changelog-entry-body">
+              <span class="version-badge">CURRENT</span>
+              <div class="changelog-text">${bullets}</div>
+            </div>
           </div>`;
-        }).join('');
-      }
+        }
+        return `<div class="changelog-old">
+          <span class="changelog-version">v${v}</span>
+          <span class="changelog-text">${CHANGELOG[v].split(' | ')[0]}</span>
+        </div>`;
+      }).join('');
     }
 
     if (window.Today) {
@@ -905,6 +900,11 @@
         _pickSundayInsight,
         _debugSundayAudit,
         _reactionHTML,
+      });
+      Today.use('sidebar').register('about', {
+        mount: _mountAbout,
+        unmount() { if (typeof checkDayNudge === 'function') checkDayNudge(false); Today.use('connections').syncActiveButtons(); },
+        label: 'About', icon: 'ℹ', order: 4,
       });
       Today.ui.register('click', 'about.toggle', toggleInfo);
       Today.ui.register('click', 'about.poem', _onPoemTap);

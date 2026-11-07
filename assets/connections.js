@@ -92,20 +92,22 @@
     }
 
     function syncActiveButtons() {
-      const habitsOpen = $.habitsPanel.classList.contains('open');
+      const sb = Today.use('sidebar');
+      const habitsOpen = sb.isOpen('habits');
       const configOpen = $.configPanel.classList.contains('open');
-      const infoOpen   = $.infoPanel.classList.contains('open');
-      const memoryOpen = $.memoryPanel?.classList.contains('open');
+      const infoOpen   = sb.isOpen('about');
+      const memoryOpen = sb.isOpen('memory');
+      const exploreOpen = sb.isOpen('explore');
       document.getElementById('habitsBtn').classList.toggle('active', habitsOpen);
-      document.getElementById('trelloBtn').classList.toggle('active', configOpen);
+      document.getElementById('trelloBtn').classList.toggle('active', exploreOpen);
       document.getElementById('infoBtn').classList.toggle('active',   infoOpen);
       $.todayLogo?.classList.toggle('active', memoryOpen);
 
       if (window._a11ySetDisclosure) {
-        _a11ySetDisclosure('habitsBtn', $.habitsPanel, habitsOpen);
-        _a11ySetDisclosure('trelloBtn', $.configPanel, configOpen);
-        _a11ySetDisclosure('infoBtn', $.infoPanel, infoOpen);
-        _a11ySetDisclosure('todayLogo', $.memoryPanel, memoryOpen);
+        _a11ySetDisclosure('habitsBtn', null, habitsOpen);
+        _a11ySetDisclosure('trelloBtn', null, exploreOpen);
+        _a11ySetDisclosure('infoBtn',   null, infoOpen);
+        _a11ySetDisclosure('todayLogo', null, memoryOpen);
       }
 
     }
@@ -156,9 +158,7 @@
       } else {
         configPanel.classList.remove('open');
       }
-      $.infoPanel.classList.remove('open');
-      $.habitsPanel.classList.remove('open');
-      $.memoryPanel?.classList.remove('open');
+      Today.use('sidebar').close();
       syncActiveButtons();
       window.scrollTo(0, scrollY); // Restore scroll position
       if (isOpening) {

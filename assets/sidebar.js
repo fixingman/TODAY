@@ -168,5 +168,12 @@ document.addEventListener('click', event => {
   open(btn.dataset.sidebarPanel);
 }, true);
 
+// Shared close button — any element with data-sidebar-close inside the sidebar closes it.
+document.addEventListener('click', event => {
+  if (!event.target.closest('[data-sidebar-close]')) return;
+  event.stopPropagation();
+  close();
+}, true);
+
 Today.define('sidebar', { register, open, close, isOpen, getRoot, surface, fitViewport, motion, modality });
 })();

@@ -669,13 +669,13 @@
         _confirmDeleteId = null; _openId = null;
         _rerenderMemory();
       });
-      const memoryPanel = typeof document === 'undefined' ? null : document.getElementById('memoryPanel');
-      if (memoryPanel && typeof MutationObserver !== 'undefined') {
+      const _sidebarRoot = typeof document === 'undefined' ? null : document.getElementById('sidebarRoot');
+      if (_sidebarRoot && typeof MutationObserver !== 'undefined') {
         new MutationObserver(() => {
-          if (memoryPanel.classList.contains('open')) return;
+          if (Today.use('sidebar').isOpen('memory')) return;
           _readEpoch++; _remoteRead = null; _openId = null; _confirmDeleteId = null; _listOpen = false;
           _rerenderMemory();
-        }).observe(memoryPanel, { attributes: true, attributeFilter: ['class'] });
+        }).observe(_sidebarRoot, { attributes: true, attributeFilter: ['hidden', 'aria-busy'] });
       }
     }
 

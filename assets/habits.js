@@ -159,31 +159,26 @@
     }
 
     function toggleHabits() {
-      const scrollY = window.scrollY; // Preserve scroll position
-      const panel = document.getElementById('habitsPanel');
-      const isOpening = !panel.classList.contains('open');
-      if (isOpening) {
-        panel.style.animation = ''; // clear repaint suppression so fadeIn plays (BUG-023)
-        panel.classList.add('open');
-      } else {
-        panel.classList.remove('open');
-      }
+      if (Today.use('sidebar').isOpen('habits')) { Today.use('sidebar').close(); return; }
+      Today.use('sidebar').open('habits');
+    }
+    function _mountHabits(container) {
+      const ph = matchMedia('(max-width: 600px)').matches;
+      const chevron = ph
+        ? `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="M5 8l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      container.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="habitsTitle" tabindex="-1">◎&#xFE0E; Habits</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Habits">${chevron}</button></div><div class="ex-sheet-scroll" id="habitsContent"><div class="habit-countdown" id="habitCountdown" style="display:none"></div><div class="habit-list" id="habitList" role="list" aria-label="Habits"></div><div class="habit-empty" id="habitEmpty">No habits yet</div><div class="habit-add-row" id="habitAddRow"><label class="visually-hidden" for="habitInput">Habit name</label><input class="habit-input" id="habitInput" type="text" autocomplete="off" maxlength="100" placeholder="Name the habit…" data-today-keydown="habits.input-key"><button class="habit-add-btn" data-today-click="habits.add">Add</button></div><div class="config-actions"><button class="btn-ghost" id="habitNewBtn" data-today-click="habits.new">New habit</button><button class="btn-ghost" id="habitEditBtn" data-today-click="habits.edit" style="display:none">Edit</button></div></div><div class="ex-sheet-foot"></div>`;
       $.configPanel.classList.remove('open');
       Today.use('connections')._endConnectionsPrivacyVisit();
-      document.getElementById('infoPanel').classList.remove('open');
-      $.memoryPanel?.classList.remove('open');
-      Today.use('connections').syncActiveButtons();
-      window.scrollTo(0, scrollY); // Restore scroll position
-      if (isOpening) {
-        renderHabits();
-        setTimeout(() => {}, 0); // flush
-        const _hBtn = document.getElementById('habitsBtn');
-        if (_hBtn && _hBtn.classList.contains('btn-icon-habits')) {
-          _hBtn.classList.remove('btn-icon-habits');
-          localStorage.setItem('habit_nudge_opened_' + _habitTodayISO(), '1');
-          _pruneLS('habit_nudge_opened_', 'habit_nudge_opened_' + _habitTodayISO());
-        }
+      renderHabits();
+      const _hBtn = document.getElementById('habitsBtn');
+      if (_hBtn && _hBtn.classList.contains('btn-icon-habits')) {
+        _hBtn.classList.remove('btn-icon-habits');
+        localStorage.setItem('habit_nudge_opened_' + _habitTodayISO(), '1');
+        _pruneLS('habit_nudge_opened_', 'habit_nudge_opened_' + _habitTodayISO());
       }
+      document.getElementById('habitsTitle')?.focus({ preventScroll: true });
+      Today.use('connections').syncActiveButtons();
     }
 
     function toggleHabitEditMode() {
@@ -464,6 +459,11 @@
         _pulseCheck,
         toggleHabitDone,
         archiveHabit,
+      });
+      Today.use('sidebar').register('habits', {
+        mount: _mountHabits,
+        unmount() { Today.use('connections').syncActiveButtons(); },
+        label: 'Habits', icon: '◎', order: 3,
       });
       Today.ui.register('click', 'habits.toggle', toggleHabits);
       Today.ui.register('click', 'habits.add', addHabit);

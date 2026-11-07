@@ -33,7 +33,7 @@ async function preview(read=true){
       const recordedReading = kind === 'nudge' && typeof _memoryLineFor === 'function' ? _memoryLineFor('morning nudge',_localISO()) : null;
       const context = clickedReading && recordedReading?.text === clickedReading && Today.use('nudge').currentLine() === clickedReading
         ? {source_type:'AI reading',text:clickedReading} : null;
-      place ||= {kind,button,wasOpen:kind === 'memory' && $.memoryPanel.classList.contains('open'),label:kind === 'memory' ? '← memory' : '← today'};
+      place ||= {kind,button,wasOpen:kind === 'memory' && Today.use('sidebar').isOpen('memory'),label:kind === 'memory' ? '← memory' : '← today'};
       if (!explorationLoading) explorationLoading = base().then(()=>import('/assets/exploration.js')).then(()=>Today.use('exploration')).catch(error=>{explorationLoading=null;throw error;});
       try {
         explorationUI = await explorationLoading;

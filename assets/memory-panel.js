@@ -20,7 +20,7 @@
     Today.ui.register('click','exploration.open',async(event,button)=>{
       event.stopPropagation();
       const token=++explorationOpening,kind=button.dataset.exOrigin||'memory';
-      const place={kind,button,wasOpen:kind==='memory'&&$.memoryPanel.classList.contains('open')};
+      const place={kind,button,wasOpen:kind==='memory'&&Today.use('sidebar').isOpen('memory')};
       explorationPlace=place;
       if(Today.use('sidebar').isOpen('explore')&&kind!=='nudge'){document.getElementById('exTitle')?.focus({preventScroll:true});return;}
       try {
@@ -36,37 +36,31 @@
       return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
     }
 
-    function toggleMemory(options = {}) {
-      const scrollY = window.scrollY;
-      const panel = $.memoryPanel;
-      const isOpening = !panel.classList.contains('open');
-      if (isOpening) {
-        Today.use('reflections').endFeedbackVisit();
-        panel.style.animation = '';
-        panel.classList.add('open');
-      } else {
-        panel.classList.remove('open');
-      }
+    const _sbChevron = ph => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="${ph?'M5 8l5 5 5-5':'M8 5l5 5-5 5'}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    function toggleMemory() {
+      if (Today.use('sidebar').isOpen('memory')) { Today.use('sidebar').close(); return; }
+      Today.use('sidebar').open('memory');
+    }
+    function _mountMemory(container) {
+      const ph = matchMedia('(max-width: 600px)').matches;
+      container.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="memoryTitle" tabindex="-1">✦︎ Memory</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Memory">${_sbChevron(ph)}</button></div><div class="ex-sheet-scroll" id="memoryContent"></div><div class="ex-sheet-foot" id="memoryFooter"></div>`;
       $.configPanel.classList.remove('open');
       Today.use('connections')._endConnectionsPrivacyVisit();
-      $.habitsPanel.classList.remove('open');
-      $.infoPanel.classList.remove('open');
-      Today.use('connections').syncActiveButtons();
-      window.scrollTo(0, scrollY);
-      if (isOpening && !options.exploration) {
-        let _anyNew = false;
-        const _memTypes = ['semantic', 'episodic', 'procedural'];
-        for (const _t of _memTypes) {
-          for (const _item of (appMemory?.memory?.[_t] || [])) {
-            if (_item.isNew) { _item.isNew = false; _anyNew = true; }
-          }
+      Today.use('reflections').endFeedbackVisit();
+      let _anyNew = false;
+      const _memTypes = ['semantic', 'episodic', 'procedural'];
+      for (const _t of _memTypes) {
+        for (const _item of (appMemory?.memory?.[_t] || [])) {
+          if (_item.isNew) { _item.isNew = false; _anyNew = true; }
         }
-        if (_anyNew) _saveMemory();
-        memoryView?.begin();
-        _patternsOpen = false;
-        _knownWaitingOpen = false;
-        renderMemoryPanel();
       }
+      if (_anyNew) _saveMemory();
+      memoryView?.begin();
+      _patternsOpen = false;
+      _knownWaitingOpen = false;
+      renderMemoryPanel();
+      document.getElementById('memoryTitle')?.focus({ preventScroll: true });
+      Today.use('connections').syncActiveButtons();
     }
 
     let memoryView=null, viewLoading=null;
@@ -90,15 +84,15 @@
       return viewLoading;
     }
     function renderMemoryPanel(){
-      if(memoryView){$.memoryPanel.removeAttribute('aria-busy');memoryView.render(viewOptions());return;}
-      if(!$.memoryPanel.classList.contains('open'))return;
-      $.memoryPanel.setAttribute('aria-busy','true');
-      const target=document.getElementById('memoryContent');target.textContent='Opening Memory…';
-      prepareMemory().then(()=>{$.memoryPanel.removeAttribute('aria-busy');if($.memoryPanel.classList.contains('open'))memoryView.render(viewOptions());}).catch(()=>{if($.memoryPanel.classList.contains('exploration-active'))return;$.memoryPanel.removeAttribute('aria-busy');target.textContent='Memory could not open. Try again.';});
+      const sb = Today.use('sidebar');
+      if(memoryView){memoryView.render(viewOptions());return;}
+      if(!sb.isOpen('memory'))return;
+      const target=document.getElementById('memoryContent');if(target)target.textContent='Opening Memory…';
+      prepareMemory().then(()=>{if(sb.isOpen('memory'))memoryView.render(viewOptions());}).catch(()=>{if(sb.isOpen('explore'))return;if(target)target.textContent='Memory could not open. Try again.';});
     }
 
     function _memoryGoToConnections() {
-      $.memoryPanel.classList.remove('open');
+      Today.use('sidebar').close();
       Today.use('connections').syncActiveButtons();
       if (!$.configPanel.classList.contains('open')) Today.use('connections').toggleConfig();
     }
@@ -535,20 +529,28 @@
       });
       Today.ui.register('click', 'memory.hypothesis-reject', (e, el) => _memoryRejectHypothesis(el && el.dataset.hypothesis));
       Today.ui.register('click', 'memory.item-revoke', (e, el) => _memoryItemRevoke(el && el.dataset.revokeKey));
+      Today.use('sidebar').register('memory', {
+        mount: _mountMemory,
+        unmount() { Today.use('connections').syncActiveButtons(); },
+        label: 'Memory', icon: '✦︎', order: 2,
+      });
       Today.ui.register('click', 'memory.toggle', toggleMemory);
       Today.ui.register('click', 'memory.connections', _memoryGoToConnections);
       Today.ui.register('click', 'memory.clear-request', _memoryClearRequest);
       Today.ui.register('click', 'memory.clear-cancel', _memoryClearCancel);
       Today.ui.register('click', 'memory.clear-confirm', _memoryClearConfirm);
 
-      // Touch-tap to reveal dismiss / not-me buttons on non-hover (mobile) devices
-      document.getElementById('memoryContent')?.addEventListener('click', e => {
+      // Touch-tap to reveal dismiss / not-me buttons on non-hover (mobile) devices.
+      // Uses delegation from document since #memoryContent lives inside the sidebar (not present at load).
+      document.addEventListener('click', e => {
         if (!window.matchMedia('(hover: none)').matches) return;
+        const content = document.getElementById('memoryContent');
+        if (!content || !content.contains(e.target)) return;
         const item = e.target.closest('.memory-item');
         if (!item) return;
         if (e.target.closest('[data-today-click="memory.item-revoke"],[data-today-click="memory.hypothesis-reject"]')) return;
         const wasActive = item.classList.contains('memory-item--active');
-        document.querySelectorAll('#memoryContent .memory-item--active').forEach(el => el.classList.remove('memory-item--active'));
+        content.querySelectorAll('.memory-item--active').forEach(el => el.classList.remove('memory-item--active'));
         if (!wasActive) item.classList.add('memory-item--active');
       }, true);
     }

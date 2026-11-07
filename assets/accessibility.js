@@ -193,10 +193,10 @@
       document.addEventListener('keydown', _desktopShortcuts);
     }
 
-    _a11ySetDisclosure('habitsBtn', 'habitsPanel', false);
-    _a11ySetDisclosure('trelloBtn', 'configPanel', false);
-    _a11ySetDisclosure('infoBtn', 'infoPanel', false);
-    _a11ySetDisclosure('todayLogo', 'memoryPanel', false);
+    _a11ySetDisclosure('habitsBtn', null, false);
+    _a11ySetDisclosure('trelloBtn', null, false);
+    _a11ySetDisclosure('infoBtn',   null, false);
+    _a11ySetDisclosure('todayLogo', null, false);
   };
 
   window._a11yAnnounce = _a11yAnnounce;

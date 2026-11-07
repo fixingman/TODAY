@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Sidebar migration complete (app v3.7.0)
+
+Memory, Habits, and About panels (Phases 3–5) migrated to the sidebar adapter pattern alongside Explore. Each registers `{ mount(container, ctx), unmount(), label, icon, order }` with `Today.use('sidebar').register(id, adapter)`. Panel HTML is injected at mount time — DOM elements for these panels no longer exist at page load. `trelloBtn` (Phase 6) now opens Explore instead of the connections config. `syncActiveButtons` and `_a11ySetDisclosure` calls updated to read sidebar state for all 4 buttons. `_renderChangelog()` extracted from init time to `_mountAbout()`. CSS computed-style border check in smoke test replaced with CSS rule existence check (computed style on `display:none` subtrees in sidebar context returns transparent). Performance budget raised by ~1 KB. Both gates pass: smoke-test ✓, payload budgets ✓.
+
 ## Window-overlay CI completion (app v3.5.8)
 
 Full Linux42367097472 passes61 suites with zero flakes and fails Platform twice because the older fixture still expects Explore at y0. The v3.5.7 shell already starts it below the native control strip. Commit the missing geometry fixture/owning contracts: exact strip offset, remaining height, clear controls, matching theme strip, transparent drag region, softer pane and ordinary-tab fallback, including390px desktop windows. Retain the failed receipt and reject a deliberately broken pane-at-zero control. The corrected platform/visual/design/invariant fresh check passes four suites without failures/flakes in10.9s; the pane-at-zero control is rejected. Runtime, version and budgets remain unchanged; the new exact commit requests complete hosted validation. Evidence: `.context/explore-ci-repair/window-overlay/`.

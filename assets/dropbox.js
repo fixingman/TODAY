@@ -1250,8 +1250,7 @@
       localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
       localStorage.setItem('today_deleted_habit_ids', JSON.stringify([...mergedDeletedHabitIds].slice(-200)));
 
-      const habitsPanel = document.getElementById('habitsPanel');
-      if (habitsPanel && habitsPanel.classList.contains('open')) Today.use('habits').renderHabits();
+      if (Today.use('sidebar').isOpen('habits')) Today.use('habits').renderHabits();
 
       // Trello order: newer reorder wins
       // Trello order: adopt remote only if it reordered more recently, or to bootstrap an empty
@@ -1497,7 +1496,7 @@
         localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
         localStorage.setItem('stat_focus_mins_date', _getAppDay());
         _changed = true;
-        if ($.infoPanel && $.infoPanel.classList.contains('open')) Today.use('about').renderInfoStats();
+        if (Today.use('sidebar').isOpen('about')) Today.use('about').renderInfoStats();
       }
       if (mergedStreak !== localStreak || mergedStreakDate !== localStreakDate) {
         localStorage.setItem('stat_streak', String(mergedStreak));
@@ -1658,7 +1657,7 @@
         localStorage.setItem(_aiNudgeKey, data.day_nudge_ai);
         if (typeof checkDayNudge === 'function') checkDayNudge();
         // About's Today block shows this line — refresh live if the panel is open
-        if ($.infoPanel && $.infoPanel.classList.contains('open')) Today.use('about').renderInfoStats();
+        if (Today.use('sidebar').isOpen('about')) Today.use('about').renderInfoStats();
       }
       // Sunday reflection / Monday intention: remote always wins, same reasoning as
       // day_nudge_ai — one device's generated text becomes the day's text everywhere
@@ -1689,7 +1688,7 @@
         _aiSurfaceSet('week_theme_ai', data.week_theme_ai);
         _weekBlockSynced = true;
       }
-      if (_weekBlockSynced && $.infoPanel && $.infoPanel.classList.contains('open')) Today.use('about').renderInfoStats();
+      if (_weekBlockSynced && Today.use('sidebar').isOpen('about')) Today.use('about').renderInfoStats();
 
       // Full re-render if tasks were added or removed — surgical patch is not enough
       if (_changed) {
@@ -1853,8 +1852,7 @@
             localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
             localStorage.setItem('today_habit_events',      JSON.stringify(habitEvents));
             localStorage.setItem('today_deleted_habit_ids', JSON.stringify(Array.isArray(data.deleted_habit_ids) ? data.deleted_habit_ids : []));
-            const habitsPanel = document.getElementById('habitsPanel');
-            if (habitsPanel && habitsPanel.classList.contains('open')) Today.use('habits').renderHabits();
+            if (Today.use('sidebar').isOpen('habits')) Today.use('habits').renderHabits();
           }
           // Restore zones — SOON and PAST (v5.0)
           if (Array.isArray(data.soon_tasks)) {

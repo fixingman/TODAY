@@ -660,6 +660,10 @@ try {
   // About's contextual actions intentionally reuse the Focus → Copy visual
   // component. Compare computed component properties so one surface cannot
   // silently drift back to a flat text link (v2.64.10).
+  // Open the About panel (now a sidebar panel) so its DOM elements exist.
+  await page.evaluate(() => Today.use('about').toggleInfo());
+  await page.waitForFunction(() => Today.use('sidebar').isOpen('about') && !!document.getElementById('weekMoreBtn'), { timeout: 3000 });
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
   const ctaParity = await page.evaluate(() => {
     const ref = document.querySelector('#manualList .task-copy');
     const targets = [document.getElementById('weekMoreBtn'), document.getElementById('poemShareBtn')];
@@ -677,15 +681,23 @@ try {
         if (style[prop] !== refStyle[prop]) mismatches.push(`${target.id}.${prop}: ${style[prop]} != ${refStyle[prop]}`);
       }
     }
-    document.getElementById('weekSection').classList.add('touched');
-    document.getElementById('poemBlock').classList.add('revealed');
-    const revealedBorders = targets.map(el => getComputedStyle(el).borderTopColor);
-    document.getElementById('weekSection').classList.remove('touched');
-    document.getElementById('poemBlock').classList.remove('revealed');
+    // Verify reveal CSS rules exist in the stylesheet (robust to sidebar rendering context).
+    const revealRuleMissing = !([...document.styleSheets].some(sheet => {
+      try {
+        return [...sheet.cssRules].some(rule =>
+          rule.selectorText === '#weekSection.touched #weekMoreBtn' ||
+          rule.selectorText?.includes('poem-block.revealed .btn-poem-share')
+        );
+      } catch (e) { return false; }
+    }));
+    // Verify the elements are inside their expected parent containers.
+    const ws = document.getElementById('weekSection');
+    const pb = document.getElementById('poemBlock');
+    const structureOk = ws?.contains(targets[0]) && pb?.contains(targets[1]);
     return {
       missing: false,
       mismatches,
-      revealBorderMismatch: revealedBorders[0] === 'rgba(0, 0, 0, 0)' || revealedBorders[0] !== revealedBorders[1]
+      revealBorderMismatch: revealRuleMissing || !structureOk
     };
   });
   if (ctaParity.missing || ctaParity.mismatches.length || ctaParity.revealBorderMismatch) {

@@ -4421,7 +4421,7 @@
       </div>
       <div class="header-actions">
         <button class="btn-icon" id="habitsBtn" type="button" aria-label="Open habits" aria-controls="habitsPanel" aria-expanded="false" data-today-click="habits.toggle">◎&#xFE0E;</button>
-        <button class="btn-icon" id="trelloBtn" type="button" aria-label="Open connections" aria-controls="configPanel" aria-expanded="false" data-today-click="connections.toggle">✧</button>
+        <button class="btn-icon" id="trelloBtn" type="button" aria-label="Open Explore" aria-controls="sidebarRoot" aria-expanded="false" data-today-click="exploration.open">✧</button>
         <button class="btn-icon" id="infoBtn" type="button" aria-label="Open about" aria-controls="infoPanel" aria-expanded="false" data-today-click="about.toggle">ℹ&#xFE0E;</button>
       </div>
     </div>
@@ -4442,24 +4442,7 @@
 <div class="app" id="main-app" role="main" tabindex="-1" style="opacity:0">
 
   <!-- Habits panel -->
-  <section class="config-panel" id="habitsPanel" aria-labelledby="habitsTitle" hidden>
-    <div class="config-title-row">
-      <h2 class="config-title" id="habitsTitle">◎ Habits</h2>
-      <div class="habit-countdown" id="habitCountdown" style="display:none"></div>
-    </div>
-    <div class="habit-list" id="habitList" role="list" aria-label="Habits"></div>
-    <div class="habit-empty" id="habitEmpty">No habits yet</div>
-    <div class="habit-add-row" id="habitAddRow">
-      <label class="visually-hidden" for="habitInput">Habit name</label>
-      <input class="habit-input" id="habitInput" type="text" autocomplete="off" maxlength="100"
-        placeholder="Name the habit…" data-today-keydown="habits.input-key">
-      <button class="habit-add-btn" data-today-click="habits.add">Add</button>
-    </div>
-    <div class="config-actions">
-      <button class="btn-ghost" id="habitNewBtn" data-today-click="habits.new">New habit</button>
-      <button class="btn-ghost" id="habitEditBtn" data-today-click="habits.edit" style="display:none">Edit</button>
-    </div>
-  </section>
+  <section class="config-panel" id="habitsPanel" hidden></section>
 
   <!-- Trello config panel -->
   <section class="config-panel" id="configPanel" aria-labelledby="connectionsTitle" hidden>
@@ -4499,59 +4482,10 @@
   </section>
 
   <!-- Info panel -->
-  <section class="config-panel" id="infoPanel" aria-labelledby="aboutTitle" hidden>
-    <h2 class="config-title" id="aboutTitle">ℹ&#xFE0E; About</h2>
-
-    <div id="sundayBlock" style="display:none"></div>
-    <!-- Day's nudge line, quiet second home after the morning strip is dismissed (v2.33.0) -->
-    <div id="todayNudgeBlock" style="display:none"></div>
-    <div id="noticedBlock" style="display:none"></div>
-    <div id="infoStats"></div>
-
-    <div class="panel-section" id="weekSection" style="display:none">
-      <div class="config-label">This week</div>
-      <button id="weekMoreBtn" class="copy-cta" data-today-click="memory.toggle" aria-label="Open memory">see more</button>
-      <div id="weekGrid"></div>
-    </div>
-
-    <div class="panel-section">
-      <div class="config-label">Read me</div>
-      <div class="panel-haiku">
-        <button type="button" class="poem-block" id="poemBlock" aria-label="Share today's poem"
-             data-today-click="about.poem">
-          <div id="dailyPoem">
-            Only today shows<br>
-            Done rests, quietly proud<br>
-            Morning clears the slate
-          </div>
-          <span id="poemShareBtn" class="btn-poem-share copy-cta" aria-hidden="true">share</span>
-        </button>
-        <button id="installBtn" class="btn-install" style="display:none;margin-top:var(--space-3)" data-today-click="platform.install">
-          <span class="install-icon">⬇&#xFE0E;</span> Install app
-        </button>
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <div class="config-label">Changelog</div>
-      <div id="changelogPanel"></div>
-    </div>
-
-    <div class="panel-section panel-section--flush">
-      <a id="coffeeBtn" href="https://buymeacoffee.com/today.here" target="_blank" rel="noopener" class="btn-coffee">☕ Buy me a coffee</a>
-      <div id="devHours" class="dev-hours" title="Hours spent building this with Claude">
-        <span class="dev-hours-val"></span>
-      </div>
-    </div>
-  </section>
+  <section class="config-panel" id="infoPanel" hidden></section>
 
   <!-- Memory prepares code/styles ahead; private documents refresh only on a visit. -->
-  <section class="config-panel" id="memoryPanel" aria-labelledby="memoryTitle" hidden>
-    <div class="config-title-row" id="memoryTitleRow"><h2 class="config-title" id="memoryTitle">✦&#xFE0E; Memory</h2></div>
-
-    <div id="memoryContent"></div>
-    <div id="memoryFooter"></div>
-  </section>
+  <section class="config-panel" id="memoryPanel" hidden></section>
 
   <!-- SOON section (collapsed by default) -->
   <div class="section zone-section" id="soonSection" style="display:none">
@@ -4783,9 +4717,9 @@ const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.7.0': 'Memory, Habits, and About now open in the sidebar alongside Explore — one consistent panel across the whole app.',
   '3.6.1': 'Explore fills the desktop window to the top again. Focus keeps offscreen chrome out of its blur.',
   '3.6.0': 'Explore opens in a sidebar that will also host Memory, Habits, and About — one consistent panel across the app.',
-  '3.5.8': 'Explore keeps desktop typing focus while replying, without reopening the phone keyboard.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.
