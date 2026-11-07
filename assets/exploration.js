@@ -212,21 +212,22 @@
   const chevron = d => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="${d}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   function controls() {
     const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
-    const pages=[['conversation','Chat'],['notes','Living note'],['history','Earlier'],['sources','Sources']];
-    const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label])=>action(page,label,`data-ex-nav="true" ${page==='notes'?'id="exNotes" ':''}${view===page?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
+    const chatIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M3 1h9a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 3V2a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+    const pages=[['conversation',chatIcon,'Chat'],['notes','Living note'],['history','Earlier'],['sources','Sources']];
+    const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label,ariaL])=>action(page,label,`data-ex-nav="true" ${ariaL?`aria-label="${ariaL}" `:''}${page==='notes'?'id="exNotes" ':''}${view===page||(page==='history'&&view==='original-history')?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
     return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${nav}`;
   }
   function backLink() {
     const parent=trail.at(-1)?.view;
-    const label=parent==='notes'?'living note':parent==='document'?'your document':'conversation';
+    const label=parent==='notes'?'living note':parent==='document'?'your document':parent==='history'?'earlier conversation':'conversation';
     return action('back',`<span aria-hidden="true">‹ </span>${label}`,`aria-label="Back to ${label}"`,'memory-item-btn ex-subnav');
   }
   function notice() {
     const text = message === 'Kept in your Dropbox' ? '' : message || (!doc && busy ? 'Opening your exploration…' : '');
     return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p>${text && !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : ''}</div>`;
   }
-  function turnsHTML(entries,reading) {
-    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source ex-speaker-you">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && core.supportedReading(doc,entry,liveSources) ? `<div class="ex-turn" data-ex-reading="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
+  function turnsHTML(entries,reading,saved=false) {
+    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source ex-speaker-you">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && (saved||core.supportedReading(doc,entry,liveSources)) ? `<div class="ex-turn" ${saved?'data-ex-saved-reading':'data-ex-reading'}="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
   }
   function readingExplanation() {
     const state=core.readingStatus(doc,core.latest(doc),liveSources);
@@ -238,13 +239,13 @@
       'source-left-out':'You left out a record used in the earlier interpretation, so it is hidden. Your notes are still saved.',
       'note-left-out':'You changed which notes this exploration can use, so its earlier interpretation is hidden. Your notes are still saved.',
       'source-changed':source+' used in the earlier interpretation has changed. Continue the conversation for a new interpretation.',
-      'source-unavailable':source+' used in the earlier interpretation is unavailable. Your notes are still saved.'
+      'source-unavailable':'Some context behind an earlier reply is unavailable. Your conversation is still saved.'
     };
     return explanations[state.reason]||'';
   }
   function readingNotice(reading) {
     const text=!reading&&readingExplanation();
-    return text?`<p class="ex-muted" id="exReadingNotice">${h(text)}</p>`:'';
+    return text?`<p class="ex-muted" id="exReadingNotice">${h(text)}</p><div class="ex-links">${action('original-history','read saved conversation')}</div>`:'';
   }
   const title=(text,id='exViewTitle')=>`<h3 id="${id}" tabindex="-1">${h(text)}</h3>`;
   function conversationHTML(reading,disabled) {
@@ -298,7 +299,12 @@
     if(view==='privacy')return privacyHTML(disabled);
     if(view==='record')return title('Markdown')+`<pre>${h(core.stringify(doc))}</pre>${action('export','export document')}`;
     if(view==='import')return title('Earlier notes')+`<p>Add a Markdown journal or checkpoint to this exploration. Your existing notes stay. Nothing is sent to AI by importing.</p><label class="memory-item-btn ex-file">choose a document<input type="file" accept=".md,.txt,text/plain,text/markdown" data-today-change="exploration.checkpoint" ${disabled}></label>`;
-    if(view==='history')return title('Earlier conversation')+turnsHTML(doc.entries.filter(entry=>['observation','reading'].includes(entry.kind)).slice(-historyWindow),reading)+(doc.entries.filter(entry=>['observation','reading'].includes(entry.kind)).length>historyWindow?action('more-history','show earlier conversation'):'');
+    if(view==='history'||view==='original-history') {
+      const all=doc.entries.filter(entry=>['observation','reading'].includes(entry.kind)),saved=view==='original-history';
+      const hidden=all.some(entry=>entry.kind==='reading'&&!core.supportedReading(doc,entry,liveSources));
+      const explanation=saved?'<p class="ex-muted" id="exHistoryNotice">Saved history only. Replies may rely on information that has changed or been removed; reading them here does not restore them as current understanding.</p>':hidden?`<p class="ex-muted">Some saved AI replies cannot support the current conversation.</p><div class="ex-links">${action('original-history','read saved conversation')}</div>`:'';
+      return title(saved?'Saved conversation':'Earlier conversation')+explanation+turnsHTML(all.slice(-historyWindow),reading,saved)+(all.length>historyWindow?action('more-history','show earlier conversation'):'');
+    }
     if(view==='correct')return title('Your wording')+`<label for="exCorrection">How would you put it?</label><textarea id="exCorrection" rows="5" maxlength="8000" data-today-input="exploration.correction">${h(correctionText)}</textarea><p class="ex-muted">Your correction stays alongside the earlier version. It does not verify an explanation.</p>${reading?.id===correctionTarget?action('amend','keep correction',disabled):'<p>The supporting reading changed. Your wording is still here; return to the note to review it.</p>'}${action('cancel-correction','cancel')}`;
     return '';
   }
@@ -480,7 +486,7 @@
     async 'today-toggle'(){abortAI();const policy=doc.today_context||{enabled:false,excluded:[]};const next={...doc,schema_version:3,revision:doc.revision+1,updated_at:now(),today_context:{enabled:!policy.enabled,epoch:id(),excluded:policy.excluded,included:policy.included||[]}};if(await commit(next)){await refreshSources(false);render();}},
     async 'today-pin'(button){abortAI();const source=liveSources.find(row=>row.id===button.dataset.todaySourceId&&row.selectable!==false),policy=doc.today_context;if(!source||!policy)return;const ids=[...new Set([...(policy.included||[]).filter(id=>liveSources.some(row=>row.id===id&&row.selectable!==false)),source.id])];if(ids.length>8||ids.filter(id=>liveSources.find(row=>row.id===id)?.evidence_kind==='AI interpretation').length>2)return status('Choose up to eight records, including at most two AI readings. Leave one out to make room.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),included:ids,excluded:policy.excluded.filter(id=>id!==source.id)}}))render();},
     async 'today-source'(button){abortAI();const target=button.dataset.todaySourceId,policy=doc.today_context;if(!policy||!liveSources.some(source=>source.id===target))return;const excluded=policy.excluded.includes(target)?policy.excluded.filter(value=>value!==target):[...policy.excluded,target];if(excluded.length>96)return status('Disconnect TODAY context to clear all its influence.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),excluded,included:(policy.included||[]).filter(id=>id!==target)}}))render();},
-    back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'more-history'(){historyWindow+=24;render();},
+    back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'original-history'(){go('original-history');}, 'more-history'(){historyWindow+=24;render();},
     'more-sources'(){sourceWindow+=50;render();},
     connections(){hide();host.connections();}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
@@ -521,7 +527,7 @@
     if(!retained||busy||pendingReading||retained.reading.id!==button.dataset.stepId)return;
     if(await commit(core.append(doc,row('step','',{target:retained.reading.id,decision}))))render();
   }
-  Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(button.dataset.exNav){navigation++;view=button.dataset.exAction;trail=view==='conversation'?[]:[{view:'conversation',scroll:0}];confirmForget=false;render();byId('exViewTitle')?.focus({preventScroll:true});return;}if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
+  Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(button.dataset.exNav){navigation++;view=button.dataset.exAction;trail=view==='conversation'?[]:[{view:'conversation',scroll:0}];confirmForget=false;render();root?.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');byId('exViewTitle')?.focus({preventScroll:true});return;}if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
   Today.ui.register('input','exploration.draft',(_event,input)=>{fitInput(input);promptFor(input.value);draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
   Today.ui.register('input','exploration.correction',(_event,input)=>{correctionText=input.value;});
   Today.ui.register('input','exploration.question',(_event,input)=>{fitInput(input);promptFor(input.value);setupQuestion=input.value;});
