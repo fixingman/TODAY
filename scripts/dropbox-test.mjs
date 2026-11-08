@@ -77,7 +77,10 @@ async function openPage(extraSeed, owner = browser) {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof dropboxBackup === 'function' && typeof mergeRemoteData === 'function' && typeof _doneTodayCount === 'function',
+    // Exported functions precede the deferred startup pull/cleanup. Settle that
+    // boundary before scenarios install credentials and per-request responses.
+    () => typeof dropboxBackup === 'function' && typeof mergeRemoteData === 'function'
+      && typeof _doneTodayCount === 'function' && Today.use('nudge').memoryReady(),
     { timeout: 15000 }
   );
   await page.evaluate(() => {

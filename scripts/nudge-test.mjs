@@ -91,12 +91,15 @@ async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false, cont
     { today: TODAY, extra: extraSeed || null, hour: hourOverride, skipDismiss }
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+  // Exported callers exist before deferred sync marks observation memory ready.
+  // These scenarios start after boot; cold-start policy has dedicated coverage.
   await page.waitForFunction(
     () => typeof checkDayNudge === 'function' &&
           typeof checkVersionNudge === 'function' &&
           typeof checkSundayNudge === 'function' &&
           typeof checkHabitNudge === 'function' &&
-          !!document.getElementById('dayNudge'),
+          !!document.getElementById('dayNudge') &&
+          Today.use('nudge').memoryReady(),
     { timeout: 15000 }
   );
   await page.evaluate(() => {
@@ -1002,7 +1005,7 @@ try {
         const first = Today.use('nudge').generationAudit();
         Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true });
         window.dispatchEvent(new Event('online'));
-        await new Promise(r => setTimeout(r, 50));
+        await window.__nudgeTestWait(() => Today.use('nudge').generationAudit().status === 'accepted', 'reconnect accepted');
         return { offlineVisible: first.status === 'offline', noWastedBudget: first.attempts === 0,
           recovered: calls === 1 && Today.use('nudge').generationAudit().status === 'accepted' };
       });

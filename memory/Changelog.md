@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Sidebar fixture startup readiness (engineering, app v3.7.2)
+
+Full dev42429152253 passes61 suites, with Dropbox and nudge passing only on diagnostic retry. Preserve the failed evidence in `.context/sidebar-completion/dev-372-failed-evidence/`. Their fixtures waited for exported functions while deferred startup could still be pending: a late startup pull consumed the download-recovery response, and offline preflight ran before observation memory was ready. A controlled120ms held startup reproduces both original failures and verifies the readiness guard (`.context/sidebar-completion/boot-race-control.json`). Wait for actual memory readiness inside the existing15s preparation bound; reconnect waits for accepted state with the existing5s helper instead of a50ms sleep. All assertions, runtime, budgets, baselines and app/SW version remain unchanged. Four fresh suites pass without failures/flakes in55.8s (`.context/fresh-QXwvgE/receipt.json`); exact-SHA full hosted proof remains required.
+
 ## Sidebar migration complete (app v3.7.0)
 
 Memory, Habits, and About panels (Phases 3–5) migrated to the sidebar adapter pattern alongside Explore. Each registers `{ mount(container, ctx), unmount(), label, icon, order }` with `Today.use('sidebar').register(id, adapter)`. Panel HTML is injected at mount time — DOM elements for these panels no longer exist at page load. `trelloBtn` (Phase 6) now opens Explore instead of the connections config. `syncActiveButtons` and `_a11ySetDisclosure` calls updated to read sidebar state for all 4 buttons. `_renderChangelog()` extracted from init time to `_mountAbout()`. CSS computed-style border check in smoke test replaced with CSS rule existence check (computed style on `display:none` subtrees in sidebar context returns transparent). Performance budget raised by ~1 KB. Both gates pass: smoke-test ✓, payload budgets ✓.

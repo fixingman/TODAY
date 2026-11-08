@@ -59,6 +59,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 **Hosted follow-up (v3.7.2):** dev42428237403 passes62/63 suites without flakes; Dreambank core unit boot exposes an unguarded document listener. Guard registration with the existing sidebar-root check; browser cleanup remains immediate. Retain the failed artifact and original logs. Six final fresh checks pass without failures/flakes in19.7s (`.context/fresh-cdKU3O/receipt.json`); exact-candidate full hosted proof remains required.
 
+**Fixture follow-up:** dev42429152253 fixes Dreambank but retains two first-attempt failures (Dropbox/nudge, diagnostic retries pass). A held-startup control proves both tests were racing deferred boot. Wait for readiness before scripted recovery and actual accepted state after reconnect. Four fresh suites pass without failures/flakes; app behavior/version and acceptance limits remain unchanged. Evidence and procedures are recorded once in the technical Changelog and ignored publication receipt.
+
 **Verification:** the final fresh snapshot passes26 suites with zero failures/flakes in204.9s (`.context/fresh-1C9alf/receipt.json`). Source fingerprints match. Earlier failed receipts remain retained. Full hosted validation is requested for the exact published candidate. New actual-panel regression covers desktop/phone/narrow widths, named modal state, navigation visibility, close hit targets, focus restoration and rapid reopen. Installed Chromium window paint, the original offscreen-logo report and live-account/AI-writing acceptance remain separate.
 
 ---
