@@ -857,7 +857,6 @@
       Today.ui.register('change', 'connections.board-change', onBoardChange);
       Today.ui.register('click', 'connections.trello-save-load', saveAndLoad);
       Today.ui.register('click', 'connections.dropbox-auth', dropboxAuth);
-      Today.ui.register('click', 'connections.dropbox-backup', () => dropboxBackup());
       Today.ui.register('click', 'connections.dropbox-restore', dropboxRestore);
       Today.ui.register('click', 'connections.dropbox-disconnect', dropboxDisconnect);
       Today.ui.register('click', 'connections.gmail-auth', gmailAuth);
