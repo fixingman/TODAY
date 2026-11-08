@@ -26,6 +26,16 @@ Without `--run`, preflight inspects the current successful dev runs for that SHA
 
 Promotion remains an explicitly authorized action outside the helper. Immediately before an authorized identical-SHA fast-forward push, run preflight again. Dev must still point to the candidate, master must remain unchanged during verification, and master must be an ancestor. A merge, squash, rebase, metadata follow-up or other new SHA needs its own evidence. Never force master to fit an old proof.
 
+## Parallel execution (November 8)
+
+The existing change planner and full-release policy still choose the checks. The `plan` job checks payload before dependency/browser setup and assigns the selected inventory to at most three balanced functional jobs, each on its own pinned Ubuntu runner. Small selections use one or two jobs. Weights affect scheduling only; unknown/shared changes retain the full fallback. The five-run performance gate has its own runner, with the original profile/budgets, and can overlap functional work without CPU contention on either runner.
+
+The always-running `test` job remains the final gate. `ci-shards.mjs` checks the canonical plan, every suite exactly once, original first-attempt outcomes, candidate SHA, workflow/run attempt, environment and unchanged input fingerprints before combining reports. It keeps each shard's original summary and raw logs. Missing/duplicate/failed/flaky/changed results or artifact collisions fail the merge and final gate. The existing release-evidence verifier still requires the complete inventory and all five passing performance runs for the exact candidate. Selected-only success cannot approve master.
+
+Verified master reuse skips the functional and performance jobs entirely and retains cheap invariants. Never combine jobs from different workflow attempts: use **Re-run all jobs** after a failed run. Old or partial artifacts do not supply approval. Evidence/artifact names include both run and attempt; the final proof artifact name and verifier contract stay unchanged.
+
+Baseline: dev42528361401 spent555.1 seconds in sequential functional checks and about14 seconds in checkout/setup. Three balanced workers target roughly three to four minutes of functional wall time plus queue/setup/aggregation; this is an estimate until the first successful hosted run. This changes latency, not required coverage; total runner minutes may rise slightly because of extra setup. Implementation and local fixtures are not hosted release proof. GitHub's [matrix execution](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations) and [artifact transport](https://github.com/actions/download-artifact) document the scheduling mechanism.
+
 ## Evidence contract
 
 The existing `test` workflow writes `.context/release-evidence.json` after all required checks succeed. It retains the original full logs/performance JSON and a compact proof in `ci-evidence-RUN_ID-ATTEMPT` for 30 days. PR and master runs cannot become dev promotion evidence.

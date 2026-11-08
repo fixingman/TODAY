@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { SUITE, GROUPS, DOC_BASE } from './ci-policy.mjs';
-import { auditPolicy, auditConsumers, trackedPaths, metadata, planChanges, collectChanges, createRepoPlan } from './ci-plan.mjs';
+import { auditPolicy, auditConsumers, trackedPaths, classifyPath, metadata, planChanges, collectChanges, createRepoPlan } from './ci-plan.mjs';
 import { executionPolicy } from './ci-execution.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 assert.deepEqual(auditPolicy(trackedPaths(ROOT)), [], 'every tracked path and suite has a reviewed classification');
@@ -13,6 +13,8 @@ assert.deepEqual(auditPolicy(), []);
 execFileSync(process.execPath, ['--input-type=module', '-'], { input: `await import(${JSON.stringify(new URL('./ci-plan.mjs', import.meta.url).href)}); await import(${JSON.stringify(new URL('./ci-execution.mjs', import.meta.url).href)});`, stdio: ['pipe', 'pipe', 'pipe'] });
 assert.deepEqual(auditConsumers(ROOT), [], 'every literal module consumer has reviewed suite coverage');
 const change = path => ({ path });
+assert.equal(classifyPath('output/habits-layout/hybrid.html').kind,'prototype');
+assert.equal(planChanges([{path:'output/habits-layout/hybrid.html'}]).docsOnly,true);
 for (const group of Object.values(GROUPS)) for (const path of group.files) {
   const plan = planChanges([change(path)]);
   for (const suite of group.suites) assert.ok(plan.suites.includes(suite), path + ': own suite ' + suite);

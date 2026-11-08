@@ -1,4 +1,4 @@
-import { installFixtureClock } from './browser-fixture.mjs';
+import { installFixtureClock, waitForFonts } from './browser-fixture.mjs';
 // TODAY — Habits regression test
 //
 // Full flow invariant suite: 3am rollover, render, toggleHabitDone check/uncheck,
@@ -10,7 +10,7 @@ import { installFixtureClock } from './browser-fixture.mjs';
 //   node scripts/habits-test.mjs
 
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -35,7 +35,7 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(404); res.end(); }
 });
 await new Promise(resolve => server.listen(0, resolve));
-const URL_BASE = `http://localhost:${server.address().port}`;
+const URL_BASE = `http://127.0.0.1:${server.address().port}`;
 
 let browser;
 const ok = message => console.log('  ✓ ' + message);
@@ -93,7 +93,7 @@ async function openPage() {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof Today?.use('habits')._saveHabits === 'function',
+    () => !document.body.hasAttribute('data-booting') && performance.getEntriesByName('today:interactive').length > 0 && typeof Today?.use('habits')._saveHabits === 'function',
     { timeout: 15000 }
   );
   await page.evaluate(()=>Today.use('sidebar').open('habits'));
@@ -351,6 +351,129 @@ try {
     await expectAll('focus integration', { ...result, noErrors: errors.length === 0 });
     ok('focus integration: window._focusOnCheck called with habit ID on check');
     await page.close();
+  }
+
+  // Desktop history uses the actual mounted sidebar, not an isolated CSS mock.
+  {
+    const { page, errors } = await openPage();
+    await waitForFonts(page);
+    const shots = join(ROOT,'.context/ci-test-results/habits-layout');
+    await mkdir(shots,{recursive:true});
+    await page.evaluate(() => {
+      const day = ago => { const d = _habitNow(); d.setDate(d.getDate()-ago); return _localISO(d); };
+      habitsList = [
+        {id:'habit_old',name:'Practice piano without distractions and read a few pages before bed',created_at:day(89),focusSessions:3},
+        {id:'habit_short',name:'Walk outside after lunch',created_at:day(7)},
+        {id:'habit_legacy',name:'Read for twenty minutes',created_at:'invalid'},
+        {id:'habit_unknown',name:'A habit without an earlier recorded date'}
+      ];
+      habitCompletions = {
+        habit_old: Array.from({length:90},(_,i)=>day(i)).filter((_,i)=>i%3),
+        habit_short:[day(7),day(1)],habit_legacy:[day(40)],habit_unknown:[]
+      };
+      window.__layoutStrength = habitsList.map(h=>Today.use('habits')._getHabitStrength(h.id));
+      Today.use('habits').renderHabits();
+    });
+    async function settled(width) {
+      await page.setViewport({width,height:900});
+      await page.waitForFunction(() => [...document.querySelectorAll('#habitList .habit')].every(row=>{
+        const history=row.querySelector('.habit-history'),end=history.lastElementChild;
+        const capacity=Math.max(1,Math.floor((history.clientWidth-end.offsetWidth-8+5)/10));
+        const available={habit_old:90,habit_short:8,habit_legacy:41,habit_unknown:1}[row.dataset.habitId];
+        const expected=innerWidth>600?Math.min(capacity,available):21;
+        const last=row.querySelector('.week-dot:last-child').getBoundingClientRect();
+        return row.querySelectorAll('.week-dot').length===expected&&(innerWidth<=600||Math.abs(end.getBoundingClientRect().left-last.right-8)<1);
+      }),{timeout:3000});
+    }
+    async function desktopGeometry(width, editing=false) {
+      const result=await page.evaluate(editing=>{
+        const rows=[...document.querySelectorAll('#habitList .habit')];
+        return rows.map(row=>{
+          const title=row.querySelector('.habit-body').getBoundingClientRect();
+          const rail=row.querySelector('.habit-history').getBoundingClientRect();
+          const dots=[...row.querySelectorAll('.week-dot')];
+          const first=dots[0].getBoundingClientRect(),last=dots.at(-1).getBoundingClientRect();
+          const end=row.querySelector('.habit-history').lastElementChild.getBoundingClientRect();
+          const box=row.getBoundingClientRect(),input=row.querySelector('input');
+          const short=row.dataset.habitId==='habit_short'||row.dataset.habitId==='habit_unknown';
+          return {
+            id:row.dataset.habitId,count:dots.length,actualGap:end.left-last.right,
+            aligned:Math.abs(title.left-first.left)<1,
+            below:title.bottom<first.top,
+            spacing:parseFloat(getComputedStyle(row).rowGap)===10,
+            trailing:Math.abs(end.left-last.right-8)<1,
+            fills:short||Math.abs(end.right-rail.right)<1&&Math.abs(last.right-row.querySelector('.habit-week').getBoundingClientRect().right)<1,
+            contained:rail.right<=box.right&&(!input||input.getBoundingClientRect().right<=title.right+1),
+            fading:dots.length<8||Number(dots[0].style.opacity)===.12&&dots.slice(-7).every(d=>Number(d.style.opacity)===1),
+            today:dots.at(-1).classList.contains('is-today'),
+            editState:editing===row.classList.contains('editing')
+          };
+        });
+      },editing);
+      for(const row of result) {
+        const {id,count,actualGap,...checks}=row;
+        if (!checks.trailing) await fail("percentage gap", {id,count,actualGap});
+        await expectAll('desktop habit layout '+width+' '+id,{...checks,noErrors:!errors.length});
+        if(width>=1024&&id==='habit_old'&&count<=21)await fail('full-width desktop history should show more than21 days',row);
+      }
+      return result;
+    }
+    for(const width of [1440,1024,736,601]) {
+      await settled(width);
+      await desktopGeometry(width);
+      await page.screenshot({path:join(shots,'desktop-'+width+'.png')});
+    }
+    await settled(1200);
+    await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
+    await desktopGeometry(1200,true);
+    await page.screenshot({path:join(shots,'desktop-edit.png')});
+    await page.$eval('.habit-edit-input[data-id="habit_short"]',n=>{n.value='Walk after breakfast';});
+    // Content width can change independently of the page; never rebuild the unsaved input.
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await page.evaluate(()=>document.getElementById('sidebarRoot').style.width='360px');
+    await settled(1200);await desktopGeometry(1200,true);
+    await expectAll('resize retains the edit draft',await page.$eval('.habit-edit-input[data-id="habit_short"]',n=>({draft:n.value==='Walk after breakfast'})));
+    await page.evaluate(()=>document.getElementById('sidebarRoot').style.removeProperty('width'));
+    await settled(1200);
+    await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
+    await desktopGeometry(1200);
+    await expectAll('layout preserves names, strength and order',await page.evaluate(()=>({
+      name:habitsList[1].name==='Walk after breakfast',
+      strength:JSON.stringify(habitsList.map(h=>Today.use('habits')._getHabitStrength(h.id)))===JSON.stringify(window.__layoutStrength),
+      order:[...document.querySelectorAll('#habitList .habit')].map(n=>n.dataset.habitId).join(',')==='habit_old,habit_short,habit_legacy,habit_unknown'
+    })));
+    await page.click('.habit[data-habit-id="habit_short"] .habit-check');
+    await expectAll('completion patches history and accessible summary',await page.evaluate(()=>{
+      const row=document.querySelector('[data-habit-id="habit_short"]');
+      return {done:row.classList.contains('done-today'),today:row.querySelector('.is-today').classList.contains('filled'),
+        summary:row.querySelector('.visually-hidden').textContent.startsWith('3 of the last 8 days')};
+    }));
+    // Reopening creates a new list; fitting must survive that lifecycle.
+    await page.evaluate(()=>Today.use('sidebar').open('about'));
+    await page.evaluate(()=>Today.use('sidebar').open('habits'));
+    await settled(1024);await desktopGeometry(1024);
+    await settled(736);await desktopGeometry(736);
+    for(const width of [390,320]) {
+      await settled(width);
+      await expectAll('phone history is unchanged at'+width,await page.evaluate(()=>({
+        sameStrip:[...document.querySelectorAll('#habitList .habit')].every(row=>row.querySelectorAll('.week-dot').length===21&&[...row.querySelectorAll('.week-dot')].filter(n=>getComputedStyle(n).display!=='none').length===7),
+        sameRow:getComputedStyle(document.querySelector('.habit-history')).display==='contents'
+      })));
+    }
+    // The 3am boundary also controls the last displayed dot and available-day count.
+    await page.evaluate(()=>{
+      const d=new Date();d.setHours(2,59,0,0);Date.now=()=>d.getTime();
+      Today.use('habits').renderHabits();
+    });
+    await page.setViewport({width:1200,height:900});
+    await page.waitForFunction(()=>document.querySelector('[data-habit-id="habit_short"]').querySelectorAll('.week-dot').length===7,{timeout:3000});
+    await expectAll('history stays on yesterday before3am',await page.evaluate(()=>{
+      const row=document.querySelector('[data-habit-id="habit_short"]');
+      return {sevenDays:row.querySelectorAll('.week-dot').length===7,
+        yesterdayFilled:row.querySelector('.is-today').classList.contains('filled')};
+    }));
+    await page.close();
+    ok('desktop habit layout: native sidebar geometry, stored-history capacity, fade, edit, completion, lazy remount/resize, unchanged phone strip and3am boundary');
   }
 
   // 11. Static ownership checks.

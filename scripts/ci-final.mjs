@@ -12,6 +12,7 @@ export function verifyFinal(env, receipt) {
     requireValue(env.FUNCTIONAL === 'skipped' && env.PERFORMANCE === 'skipped', 'Unexpected reused gate state');
   } else {
     requireValue(env.FUNCTIONAL === 'success', 'Functional gate did not succeed');
+    requireValue(env.SHARDED !== 'true' || env.MERGE === 'success', 'Combined functional evidence did not succeed');
     requireValue(['true', 'false'].includes(env.PERFORMANCE_REQUIRED), 'Missing performance policy');
     requireValue(env.PERFORMANCE === (env.PERFORMANCE_REQUIRED === 'true' ? 'success' : 'skipped'), 'Required performance gate did not succeed');
   }

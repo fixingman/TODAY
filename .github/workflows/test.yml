@@ -25,28 +25,28 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/dev') }}
 
+env:
+  TZ: UTC
+  LANG: en_US.UTF-8
+  CI_ROUTINE_SELECTION: 'true'
+  CI_RELEASE_REUSE: 'true'
+
 jobs:
-  test:
+  plan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      TZ: UTC
-      LANG: en_US.UTF-8
-      # Rollback switch: false restores full functional + five-run performance gates.
-      CI_ROUTINE_SELECTION: 'true'
-      # Reuse is limited to verified exact-SHA dev evidence; false restores full master gates.
-      CI_RELEASE_REUSE: 'true'
+    timeout-minutes: 5
+    outputs:
+      reuse: ${{ steps.proof.outputs.reuse }}
+      performance: ${{ steps.policy.outputs.performance }}
+      matrix: ${{ steps.shards.outputs.matrix }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
-          # Selection needs every commit in a push and the PR merge base.
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: '24.14.0'
-          cache: npm
-          cache-dependency-path: scripts/package-lock.json
       - name: Validate recorded release candidate
         run: node scripts/release-status.mjs candidate "$GITHUB_SHA"
       - name: Verify reusable dev release proof
@@ -55,38 +55,144 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/release-status.mjs reuse "$GITHUB_SHA"
+      - name: Check payload before setup or browser suites
+        run: node scripts/performance-test.mjs --payload-only
+      - name: Plan validation
+        id: policy
+        run: npm run test:policy --prefix scripts
+      - name: Partition planned suites
+        id: shards
+        run: node scripts/ci-shards.mjs plan
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .context/ci-execution.json
+            .context/ci-shard-plan.json
+            .context/release-proof-check.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  functional:
+    needs: plan
+    if: needs.plan.outputs.reuse != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: functional (${{ matrix.id }})
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.14.0'
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - uses: actions/download-artifact@v8
+        with:
+          name: ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .context
       - name: Install test dependencies
-        if: steps.proof.outputs.reuse != 'true'
         run: npm ci --prefix scripts
       - name: Install locked Chrome for Testing
-        if: steps.proof.outputs.reuse != 'true'
         run: node scripts/install-ci-browser.mjs
       - name: Allow the test browser to use its sandbox
-        if: steps.proof.outputs.reuse != 'true'
-        # Scope the Ubuntu user-namespace exception to this test binary.
         run: |
           printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile today-ci-chrome "%s" flags=(unconfined) { userns, }\n' "$CHROME_PATH" | sudo tee /etc/apparmor.d/today-ci-chrome > /dev/null
           sudo apparmor_parser -r /etc/apparmor.d/today-ci-chrome
       - name: Verify Chrome
-        if: steps.proof.outputs.reuse != 'true'
         run: |
           test -x "$CHROME_PATH"
           "$CHROME_PATH" --version
-      - name: Check payload before browser suites
-        id: payload
-        run: npm run performance --prefix scripts -- --payload-only
-      - name: Plan validation
-        id: policy
-        run: npm run test:policy --prefix scripts
-      - name: Run automated gate
-        id: functional
-        if: steps.proof.outputs.reuse != 'true'
-        # Routine dev runs select affected suites; master/release still run all.
-        run: npm run test:ci --prefix scripts
+      - name: Run planned functional shard
+        run: node scripts/ci-shards.mjs run "${{ matrix.id }}"
+      - name: Retain functional shard evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-functional-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .context/ci-test-results/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  performance:
+    needs: plan
+    if: needs.plan.outputs.performance == 'true' && needs.plan.outputs.reuse != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.14.0'
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+      - name: Install test dependencies
+        run: npm ci --prefix scripts
+      - name: Install locked Chrome for Testing
+        run: node scripts/install-ci-browser.mjs
+      - name: Allow the test browser to use its sandbox
+        run: |
+          printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile today-ci-chrome "%s" flags=(unconfined) { userns, }\n' "$CHROME_PATH" | sudo tee /etc/apparmor.d/today-ci-chrome > /dev/null
+          sudo apparmor_parser -r /etc/apparmor.d/today-ci-chrome
+      - name: Verify Chrome
+        run: |
+          test -x "$CHROME_PATH"
+          "$CHROME_PATH" --version
       - name: Run performance budgets
-        id: performance
-        if: steps.policy.outputs.performance == 'true' && steps.proof.outputs.reuse != 'true'
         run: npm run performance --prefix scripts -- --no-audit-check --output performance-ci.json --trace-on-failure .context/performance-diagnostics
+      - name: Retain performance evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ci-performance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            performance-ci.json
+            .context/performance-diagnostics/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+
+  test:
+    needs: [plan, functional, performance]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.14.0'
+      - uses: actions/download-artifact@v8
+        if: needs.plan.result == 'success'
+        with:
+          name: ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .context
+      - uses: actions/download-artifact@v8
+        if: always() && needs.plan.result == 'success' && needs.plan.outputs.reuse != 'true'
+        with:
+          pattern: ci-functional-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .context/ci-shards
+      - name: Verify and combine all planned suites
+        id: merge
+        if: always() && needs.plan.result == 'success' && needs.plan.outputs.reuse != 'true'
+        run: node scripts/ci-shards.mjs merge
+      - uses: actions/download-artifact@v8
+        if: always() && needs.performance.result != 'skipped' && needs.plan.result == 'success'
+        with:
+          name: ci-performance-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Validate memory inventory
         id: memory
         if: always()
@@ -97,24 +203,26 @@ jobs:
         run: git diff-tree --check --root -r HEAD
       - name: Check invariants for reused release
         id: invariants
-        if: steps.proof.outputs.reuse == 'true'
+        if: needs.plan.outputs.reuse == 'true'
         run: node scripts/ci-invariants.mjs
       - name: Verify required gate dependencies
         if: always()
         env:
-          REUSE: ${{ steps.proof.outputs.reuse }}
-          PROOF: ${{ steps.proof.outcome }}
-          POLICY: ${{ steps.policy.outcome }}
-          PAYLOAD: ${{ steps.payload.outcome }}
+          REUSE: ${{ needs.plan.outputs.reuse }}
+          PROOF: ${{ needs.plan.result }}
+          POLICY: ${{ needs.plan.result }}
+          PAYLOAD: ${{ needs.plan.result }}
           MEMORY: ${{ steps.memory.outcome }}
           WHITESPACE: ${{ steps.whitespace.outcome }}
           INVARIANTS: ${{ steps.invariants.outcome }}
-          FUNCTIONAL: ${{ steps.functional.outcome }}
-          PERFORMANCE: ${{ steps.performance.outcome }}
-          PERFORMANCE_REQUIRED: ${{ steps.policy.outputs.performance }}
+          FUNCTIONAL: ${{ needs.functional.result }}
+          PERFORMANCE: ${{ needs.performance.result }}
+          PERFORMANCE_REQUIRED: ${{ needs.plan.outputs.performance }}
+          SHARDED: 'true'
+          MERGE: ${{ steps.merge.outcome }}
         run: node scripts/ci-final.mjs
       - name: Record complete dev release evidence
-        if: success() && steps.proof.outputs.reuse != 'true'
+        if: success() && needs.plan.outputs.reuse != 'true'
         run: node scripts/release-evidence.mjs
       - name: Retain CI evidence
         if: always()
@@ -125,6 +233,7 @@ jobs:
             .context/release-evidence.json
             .context/release-proof-check.json
             .context/ci-execution.json
+            .context/ci-shard-plan.json
             .context/ci-test-results/
             performance-ci.json
             .context/performance-diagnostics/

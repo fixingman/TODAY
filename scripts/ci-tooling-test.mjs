@@ -6,9 +6,12 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { execFileSync } from 'node:child_process';
-import { existsSync, symlinkSync } from 'node:fs';
+import { existsSync, symlinkSync, cpSync } from 'node:fs';
 import { freshSnapshot, dependenciesReady, childEnvironment, setupWorkspace, freshCheck } from './workspace-tools.mjs';
 import { PNG } from 'pngjs';
+import { shardPlan, mergeShards } from './ci-shards.mjs';
+import { SUITE } from './ci-policy.mjs';
+import { verifyFinal } from './ci-final.mjs';
 const DIR = dirname(fileURLToPath(import.meta.url));
 const fixture = mkdtempSync(join(tmpdir(), 'today-ci-'));
 const scripts = join(fixture, 'scripts');
@@ -207,8 +210,8 @@ try {
   assert.equal(policy('push', 'refs/heads/other').cancel, false);
   assert.equal(new Set([dev.group, master.group, pr.group, otherPR.group, release.group]).size, 5);
   assert.match(workflow, /run: npm run test:policy --prefix scripts/);
-  assert.match(workflow, /run: npm run test:ci --prefix scripts/);
-  assert.match(workflow, /if: steps\.policy\.outputs\.performance == 'true' && steps\.proof\.outputs\.reuse != 'true'/);
+  assert.match(workflow, /run: node scripts\/ci-shards\.mjs run/);
+  assert.match(workflow, /if: needs\.plan\.outputs\.performance == 'true' && needs\.plan\.outputs\.reuse != 'true'/);
   assert.match(workflow, /CI_RELEASE_REUSE: '(?:true|false)'/);
   assert.match(workflow, /name: Verify required gate dependencies\n\s+if: always\(\)/);
   assert.match(workflow, /CI_ROUTINE_SELECTION: 'true'/);
@@ -222,6 +225,87 @@ try {
   assert.match(workflow,/run: node scripts\/install-ci-browser\.mjs/);
   assert.match(workflow, /run: npm run performance --prefix scripts -- --no-audit-check/);
   console.log('  ✓ concurrency isolates branches/PRs/events; master and dispatched release runs are not cancelled');
+  // Sharding may change scheduling, never inventory, provenance or release acceptance.
+  {
+    const sha='a'.repeat(40),shardWorkflow={GITHUB_SHA:sha,GITHUB_RUN_ID:'41',GITHUB_RUN_ATTEMPT:'1',
+      GITHUB_WORKFLOW_REF:'fixingman/TODAY/.github/workflows/test.yml@refs/heads/dev',GITHUB_EVENT_NAME:'push',GITHUB_REF:'refs/heads/dev'};
+    const policy={candidateSha:sha,mode:'full',performance:true,plan:{mode:'full',suites:SUITE}};
+    const plan=shardPlan(policy,shardWorkflow);
+    assert.equal(plan.workers.length,3);
+    assert.deepEqual(SUITE.filter(name=>plan.workers.some(worker=>worker.suites.includes(name))),SUITE);
+    assert.equal(plan.workers.reduce((n,w)=>n+w.suites.length,0),SUITE.length);
+    assert.ok(Math.max(...plan.workers.map(w=>w.estimatedSeconds))-Math.min(...plan.workers.map(w=>w.estimatedSeconds))<=3);
+    const reports=plan.workers.map(worker=>({id:worker.id,report:{schema:2,mode:'selected',status:'passed',
+      candidateSha:sha,checkoutSha:sha,checkoutShaAtEnd:sha,environment:{node:process.version},
+      workflow:{runId:'41',attempt:'1',ref:shardWorkflow.GITHUB_WORKFLOW_REF,event:'push',sourceRef:'refs/heads/dev'},
+      inputsAtStart:{'index.html':'fixture'},inputsAtEnd:{'index.html':'fixture'},inputsChanged:false,
+      inventoryTotal:SUITE.length,selectedSuites:worker.suites,executedSuites:worker.suites,
+      startedAt:'2026-11-08T12:00:00Z',finishedAt:'2026-11-08T12:03:00Z',durationMs:180000,
+      counts:{passed:worker.suites.length,flaky:0,failed:0,total:worker.suites.length},
+      suites:worker.suites.map(name=>({name,status:'passed',attempts:[{attempt:'first',exitCode:0,signal:null,timedOut:false}]}))}}));
+    const combined=mergeShards(plan,reports);
+    assert.deepEqual(combined.executedSuites,SUITE);assert.equal(combined.mode,'full');assert.equal(combined.durationMs,180000);
+    assert.deepEqual(combined.counts,{passed:SUITE.length,flaky:0,failed:0,total:SUITE.length});
+    const imageRollout=structuredClone(reports);imageRollout[0].report.environment.runnerImageVersion='new-image';
+    assert.equal(mergeShards(plan,imageRollout).counts.passed,SUITE.length,'image rollout metadata is retained; the existing Node/Chrome/Ubuntu/platform pins govern compatibility');
+    for(const alter of [r=>r.pop(),r=>r.push(r[0]),r=>r[1].id=0,r=>r[0].report.status='failed',
+      r=>r[0].report.counts.flaky++,r=>r[0].report.executedSuites.pop(),r=>r[0].report.checkoutSha='b'.repeat(40),
+      r=>r[0].report.workflow.attempt='2',r=>r[0].report.inputsAtEnd={},r=>r[0].report.environment.node='wrong',
+      r=>r[0].report.suites[0].attempts.push(r[0].report.suites[0].attempts[0]),
+      r=>r[0].report.suites[0].attempts[0].timedOut=true]) {
+      const bad=structuredClone(reports);alter(bad);assert.throws(()=>mergeShards(plan,bad));
+    }
+    const altered=structuredClone(plan);altered.workers[0].suites.pop();assert.throws(()=>mergeShards(altered,reports));
+    const selected=shardPlan({...policy,mode:'selected',plan:{mode:'selected',suites:SUITE.slice(0,2)}},shardWorkflow);
+    assert.equal(selected.workers.length,1);assert.equal(selected.suites.length,2);
+    // Same-SHA reuse still requires the independent final gate; no merge can mask a failed worker.
+    const gate={POLICY:'success',PAYLOAD:'success',MEMORY:'success',WHITESPACE:'success',FUNCTIONAL:'success',
+      PERFORMANCE_REQUIRED:'false',PERFORMANCE:'skipped',SHARDED:'true',MERGE:'success'};
+    assert.equal(verifyFinal(gate),true);
+    for(const key of ['MERGE','FUNCTIONAL'])assert.throws(()=>verifyFinal({...gate,[key]:'skipped'}));
+    assert.match(workflow,/fail-fast: false/);assert.match(workflow,/needs: \[plan, functional, performance\]/);
+    assert.match(workflow,/SHARDED: 'true'/);assert.match(workflow,/MERGE: \$\{\{ steps\.merge\.outcome \}\}/);
+    console.log('  ✓ balanced isolated shards preserve canonical coverage; missing, duplicate, wrong-SHA/run/environment/input, flaky and timed-out evidence is rejected');
+  }
+
+  // Exercise the real plan -> worker -> downloaded-artifact layout -> merge commands.
+  {
+    const project=join(fixture,'shard-project');mkdirSync(join(project,'scripts'),{recursive:true});
+    for(const name of ['ci-shards','ci-execution','ci-plan','ci-final','ci-policy','release-evidence','test-all'])
+      writeFileSync(join(project,'scripts',name+'.mjs'),readFileSync(join(DIR,name+'.mjs')));
+    const names=['design-lint',...Array.from({length:35},(_,i)=>'fixture-'+i+'-test')];
+    writeFileSync(join(project,'scripts/ci-policy.mjs'),`export const SUITE=${JSON.stringify(names)};export const EXCLUDED={};export const NON_TEST_SUITE=new Set(['design-lint']);export const GROUPS={tooling:{files:[],suites:SUITE,full:true}};export const BASE=SUITE;export const DOC_BASE=SUITE;`);
+    for(const name of names)writeFileSync(join(project,'scripts',name+'.mjs'),'');
+    writeFileSync(join(project,'.gitignore'),'.context/\n');
+    const git=args=>execFileSync('git',args,{cwd:project,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+    git(['init','--quiet']);git(['add','.']);git(['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m','fixture']);
+    const sha=git(['rev-parse','HEAD']),event=join(fixture,'shard-event.json');
+    writeFileSync(event,JSON.stringify({before:sha,head_commit:{id:sha,message:'fixture\n\nCI-Validation: full'}}));
+    const env={...process.env,CI_ROUTINE_SELECTION:'true',GITHUB_SHA:sha,GITHUB_EVENT_PATH:event,
+      GITHUB_EVENT_NAME:'push',GITHUB_REF:'refs/heads/dev',GITHUB_RUN_ID:'99',GITHUB_RUN_ATTEMPT:'1',
+      GITHUB_WORKFLOW_REF:'fixingman/TODAY/.github/workflows/test.yml@refs/heads/dev',CHROME_PATH:'/missing-fixture-browser'};
+    const invoke=(name,args=[])=>spawnSync(process.execPath,['scripts/'+name+'.mjs',...args],{cwd:project,env,encoding:'utf8',timeout:10000});
+    for(const [name,args]of [['ci-execution',[]],['ci-shards',['plan']]]) {
+      const result=invoke(name,args);assert.equal(result.status,0,result.stdout+result.stderr);
+    }
+    const plan=JSON.parse(readFileSync(join(project,'.context/ci-shard-plan.json')));assert.equal(plan.workers.length,3);
+    for(const worker of plan.workers) {
+      const result=invoke('ci-shards',['run',String(worker.id)]);assert.equal(result.status,0,result.stdout+result.stderr);
+      cpSync(join(project,'.context/ci-test-results'),join(project,'.context/ci-shards','artifact-'+worker.id),{recursive:true});
+    }
+    // A final runner starts without another worker's local output.
+    rmSync(join(project,'.context/ci-test-results'),{recursive:true});
+    const result=invoke('ci-shards',['merge']);assert.equal(result.status,0,result.stdout+result.stderr);
+    const report=JSON.parse(readFileSync(join(project,'.context/ci-test-results/summary.json')));
+    assert.deepEqual(report.executedSuites,names);assert.equal(report.counts.passed,36);assert.equal(report.mode,'full');
+    assert.ok(existsSync(join(project,'.context/ci-test-results/shards/2/summary.json')));
+    assert.equal(readdirSync(join(project,'.context/ci-test-results')).filter(name=>name.endsWith('-first.log')).length,36);
+    const part=join(project,'.context/ci-shards/artifact-1/summary.json'),bad=JSON.parse(readFileSync(part));
+    bad.workflow.attempt='2';writeFileSync(part,JSON.stringify(bad));assert.notEqual(invoke('ci-shards',['merge']).status,0);
+    assert.notEqual(invoke('ci-shards',['run','999']).status,0);
+    console.log('  ✓ actual shard CLI and artifact transport reconstruct36 first-pass logs; a wrong-attempt shard or unknown worker fails');
+  }
+
   writeFileSync(join(scripts, 'performance-test.mjs'), readFileSync(join(DIR, 'performance-test.mjs')));
   writeFileSync(join(fixture, 'index.html'), "<script src='/fixture.js'></script><script>const CHANGELOG = {'1.0.0': 'Fixture'};</script>");
   writeFileSync(join(fixture, 'fixture.js'), 'console.log("fixture");');

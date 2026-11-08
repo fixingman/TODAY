@@ -59,7 +59,9 @@ Hover restores to 85%. Age resets to 0 on focus session complete.
 
 ## Habit Row
 
-Same interaction family as task rows. Read layout: compact checkbox → habit name → history dots → separate strength column. History covers 21 habit-days on desktop; at ≤480px only the last 7 dots are visible. Filled dots use accent; today's dot has an outline. Strength is the forgiving percentage indicator, not a `done/7` counter. Completion resets at the 3am habit-day boundary; history is preserved. Rows have transparent borders at rest and reveal the surface/border on hover-capable pointers, not permanent separators.
+Same interaction family as task rows. At desktop widths (≥601px), the checkbox and full-width name sit above a history line aligned with the name, with a 10px row gap. Fading 5px dots fill the available line at a minimum 5px gap, followed by the existing 32px strength column with 8px separation. The panel stays its current width. The number of days fits the actual mounted sidebar and resizes without rebuilding names/inputs; history stops at the earliest valid stored creation/completion day. Short histories keep natural spacing and the percentage directly after the dots.
+
+The newest 7 days stay at full opacity; older days fade using the existing opacity curve extended to the visible span. Phones retain their inline row and 21-day strip; at ≤480px only the last 7 dots are visible. Filled dots use accent; today's dot has an outline. Strength is the forgiving percentage indicator, not a `done/7` counter. Completion resets at the 3am habit-day boundary; history is preserved. Rows have transparent borders at rest and reveal the surface/border on hover-capable pointers, not permanent separators.
 
 Completion is a named `aria-pressed` button. The row uses the same Enter, Space, and Option+Arrow contract as task rows, and the history strip has a screen-reader summary.
 

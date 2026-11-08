@@ -24,6 +24,10 @@ Conductor reads shared repository settings from the remote default branch for lo
 - Results are compact; detailed evidence stays in `.context/fresh-*/`. Temporary checkouts are removed. This is a local preflight, never hosted release proof.
 - Use affected-suite planning for wider verification when warranted. Shared or unknown changes retain existing full fallbacks. Five-run performance remains a release gate, not a routine fresh-check cost.
 
+## CI execution and evidence
+
+Hosted functional checks use up to three independent runners, balanced by advisory suite weights. The existing planner still chooses coverage, and the final `test` gate checks every result. Five-run performance stays on a separate runner; verified master reuse skips both jobs. Payload fails before browser setup. See the [CI contract](../docs/ci-release-evidence.md#parallel-execution-november-8) for evidence and failure handling. A failed parallel workflow needs **Re-run all jobs**, since reports from separate run attempts cannot be mixed. Keep local fresh checks scoped to affected suites; do not run the full inventory locally just to duplicate the hosted release gate.
+
 ## Dependable tests
 
 Wait for the actual prerequisite and then assert the observable outcome inside a bounded deadline. Use existing fixture clocks/fonts/readiness helpers. When a demonstrated timing bug appears, preserve the failure, build a causal control, repair the driver or product, and verify that a deliberately broken path is still rejected. Do not expand deadlines, remove tests or accept diagnostic retries simply to make the gate green. Track unresolved flake causes honestly.

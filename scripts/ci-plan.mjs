@@ -33,7 +33,7 @@ export function classifyPath(path) {
   if (path.startsWith('assets/vendor/') || path.startsWith('fonts/') || path.startsWith('assets/splash/') ||
       /^assets\/[^/]+\.(png|svg|ico)$/.test(path) || ['netlify.toml'].includes(path)) return { kind: 'group', group: 'foundation' };
   if (path === 'memory/performance-baseline.json' || path === 'memory/Performance-audit.md') return { kind: 'performance', group: 'tooling' };
-  if (/^output\/(?:habit-(?:context|moments)|life-exploration|memory-landing)\//.test(path)) return { kind: 'prototype', reason: 'isolated non-shipping study; no app imports' };
+  if (/^output\/(?:habit-(?:context|moments)|habits-layout|life-exploration|memory-landing)\//.test(path)) return { kind: 'prototype', reason: 'isolated non-shipping study; no app imports' };
   if (SKILL_DOCUMENTATION.has(path) || ['README.md','Design.md'].includes(path) || /^(docs|memory)\/.+\.md$/.test(path) ||
       path.startsWith('docs/media/') || path.startsWith('video/')) return { kind: 'documentation' };
   if (path === 'memory/validate-files.sh') return { kind: 'tooling', group: 'tooling' };

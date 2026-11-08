@@ -1272,9 +1272,7 @@
     pointer-events: none;
   }
 
-  /* On touch, the ::after fade can't be cleared by z-index elevation (hover never fires
-     reliably), so the first task under each header reads as shadowed when tapped. Hard
-     clip is standard mobile behaviour — remove the gradient there. */
+  /* Touch cannot lift rows above the fade via hover; clip the gradient instead. */
   @media (hover: none) {
     .section-header::after { display: none; }
   }
@@ -2074,12 +2072,7 @@
   }
   .dot-ripple { animation: dotRipple var(--dur-slow) var(--ease-out) forwards; }
 
-  /* Task aging — visual opacity steps as tasks linger.
-     Uses data-age-bucket attribute set in taskHTML (young|mid|old).
-     Day 0-2: full opacity (no attribute)
-     Day 3-4: slightly muted (young)
-     Day 5-6: noticeably aged (mid)
-     Day 7+: minimum (old) */
+  /* Task aging: young 3–4 days, mid 5–6, old 7+; younger tasks have no bucket. */
   .task[data-age-bucket] {
     transition: opacity var(--dur-base);
   }
@@ -2117,16 +2110,10 @@
     margin-left: var(--space-2);
   }
 
-  /* Checklist/due badges and the session count travel together. Without this the
-     line can break BETWEEN them, orphaning "2 🍅" onto its own row while the
-     checklist stays behind — worse than moving both. nowrap makes the pair one
-     atomic unit: it fits on the title's line, or it moves to the next line whole. */
+  /* Keep checklist/due badges and session count together when the title wraps. */
   .task-tail { white-space: nowrap; }
 
-  /* The 32px right padding on .task-text exists solely to keep text clear of
-     .task-copy, which is position:absolute and lives entirely inside
-     @media (hover: hover). On touch that button can never render, so the padding
-     is dead space — ~10 characters of a 375px row. Reclaim it. */
+  /* Touch has no absolute copy button, so reclaim its reserved text padding. */
   @media (hover: none) {
     .task-text { padding-right: 0; }
   }
@@ -2250,11 +2237,7 @@
   .btn-poem-share.copied,
   .btn-poem-share.clicked { pointer-events: none; }
 
-  /* Touch: no hover, so tap itself must do what hover does on desktop — reveal
-     first, act second. .revealed is a plain JS-toggled class (_onPoemTap,
-     below), independent of the @media (hover: hover) block, so it also works
-     as a harmless no-op safety net if a hover-capable device ever somehow
-     gets it (it won't, in normal use — desktop never taps into this path). */
+  /* Touch poem taps reveal first, act second; .revealed is managed by _onPoemTap. */
   .poem-block.revealed #dailyPoem,
   .poem-block.revealed .poem-author { color: var(--text); }
   .poem-block.revealed .btn-poem-share {
@@ -2362,9 +2345,7 @@
     .empty .empty-poem { font-size: var(--text-sm2); line-height: 1.7; }
   }
   
-  /* Morning nudge — surface card with breathing accent star (v2.28.1 redesign).
-     Elevated from footnote to section-level: surface background, readable color, wrapping text.
-     Task-row hover pattern (border reveals on hover). Star pins to first line when text wraps. */
+  /* Morning nudge: surface card; accent star pins to the first wrapped line. */
   .morning-nudge {
     padding: var(--space-3) var(--space-4);
     margin: var(--space-1) 0 var(--space-4);
@@ -2539,10 +2520,7 @@
   }
 
 
-  /* ── Component: Meeting Mode (v2.22.0 desktop, v2.28.0 mobile) ─
-     Mic button in the add bar starts a listening session; a non-blocking
-     pill above the add bar shows dot + elapsed + stop while the whole app
-     stays usable. Review overlay clones the triage pattern. */
+  /* Meeting: non-blocking recording pill; review uses the triage pattern. */
   .add-mic-btn {
     background: var(--surface);
     border: 1px solid var(--control-border);
@@ -3959,8 +3937,18 @@
     word-break: break-word; overflow-wrap: break-word; line-height: 1.4;
   }
 
+  .habit-history { display: contents; }
   .habit-week { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-  /* Mobile: show only last 7 dots — 21 dots crush the name column on narrow screens */
+  @media (min-width: 601px) {
+    /* History starts below the title, with the strength at the end of the fitted trail. */
+    .habit { grid-template-columns: 18px minmax(0, 1fr); grid-template-areas: 'check name' '. history'; row-gap: calc(var(--space-2) + var(--space-1) / 2); }
+    .habit-check { grid-area: check; }
+    .habit-body { grid-area: name; }
+    .habit-history { grid-area: history; display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+    .habit-week { flex: 1; min-width: 0; justify-content: space-between; }
+    .habit-week.short-history { flex: 0 1 auto; justify-content: flex-start; }
+    .habit.editing .habit-edit-input { box-sizing: border-box; }
+  }
   @media (max-width: 480px) {
     .week-dot:not(:nth-last-child(-n+7)) { display: none; }
     /* Tighter panel padding — gives back ~16px per side on narrow screens */
@@ -4686,14 +4674,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '411h';
+const DEV_HOURS     = '412h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.8.9': 'Desktop habits have more room for names, with fading history below and strength at the end.',
   '3.8.8': 'Small Connections cleanup after removing Dropbox’s Save button.',
   '3.8.7': 'On phones, panels no longer show a row of section icons under the title.',
-  '3.8.6': 'Connections: Dropbox loses its unused Save button, the default AI shows as a quiet label, and Your name matches the other rows.',
 };
 
 // Version follows CHANGELOG; smoke checks SW parity.

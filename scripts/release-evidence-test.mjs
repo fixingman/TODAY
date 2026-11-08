@@ -9,6 +9,7 @@ import { SUITE } from './ci-policy.mjs';
 import { createEvidence, verifyEvidence, describeCandidate, digest, sha256, REPOSITORY, WORKFLOW, WORKFLOW_ID, artifactName } from './release-evidence.mjs';
 import { promotionPreflight, validateDispatch, verifyArchive, decodeArchive } from './release-status.mjs';
 import { verifyFinal } from './ci-final.mjs';
+import { shardPlan, mergeShards } from './ci-shards.mjs';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const sha = 'a'.repeat(40), oldMaster = 'b'.repeat(40), now = Date.parse('2026-10-29T12:00:00Z');
 const budgets = JSON.parse(readFileSync(join(ROOT, 'scripts/performance-budgets.json')));
@@ -113,16 +114,25 @@ assert.equal(proofRuns('push', 'refs/heads/master', 'false'), false);
 assert.equal(proofRuns('push', 'refs/heads/dev', 'true'), false);
 assert.equal(proofRuns('pull_request', 'refs/pull/1/merge', 'true'), false);
 assert.equal(proofRuns('workflow_dispatch', 'refs/heads/dev', 'true'), false);
-for (const name of ['Install test dependencies', 'Install locked Chrome for Testing', 'Allow the test browser to use its sandbox', 'Verify Chrome']) {
-  const block = workflow.split(`- name: ${name}\n`)[1]?.split(/\n      - name:/)[0];
-  assert.ok(block, name);
-  assert.match(block, /if: steps\.proof\.outputs\.reuse != 'true'/, name + ' is unnecessary after verified reuse');
-}
+// Worker and benchmark jobs are gated before setup; the master proof path starts neither.
+assert.match(workflow,/functional:\n\s+needs: plan\n\s+if: needs\.plan\.outputs\.reuse != 'true'/);
 assert.match(workflow, /name: Verify required gate dependencies\n\s+if: always\(\)/);
 assert.doesNotMatch(workflow, /continue-on-error: true|paths-ignore:/);
-const perfExpression = workflow.match(/if: (steps\.policy\.outputs\.performance[^\n]+)/)[1];
-const perfRuns = (performance, reuse) => new Function('steps', `return (${perfExpression})`)({ policy: { outputs: { performance } }, proof: { outputs: { reuse } } });
-assert.equal(perfRuns('true', 'true'), false); assert.equal(perfRuns('true', 'false'), true); assert.equal(perfRuns('false', 'false'), false);
+const perfExpression = workflow.match(/if: (needs\.plan\.outputs\.performance[^\n]+)/)[1];
+const perfRuns = (performance, reuse) => new Function('needs', `return (${perfExpression})`)({plan:{outputs:{performance,reuse}}});
+assert.equal(perfRuns('true','true'),false);assert.equal(perfRuns('true','false'),true);assert.equal(perfRuns('false','false'),false);
+const shardedPolicy={candidateSha:sha,mode:'full',performance:true,plan:{mode:'full',suites:SUITE}};
+const shardWorkflow={GITHUB_SHA:sha,GITHUB_RUN_ID:'41',GITHUB_RUN_ATTEMPT:'1',GITHUB_WORKFLOW_REF:context.workflowRef,GITHUB_EVENT_NAME:'push',GITHUB_REF:context.ref};
+const shardSelection=shardPlan(shardedPolicy,shardWorkflow);
+const parts=shardSelection.workers.map(worker=>({id:worker.id,report:{...summary,mode:'selected',
+  startedAt:'2026-11-08T12:00:00Z',finishedAt:'2026-11-08T12:03:00Z',durationMs:180000,
+  selectedSuites:worker.suites,executedSuites:worker.suites,
+  suites:summary.suites.filter(suite=>worker.suites.includes(suite.name)),
+  counts:{passed:worker.suites.length,flaky:0,failed:0,total:worker.suites.length}}}));
+const merged=mergeShards(shardSelection,parts);
+assert.equal(verify(createEvidence(merged,performance,expected,context)).candidateSha,sha,'combined exact-candidate proof keeps the complete original release contract');
+const selectedOnly=structuredClone(merged);selectedOnly.mode='selected';selectedOnly.plan.mode='selected';
+assert.throws(()=>createEvidence(selectedOnly,performance,expected,context),/Selected-only evidence/);
 console.log('  ✓ always-running final gate rejects skipped/failed dependencies; verified same-SHA reuse requires cheap invariants and skips the duplicate benchmark');
 
 const root = mkdtempSync(join(tmpdir(), 'today-release-descriptor-'));

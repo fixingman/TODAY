@@ -10,6 +10,15 @@
     // habitEditMode remain as inline globals (wholesale-reassigned by Dropbox sync/
     // restore; read directly by drag.js, focus module, merge layer).
 
+    const desktopHistory = matchMedia('(min-width: 601px)');
+    let historyObserver, historyList, historyFrame = 0;
+    function _stopHistoryFit() {
+      historyObserver?.disconnect();
+      historyList = null;
+      cancelAnimationFrame(historyFrame);
+    }
+    desktopHistory.addEventListener('change', () => _fitHabitHistory());
+
     function _saveHabits() {
       localStorage.setItem('today_habits',            JSON.stringify(habitsList));
       localStorage.setItem('today_habit_completions', JSON.stringify(habitCompletions));
@@ -17,20 +26,7 @@
       dropboxAutoSave();
     }
 
-    // Habits roll over at 3am, not midnight — a "late but done" check (e.g. 12:30am)
-    // still counts toward the day that's ending, because behaviourally the day ends
-    // when you sleep, not when the clock flips. Tasks / streak / focus keep the midnight
-    // boundary (_getAppDay) — only habits get this grace window. (v2.17.61)
-    //
-    // BUG-010 safety: we shift a Date object back by the grace hours, then derive the
-    // local YYYY-MM-DD via _localISO(). This stays entirely in local time — never UTC.
-    //
-    // History note (v2.12.74): an *unintended* 1am habit lag was once a bug because the
-    // strip refreshed on a different boundary than checking. This is intentional and
-    // consistent — every habit-day read (_habitTodayISO + _getHabitDates) goes through
-    // _habitNow(), so the strip refreshes at 3am in lockstep with check eligibility.
-    // HABIT_ROLLOVER_HOURS + _habitNow() + _habitTodayISO() now live in assets/util.js.
-
+    // All habit dates share the local 3am boundary; see architecture/Data.md.
     function _getHabitDates() {
       // Last 21 days ending with the current habit-day (3am-shifted, local time)
       const now = _habitNow();
@@ -44,16 +40,7 @@
     }
 
     function _getHabitStrength(id) {
-      // Asymmetric exponential smoothing:
-      // - alpha_up   = 0.90 — building takes time (same as before)
-      // - alpha_down = 0.97 — misses are forgiven more gently
-      //
-      // A perfect day moves the score up at the same rate as before.
-      // A missed day barely dents a good streak — life happens.
-      // Building feels like work; one slip doesn't feel catastrophic.
-      //
-      // Drop from 30-day streak: old=10%, new=3%.
-      // Perfect streaks reach the same peaks at the same rate.
+      // Build at 0.90, forgive misses at 0.97 over 90 days.
       const completions = new Set(habitCompletions[id] || []);
       const alpha_up   = 0.90;
       const alpha_down = 0.97;
@@ -79,7 +66,6 @@
 
       const activeHabits = habitsList.filter(h => !h.archived);
 
-      // Check if all habits are done for today
       const allDoneToday = activeHabits.length > 0 && activeHabits.every(h =>
         (habitCompletions[h.id] || []).includes(todayISO)
       );
@@ -129,12 +115,7 @@
         const ds     = new Set(habitCompletions[h.id] || []);
         const isDone = ds.has(_habitTodayISO());
         const strength = _getHabitStrength(h.id);
-        const completedDays = week.filter(d => ds.has(d));
-        const dots = week.map((d, i) => {
-          const opacity = i >= 14 ? 1 : (0.12 + (i / 14) * 0.70);
-          const style   = `opacity:${opacity.toFixed(2)}`;
-          return `<span class="week-dot${ds.has(d) ? ' filled' : ''}${d === _habitTodayISO() ? ' is-today' : ''}" style="${style}"></span>`;
-        }).join('');
+        const { dots, completedDays } = _historyDots(h, week.length);
         const strengthTxt = strength > 0 ? `${strength}%` : '—';
         const sessions    = parseInt(h.focusSessions) || 0;
         const sessionBadge = sessions > 0
@@ -149,13 +130,81 @@
         el.innerHTML = `
           <button type="button" class="habit-check" aria-pressed="${isDone}" aria-label="${isDone ? 'Mark incomplete' : 'Mark complete'}: ${esc(h.name)}" data-today-click="habits.toggle-done" data-habit-id="${esc(h.id)}">${CHK}</button>
           <div class="habit-body"><div class="habit-name">${esc(h.name)}${sessionBadge}</div></div>
-          <div class="habit-week" aria-hidden="true">${dots}</div>
-          <div class="habit-streak" title="${strength}% habit strength">
-            <span class="streak-label${strength >= 80 ? ' hot' : ''}">${strengthTxt}</span>
+          <div class="habit-history">
+            <div class="habit-week" aria-hidden="true">${dots}</div>
+            <div class="habit-streak" title="${strength}% habit strength">
+              <span class="streak-label${strength >= 80 ? ' hot' : ''}">${strengthTxt}</span>
+            </div>
           </div>
-          <span class="visually-hidden" id="habitSummary-${h.id}">${completedDays.length} of the last 21 days complete. ${strength}% habit strength.</span>`;
+          <span class="visually-hidden" id="habitSummary-${h.id}">${completedDays} of the last ${week.length} days complete. ${strength}% habit strength.</span>`;
         list.appendChild(el);
       });
+      if (historyList !== list) {
+        _stopHistoryFit();
+        historyList = list;
+        if (typeof ResizeObserver === 'function') {
+          historyObserver ||= new ResizeObserver(() => {
+            cancelAnimationFrame(historyFrame);
+            historyFrame = requestAnimationFrame(_fitHabitHistory);
+          });
+          historyObserver.observe(list);
+        }
+      }
+      _fitHabitHistory();
+    }
+
+    // History fills the row (Can, November 8): as many days as fit after the strength
+    // label, back to the habit's first stored day. The last 7 days stay full; older days
+    // fade. A short history shows only the days it has.
+    const DOT_STEP = 10; // 5px dot + 5px gap
+    function _historyDays(count) {
+      const now = _habitNow(), days = [];
+      for (let i = count - 1; i >= 0; i--) { const d = new Date(now); d.setDate(now.getDate() - i); days.push(_localISO(d)); }
+      return days;
+    }
+    function _availableDays(h) {
+      const first = [h.created_at, ...(habitCompletions[h.id] || [])]
+        .filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d + 'T12:00:00')))
+        .sort()[0];
+      if (!first) return 1;
+      const span = Math.round((new Date(_habitTodayISO() + 'T12:00:00') - new Date(first + 'T12:00:00')) / 86400000) + 1;
+      return Math.max(1, span);
+    }
+    function _historyDots(h, count) {
+      const ds = new Set(habitCompletions[h.id] || []), today = _habitTodayISO(), days = _historyDays(count);
+      let completedDays = 0;
+      const dots = days.map((d, i) => {
+        const done = ds.has(d); if (done) completedDays++;
+        const fadeDays = desktopHistory.matches ? count - 7 : 14;
+        const opacity = i >= fadeDays ? 1 : 0.12 + (i / Math.max(1, fadeDays)) * 0.70;
+        return `<span class="week-dot${done ? ' filled' : ''}${d === today ? ' is-today' : ''}" style="opacity:${opacity.toFixed(2)}"></span>`;
+      }).join('');
+      return { dots, completedDays };
+    }
+    function _fitHabitHistory() {
+      const list = document.getElementById('habitList');
+      const rows = list ? [...list.querySelectorAll('.habit[data-habit-id]')] : [];
+      if (!rows.length) return;
+      rows.forEach(row => {
+        const h = habitsList.find(x => x.id === row.dataset.habitId); if (!h) return;
+        const history = row.querySelector('.habit-history'), end = history?.lastElementChild;
+        if (!history || !end) return;
+        const gap = parseFloat(getComputedStyle(history).columnGap) || 0;
+        if (desktopHistory.matches && !history.clientWidth) return;
+        const capacity = Math.max(1, Math.floor((history.clientWidth - end.offsetWidth - gap + 5) / DOT_STEP));
+        const count = desktopHistory.matches ? Math.min(capacity, _availableDays(h)) : 21;
+        const week = row.querySelector('.habit-week');
+        week.classList.toggle('short-history', desktopHistory.matches && count < capacity);
+        if (Number(row.dataset.visibleDays) === count) return;
+        week.innerHTML = _historyDots(h, count).dots;
+        row.dataset.visibleDays = String(count);
+        _updateHistorySummary(row, _getHabitStrength(h.id));
+      });
+    }
+    function _updateHistorySummary(row, strength) {
+      const dots = row.querySelectorAll('.week-dot');
+      const summary = row.querySelector('.visually-hidden');
+      if (summary) summary.textContent = `${row.querySelectorAll('.week-dot.filled').length} of the last ${dots.length} days complete. ${strength}% habit strength.`;
     }
 
     function toggleHabits() {
@@ -189,12 +238,10 @@
           const h    = habitsList.find(h => h.id === id);
           const name = input.value.trim();
           if (h && name) h.name = name;
-          // Swap input → name div
           const nameDiv = document.createElement('div');
           nameDiv.className   = 'habit-name';
           nameDiv.textContent = h ? h.name : name;
           input.replaceWith(nameDiv);
-          // Swap delete → streak div
           const strength  = _getHabitStrength(id);
           const streakDiv = document.createElement('div');
           streakDiv.className = 'habit-streak';
@@ -224,9 +271,7 @@
         const nameDiv   = row.querySelector('.habit-name');
         const streakDiv = row.querySelector('.habit-streak');
         if (!nameDiv || !streakDiv) return;
-        // Set class first — so visibility:hidden on checkbox applies before any repaint
         row.classList.add('editing');
-        // Swap name div → input
         const input       = document.createElement('input');
         input.className   = 'habit-edit-input';
         input.value       = h.name;
@@ -235,7 +280,6 @@
         input.placeholder = 'Name the habit…';
         input.addEventListener('keydown', handleHabitEditKey);
         nameDiv.replaceWith(input);
-        // Swap streak div → archive button
         const del       = document.createElement('button');
         del.className   = 'habit-edit-delete';
         del.textContent = '×';
@@ -243,7 +287,6 @@
         del.addEventListener('click', () => archiveHabit(id));
         streakDiv.replaceWith(del);
       });
-      // Close new-habit input if open
       document.getElementById('habitAddRow').classList.remove('open');
       document.getElementById('habitNewBtn').classList.remove('active');
     }
@@ -278,7 +321,6 @@
       const newId = 'habit_' + Date.now();
       habitsList.push({ id: newId, name, created_at: _habitTodayISO() });
       _saveHabits(); renderHabits();
-      // Animate only the newly added row — not every row on every renderHabits call
       const newRow = document.querySelector('.habit[data-habit-id="' + newId + '"]');
       _rowEnter(newRow);
       input.value = '';
@@ -325,7 +367,6 @@
       }
       if (window._a11yAnnounce) _a11yAnnounce(`${habit?.name || 'Habit'} ${isNowDone ? 'completed' : 'marked incomplete'}.`);
 
-      // Update dot fill for today
       el.querySelectorAll('.week-dot.is-today').forEach(dot => {
         dot.classList.toggle('filled', isNowDone);
         if (isNowDone && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -336,8 +377,11 @@
         }
       });
 
-      // Update strength label
+      // Update strength and the accessible history count without replacing the row.
       const strength = _getHabitStrength(id);
+      _updateHistorySummary(el, strength);
+      const strengthCell = el.querySelector('.habit-streak');
+      if (strengthCell) strengthCell.title = strength + '% habit strength';
       const streakEl = el.querySelector('.streak-label');
       if (streakEl) {
         const newTxt = strength > 0 ? strength + '%' : '—';
@@ -363,14 +407,12 @@
 
       const check = el.querySelector('.habit-check');
       if (isNowDone) {
-        // Haptic + ember burst, matching task check
         _haptic('success');
         if (check && typeof fireEmberDrift === 'function') {
           const r = check.getBoundingClientRect();
           fireEmberDrift(r.left + r.width / 2, r.top + r.height / 2);
         }
 
-        // ── ALL HABITS DONE celebration ──
         const todayISO = _habitTodayISO();
         const activeHabits = habitsList.filter(h => !h.archived);
         const allDone = activeHabits.length > 0 && activeHabits.every(h =>
@@ -379,13 +421,10 @@
 
         if (allDone) {
           checkHabitNudge(); // clear button pulse immediately on completion
-          // Gentle glow
           _flashAccentGlow();
 
-          // Extra haptic
           setTimeout(() => _haptic('success'), 150);
 
-          // Extra ember bursts from the habit row that completed it
           if (check && typeof fireEmberDrift === 'function') {
             const r = check.getBoundingClientRect();
             const cx = r.left + r.width / 2;
@@ -459,7 +498,7 @@
       });
       Today.use('sidebar').register('habits', {
         mount: _mountHabits,
-        unmount() { Today.use('connections').syncActiveButtons(); },
+        unmount() { _stopHistoryFit(); Today.use('connections').syncActiveButtons(); },
         label: 'Habits', icon: '◎', order: 3,
       });
       Today.ui.register('click', 'habits.toggle', toggleHabits);
