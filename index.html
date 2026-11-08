@@ -4685,14 +4685,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '407.25h';
+const DEV_HOURS     = '408h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.7.5': 'Updates download quietly without restarting your open session. Reopening the app applies the ready update.',
   '3.7.4': 'Voting dismisses the task-list reading. Explore puts Earlier beside Chat with clearer icons.',
   '3.7.3': 'Desktop headers stay visible, panels switch smoothly, and mobile sidebars fill the screen. Explore closes on a second click and keeps typing focused.',
-  '3.7.2': 'Memory keeps its private reading cleanup reliable as panels open and close.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

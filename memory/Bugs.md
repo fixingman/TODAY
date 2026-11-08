@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 156 | ⏳ Verify | A deployed update forces a second boot or refresh in an open desktop PWA session. | v3.7.5 |
 | 155 | ⏳ Verify | Task-list daily reading remains after not really; optional reason keeps the strip open indefinitely. | v3.7.4 |
 | 154 | ⏳ Verify | Desktop title area leaks scrolling content; Explore replays panel entry and steals input ownership. Desktop PWA needs persistent header and Focus-dimmed peer panels; mobile paint ends early. | v3.7.3 |
 | 153 | ⏳ Verify | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | v3.7.2 |
@@ -50,6 +51,18 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-156 — PWA updates restart an open session
+
+**Report (November 8):** after deployment, opening a fresh desktop PWA session or manually refreshing it is followed by another refresh without asking.
+
+**Cause:** platform update listeners send `SKIP_WAITING` as soon as a replacement worker is installed, then reload any previously controlled page on `controllerchange`. A page that already fetched current HTML can therefore boot twice. The same path can interrupt a longer session; splash/sync gates do not request this reload.
+
+**Fix (v3.7.5):** retain background registration,30-minute and visibility checks; remove forced activation and automatic page reload. A complete update waits for the last controlled app window/tab to close, then activates normally, purges old caches and claims the next visit. Ignore legacy takeover messages too, so an older open page cannot force this worker in. Manual refresh keeps the existing network-first response policy. Preserve first-install/offline caching, failed-install cleanup and API bypasses; no sync, splash, schema or provider change.
+
+**Verification:** real-browser before-control records the unsolicited takeover message. Extend the actual service-worker lifecycle test across ready updates, fresh/second windows, manual refresh, draft/document preservation, legacy messages, last-window closure, complete/incomplete caches and offline lazy modules/fallback. Evidence: `.context/pwa-refresh/`. Fresh validation passes all seven selected suites without failures/flakes in60.3s (`.context/fresh-ZUIAyg/receipt.json`): real service-worker lifecycle, platform, splash, startup, smoke, design and invariants. Before-control fails on the unsolicited takeover message. The repaired real-browser flow preserves both sessions/drafts, permits exactly one requested refresh, ignores legacy takeover, activates after the final window closes, and retains complete/failed-install and offline checks. Tested owning input hashes still match. Dev publication authorized; hosted and installed acceptance remain separate.
 
 ---
 

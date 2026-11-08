@@ -23,7 +23,7 @@ new MutationObserver(updateWindowTheme).observe(document.body, {attributes:true,
 overlayMode.addEventListener('change', updateWindowTheme);
 updateWindowTheme();
 
-// ─── Service Worker registration + auto-update ────────────────────────────────
+// ─── Service Worker registration + background updates ────────────────────────────────
 // Only register SW on actual deployment domains, skip preview iframes and local dev
 const SW_ALLOWED_HOSTS = ['today-here.netlify.app', 'dev--today-here.netlify.app', 'localhost', '127.0.0.1'];
 const canRegisterSW = SW_ALLOWED_HOSTS.some(h => location.hostname === h || location.hostname.endsWith('.' + h));
@@ -39,43 +39,8 @@ if ('serviceWorker' in navigator && canRegisterSW) {
           if (document.visibilityState === 'visible') reg.update().catch(() => {});
         });
 
-        // Activate waiting updates.
-        function _activateWaiting(sw) {
-          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-            // New version ready, old one is controlling — safe to take over
-            console.log('[SW] New version ready, activating...');
-            sw.postMessage('SKIP_WAITING');
-          }
-        }
-
-        function _onNewSW(sw) {
-          console.log('[SW] New service worker detected, state:', sw.state);
-          _activateWaiting(sw);
-          sw.addEventListener('statechange', () => {
-            console.log('[SW] State changed to:', sw.state);
-            _activateWaiting(sw);
-          });
-        }
-
-        if (reg.waiting) {
-          console.log('[SW] Update already waiting');
-          _onNewSW(reg.waiting);
-        }
-        reg.addEventListener('updatefound', () => {
-          console.log('[SW] Update found, installing...');
-          if (reg.installing) _onNewSW(reg.installing);
-        });
-
-        // Reload updates, never first installation.
-        const hadController = !!navigator.serviceWorker.controller;
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('[SW] Controller changed, reloading...');
-          if (!hadController || refreshing) return;
-          refreshing = true;
-          window.location.reload();
-        });
-
+        // Let updates wait until the last controlled window closes. Never
+        // restart an open session, including a fresh network load or manual refresh.
         console.log('[SW] Registered, version:', APP_VERSION);
       })
       .catch(err => { console.log('[SW] Registration failed:', err); });

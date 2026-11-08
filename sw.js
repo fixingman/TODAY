@@ -4,7 +4,7 @@
 // This is the ONE version value still hand-synced — a SW can't import APP_VERSION from
 // index.html (separate context, no build step). scripts/smoke-test.mjs asserts it matches
 // `today-v${APP_VERSION}` and fails the pre-commit gate on drift.
-const CACHE_VERSION  = 'today-v3.7.4';
+const CACHE_VERSION  = 'today-v3.7.5';
 const CACHE_APP_SHELL = [
   '/',
   '/poem.html',
@@ -140,14 +140,8 @@ const OFFLINE_HTML = `<!DOCTYPE html>
 </html>`;
 
 // ── Install: pre-cache app shell + offline fallback ───────────────────────────
-// ── Update message — client requests immediate takeover ──────────────────────
-self.addEventListener('message', event => {
-  if (event.data === 'SKIP_WAITING') {
-    console.log('[SW] SKIP_WAITING received, taking over...');
-    self.skipWaiting();
-  }
-});
-
+// Updates activate after the last controlled window closes. Ignore legacy
+// SKIP_WAITING messages so an older open client cannot force a takeover.
 self.addEventListener('install', event => {
   console.log('[SW] Installing version:', CACHE_VERSION);
   event.waitUntil(
@@ -161,8 +155,7 @@ self.addEventListener('install', event => {
       catch (error) { await caches.delete(CACHE_VERSION); throw error; }
     })
   );
-  // skipWaiting is triggered by the client via postMessage('SKIP_WAITING')
-  // — see auto-update listener in index.html. This prevents jarring mid-session takeovers.
+  // Keep the browser's waiting phase; background downloads do not restart clients.
 });
 
 // ── Activate: purge old cache versions ───────────────────────────────────────

@@ -557,6 +557,8 @@ This 30-minute window replaced an earlier date-key approach (`splash_shown_date`
 
 `assets/platform.js` owns the browser-facing shell integrations behind one idempotent `window._startPlatform()` call at the end of the main script: service-worker registration/update activation, coarse-pointer `visualViewport` keyboard positioning, PWA install events and browser-specific promotion, and persisted `pageshow` wake recovery. `installPWA`, `_pwaShowSteps`, and `_pwaCopyLink` remain explicit `window` functions because static/generated buttons call them by name.
 
+**PWA updates (v3.7.5, BUG-156):** registration and background update checks never reload or force replacement of an open page. Complete workers wait until every controlled app window/tab closes, then activate and retire older caches through the normal lifecycle. Old clients’ `SKIP_WAITING` messages are ignored. First installation still claims the page without a reload; a manual refresh still uses network-first content. There is no update modal, storage key or change to splash/sync readiness.
+
 The module owns behavior only. PWA and keyboard HTML/CSS remain in `index.html`; installation instructions, row dimensions, service-worker policy, and `_onWake` behavior are unchanged by the extraction.
 
 On coarse-pointer devices, the add bar follows `visualViewport` above the software keyboard while the document's task-list scroll position stays put. Do not call `scrollIntoView()` on the fixed input: it can move the list behind the bar and leave it there after blur. The platform test exercises focus, keyboard resize, and blur from a scrolled list; physical iPhone PWA behavior still needs device verification.

@@ -44,6 +44,7 @@ const server = createServer(async (req, res) => {
     if (path === '/sw.js' && (serveFailure || serveUpgrade)) {
       body = body.replace(CACHE_VERSION, serveFailure ? CACHE_VERSION + '-test-' + serveFailure : UPGRADE_VERSION);
     }
+    if (path === '/index.html') body = String(body).replace('</head>', '<meta name="sw-fixture-build" content="'+(serveUpgrade?'upgrade':'base')+'"></head>');
     const headers = {
       'Content-Type': MIME[extname(path)] || 'application/octet-stream',
       'Cache-Control': path === '/sw.js' ? 'no-store' : 'no-cache',
@@ -61,6 +62,7 @@ const BASE = `http://127.0.0.1:${server.address().port}`;
 
 let browser;
 let page;
+let secondPage;
 try {
   const puppeteer = (await import('puppeteer-core')).default;
   browser = await puppeteer.launch({
@@ -146,18 +148,89 @@ try {
   }
   serveFailure = '';
 
-  // Serve a byte-distinct worker with a new cache name. The production update
-  // listener must detect it, ask it to skip waiting, and let activation purge the
-  // prior cache without a force reload from the test.
+  // A ready update must wait, leaving the document/draft/controller intact.
+  // Keep the real postMessage path observable, including legacy takeover requests.
+  await page.evaluate(() => {
+    window.__updateMessages=[];
+    const post=ServiceWorker.prototype.postMessage;
+    ServiceWorker.prototype.postMessage=function(message,...rest){
+      window.__updateMessages.push(message);return post.call(this,message,...rest);
+    };
+    window.__sessionMarker='original-session';
+    document.getElementById('newTask').value='Fictional unsent draft';
+    window.__originalController=navigator.serviceWorker.controller;
+  });
+  let automaticNavigations=0;
+  const countNavigation=frame=>{if(frame===page.mainFrame())automaticNavigations++;};
+  page.on('framenavigated',countNavigation);
   serveUpgrade = true;
   await page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.getRegistration('/');
+    const registration=await navigator.serviceWorker.getRegistration('/');
+    const installed=new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(Error('update install timeout')),10000);
+      registration.addEventListener('updatefound',()=>{
+        const worker=registration.installing;
+        const changed=()=>{if(['installed','redundant'].includes(worker.state)){clearTimeout(timer);resolve(worker.state);}};
+        worker.addEventListener('statechange',changed);changed();
+      },{once:true});
+    });
+    await registration.update();await installed;
+  });
+  assert.deepEqual(await page.evaluate(()=>__updateMessages),[],'background install must not request immediate takeover');
+  await page.waitForFunction(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting,{timeout:10000});
+  const retained=await page.evaluate(async current=>({
+    controller:navigator.serviceWorker.controller===__originalController,
+    marker:__sessionMarker,
+    draft:document.getElementById('newTask').value,
+    cache:(await caches.keys()).includes(current),
+  }),CACHE_VERSION);
+  assert.deepEqual(retained,{controller:true,marker:'original-session',draft:'Fictional unsent draft',cache:true});
+  assert.equal(automaticNavigations,0,'installing an update cannot reload the open app');
+
+  // New code may be opened/refreshed under an existing controller. It must not
+  // cause another boot when register() finds the already waiting worker.
+  secondPage=await browser.newPage();
+  let secondNavigations=0;
+  secondPage.on('framenavigated',frame=>{if(frame===secondPage.mainFrame())secondNavigations++;});
+  await secondPage.goto(BASE+'/',{waitUntil:'load',timeout:15000});
+  assert.equal(await secondPage.$eval('meta[name=sw-fixture-build]',node=>node.content),'upgrade');
+  await secondPage.evaluate(async()=>{
+    await navigator.serviceWorker.ready;
+    window.__secondMarker='fresh-session';
+    document.getElementById('newTask').value='Second fictional draft';
+    // Even an older deployed client must not be able to force this update in.
+    const registration=await navigator.serviceWorker.getRegistration('/');
+    registration.waiting.postMessage('SKIP_WAITING');
+    document.dispatchEvent(new Event('visibilitychange'));
     await registration.update();
   });
-  await page.waitForFunction(async upgraded => {
-    const keys = await caches.keys();
-    return keys.length === 1 && keys[0] === upgraded && !!navigator.serviceWorker.controller;
-  }, { timeout: 15000 }, UPGRADE_VERSION);
+  assert.equal(secondNavigations,1,'fresh startup must have only its requested navigation');
+  assert.equal(automaticNavigations,0,'another window cannot restart the original session');
+  assert.equal(await secondPage.evaluate(()=>__secondMarker),'fresh-session');
+  assert.equal(await secondPage.$eval('#newTask',node=>node.value),'Second fictional draft');
+  assert.ok(await secondPage.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting),'legacy takeover messages are ignored');
+  console.log('  ✓ background updates, visibility checks and fresh windows preserve open sessions and drafts');
+
+  // A user refresh gets the network-first document, without a second reload.
+  await secondPage.reload({waitUntil:'load',timeout:15000});
+  await secondPage.evaluate(async()=>{await navigator.serviceWorker.ready;await (await navigator.serviceWorker.getRegistration('/')).update();});
+  assert.equal(secondNavigations,2,'manual refresh cannot trigger another automatic refresh');
+  assert.equal(await secondPage.$eval('meta[name=sw-fixture-build]',node=>node.content),'upgrade');
+  assert.ok(await secondPage.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting));
+  assert.equal(automaticNavigations,0);
+  page.off('framenavigated',countNavigation);
+  console.log('  ✓ a manual refresh receives current network content exactly once');
+
+  // Only closing the last controlled window permits normal activation/cache cleanup.
+  await page.close();page=null;
+  assert.ok(await secondPage.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting),'another open window retains the waiting update');
+  await secondPage.close();secondPage=null;
+  page=await browser.newPage();
+  await page.goto(BASE+'/',{waitUntil:'load',timeout:15000});
+  await page.waitForFunction(async upgraded=>{
+    const keys=await caches.keys();
+    return keys.length===1&&keys[0]===upgraded&&!!navigator.serviceWorker.controller;
+  },{timeout:15000},UPGRADE_VERSION);
   const upgraded = await page.evaluate(async ({ upgraded, shell }) => {
     const cache = await caches.open(upgraded);
     const cached = new Set((await cache.keys()).map(request => new URL(request.url).pathname));
@@ -168,7 +241,7 @@ try {
   }, { upgraded: UPGRADE_VERSION, shell: SHELL_PATHS });
   assert.equal(upgraded.shellComplete, true);
   assert.equal(upgraded.offlineFallbackCached, true);
-  console.log('  ✓ an updated worker takes control and replaces the prior cache');
+  console.log('  ✓ closing every app window activates the complete update and retires the old cache');
 
   await page.setOfflineMode(true);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -221,6 +294,7 @@ try {
   console.log('✓ SERVICE WORKER TEST PASSED');
 } finally {
   if (page) await page.setOfflineMode(false).catch(() => {});
+  if (secondPage) await secondPage.close().catch(() => {});
   if (browser) await browser.close();
   server.close();
 }
