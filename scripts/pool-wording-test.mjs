@@ -273,18 +273,23 @@ try{
 
  {
   const f=await fixture(7*86400000);await f.page.setViewport({width:320,height:800});await morning(f.page);
-  await click(f.page,'#dayNudge');await click(f.page,'#dayNudgeReact [data-react="missed"]');
+  await click(f.page,'#dayNudge');
   await click(f.page,'#dayNudgeReact [data-today-click="pool-wording.open"]');
   await f.page.waitForSelector('#dayNudgeReact .pool-wording-panel:not([hidden])');
   await choose(f.page,'#dayNudgeReact','formal');
   await new Promise(r=>setTimeout(r,8100));
   assert.equal(await f.page.$eval('#dayNudgeReact',e=>e.classList.contains('open')),true);
   assert.equal((await memory(f.page)).spokenLines.find(r=>r.date==='2026-11-15').wording.concern,'formal');
-  assert.equal((await memory(f.page)).spokenLines.find(r=>r.date==='2026-11-15').reaction,'missed');
+  assert.equal((await memory(f.page)).spokenLines.find(r=>r.date==='2026-11-15').reaction,undefined,'wording remains independent of a whole-result vote');
   assert.equal(await f.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   assert.equal(await f.page.evaluate(()=>__requests.filter(r=>r.writer==='pool-morning').length),1);
   await click(f.page,'#dayNudge');assert.equal(await f.page.$eval('#dayNudgeReact',e=>e.classList.contains('open')),false);
-  assert.deepEqual(f.errors,[]);ok('the actual 320px morning strip keeps optional wording usable beyond its miss timeout, preserves the vote, and dismisses normally');await f.context.close();
+  await click(f.page,'#dayNudge');await click(f.page,'#dayNudgeReact [data-react="missed"]');
+  await f.page.waitForFunction(()=>!document.getElementById('dayNudge').classList.contains('show'),{timeout:5000});
+  assert.equal((await memory(f.page)).spokenLines.find(r=>r.date==='2026-11-15').reaction,'missed');
+  assert.equal((await memory(f.page)).spokenLines.find(r=>r.date==='2026-11-15').wording.concern,'formal');
+  assert.equal(await f.page.$eval('#dayNudgeReact',e=>e.inert&&!e.classList.contains('open')),true);
+  assert.deepEqual(f.errors,[]);ok('the actual 320px strip keeps independent wording usable until a whole vote dismisses it; wording and vote both survive');await f.context.close();
  }
  {
   const f=await fixture(7*86400000,[sundaySource]);let released=false;const held=[];

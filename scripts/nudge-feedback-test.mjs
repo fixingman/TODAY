@@ -136,6 +136,26 @@ try {
   browser = await puppeteer.launch({executablePath:process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     headless:'new',args:['--no-first-run','--disable-extensions'],pipe:true});
   let initialMemory;
+  // Natural desktop/touch delivery: a negative vote also dismisses without a reason.
+  for(const mobile of [false,true]){
+    const {context,page,errors}=await fixture(mobile);
+    try{
+      await resolve(page);
+      await page.waitForFunction(line=>document.querySelector('#dayNudge .nudge-text')?.textContent===line,{},LINE);
+      await page.click('#dayNudge');
+      await page.waitForFunction(()=>!document.getElementById('dayNudgeReact').getAnimations().length);
+      await page.click('#dayNudgeReact [data-react="missed"]');
+      await page.waitForFunction(()=>!document.getElementById('dayNudge').classList.contains('show')&&!document.getElementById('dayNudgeReact').classList.contains('open'),{timeout:5000});
+      assert.equal(await page.evaluate(()=>_memoryLineFor('morning nudge',_localISO()).reaction),'missed');
+      assert.equal((await state(page)).cached,LINE,'dismissing keeps the accepted sentence');
+      assert.equal(await page.evaluate(()=>__dailyRequests.length),1,'voting makes no replacement request');
+      await page.reload({waitUntil:'load'});
+      await page.waitForFunction(()=>_appReady&&__initialSyncSettled);
+      assert.ok(await page.evaluate(()=>!!localStorage.getItem('day_nudge_dismissed_'+_localISO())&&!document.getElementById('dayNudge').classList.contains('show')),'same-day reload keeps the strip dismissed');
+      assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }
+
   // Natural generation consumes persisted reactions; a vote never rewrites today.
   for (const mobile of [false, true]) {
     const { context, page, errors } = await fixture(mobile);
@@ -146,6 +166,7 @@ try {
       await page.click('#dayNudge');
       await page.waitForFunction(() => !document.getElementById('dayNudgeReact').getAnimations().length);
       await page.click('#dayNudgeReact [data-react="landed"]');
+      await page.waitForFunction(() => !document.getElementById('dayNudge').classList.contains('show')&&!document.getElementById('dayNudgeReact').classList.contains('open'),{timeout:5000});
       assert.equal(await page.evaluate(() => __dailyRequests.length), 1, 'voting does not request a replacement');
       assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('today_memory')).spokenLines.find(r => r.surface === 'morning nudge').reaction), 'landed');
       assert.equal((await state(page)).cached, LINE, 'an accepted sentence survives its vote');

@@ -1183,53 +1183,37 @@ try {
       await page.close();
     }
 
-    // 6b. 12e: when today's line was spoken (a spokenLines entry exists), the first
-    //     tap reveals the two states instead of dismissing; choosing one records the
-    //     reaction on the line and dismisses the strip.
-    {
-      // No cache at init, so init() renders nothing; the line is recorded through
-      // the app's own recorder (a partial today_memory seed would strip the other
-      // slots' defaults), then checkDayNudge renders from cache as a spoken line.
+    // A task-list vote is complete on its own; either answer dismisses the strip.
+    for (const reaction of ['landed', 'missed']) {
       const { page, errors } = await openPage({ skipDismiss: true });
       await page.evaluate(() => {
         localStorage.setItem('day_nudge_ai_' + _localISO(), 'A spoken line.');
         _memoryRecordSpokenLine('morning nudge', 'A spoken line.', 'letgo-return');
         checkDayNudge(false);
       });
-      await page.waitForFunction(
-        () => document.getElementById('dayNudge')?.classList.contains('visible'),
-        { timeout: 5000 }
-      );
+      await page.waitForFunction(() => document.getElementById('dayNudge')?.classList.contains('visible'));
       await page.click('#dayNudge');
-      await new Promise(r => setTimeout(r, 120));
-      const afterFirst = await page.evaluate(() => ({
-        stillVisible:  document.getElementById('dayNudge').classList.contains('visible'),
-        revealed:      document.getElementById('dayNudgeReact').classList.contains('open'),
-        notDismissed:  !localStorage.getItem('day_nudge_dismissed_' + _localISO()),
-      }));
-      await page.click('#dayNudgeReact [data-react="missed"]');
-      const afterVote = await page.evaluate(() => ({
-        voteSavedImmediately: appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reaction === 'missed',
-        reasonOptional: document.querySelector('#dayNudgeReact .nudge-reason')?.hidden === false
-          && !localStorage.getItem('day_nudge_dismissed_' + _localISO()),
-      }));
-      await page.click('#dayNudgeReact [data-reason="not_useful"]');
-      await new Promise(r => setTimeout(r, 450));
-      const afterChoice = await page.evaluate(() => ({
-        recorded:  appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reaction === 'missed',
-        reasonSaved: appMemory.spokenLines.find(l => l.surface === 'morning nudge')?.reactionReason === 'not_useful',
-        dismissed: !!localStorage.getItem('day_nudge_dismissed_' + _localISO()),
-        hidden:    !document.getElementById('dayNudge').classList.contains('visible')
-                && !document.getElementById('dayNudgeReact').classList.contains('open'),
-      }));
-      await expectAll('nudge reaction', { ...afterFirst, ...afterVote, ...afterChoice, noErrors: errors.length === 0 });
-      ok('checkDayNudge: not really saves immediately, offers an optional reason, then dismisses');
+      await page.waitForFunction(() => document.getElementById('dayNudgeReact').classList.contains('open') && !document.getElementById('dayNudgeReact').getAnimations().length);
+      await page.click('#dayNudgeReact [data-react="' + reaction + '"]');
+      await page.waitForFunction(() => !document.getElementById('dayNudge').classList.contains('show') && !document.getElementById('dayNudgeReact').classList.contains('open'), {timeout:5000});
+      const result = await page.evaluate(reaction => {
+        checkDayNudge();
+        const line = _memoryLineFor('morning nudge', _localISO());
+        return { voteSaved:line?.reaction === reaction, reasonOptional:!line?.reactionReason,
+          dismissed:!!localStorage.getItem('day_nudge_dismissed_' + _localISO()),
+          staysHidden:!document.getElementById('dayNudge').classList.contains('visible'),
+          acceptedLineKept:localStorage.getItem('day_nudge_ai_' + _localISO()) === 'A spoken line.',
+          closingControlsInert:document.getElementById('dayNudge').inert&&document.getElementById('dayNudgeReact').inert,
+          focusReturned:document.activeElement.id==='main-app' };
+      }, reaction);
+      await expectAll('task-list vote dismisses: '+reaction, {...result,noErrors:errors.length===0});
       await page.close();
     }
+    ok('checkDayNudge: landed and not really save the vote, dismiss and stay dismissed on a later tick');
 
-    // The follow-up is never required: tapping the reading again collapses the row and keeps the vote.
+    // The optional reason remains available in the reading's persistent About home.
     {
-      const { page, errors } = await openPage({ skipDismiss: true });
+      const { page, errors } = await openPage({ skipDismiss:true });
       await page.evaluate(() => {
         localStorage.setItem('day_nudge_ai_' + _localISO(), 'Another spoken line.');
         _memoryRecordSpokenLine('morning nudge', 'Another spoken line.', 'soon-pullback');
@@ -1239,19 +1223,18 @@ try {
       await page.click('#dayNudge');
       await page.waitForFunction(() => !document.getElementById('dayNudgeReact').getAnimations().length);
       await page.click('#dayNudgeReact [data-react="missed"]');
-      await page.click('#dayNudge');
+      await page.waitForFunction(() => !document.getElementById('dayNudge').classList.contains('show'),{timeout:5000});
+      await page.click('#infoBtn');
+      await page.waitForFunction(() => Today.use('sidebar').isOpen('about')&&!document.getElementById('sidebarRoot').classList.contains('entering'));
+      await page.click('#todayNudgeBlock .week-summary');
+      await page.click('#todayNudgeBlock [data-reason="not_useful"]');
       const result = await page.evaluate(() => {
-        const line = appMemory.spokenLines.find(l => l.surface === 'morning nudge');
-        return {
-          voteKeptWithoutReason: line?.reaction === 'missed' && !line.reactionReason,
-          rowCollapsed: !document.getElementById('dayNudgeReact').classList.contains('open')
-            && document.querySelector('#dayNudgeReact .nudge-reason')?.hidden === true,
-          stripStays: document.getElementById('dayNudge').classList.contains('visible')
-            && !localStorage.getItem('day_nudge_dismissed_' + _localISO()),
-        };
+        const line = _memoryLineFor('morning nudge', _localISO());
+        return {voteKept:line.reaction==='missed',reasonSaved:line.reactionReason==='not_useful',
+          stillDismissed:!!localStorage.getItem('day_nudge_dismissed_'+_localISO())&&!document.getElementById('dayNudge').classList.contains('visible'),
+          readingKept:document.getElementById('todayNudgeBlock').textContent.includes('Another spoken line.')};
       });
-      await expectAll('optional reason skip', { ...result, noErrors: errors.length === 0 });
-      ok('checkDayNudge: a second tap collapses the row, skips the optional reason and keeps the vote');
+      await expectAll('optional reason in About after strip dismissal',{...result,noErrors:!errors.length});
       await page.close();
     }
 

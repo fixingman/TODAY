@@ -156,9 +156,10 @@
   const chevron = d => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="${d}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   function controls() {
     const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
-    const chatIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M3 1h9a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 3V2a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
-    const pages=[['conversation',chatIcon,'Chat'],['notes','Living note'],['history','Earlier'],['sources','Sources']];
-    const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label,ariaL])=>action(page,label,`data-ex-nav="true" ${ariaL?`aria-label="${ariaL}" `:''}${page==='notes'?'id="exNotes" ':''}${view===page||(page==='history'&&view==='original-history')?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
+    const chatIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 2h6a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H6l-4 2V4a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+    const calendarIcon='<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 1v3m6-3v3M2 5h10M3 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+    const pages=[['conversation',chatIcon,'Chat'],['history',calendarIcon,'Earlier'],['notes','Living note'],['sources','Sources']];
+    const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label,ariaL])=>action(page,label,`data-ex-nav="true" ${ariaL?`aria-label="${ariaL}" title="${ariaL}" `:''}${page==='notes'?'id="exNotes" ':''}${view===page||(page==='history'&&view==='original-history')?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
     return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${nav}`;
   }
   function backLink() {

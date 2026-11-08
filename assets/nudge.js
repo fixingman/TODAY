@@ -12,7 +12,6 @@ window._startNudge = (function() {
     let _nudgeTouched = false;      // any press on the strip since it appeared
     let _nudgeFallbackAt = 0;       // performance.now() when the default appeared
     const _NUDGE_SWAP_WINDOW_MS = 20000;
-    let _reasonDismissTimer = null;
     let _retryTimer = null;
     let _nudgeKind = null;
 
@@ -270,8 +269,7 @@ window._startNudge = (function() {
 
       const _showNudge = (text, isAI) => {
         if (!canShow) return;
-        if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
-        _reasonDismissTimer = null;
+        nudgeEl.inert=false;
         const _wasFallback = _nudgeRendered && _nudgeIsFallback;
         _nudgeRendered = true;
         _nudgeIsFallback = !isAI;
@@ -300,11 +298,11 @@ window._startNudge = (function() {
           }
         }
         const _dismiss = () => {
-          if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
-          _reasonDismissTimer = null;
-          nudgeEl.classList.remove('visible');
+          nudgeEl.classList.remove('visible','react-open');
+          nudgeEl.inert=true;
+          if(reactEl?.contains(document.activeElement)||document.activeElement===nudgeEl)document.getElementById('main-app')?.focus({preventScroll:true});
           setTimeout(() => nudgeEl.classList.remove('show'), 300);
-          if (reactEl) reactEl.classList.remove('open');
+          if (reactEl) {reactEl.classList.remove('open');reactEl.inert=true;}
           _pruneLS('day_nudge_dismissed_', _dismissKey);
           localStorage.setItem(_dismissKey, '1');
           localStorage.removeItem('morning_nudge_count');
@@ -316,6 +314,7 @@ window._startNudge = (function() {
           ? _memoryLineFor('morning nudge', _localISO()) : null;
         if (reactEl) {
           reactEl.classList.remove('open');
+          reactEl.inert=true;
           reactEl.innerHTML = '';
           reactEl.onclick = null;
           if (spokenToday) {
@@ -323,7 +322,6 @@ window._startNudge = (function() {
             reactEl.innerHTML = `<div class="morning-nudge-react-body"><div class="nudge-react open" role="group" aria-label="Did this land?">${btn('landed', 'landed')}${btn('missed', 'not really')}${spokenToday.text === text ? `<button type="button" class="nudge-explore-btn" data-today-click="exploration.open" data-ex-origin="nudge" data-ex-nudge-text="${esc(text)}" aria-label="Explore this daily reading">explore</button>` : ''}${spokenToday.text === text ? Today.use('pool-wording').button(spokenToday) : ''}</div>` +
               _memoryMissReasonHTML('morning nudge', spokenToday) + '</div>';
             reactEl.onclick = e => {
-              if (e.target.closest('[data-pool-source]')) {clearTimeout(_reasonDismissTimer);_reasonDismissTimer=null;}
               const reason = e.target.closest('.nudge-reason-btn');
               if (reason) {
                 _memorySetReactionReason('morning nudge', _localISO(), reason.dataset.reason);
@@ -333,12 +331,8 @@ window._startNudge = (function() {
               }
               const b = e.target.closest('.nudge-react-btn');
               if (!b) return;
-              const choice = _memoryReactToLine('morning nudge', _localISO(), b.dataset.react);
+              _memoryReactToLine('morning nudge', _localISO(), b.dataset.react);
               if (typeof _haptic === 'function') _haptic();
-              if (choice === 'missed') {
-                reactEl.querySelector('.nudge-reason').hidden = false;
-                return;
-              }
               _dismiss();
             };
           }
@@ -348,10 +342,12 @@ window._startNudge = (function() {
           if (!spokenToday || !reactEl) { _dismiss(); return; }
           if (!reactEl.classList.contains('open')) {
             _syncMorningReactionControls();
+            reactEl.inert=false;
             reactEl.classList.add('open');
             nudgeEl.classList.add('react-open');
           } else {
             reactEl.classList.remove('open');
+            reactEl.inert=true;
             nudgeEl.classList.remove('react-open');
             const reasonRow = reactEl.querySelector('.nudge-reason');
             if (reasonRow) reasonRow.hidden = true;
@@ -749,8 +745,6 @@ window._startNudge = (function() {
     });
     window._nudgeOnNewDay = function() {
       _clearNudgeRetry();
-      if (_reasonDismissTimer) clearTimeout(_reasonDismissTimer);
-      _reasonDismissTimer = null;
       _nudgeRendered  = false;
       _nudgeRacing    = false;
       _nudgeEpoch++;

@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 155 | ⏳ Verify | Task-list daily reading remains after not really; optional reason keeps the strip open indefinitely. | v3.7.4 |
 | 154 | ⏳ Verify | Desktop title area leaks scrolling content; Explore replays panel entry and steals input ownership. Desktop PWA needs persistent header and Focus-dimmed peer panels; mobile paint ends early. | v3.7.3 |
 | 153 | ⏳ Verify | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | v3.7.2 |
 | 152 | ⏳ Verify | Dark strip returns above Explore and survives Chromium’s title-bar toggle. | v3.6.1 correction |
@@ -49,6 +50,14 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-155 — Daily vote does not dismiss the task-list reading
+
+**Report / reproduction:** a not-really vote is saved but returns before dismissal to keep an optional reason open. The previous test explicitly required the strip to remain visible. A new actual-startup native-input regression fails the old path at the existing5s state bound (`.context/nudge-vote-dismiss/before.log`). Landed already dismisses; cover both choices rather than claiming an unseen landed failure.
+
+**Repair (v3.7.4):** either vote completes and dismisses the task-list strip. Preserve the accepted line, private verdict, per-day dismissal and existing sync contract. Optional reasons/revisions remain in About without another vote. Mark closing controls inert immediately, restore task-list focus and retain the existing close animation. Remove unused miss-timer plumbing. No writer, AI replacement, new data source or schema change. Keep real-startup desktop/touch negative-vote, same-day reload, positive-feedback cycle and About-reason coverage. Final fresh validation passes10 suites with zero failures/flakes in106.7s (`.context/fresh-5NK1AR/receipt.json`). Earlier payload/old-workflow failures remain retained; limits are unchanged. This release also includes the approved rounded1.5 Chat/calendar tabs; the already-pushed v3.7.3 desktop-PWA sticky header remains intact.
 
 ---
 
