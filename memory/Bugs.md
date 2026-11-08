@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
 | 157 | ⏳ Verify | Opening Habits hides the task input; moving directly back over Today does not restore it. | v3.7.7 |
 | 156 | ⏳ Verify | A deployed update forces a second boot or refresh in an open desktop PWA session. | v3.7.5 |
 | 155 | ⏳ Verify | Task-list daily reading remains after not really; optional reason keeps the strip open indefinitely. | v3.7.4 |
@@ -52,6 +53,14 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-158 — Explore suggestion hits the short-helper output cap
+
+**Report (November 8):** Can sees “The AI answer was cut short. You can ask again.” after requesting Something to try. This specific notice maps to provider token-cap metadata; no personal journal, provider key or raw answer was inspected.
+
+**v3.7.11:** Explore's reply, cumulative summary, question, evidence IDs and six experiment fields shared the ordinary512-token ceiling. Give the exact Explore surface a fixed2048-token maximum on both existing providers. Preserve one request per explicit click, disabled thinking, model/routing,25-second deadline, field/input bounds, source fences and content-free rejection of capped results; no automatic retry or partial write. Other surfaces keep their limits. Both-provider offline checks fail the old512 request policy and verify the fixed ceiling, override refusal, intact six-field results, one call and retained cutoff rejection. Evidence and local verification live in `.context/explore-output-budget/`; live completion, latency and usefulness remain to verify.
 
 ---
 

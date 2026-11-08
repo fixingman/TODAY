@@ -41,7 +41,7 @@ async function page(){
   },stamp);
   stage='navigate';await page.goto(url,{waitUntil:'domcontentloaded'});
   stage='wait for components';
-  await page.waitForFunction(()=>typeof Today?.use('reflections').reflectionReflect==='function');
+  await page.waitForFunction(()=>!document.body.hasAttribute('data-booting')&&performance.getEntriesByName('today:interactive').length>0&&typeof Today?.use('reflections').reflectionReflect==='function');
   await page.evaluate(()=>{
     appMemory.taskOutcomes=JSON.parse(localStorage.getItem('fixture-outcomes'));
     window.dropboxAutoSave=()=>{};window.dropboxBackup=()=>{};

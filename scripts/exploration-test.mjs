@@ -328,7 +328,7 @@ try{
   HTMLElement.prototype.focus=function(...args){if(this.id==='exThought')__explorationTest.mobileFocus.push(this.readOnly);return __explorationTest.restoreFocus.apply(this,args);};
  });
  try {
-  await page.type('#exThought','MOBILE_FOCUS_FICTION: a small observation.');await page.keyboard.press('Enter');
+  await page.type('#exThought','MOBILE_FOCUS_FICTION: a small observation.');await send();
   await wait(()=>typeof __explorationTest.release==='function');
   assert.equal(await page.evaluate(()=>document.activeElement.id==='exThought'),false,'Phone Send does not refocus its locked reply field');
   assert.equal(await page.evaluate(()=>__explorationTest.mobileFocus.some(readOnly=>readOnly)),false,'Phone pending renders never focus the readonly reply field');

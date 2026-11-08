@@ -221,10 +221,24 @@ try {
   page.off('framenavigated',countNavigation);
   console.log('  ✓ a manual refresh receives current network content exactly once');
 
-  // Only closing the last controlled window permits normal activation/cache cleanup.
-  await page.close();page=null;
-  assert.ok(await secondPage.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting),'another open window retains the waiting update');
-  await secondPage.close();secondPage=null;
+  // Observe activation from outside the worker scope. Opening the app immediately
+  // after close() can race client removal and keep the old controller alive.
+  const observer=await browser.newPage(),workerSession=await observer.createCDPSession();
+  let waitingVersion='',sawWaiting,sawActivation,activationDeadline;
+  const waiting=new Promise(resolve=>{sawWaiting=resolve;}),activated=new Promise(resolve=>{sawActivation=resolve;});
+  workerSession.on('ServiceWorker.workerVersionUpdated',({versions})=>{
+    for(const version of versions)if(version.scriptURL===BASE+'/sw.js'&&version.status==='installed'){waitingVersion=version.versionId;sawWaiting();}
+    if(versions.some(version=>version.versionId===waitingVersion&&version.status==='activated'))sawActivation();
+  });
+  try {
+    await Promise.race([(async()=>{
+      await workerSession.send('ServiceWorker.enable');await waiting;
+      await page.close();page=null;
+      assert.ok(await secondPage.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting),'another open window retains the waiting update');
+      await secondPage.close();secondPage=null;
+      await activated;
+    })(),new Promise((_,reject)=>{activationDeadline=setTimeout(()=>reject(new Error('Last-window worker activation exceeded 15000ms')),15000);})]);
+  } finally {clearTimeout(activationDeadline);await workerSession.detach();await observer.close();}
   page=await browser.newPage();
   await page.goto(BASE+'/',{waitUntil:'load',timeout:15000});
   await page.waitForFunction(async upgraded=>{

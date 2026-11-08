@@ -34,6 +34,9 @@ exports.handler = async function(event) {
   }
 
   const { provider = 'gemini', messages, systemPrompt, apiKey: rawClientKey, surface } = body;
+  // Explore returns a reply, cumulative note, evidence and optional six-part step
+  // together. Short helper replies keep their existing allowance.
+  const outputTokens = surface === 'exploration' ? 2048 : 512;
   if (!messages || !Array.isArray(messages)) {
     return { 
       statusCode: 400, 
@@ -69,7 +72,7 @@ exports.handler = async function(event) {
       const geminiBody = {
         contents: geminiMessages,
         generationConfig: {
-          maxOutputTokens: 512,
+          maxOutputTokens: outputTokens,
           temperature: 0.7,
           thinkingConfig: { thinkingBudget: 0 }, // Disable thinking — prevents Netlify 10s timeout
         },
@@ -164,9 +167,9 @@ exports.handler = async function(event) {
         },
         body: JSON.stringify({
           model: 'claude-sonnet-5',
-          // Reasoning and the answer share this ceiling. Only daily nudges opt in;
-          // callers cannot supply arbitrary model, effort or token-budget overrides.
-          max_tokens: dailyNudge ? 2048 : 512,
+          // Only daily nudges opt into thinking. Output allowances are fixed by
+          // surface; callers cannot supply model, effort or budget overrides.
+          max_tokens: dailyNudge ? 2048 : outputTokens,
           thinking: { type: dailyNudge ? 'adaptive' : 'disabled' },
           system: systemPrompt || '',
           messages: messages.map(m => ({ role: m.role, content: m.content })),

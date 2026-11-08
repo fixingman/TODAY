@@ -1,5 +1,9 @@
 # Exploration — native v3.5.0 (local)
 
+## Output allowance — v3.7.11
+
+Explore's single structured result now has a fixed2048-token output ceiling on both existing providers, replacing the512-token short-helper allowance. A reply, cumulative summary, next question, evidence IDs and six experiment fields compete for that one output; Can reported the explicit provider-cutoff error during Suggest something. This changes the maximum available output, not a minimum length. Keep one call per explicit turn/tap, no automatic retry, the25-second client deadline, existing thinking/model/routing, input and field bounds, completion/validation/source fences and acknowledged writes. Other surfaces keep their previous allowances. The historical unchanged-ceiling statements below describe their releases; this section supersedes only that ceiling. Offline handler fixtures verify the outgoing allowance and complete results, not live tokenization, latency or writing usefulness.
+
 ## Requested-step reliability — local v3.5.1
 
 An earlier failed suggestion’s page-held status no longer appears as a fresh failure when **Something to try** is reopened. Entering that view clears a terminal status without a request, journal write or retry. A still-active request retains its thinking status across navigation; its existing fences/deadline continue. Fully reopening Explore already clears the status; the defect was navigation between pages inside the same open session.

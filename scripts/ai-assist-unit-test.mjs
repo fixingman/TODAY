@@ -56,12 +56,12 @@ try {
   assert.ok(!('surface' in lastRequest.body), 'routing marker is not sent to Claude');
   ok('daily nudges use adaptive thinking; only the final text reaches the client');
 
-  for (const surface of ['focus', 'sunday', 'DAILY-NUDGE', null, { type: 'daily-nudge' }]) {
+  for (const surface of ['focus', 'sunday', 'DAILY-NUDGE', 'EXPLORATION', null, { type: 'daily-nudge' }, { type: 'exploration' }]) {
     await run('claude', surface);
     assert.deepEqual(lastRequest.body.thinking, { type: 'disabled' });
     assert.equal(lastRequest.body.max_tokens, 512);
   }
-  ok('only the exact daily-nudge marker changes thinking and budget');
+  ok('ordinary and invalid surface markers retain their existing thinking and budget');
 
   for (const content of [[{ type: 'thinking', thinking: 'PRIVATE_THINKING' }],
     [{ type: 'text', text: 'An unfinished sentence' }]]) {
@@ -100,11 +100,11 @@ try {
       stub(provider === 'claude'
         ? {content:[{type:'text',text:exploration}],stop_reason:capped?'max_tokens':'end_turn'}
         : {candidates:[{content:{parts:[{text:exploration}]},finishReason:capped?'MAX_TOKENS':'STOP'}]});
-      r = await run(provider,'exploration');
+      r = await run(provider,'exploration',{max_tokens:999999,maxOutputTokens:999999,thinking:{type:'adaptive'},model:'override'});
       assert.equal(r.status,capped?502:200,provider+' Explore completion fence');
       if(capped)assert.deepEqual(r.body,{error:'Exploration response incomplete',code:'exploration-incomplete'},'Do not return partial/private model text');
       else assert.equal(r.body.reply,'Fictional reply');
-      assert.equal(provider==='claude'?lastRequest.body.max_tokens:lastRequest.body.generationConfig.maxOutputTokens,512,'Explore retains its existing output ceiling');
+      assert.equal(provider==='claude'?lastRequest.body.max_tokens:lastRequest.body.generationConfig.maxOutputTokens,2048,'Explore reserves bounded room for reply, cumulative summary, evidence IDs and six experiment fields');
       assert.deepEqual(provider==='claude'?lastRequest.body.thinking:lastRequest.body.generationConfig.thinkingConfig,provider==='claude'?{type:'disabled'}:{thinkingBudget:0});
       if(capped){
         const unmarked=await run(provider);
@@ -112,7 +112,27 @@ try {
       }
     }
   }
-  ok('Explore rejects provider-capped results without changing budgets, thinking or other surfaces');
+  // A complete multi-field result must reach the client intact, including the
+  // final experiment bound and all selected evidence, without a second call.
+  const experiment = {question:'Does a smaller setup make starting easier?',action:'Put one fictional material on the desk and try it for two minutes.',signal:'Notice whether beginning feels easier; stopping is also useful information.',effort:'Two minutes, once.',review:'Discuss what happened when returning; no scheduled reminder.',stop:'Stop if it feels burdensome or the setting is unsuitable.'};
+  const complete = {reply:'Try a brief setup and notice what changes, without treating completion as success.',summary:'A quieter setting and having materials ready remain competing possibilities. The earlier experience does not establish which mattered. This small test changes setup while leaving room for uncertainty.',next_question:'What changes when only setup is easier?',evidence_ids:Array.from({length:20},(_,i)=>'fictional-evidence-'+i),experiment};
+  for (const provider of ['claude','gemini']) {
+    let calls=0;
+    globalThis.fetch=async (url,options)=>{
+      calls++;lastRequest={url:String(url),body:JSON.parse(options.body)};
+      return {ok:true,status:200,text:async()=>JSON.stringify(provider==='claude'
+        ? {content:[{type:'text',text:JSON.stringify(complete)}],stop_reason:'end_turn'}
+        : {candidates:[{content:{parts:[{text:JSON.stringify(complete)}]},finishReason:'STOP'}]})};
+    };
+    r=await run(provider,'exploration');
+    assert.equal(r.status,200);assert.deepEqual(r.body,complete);assert.equal(calls,1);
+    assert.equal(provider==='claude'?lastRequest.body.max_tokens:lastRequest.body.generationConfig.maxOutputTokens,2048);
+    if(provider==='claude')assert.equal(lastRequest.body.model,'claude-sonnet-5');
+    else assert.ok(lastRequest.url.includes('/gemini-2.5-flash:generateContent'));
+    await run(provider,'EXPLORATION');
+    assert.equal(provider==='claude'?lastRequest.body.max_tokens:lastRequest.body.generationConfig.maxOutputTokens,512,'Only the exact Explore marker gets the larger allowance');
+  }
+  ok('Explore reserves a fixed 2048-token ceiling, passes complete six-bound results in one call, and still rejects capped results');
 } finally {
   globalThis.fetch = realFetch;
 }
