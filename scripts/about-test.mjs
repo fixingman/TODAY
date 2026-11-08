@@ -92,9 +92,12 @@ async function openPage(context = browser) {
     { today: TODAY, yesterday: YESTERDAY }
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  // Wait until both functions exist AND $ is populated (init() has run)
+  // init() populates $ before the yielded bootstrap registers platform. About
+  // mounts platform-owned controls, so wait for the successful startup seal too.
   await page.waitForFunction(
-    () => typeof Today?.use('about').toggleInfo === 'function' && !!$.infoPanel,
+    () => !document.body.hasAttribute('data-booting') &&
+      performance.getEntriesByName('today:interactive').length > 0 &&
+      typeof Today?.use('about').toggleInfo === 'function' && !!$.infoPanel,
     { timeout: 15000 }
   );
   await page.evaluate(() => {

@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## About fixture startup readiness (engineering, app v3.7.6)
+
+Dev42439077003 passes62 suites; About fails first and passes its diagnostic retry because the fixture opens About after `init()` fills `$` but before yielded startup registers platform. Preserve the original logs/artifacts in `.context/ci-42439077003/`. Wait for the successful `today:interactive` mark and removal of `data-booting` inside the existing15s bound before mounting About. A controlled200ms pre-platform pause reproduces the original exception and passes with the repaired driver; deliberately broken About mounting still fails. Runtime, app/SW metadata, assertions, budgets and deadlines remain unchanged. Fresh targeted verification and publication status are recorded in that folder's receipt; hosted CI must validate the new exact commit.
+
 ## Mobile paint fixture readiness (engineering, app v3.7.4)
 
 Linux dev42435146448 passed62 suites and failed only the mobile About bottom-paint check. Its retained screenshot is uniformly22/22/25/255 at the sampled edge versus the final surface23/23/26/255; it is not a missing background. The driver sampled a panel content fade before completion. Wait for the actual finite sidebar/view entrance animations before the existing exact color/alpha checks; do not change runtime, baselines, tolerances, deadlines or app/SW metadata. A held-animation Mac probe verifies readiness but does not reproduce Linux quantization. The corrected driver still rejects a deliberately missing mobile backing. Initial local sidebar/invariant/planner/evidence checks pass four suites in17.3s without failures/flakes; the isolated candidate also passes these four checks; full hosted validation remains required. Retain original logs/artifacts and controls under `.context/nudge-vote-dismiss/`.
