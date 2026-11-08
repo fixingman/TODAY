@@ -134,8 +134,12 @@ function close(immediate=false){
   };
   if(immediate||cancel){finish();return Promise.resolve();}return motion('leaving').then(finish);
 }
+// Hover never pulls focus away from words being written. Daily capture's caret always
+// holds its pane; an empty field inside a panel (Habits name, Explore reply) does not,
+// so moving back over the list brings capture back on every tab.
+const typing=()=>{const el=document.activeElement;if(!el?.matches('input,textarea,[contenteditable="true"]'))return false;if(el.closest('#addTaskBar'))return true;return el.isContentEditable?!!el.textContent.trim():!!el.value?.trim();};
 const isOpen=id=>!closing&&(id?active===id:!!active);
-document.addEventListener('pointermove',event=>{pointerX=event.clientX;if(!active||event.pointerType==='touch')return;const next=pointerPane(pointerX);if(next!==hoverPane&&!document.activeElement?.matches('input,textarea,[contenteditable="true"]'))activate(next);hoverPane=next;},{passive:true});
+document.addEventListener('pointermove',event=>{pointerX=event.clientX;if(!active||event.pointerType==='touch')return;const next=pointerPane(pointerX);if(next!==hoverPane&&!typing())activate(next);hoverPane=next;},{passive:true});
 document.addEventListener('pointerdown',event=>{pointerX=event.clientX;if(active){hoverPane=pointerPane(pointerX);activate(hoverPane);}},{passive:true});
 document.addEventListener('focusin',event=>{if(active)activate(root.contains(event.target)?'sidebar':'tasks');});
 document.addEventListener('click',event=>{
