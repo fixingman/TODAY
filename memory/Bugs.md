@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 154 | ⏳ Verify | Desktop title area leaks scrolling content; Explore replays panel entry and steals input ownership. Desktop PWA needs persistent header and Focus-dimmed peer panels; mobile paint ends early. | v3.7.3 |
 | 153 | ⏳ Verify | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | v3.7.2 |
 | 152 | ⏳ Verify | Dark strip returns above Explore and survives Chromium’s title-bar toggle. | v3.6.1 correction |
 | 151 | ⏳ Verify | Offscreen TODAY can flash as moving haze when entering Focus on a long list, with or without Explore. | v3.6.1 follow-up |
@@ -48,6 +49,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-154 — Desktop header and sidebar continuity
+
+**Reported November 8:** transparent native-title area exposes scrolling tasks. Explore refocuses instead of toggling closed, cursor motion can hide the active composer, and changing from another panel replays shell entry. Can also requests a pinned desktop-PWA header and sidebar dimming during Focus, and reports a mobile bottom-edge paint gap.
+
+**Repair (v3.7.3):** paint an opaque `--bg` title backdrop behind Today while retaining the continuous soft sidebar above it. Desktop standalone and window-controls-overlay documents grow to their content height so the full sticky header stays pinned; ordinary tabs and mobile standalone keep their existing scroll behavior. The mobile surface stays opaque and covers the layout viewport behind a composer fitted to the visual viewport. Explore closes on a repeated entrance click. Pointer movement activates only on a real pane crossing, leaves an editing caret alone, and explicit clicks/keyboard focus still choose a pane. Switching panels cancels obsolete shell motion, replaces content within the same root, and cancels an abandoned lazy import. Focus dims every desktop peer panel through the existing recede token; the active habit/timer inside Habits remains legible.
+
+**Coverage gap:** the old platform fixture asserted transparent dragging and geometry without checking scrolled paint. Sidebar checks sampled settled panels, and the Explore fixture explicitly expected hover to park a focused composer; those checks encoded incomplete or superseded behavior. New checks exercise scrolling pixels, desktop-installed versus browser/mobile sticky bounds, cold/warm transitions and repeated toggles, caret ownership, Focus across all four panels and reduced motion. Final local checks pass nine affected suites without failures/flakes in51.6s, plus the final header-paint/invariant check in6.3s. Deliberate shipped-runtime, missing-title-backdrop and missing-mobile-backing controls are rejected. Native Chromium-owned controls remain a separate installed acceptance check. Local receipts and deliberate broken controls stay under `.context/sidebar-polish/`.
 
 ---
 

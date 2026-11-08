@@ -235,7 +235,7 @@ try{
  assert.ok(await page.$eval('#addTaskBar',node=>node.inert),'Only the active pane offers its composer');
  // Docked width: the list itself stays usable while Explore is open.
  await page.setViewport({width:1440,height:900});await wait(()=>!document.getElementById('main-app').inert);
- await page.mouse.move(80,300);await wait(()=>!document.getElementById('addTaskBar').inert);await click('#newTask');await wait(()=>document.activeElement?.id==='newTask');await page.type('#newTask','CAPTURE_WITH_EXPLORE_FICTION');await page.keyboard.press('Enter');
+ await click('#dateTag');await wait(()=>!document.getElementById('addTaskBar').inert);await click('#newTask');await wait(()=>document.activeElement?.id==='newTask');await page.type('#newTask','CAPTURE_WITH_EXPLORE_FICTION');await page.keyboard.press('Enter');
  await wait(()=>manualTasks.some(task=>task.text==='CAPTURE_WITH_EXPLORE_FICTION'));
  assert.equal(await page.evaluate(()=>__explorationTest.remote),null,'Daily capture does not create an exploration or send a reply');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0);
@@ -674,8 +674,10 @@ try{
   assert.equal(await page.$eval('#sidebarRoot',node=>node.hidden),false,'Escape cannot dismiss the sidebar');
   assert.equal(await page.$$eval('.ex-nav [data-ex-action="sources"]',nodes=>nodes.length),1,'Sources has one navigation entrance');
   assert.equal(await page.$('.ex-turn [data-ex-action="sources"],.ex-turn [data-ex-action="correct"]'),null,'Chat has no repeated source/correction toolbars');
-  await page.mouse.move(80,300);await wait(()=>!document.getElementById('addTaskBar').inert&&getComputedStyle(document.getElementById('exScrim')).opacity==='0');
-  assert.equal(await page.evaluate(()=>document.body.classList.contains('ex-task-active')&&getComputedStyle(document.getElementById('exScrim')).opacity==='0'&&document.querySelector('.ex-sheet-foot').inert),true,'Pointer on Today clears its dim and parks the chat composer');
+  await page.mouse.move(80,300);
+  assert.equal(await page.evaluate(()=>document.activeElement?.id==='exThought'&&!document.querySelector('.ex-sheet-foot').inert&&document.getElementById('addTaskBar').inert),true,'Pointer movement cannot steal the active chat caret or hide its composer');
+  await page.click('#dateTag');await wait(()=>!document.getElementById('addTaskBar').inert&&getComputedStyle(document.getElementById('exScrim')).opacity==='0');
+  assert.equal(await page.evaluate(()=>document.body.classList.contains('ex-task-active')&&getComputedStyle(document.getElementById('exScrim')).opacity==='0'&&document.querySelector('.ex-sheet-foot').inert),true,'An explicit Today click clears its dim and parks the chat composer');
   await page.click('#dateTag');
   assert.equal(await page.$eval('#sidebarRoot',node=>node.hidden),false,'Clicking Today cannot dismiss Explore');
   await page.evaluate(()=>{const hours=Date.prototype.getHours;Date.prototype.getHours=()=>21;try{Today.use('triage').checkTriageBar();}finally{Date.prototype.getHours=hours;}});
@@ -705,7 +707,9 @@ try{
   assert.equal(await page.$eval('#sidebarRoot',node=>node.hidden),false,'Keyboard Undo must keep Explore open');
   await page.evaluate(id=>{manualTasks=manualTasks.filter(task=>task.id!==id);Today.use('connections').renderManual();},removedId);
   await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/tasks-active-${width}.png`),fullPage:false});
-  await page.mouse.move(width-20,200);await wait(()=>document.getElementById('addTaskBar').inert&&!document.querySelector('.ex-sheet-foot').inert&&getComputedStyle(document.getElementById('sidebarRoot'),'::after').opacity==='0');
+  await page.focus('#newTask');await page.mouse.move(width-20,200);
+  assert.equal(await page.evaluate(()=>document.activeElement?.id==='newTask'&&!document.getElementById('addTaskBar').inert),true,'Pointer movement cannot steal the active task caret');
+  await page.click('#exTitle');await wait(()=>document.getElementById('addTaskBar').inert&&!document.querySelector('.ex-sheet-foot').inert&&getComputedStyle(document.getElementById('sidebarRoot'),'::after').opacity==='0');
   assert.equal(await page.$eval('#exThought',node=>node.value),'UNSENT_SHEET_SWITCH_FICTION','Pane switching preserves the unsent chat draft');
   assert.ok(await page.evaluate(()=>getComputedStyle(document.getElementById('sidebarRoot'),'::after').opacity==='0'),'Pointer on Explore clears its dim');
   await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/chat-active-${width}.png`),fullPage:false});

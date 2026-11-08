@@ -2,7 +2,7 @@
 (function () {
 'use strict';
 const phone=matchMedia('(max-width: 600px)'), registry=new Map();
-let root=null, active=null, pending=null, generation=0, closing=false, pane='sidebar', returnFocus=null;
+let root=null, active=null, pending=null, generation=0, closing=false, pane='sidebar', returnFocus=null, pointerX=null, hoverPane=null;
 function getRoot(){
   root ||= document.getElementById('sidebarRoot');
   return root;
@@ -64,21 +64,23 @@ function renderPanelNav(){
   }
 }
 function register(id,adapter){registry.set(id,adapter);}
+const pointerPane=x=>x>=innerWidth-root.offsetWidth?'sidebar':'tasks';
 function prepare(id,label,cancel){
+  const wasOpen=!!active&&!closing;
   generation++;closing=false;getRoot();if(active&&!pending){document.dispatchEvent(new CustomEvent('today:sidebar-unmount',{detail:getContent()}));registry.get(active)?.unmount?.();}returnFocus ||= document.activeElement;active=id;pending=cancel;pane='sidebar';root.hidden=false;root.setAttribute('aria-label',label);root.setAttribute('aria-busy','true');
-  const content=getContent();content.className='';content.replaceChildren();renderPanelNav();surface(true);motion('entering');return content;
+  const content=getContent();content.className='';content.replaceChildren();renderPanelNav();surface(true);hoverPane=pointerX===null?null:pointerPane(pointerX);if(wasOpen)root.classList.remove('entering','leaving');else motion('entering');return content;
 }
 function open(id,ctx){
   const panel=registry.get(id);if(!panel)return;
   if(active===id&&!pending&&!ctx&&!closing){close();return;}
-  generation++;closing=false;getRoot();const wasOpen=!!active;
+  const wasOpen=!!active&&!closing;generation++;closing=false;getRoot();if(pending&&active!==id)pending();if(wasOpen)root.classList.remove('entering','leaving');
   if(!wasOpen)returnFocus=document.activeElement;
   if(active&&!pending){document.dispatchEvent(new CustomEvent('today:sidebar-unmount',{detail:getContent()}));registry.get(active)?.unmount?.();}
   active=id;pending=null;pane='sidebar';root.hidden=false;
   root.removeAttribute('aria-labelledby');root.setAttribute('aria-label',panel.label);
   const content=getContent();content.className='';content.replaceChildren();
   if(phone.matches&&!history.state?.sidebar)history.pushState({sidebar:true},'');
-  surface(true);panel.mount(content,ctx);root.removeAttribute('aria-busy');renderPanelNav();modality();
+  surface(true);hoverPane=pointerX===null?null:pointerPane(pointerX);panel.mount(content,ctx);root.removeAttribute('aria-busy');renderPanelNav();modality();
   if(!wasOpen)motion('entering');else content.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');
   sync();
 }
@@ -94,7 +96,8 @@ function close(immediate=false){
   if(immediate||cancel){finish();return Promise.resolve();}return motion('leaving').then(finish);
 }
 const isOpen=id=>!closing&&(id?active===id:!!active);
-document.addEventListener('pointermove',event=>{if(active&&event.pointerType!=='touch')activate(event.clientX>=root.getBoundingClientRect().left?'sidebar':'tasks');},{passive:true});
+document.addEventListener('pointermove',event=>{pointerX=event.clientX;if(!active||event.pointerType==='touch')return;const next=pointerPane(pointerX);if(next!==hoverPane&&!document.activeElement?.matches('input,textarea,[contenteditable="true"]'))activate(next);hoverPane=next;},{passive:true});
+document.addEventListener('pointerdown',event=>{pointerX=event.clientX;if(active){hoverPane=pointerPane(pointerX);activate(hoverPane);}},{passive:true});
 document.addEventListener('focusin',event=>{if(active)activate(root.contains(event.target)?'sidebar':'tasks');});
 document.addEventListener('click',event=>{
   const closeButton=event.target.closest('[data-sidebar-close]'),tab=event.target.closest('.sb-panel-btn');

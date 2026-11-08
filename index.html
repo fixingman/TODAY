@@ -1048,9 +1048,7 @@
     overflow-x: hidden;
   }
 
-  /* No full-page texture: a fixed noise overlay at z-index 0 lifted the page ~1 level,
-     and every opaque --bg band above it (sticky header, section labels, zone headers)
-     read as a darker strip — most visibly on mobile, where the header is solid. */
+  /* No page texture: opaque header/section bands must match the page (BUG-113). */
 
   .app {
     position: relative;
@@ -1073,8 +1071,7 @@
     background: var(--bg-glass);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
     backdrop-filter: blur(16px) saturate(1.4);
-    /* Exit beat for the focus recede (v2.82.4); the splash's inline opacity transition
-       is cleared by focus.js at lock time so this one governs. */
+    /* Focus clears the splash transition before this token-based recede. */
     transition: filter var(--dur-slow) var(--ease-std), opacity var(--dur-base) var(--ease-std);
   }
   body .sticky-header[data-focus-outside] { visibility: hidden; filter: none; transition: none; }
@@ -1095,7 +1092,7 @@
   .sticky-header-inner {
     max-width: 680px;
     margin: 0 auto;
-    /* Desktop: match .app's 24px horizontal padding + space-5 top */
+    /* Match the app column. */
     padding: var(--space-5) var(--space-6) 0;
   }
 
@@ -3005,7 +3002,7 @@
     .add-task-row { transition: right var(--dur-slow) var(--ease-out); }
     body.ex-open .add-task-row, body.ex-closing .add-task-row { transition: right var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility var(--dur-base); }
     body.ex-open .add-task-row { right: var(--ex-sheet-width); }
-    /* These controls are fixed outside .app, so reserve the same Today column. */
+    /* Fixed controls share the Today column. */
     body.ex-open :is(#undoToast, #triageBar) { left: calc((100% - var(--ex-sheet-width)) / 2); }
     body.ex-open #undoToast { max-width: min(var(--panel-max-width), calc(100% - var(--ex-sheet-width) - var(--space-8))); }
     body.ex-open #undoToast .undo-main { flex-wrap: wrap; }
@@ -3019,12 +3016,14 @@
     body.ex-task-active .ex-sheet-foot { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; visibility: hidden; }
     .ex-sheet::after { content: ''; position: absolute; inset: 0; background: var(--bg); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); }
     body.ex-task-active .ex-sheet::after { opacity: var(--opacity-dim); }
+    body.focus-locked .ex-sheet:not(:has(.habit.focused))::after { opacity:calc(1 - var(--opacity-recede-chrome)); }
     body.ex-task-active .ex-scrim { opacity: 0; }
   }
   /* Phone: full screen; conversation rises behind its composer. */
   @media (max-width: 600px) {
     :root { --ex-sheet-width: 100vw; }
-    .ex-sheet { border-left: 0; height: 100dvh; bottom: auto; background: transparent; }
+    .ex-sheet { border-left: 0; height: 100dvh; bottom: auto; background: var(--surface); }
+    .ex-sheet::before { content:''; position:fixed; inset:0; background:var(--surface); z-index:-1; pointer-events:none; }
     .ex-sheet-head, .ex-sheet-scroll { background: var(--surface); }
     .ex-sheet-scroll { padding: var(--space-5) var(--space-4) var(--space-4); }
     .ex-sheet-foot { position: relative; z-index: 1; padding: var(--space-3) var(--space-4) calc(env(safe-area-inset-bottom, 0px) + var(--space-2)); }
@@ -3045,17 +3044,24 @@
     body, .add-task-row, .ex-sheet-foot, .ex-sheet::after, .ex-scrim { transition: none !important; }
   }
 
-  /* Native overlay only; transparent drag area excludes OS controls. */
+  /* Opaque Today title area; the soft sidebar paints above it. */
   #windowDragRegion { display: none; }
   @media (display-mode: window-controls-overlay) {
     :root { --window-titlebar-height: env(titlebar-area-height, 0px); }
-    body { padding-top: var(--window-titlebar-height); }
+    body { padding-top: var(--window-titlebar-height); height:auto; min-height:100%; }
+    body::before { content:''; position:fixed; top:env(titlebar-area-y, 0px); left:0; right:0; height:var(--window-titlebar-height); background:var(--bg); z-index:var(--z-header); pointer-events:none; }
+    .sticky-header { background:var(--bg); backdrop-filter:none; -webkit-backdrop-filter:none; }
     #windowDragRegion { display:block; position:fixed; top:env(titlebar-area-y, 0px); left:env(titlebar-area-x, 0px); width:env(titlebar-area-width, 0px); height:var(--window-titlebar-height); z-index:var(--z-overlay); -webkit-app-region:drag; app-region:drag; }
     .sticky-header, body.focus-locked .sticky-header { top:var(--window-titlebar-height); }
     .section-header { top:calc(var(--sec-sticky-top) + var(--window-titlebar-height)); }
     .ex-sheet-head { padding-top:calc(max(env(safe-area-inset-top, 0px), var(--window-titlebar-height)) + var(--space-3)); }
     #errorIndicator { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 8px); }
     #errorPanel { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 24px); }
+  }
+
+  @media (min-width: 601px) and (display-mode: standalone) {
+    body { height:auto; min-height:100%; }
+    .sticky-header { background:var(--bg); backdrop-filter:none; -webkit-backdrop-filter:none; }
   }
 
   #infoStats {
@@ -4679,14 +4685,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '405h';
+const DEV_HOURS     = '406.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.7.3': 'Desktop headers stay visible, panels switch smoothly, and mobile sidebars fill the screen. Explore closes on a second click and keeps typing focused.',
   '3.7.2': 'Memory keeps its private reading cleanup reliable as panels open and close.',
   '3.7.1': 'Sidebar panels keep their styling, focus and drafts when you switch, with clearer loading and reliable mobile controls.',
-  '3.7.0': 'Memory, Habits, and About now open in the sidebar alongside Explore — one consistent panel across the whole app.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.
@@ -4805,10 +4811,9 @@ function init() {
   const trelloToken = localStorage.getItem('trello_token');
   trelloConnected = !!trelloToken;
 
-  // New-day cleanup runs after Dropbox restore (see load event in sync module)
-  // so the clean state is applied to the freshest data, not overwritten by the pull.
+  // New-day cleanup follows Dropbox restore; see Sync.md.
 
-  // ── Time texture (accent + empty-state text) — moved to assets/day-lifecycle.js
+  // Day texture.
   _applyTimeTexture();
 
   Today.use('connections').renderManual();
@@ -4820,10 +4825,7 @@ function init() {
   _cleanupHabitEvents();  // Purge habit_events older than 30 days
   updateStats();
   Today.use('triage').checkTriageBar();
-  // allowGenerate: false — this runs before the Dropbox sync pull lands (see comment
-  // above), so a fresh cross-device snapshot isn't available yet. Show whatever's
-  // already cached, but don't generate for the first time from stale data; the
-  // post-sync re-check (window 'load' handler) owns that.
+  // Show cache only before sync; Dropbox's post-merge recheck owns generation.
   checkDayNudge(false);
   checkSundayNudge();
   checkHabitNudge();
@@ -4858,28 +4860,22 @@ function init() {
   const devHoursEl = document.querySelector('.dev-hours-val');
   if (devHoursEl) devHoursEl.innerHTML = '⏱︎ built in <span style="color:var(--accent);font-weight:500">' + DEV_HOURS + '</span>';
 
-  // ── Changelog renderer — moved to assets/about.js (_startAbout reads CHANGELOG/HISTORY_SHOWN globals)
+  // About owns changelog rendering.
 
-  // Pre-warm celebCanvas GPU pipeline — on iOS the first canvas draw triggers
-  // Metal shader compilation per draw-op type (~100-200ms stall each). Run all
-  // three op types fireEmberDrift uses (radialGradient+arc, fillText, clearRect)
-  // at an off-screen coordinate so shaders are cached before first task check. (BUG-030)
+  // Warm every celebration draw operation offscreen to avoid iOS shader stalls (BUG-030).
   setTimeout(function() {
     var c = document.getElementById('celebCanvas');
     if (!c) return;
     var ctx = c.getContext('2d');
     var x = -1000, y = -1000;
-    // Radial gradient + arc fill (central flash + particle glow)
     var g = ctx.createRadialGradient(x, y, 0, x, y, 10);
     g.addColorStop(0, '#c8f06088');
     g.addColorStop(1, 'transparent');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
-    // fillText (particle characters)
     ctx.font = "bold 12px 'DM Mono', monospace";
     ctx.fillStyle = '#c8f060';
     ctx.fillText('✦', x, y);
-    // clearRect (per-frame clear)
     ctx.clearRect(0, 0, c.width, c.height);
   }, 2000);
 

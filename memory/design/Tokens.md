@@ -251,6 +251,7 @@ Scale is numeric, 4px base:
 **Hardcoded (not tokenised):**
 | Value | Element | Reason |
 |---|---|---|
+| `-1` | Mobile `.ex-sheet::before` | Decorative surface inside the sidebar’s modal stacking context; fills the layout viewport while its composer follows the visual viewport |
 | `5` | `#statusBarScrim` (v2.33.1) | Above content (1), below section headers (9) and glass header (11) — covers the iOS safe-area strip |
 | `9` | `.section-header` sticky | Below the glass header (11) it slides under |
 | `50` | Idle companion | Between header and modal |

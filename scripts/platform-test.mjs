@@ -5,6 +5,7 @@
 // Run from repo root: node scripts/platform-test.mjs
 
 import { createServer } from 'node:http';
+import { PNG } from 'pngjs';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -164,6 +165,25 @@ try {
     ok('platform module wiring and service-worker precache');
   }
 
+  // A desktop-installed app keeps its entire header at the top of a long list.
+  // Only emulate the named native CSS condition; widths remain actual media queries.
+  for(const standalone of [false,true]){
+    const {page,errors}=await openPage({standalone});
+    await page.evaluate(standalone=>{
+      Today.use('sidebar').close(true);
+      if(standalone)for(const sheet of document.styleSheets)for(const rule of sheet.cssRules)if(rule instanceof CSSMediaRule&&rule.conditionText==='(min-width: 601px) and (display-mode: standalone)')rule.media.mediaText='(min-width: 601px)';
+      manualTasks=Array.from({length:120},(_,i)=>({id:'manual_sticky_'+i,text:'Fictional scrolling task '+i}));Today.use('connections').renderManual();
+    },standalone);
+    for(const width of [1280,736,390]){
+      await page.setViewport({width,height:800});await page.evaluate(()=>scrollTo(0,1200));
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      const state=await page.evaluate(()=>({top:document.getElementById('sticky-header').getBoundingClientRect().top,bottom:document.getElementById('sticky-header').getBoundingClientRect().bottom,scroll:scrollY}));
+      if(state.scroll<900||(standalone&&width>600?Math.abs(state.top)>1:state.bottom>0))await fail('installed desktop sticky header',{standalone,width,...state});
+    }
+    if(errors.length)await fail('sticky fixture errors',errors);await page.close();
+  }
+  ok('long-list desktop standalone header stays pinned; ordinary tabs and phones retain their scroll behavior');
+
   // Native window chrome cannot be drawn headlessly. Exercise the actual overlay CSS
   // with left/right/compact browser-reported geometry, without changing selectors or
   // non-geometry declarations. Ordinary-tab fallback stays the real native media result.
@@ -216,6 +236,7 @@ try {
         const panelColor=panelStyle==='rgba(0, 0, 0, 0)'?getComputedStyle(pane.querySelector('.ex-sheet-scroll')).backgroundColor:panelStyle;
         const common={drag:rect.x===profile.x&&rect.width===profile.free&&rect.height===profile.height,
           draggable:getComputedStyle(drag).getPropertyValue('-webkit-app-region')==='drag',
+          opaqueHeader:getComputedStyle(document.querySelector('.sticky-header')).backgroundColor===getComputedStyle(document.body).backgroundColor,
           header:header.top>=profile.height,close:close.top>=profile.height,
           paneToTop:pane.getBoundingClientRect().top===0,
           paneFits:pane.getBoundingClientRect().bottom===innerHeight,
@@ -233,6 +254,28 @@ try {
       await writeFile(join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'.json'),JSON.stringify(result,null,2));
       await page.screenshot({path:join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'.png'),clip:{x:0,y:0,width:profile.width,height:180}});
       if (Object.values(result).some(value=>!value)) await fail('window overlay geometry: '+profile.name,result);
+      if(profile.height>0&&profile.width>600){
+        // Put a contrasting, scrolling document underneath the native title area.
+        // Computed drag transparency alone cannot establish what users actually see.
+        const bg=await page.evaluate(()=>{
+          const marker=document.createElement('div');marker.id='titlebarScrollFixture';marker.textContent='Fictional scrolling task';marker.style.cssText='height:2000px;width:100vw;margin-left:calc(50% - 50vw);background:var(--accent);color:var(--bg)';document.getElementById('main-app').prepend(marker);
+          scrollTo(0,scrollY+marker.getBoundingClientRect().top-4);
+          return getComputedStyle(document.body).backgroundColor.match(/\d+/g).slice(0,3).map(Number);
+        });
+        await page.evaluate(()=>Promise.all(document.getElementById('sticky-header').getAnimations().map(a=>a.finished.catch(()=>{}))));
+        for(const open of [true,false]){
+          await page.evaluate(open=>{document.body.classList.toggle('ex-open',open);document.getElementById('sidebarRoot').hidden=!open;const marker=document.getElementById('titlebarScrollFixture');scrollTo(0,scrollY+marker.getBoundingClientRect().top-4);},open);
+          await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+          const underlay=await page.evaluate(()=>{const marker=document.getElementById('titlebarScrollFixture'),r=marker.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,bottom:r.bottom,scroll:scrollY,opacity:getComputedStyle(document.getElementById('main-app')).opacity,header:document.getElementById('sticky-header').getBoundingClientRect().top};});
+          await writeFile(join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'-scroll-'+open+'.json'),JSON.stringify(underlay,null,2));
+          if(underlay.y>4.5||underlay.bottom<32||underlay.x>profile.x+16||underlay.x+underlay.width<profile.x+24||underlay.opacity!=='1')await fail('title underlay did not reach the sampled area',underlay);
+          const bytes=await page.screenshot({fullPage:false}),image=PNG.sync.read(bytes);
+          await writeFile(join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+(open?'-scroll-open.png':'-scroll-closed.png')),bytes);
+          for(const top of [4,profile.height+4])for(let y=top;y<top+8;y++)for(let x=profile.x+16;x<profile.x+24;x++){const i=(y*image.width+x)*4;if(bg.some((channel,n)=>Math.abs(image.data[i+n]-channel)>1)||image.data[i+3]!==255)await fail('scrolling content leaks through title area: '+profile.name,{open,top,pixel:[...image.data.slice(i,i+4)],bg});}
+        }
+        await page.evaluate(()=>{document.getElementById('titlebarScrollFixture').remove();scrollTo(0,0);document.body.classList.add('ex-open');document.getElementById('sidebarRoot').hidden=false;});
+      }
+
     }
     const closedTheme = await page.evaluate(async () => {
       document.body.classList.remove('ex-open');

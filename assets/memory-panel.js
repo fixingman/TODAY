@@ -14,11 +14,11 @@
     let explorationLoading = null, explorationUI = null, explorationOpening = 0, explorationPlace = null;
     async function beginExploration(event,button){
       event.stopPropagation();
-      const token=++explorationOpening,kind=button.dataset.exOrigin||'memory';
+      const shell=Today.use('sidebar'),kind=button.dataset.exOrigin||'memory';
+      if(shell.isOpen('explore')&&kind!=='nudge'){shell.close();return;}
+      const token=++explorationOpening;
       const place={kind,button,wasOpen:kind==='memory'&&Today.use('sidebar').isOpen('memory')};
       explorationPlace=place;
-      if(explorationUI?.isOpen?.()&&kind!=='nudge'){document.getElementById('exTitle')?.focus({preventScroll:true});return;}
-      const shell=Today.use('sidebar');
       const content=shell.prepare('explore','Explore',()=>{explorationOpening++;});
       content.innerHTML='<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Explore"></button></div><div class="ex-sheet-scroll"><p class="ex-status" role="status">Opening your exploration…</p></div><div class="ex-sheet-foot"></div>';
       shell.setCloseIcon(content.querySelector('[data-sidebar-close]'));
