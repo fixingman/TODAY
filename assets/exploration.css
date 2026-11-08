@@ -109,13 +109,21 @@
 #explorationRoot .ex-day:empty { display: none; }
 #explorationRoot .ex-withheld { margin: var(--space-3) 0; }
 
-/* Connections view inside Explore — strip the floating-card styling from configPanel */
-.ex-connections-view { padding: 0; }
-.ex-connections-view #configPanel {
-  border: none; border-radius: 0; background: none;
-  padding: var(--space-3) var(--space-5) var(--space-6);
-  margin: 0; overflow: visible;
-}
-/* Connections button in Explore nav — push to right, always visible */
-.ex-content .ex-conn-btn { margin-inline-start: auto; opacity: 0.6; }
-.ex-content .ex-conn-btn:is(:hover,:focus-visible) { opacity: 1; }
+/* Header actions share the native close-control footprint; Hide stays rightmost. */
+.ex-content .ex-head-actions { display: flex; align-items: center; gap: var(--space-1); margin-inline-start: auto; }
+.ex-content .ex-head-actions .ex-hide { margin: 0; }
+/* Keep the live settings panel inside the normal sidebar scrollport. */
+.ex-connections-view #configPanel { border: none; border-radius: 0; background: none; padding: 0; margin: 0; overflow: visible; animation: none; }
+.ex-connections-view #connectionsTitle { display: none; }
+.ex-content .ex-connections-view .ex-subnav { align-items: center; gap: var(--space-1); min-height: var(--space-8); }
+.ex-connections-view .connections-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-20) * 2)), 1fr)); }
+.ex-connections-view .connection-row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.ex-connections-view .connection-row-info { flex: 1 1 calc(var(--space-8) * 4); min-width: 0; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.ex-connections-view .connection-row-title { font-size: var(--text-task); }
+.ex-connections-view .connection-row-status { white-space: normal; overflow: visible; font-size: var(--text-sm2); }
+.ex-connections-view .connection-row .connection-row-actions { max-width: 100%; flex-wrap: wrap; margin-inline-start: auto; }
+.ex-connections-view .connection-row-actions .btn-sm { min-height: var(--space-8); font-size: var(--text-sm2); border-color: var(--control-border); }
+.ex-connections-view .connection-row-actions .ai-key-input { min-width: 0; flex: 1 1 calc(var(--space-20) * 2); }
+.ex-connections-view .conn-check { display: none; }
+.ex-connections-view #aiConfigSection > .config-title { font-family: var(--font-mono); font-size: var(--text-sm2); color: var(--muted); }
+.ex-connections-view .name-card-header { flex-wrap: wrap; }

@@ -40,14 +40,14 @@
     if (!panel || !mount) return;
     configPanelAnchor = {parent: panel.parentNode, next: panel.nextSibling};
     mount.append(panel);
-    panel.classList.add('open'); panel.hidden = false;
+    panel.classList.add('open'); _a11ySetDisclosure(null,panel,true);
     connection().renderConnections(); connection()._aiRenderConfig?.();
   }
   function _unmountConfigPanel() {
     const panel = byId('configPanel');
     if (!configPanelAnchor || !panel) return;
     configPanelAnchor.parent.insertBefore(panel, configPanelAnchor.next || null);
-    panel.classList.remove('open'); panel.hidden = true;
+    panel.classList.remove('open'); _a11ySetDisclosure(null,panel,false);
     configPanelAnchor = null;
   }
   function wipe() {
@@ -79,9 +79,10 @@
   function renderConnectionsView() {
     if (!root) return;
     const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
-    root.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">⚡︎ Connections</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${action('back','<span aria-hidden="true">‹ </span>Explore','aria-label="Back to Explore"','memory-item-btn ex-subnav')}</div><div class="ex-sheet-scroll ex-connections-view" id="exConnectionsMount"></div><div class="ex-sheet-foot"></div>`;
-    _mountConfigPanel();
-    byId('connectionsTitle')?.focus({preventScroll:true});
+    root.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">⚡︎ Connections</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}</div><div class="ex-sheet-scroll ex-connections-view" id="exConnectionsMount">${action('back',chevron('M12 5l-5 5 5 5')+'Explore','aria-label="Back to Explore"','memory-item-btn ex-subnav')}</div><div class="ex-sheet-foot"></div>`;
+    _mountConfigPanel();modality();
+    sidebar().getRoot().setAttribute('aria-label','Connections');
+    byId('exTitle')?.focus({preventScroll:true});
   }
   function go(next, trigger = document.activeElement) {
     if (configPanelAnchor) _unmountConfigPanel();
@@ -185,12 +186,11 @@
   function controls() {
     const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
     const chatIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 2h6a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H6l-4 2V4a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
-    const calendarIcon='<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 1v3m6-3v3M2 5h10M3 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>';
     const pages=[['conversation',chatIcon,'Chat'],['notes','Living note'],['sources','Sources']];
-    const connIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M5 7a3 3 0 0 0 4.5.4L11 5.9A3 3 0 0 0 6.8 1.7L5.8 2.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9 7a3 3 0 0 0-4.5-.4L3 8.1a3 3 0 0 0 4.2 4.2l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    const connIcon=`<svg width="20" height="20" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M5 7a3 3 0 0 0 4.5.4L11 5.9A3 3 0 0 0 6.8 1.7L5.8 2.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9 7a3 3 0 0 0-4.5-.4L3 8.1a3 3 0 0 0 4.2 4.2l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
     const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label,ariaL])=>action(page,label,`data-ex-nav="true" ${ariaL?`aria-label="${ariaL}" title="${ariaL}" `:''}${page==='notes'?'id="exNotes" ':''}${view===page||(page==='history'&&view==='original-history')?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
-    const connBtn = action('connections', connIcon, 'aria-label="Connections" title="Connections"', 'ex-nav-item ex-conn-btn');
-    return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${nav}${connBtn}`;
+    const connBtn = action('connections', connIcon, 'id="exConnections" aria-label="Connections" title="Connections"', 'ex-hide ex-conn-btn');
+    return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><div class="ex-head-actions">${connBtn}${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}</div>${nav}`;
   }
   function backLink() {
     const parent=trail.at(-1)?.view;
@@ -365,6 +365,12 @@
   }
   function render() {
     if (!opened || !root) return;
+    if(view==='connections'){
+      if(!byId('exConnectionsMount'))renderConnectionsView();
+      else sidebar().setCloseIcon(root.querySelector('[data-ex-action="hide"]'));
+      return;
+    }
+    sidebar().getRoot().setAttribute('aria-label','Explore');
     const editing=root.contains(document.activeElement)&&document.activeElement.matches('textarea,input:not([type=file]):not([type=checkbox])')?{id:document.activeElement.id,start:document.activeElement.selectionStart,end:document.activeElement.selectionEnd}:null;
     const detailState=[...root.querySelectorAll('details')].map(node=>({key:node.id,open:node.open}));
     const focused=root.contains(document.activeElement)?document.activeElement:null;

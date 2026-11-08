@@ -4686,24 +4686,24 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '409.5h';
+const DEV_HOURS     = '410h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.8.1': 'Connections in Explore now have consistent headings, navigation and controls.',
   '3.8.0': 'Connections are now part of Explore — open Explore and tap the link icon to see and manage your connected services.',
   '3.7.12': 'Moving the cursor back over your list brings the task bar back on every panel, including Habits and Explore.',
-  '3.7.11': 'Improve completion of Explore replies and suggested next steps.',
 };
 
-// Version derives from the newest changelog entry; sw.js is checked by the release gate.
+// Version follows CHANGELOG; smoke checks SW parity.
 const APP_VERSION = Object.keys(CHANGELOG)[0];
 
 // ─ Helpers ─
-// Date, escaping and animation helpers load from assets/util.js.
+// Helpers: assets/util.js.
 
 // ─ Cached DOM Elements ─
-// Cache hot-path elements during init.
+// Cached elements.
 const $ = {};
 function _cacheElements() {
   // Other elements use getElementById at their point of use.
@@ -4833,8 +4833,7 @@ function init() {
   if (saved.boardId && trelloToken) {
     Today.use('connections').setTrelloIcon(true);
 
-    // Seed from cache immediately so the UI isn't blank while API loads
-    // Cache is validated by date AND boardId — stale date or board change = ignored
+    // Seed only this board's same-day cache.
     const _trelloCache = safeJSON('today_trello_cache', null);
     if (_trelloCache && _trelloCache.date === new Date().toDateString() && _trelloCache.boardId === saved.boardId && Array.isArray(_trelloCache.tasks)) {
       trelloTasks = _trelloCache.tasks;
@@ -4849,17 +4848,14 @@ function init() {
 
   Today.use('connections')._applyOfflinePanel();
 
-  // Version and AI config
   console.log('[TODAY] Version:', APP_VERSION);
   Today.use('connections')._aiRenderConfig();
 
-  // Dev hours display
   const devHoursEl = document.querySelector('.dev-hours-val');
   if (devHoursEl) devHoursEl.innerHTML = '⏱︎ built in <span style="color:var(--accent);font-weight:500">' + DEV_HOURS + '</span>';
 
-  // About owns changelog rendering.
 
-  // Warm every celebration draw operation offscreen to avoid iOS shader stalls (BUG-030).
+  // Warm celebration shaders offscreen (BUG-030).
   setTimeout(function() {
     var c = document.getElementById('celebCanvas');
     if (!c) return;
@@ -4894,7 +4890,7 @@ function handleBarKey(e) {
 
 Today.ui.register('keydown', 'tasks.input-key', handleBarKey);
 
-// Keep the task-entry placeholder stable regardless of optional integrations.
+// Stable task placeholder.
 function _updateBarPlaceholder() {
   const input = document.getElementById('newTask');
   if (input) input.placeholder = "What's on your mind?";

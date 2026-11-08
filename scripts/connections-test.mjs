@@ -13,7 +13,9 @@
 //   node scripts/connections-test.mjs                    # post-fold (17 tests)
 
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { waitForFonts } from './browser-fixture.mjs';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -81,7 +83,7 @@ async function openPage(extraSeed) {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof Today?.use('connections').renderConnections === 'function' &&
+    () => !document.body.hasAttribute('data-booting') && performance.getEntriesByName('today:interactive').length > 0 && typeof Today?.use('connections').renderConnections === 'function' &&
           typeof Today?.use('connections').saveAIKey === 'function' &&
           !!$.configPanel,
     { timeout: 15000 }
@@ -96,6 +98,88 @@ async function openPage(extraSeed) {
 }
 
 try {
+  // The actual embedded view, including the fully connected rows from Can's report.
+  {
+    const {page,errors}=await openPage();
+    await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);await waitForFonts(page);
+    await page.evaluate(()=>{
+      window.__configNode=document.getElementById('configPanel');window.__configParent=__configNode.parentNode;
+      localStorage.setItem('dropbox_token','fictional-access');localStorage.setItem('dropbox_refresh_token','fictional-grant');localStorage.setItem('dropbox_token_expiry',String(Date.now()+3600000));
+      localStorage.setItem('trello_token','fictional-trello');localStorage.setItem('trello_config',JSON.stringify({boardId:'fictional-board',todayList:'A deliberately long fictional review queue'}));
+      localStorage.setItem('today_ai_key_gemini','fictional-gemini');localStorage.setItem('today_ai_key_claude','fictional-claude');
+      localStorage.setItem('last_successful_backup',new Date().toISOString());
+      const native=window.fetch;window.__settingsAI=0;
+      window.fetch=async(url,options)=>{
+        if(String(url).includes('/.netlify/functions/ai-assist')){__settingsAI++;return new Response('{}',{headers:{'Content-Type':'application/json'}});}
+        if(String(url).includes('/files/download')&&window.__settingsDocument)return new Response(__settingsDocument,{headers:{'Dropbox-API-Result':JSON.stringify({rev:'fictional-rev'})}});
+        if(String(url).startsWith('http')&&!String(url).startsWith(location.origin))return new Response('{"error_summary":"path/not_found/"}',{status:409});
+        return native(url,options);
+      };
+    });
+    const capture=join(ROOT,'.context/ci-test-results/connections-sidebar');await mkdir(capture,{recursive:true});
+    await page.setViewport({width:1024,height:900});await page.click('#trelloBtn');
+    await page.waitForSelector('#sidebarRoot [data-ex-action="connections"]');
+    await page.waitForFunction(()=>!document.getElementById('sidebarRoot').getAttribute('aria-busy'));
+    await page.$eval('#exQuestion',node=>{node.value='UNSENT_SETTINGS_FICTION';node.dispatchEvent(new Event('input',{bubbles:true}));});
+    const header=await page.evaluate(()=>{
+      const root=document.getElementById('sidebarRoot'),hide=root.querySelector('[data-ex-action="hide"]').getBoundingClientRect(),link=root.querySelector('.ex-conn-btn').getBoundingClientRect();
+      return {hide:{right:hide.right,left:hide.left,top:hide.top,width:hide.width,height:hide.height},link:{right:link.right,top:link.top,width:link.width,height:link.height},right:root.getBoundingClientRect().right,pad:parseFloat(getComputedStyle(root.querySelector('.ex-sheet-head')).paddingRight)};
+    });
+    await page.screenshot({path:join(capture,'explore-'+(process.env.CONNECTIONS_UI_CAPTURE_TAG||'after')+'.png')});
+    await page.click('.ex-conn-btn');await page.waitForSelector('#exConnectionsMount #configPanel');
+    await page.screenshot({path:join(capture,'settings-'+(process.env.CONNECTIONS_UI_CAPTURE_TAG||'after')+'.png')});
+    assert.ok(Math.abs(header.hide.right-(header.right-header.pad))<1,'Hide stays at the standard right inset');
+    assert.ok(header.link.right<=header.hide.left&&Math.abs(header.link.top-header.hide.top)<1,'Connections precedes Hide in the same header row');
+    assert.deepEqual([header.link.width,header.link.height,header.hide.width,header.hide.height],[44,44,44,44],'Header controls share the native44px hit area');
+    await page.addScriptTag({content:await readFile(join(ROOT,'scripts/node_modules/axe-core/axe.min.js'),'utf8')});
+    for(const width of [320,390,736,1024,1440]){
+      await page.setViewport({width,height:900});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      const layout=await page.evaluate(()=>{
+        const root=document.getElementById('sidebarRoot'),head=root.querySelector('.ex-sheet-head'),box=root.querySelector('.ex-sheet-scroll').getBoundingClientRect();
+        const visible=node=>!!node.getClientRects().length&&getComputedStyle(node).visibility!=='hidden';
+        const overflow=[...root.querySelectorAll('button,input,select,.connection-row')].filter(visible).filter(node=>{const r=node.getBoundingClientRect();return r.left<box.left-1||r.right>box.right+1;}).map(node=>node.id||node.className);
+        const stretched=[...root.querySelectorAll('.connection-row-info')].filter(visible).filter(node=>node.getBoundingClientRect().height>[...node.children].filter(visible).reduce((sum,child)=>sum+child.getBoundingClientRect().height,0)+parseFloat(getComputedStyle(node).rowGap)*Math.max(0,[...node.children].filter(visible).length-1)+2).length;
+        return {stretched,titles:[...root.querySelectorAll('.config-title')].filter(visible).filter(node=>node.textContent.includes('Connections')).length,backInBody:!!root.querySelector('.ex-sheet-scroll [data-ex-action="back"]'),hideLast:head.querySelector('[data-ex-action="hide"]')?.getBoundingClientRect().right>=head.getBoundingClientRect().right-parseFloat(getComputedStyle(head).paddingRight)-1,overflow,focus:document.activeElement.id};
+      });
+      assert.equal(layout.stretched,0,width+'px has no artificial blank space inside service rows');assert.equal(layout.titles,1,width+'px has one Connections title');assert.ok(layout.backInBody&&layout.hideLast,width+'px uses the standard header and content return');assert.deepEqual(layout.overflow,[],width+'px controls fit the sidebar column');
+      const axe=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(axe.violations.map(row=>({id:row.id,nodes:row.nodes.map(node=>({target:node.target,summary:node.failureSummary}))})),[],width+'px settings accessibility');
+      await page.screenshot({path:join(capture,'settings-'+width+'.png')});
+    }
+    await page.focus('#meetingNameInput');await page.type('#meetingNameInput','Fictional unsent name');
+    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('today:memory-change')));
+    await page.setViewport({width:1024,height:900});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.$eval('#meetingNameInput',node=>node.value),'Fictional unsent name','Source/viewport refresh cannot discard a live settings form');
+    assert.ok(await page.evaluate(()=>document.getElementById('configPanel')===__configNode),'Keep one live settings node');
+    await page.$eval('#sidebarRoot [data-ex-action="back"]',node=>node.scrollIntoView({block:'center',behavior:'instant'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));assert.ok(await page.$eval('#sidebarRoot [data-ex-action="back"]',node=>{const r=node.getBoundingClientRect();return node.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),'The return action is visible and hit-testable');await page.click('#sidebarRoot [data-ex-action="back"]');await page.waitForSelector('#exQuestion');
+    assert.equal(await page.$eval('#exQuestion',node=>node.value),'UNSENT_SETTINGS_FICTION','Returning retains the exploration draft');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'exConnections','Return focus to the exact Connections opener');
+    assert.ok(await page.evaluate(()=>__configNode.parentNode===__configParent&&__configNode.hidden),'Leaving restores and hides the original panel');
+    await page.click('#exConnections');await page.click('#sidebarRoot [data-ex-action="hide"]');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
+    assert.ok(await page.evaluate(()=>__configNode.parentNode===__configParent&&__configNode.hidden),'Hide also restores the live settings node');
+    await page.evaluate(()=>{const core=Today.use('exploration-core');window.__settingsDocument=core.stringify(core.create('A fictional saved topic','','settings-workspace',new Date().toISOString()));});
+    await page.click('#trelloBtn');await page.waitForSelector('#exThought');
+    const savedHeader=await page.evaluate(()=>{const head=document.querySelector('#sidebarRoot .ex-sheet-head'),link=head.querySelector('#exConnections').getBoundingClientRect(),hide=head.querySelector('[data-ex-action="hide"]').getBoundingClientRect(),nav=head.querySelector('.ex-nav').getBoundingClientRect();return {sameRow:Math.abs(link.top-hide.top)<1,navBelow:nav.top>=hide.bottom,last:hide.right>link.right};});
+    assert.deepEqual(savedHeader,{sameRow:true,navBelow:true,last:true},'Saved conversations keep one title/action row and one navigation row');
+    await page.click('#exConnections');await page.$eval('#meetingNameInput',node=>{node.value='';});await page.focus('#meetingNameInput');await page.type('#meetingNameInput','FORM_SURVIVES_SYNC_FICTION');
+    await page.evaluate(async()=>{manualTasks[0].text+=' changed';await Today.use('exploration').refreshSources();});
+    assert.equal(await page.$eval('#meetingNameInput',node=>node.value),'FORM_SURVIVES_SYNC_FICTION','A real context redraw preserves the mounted settings form');
+    await page.evaluate(()=>{
+      for(const key of ['trello_token','trello_config','dropbox_token','dropbox_refresh_token','today_ai_key_gemini','today_ai_key_claude'])localStorage.removeItem(key);
+      Today.use('connections').renderConnections();Today.use('connections')._aiRenderConfig();
+    });
+    for(const width of [320,1024]){
+      await page.setViewport({width,height:900});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      const forms=await page.evaluate(()=>{const root=document.getElementById('sidebarRoot'),box=root.getBoundingClientRect();return [...root.querySelectorAll('button,input,select')].filter(node=>node.getClientRects().length).every(node=>{const r=node.getBoundingClientRect();return r.left>=box.left-1&&r.right<=box.right+1&&(!node.matches('input')||innerWidth>600||parseFloat(getComputedStyle(node).fontSize)>=16);});});
+      assert.ok(forms,width+'px disconnected/key-entry controls fit with mobile-safe input typography');
+      await page.screenshot({path:join(capture,'disconnected-'+width+'.png')});
+    }
+    await page.evaluate(()=>{Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>false});Today.use('connections')._applyOfflinePanel();});
+    assert.ok(await page.$eval('#offlineBanner',node=>node.classList.contains('visible')),'Offline status remains visible inside the sidebar');
+    assert.equal(await page.evaluate(()=>document.getElementById('configPanel').getAttribute('aria-hidden')),'false','The embedded panel remains exposed while shown');
+    await page.click('#sidebarRoot [data-ex-action="hide"]');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
+    assert.equal(await page.evaluate(()=>__settingsAI),0,'Settings navigation never generates an AI reply');
+    assert.deepEqual(errors,[]);await page.close();ok('Embedded Connections uses native header, tokens, contained controls and safe live-form navigation');
+  }
   // 1. toggleConfig: opens configPanel.
   {
     const { page, errors } = await openPage();

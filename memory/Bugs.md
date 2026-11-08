@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 159 | ⏳ Verify | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | v3.8.1 |
 | 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
 | 157 | ⏳ Verify | Opening Habits hides the task input; moving directly back over Today does not restore it. | v3.7.7 |
 | 156 | ⏳ Verify | A deployed update forces a second boot or refresh in an open desktop PWA session. | v3.7.5 |
@@ -53,6 +54,14 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-159 — Connections header and embedded layout
+
+**Report (November 8):** Can supplied desktop screenshots showing the link icon pushing Hide toward the centre, a duplicate Connections title and an inconsistent return control. Connected service controls must fit the sidebar with the app's existing tokens.
+
+**v3.8.1:** group link/Hide as44px native header controls, with Hide rightmost and page navigation on its own row. Keep one Connections title, move the token-sized SVG return below the header, and scope the legacy title suppression to the embedded panel. Reflow service/status/actions within the actual sidebar width, preserve mobile-safe input type and use native typography/border/spacing roles. Keep the live config DOM node through context/viewport redraws, expose it accessibly while mounted, and restore/hide it on return, panel switch or close. Drafts and focus return to the exact opener; settings navigation makes no AI request. Claude reviewed the actual component, tokens and proposed correction; actual-component phone/desktop captures are inspected separately. The original implementation fails the standard Hide-inset assertion. Evidence and final verification: `.context/connections-ui/`. Parallel pointer-ownership and historical-reading changes remain separate.
 
 ---
 
