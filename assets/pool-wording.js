@@ -24,8 +24,8 @@ function create(hooks){
   function lineFor(key){return rows().find(row=>source(row)===key)||null;}
   function live(button){
     if(!button?.isConnected||button.closest('[hidden]'))return null;
-    const info=button.closest('#infoPanel'),strip=button.closest('#dayNudgeReact');
-    if(info&&!info.classList.contains('open')||strip&&!strip.classList.contains('open'))return null;
+    const info=button.closest('#infoContent'),strip=button.closest('#dayNudgeReact');
+    if(info&&!Today.use('sidebar').isOpen('about')||strip&&!strip.classList.contains('open'))return null;
     const row=lineFor(button.dataset.poolSource);
     return row?.date===today()&&current(row)?row:null;
   }

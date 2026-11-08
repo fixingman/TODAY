@@ -774,7 +774,7 @@ try {
       const action = name => block().querySelector(`[data-today-click="dream.memory-${name}"]`).click();
       Today.use('memory').toggle();
       action('manage'); action('open');
-      await until(() => !!block().querySelector('.dream-reading'));
+      await until(() => !!block()?.querySelector('.dream-reading'));
       const opened = block().textContent.includes('The paper moon stayed closed.')
         && block().textContent.includes(marker)
         && block().textContent.includes('A note from the older sheet.')
@@ -786,8 +786,8 @@ try {
         && !JSON.stringify(appMemory).includes(marker);
 
       Today.use('memory').toggle();
-      await until(() => !block().textContent.includes(marker));
-      const clearedOnClose = !block().textContent.includes(marker);
+      await until(() => !block()?.textContent.includes(marker));
+      const clearedOnClose = !block()?.textContent.includes(marker);
       status = 409;
       Today.use('memory').toggle();
       action('manage'); action('open');
@@ -796,7 +796,7 @@ try {
         && !!block().querySelector('[data-today-click="dream.memory-retry"]');
       status = 200;
       action('retry');
-      await until(() => !!block().querySelector('.dream-reading'));
+      await until(() => !!block()?.querySelector('.dream-reading'));
       const retried = block().textContent.includes('The paper moon stayed closed.') && requests.length === 3;
 
       action('open');
@@ -817,7 +817,7 @@ try {
       Today.use('memory').toggle();
       release();
       await new Promise(r => setTimeout(r, 20));
-      const lateIgnored = !block().textContent.includes(marker) && !block().querySelector('.dream-reading');
+      const lateIgnored = !block()?.textContent.includes(marker) && !block()?.querySelector('.dream-reading');
       return { opened, path, privateOnly, clearedOnClose, missing, retried, offline, lateIgnored };
     });
     await expectAll('saved dream read on a second device', { ...result, noErrors: errors.length === 0 });

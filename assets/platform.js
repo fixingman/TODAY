@@ -227,6 +227,11 @@ window.addEventListener('beforeinstallprompt', (e) => {
   console.log('[PWA] Install prompt captured — ready to install');
 });
 
+function refreshInstall(){
+  const btn=document.getElementById('installBtn');
+  if(btn)btn.style.display=_deferredInstallPrompt&&!matchMedia('(display-mode: standalone)').matches&&!matchMedia('(display-mode: window-controls-overlay)').matches&&!navigator.standalone?'inline-flex':'none';
+}
+
 // Handle install button click
 function installPWA() {
   if (!_deferredInstallPrompt) {
@@ -365,6 +370,7 @@ window.addEventListener('pageshow', (e) => {
     if (window.Today) {
       Today.define('platform', {
         install: installPWA,
+        refreshInstall,
         showSteps: _pwaShowSteps,
         copyLink: _pwaCopyLink,
       });

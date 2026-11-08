@@ -1,103 +1,103 @@
 /* Approved exploration session, scoped to Memory's sub-view. */
-#explorationRoot { font-size: var(--text-task); line-height: 1.6; overflow-wrap: anywhere; }
-#explorationRoot h2:not(.config-title) { font-size: var(--text-md); font-weight: 400; margin: 0 0 var(--space-3); }
-#explorationRoot h3, #explorationRoot h4 { font-weight: 400; margin: 0 0 var(--space-2); }
-#explorationRoot p { margin: var(--space-2) 0; white-space: pre-wrap; }
-#explorationRoot .ex-muted, #explorationRoot .ex-status { color: var(--muted); font-size: var(--text-sm2); }
-#explorationRoot .ex-status:empty { display: none; }
-#explorationRoot .ex-turn { margin: var(--space-4) 0; }
-#explorationRoot .ex-you p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
-#explorationRoot .ex-turn > p { font-size: var(--text-task); }
-#explorationRoot .ex-resume { margin-bottom: var(--space-5); }
-#explorationRoot .ex-resume p { color: var(--text); font-size: var(--text-task); }
-#explorationRoot label { display: block; margin-bottom: var(--space-2); }
-#explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { box-sizing: border-box; width: 100%; padding: var(--space-3); background: var(--bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); line-height: 1.6; }
-#explorationRoot textarea { resize: vertical; }
-#explorationRoot .ex-send { display: flex; justify-content: flex-end; margin-top: var(--space-2); }
-#explorationRoot .ex-send button { border-color: var(--accent-glow); color: var(--accent); }
-#explorationRoot .ex-send button:disabled { border-color: var(--border); }
-#explorationRoot .ex-send button:not(:disabled):is(:hover,:focus-visible) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
-#explorationRoot button:disabled { color: var(--muted); cursor: default; }
-#explorationRoot .ex-context { margin: var(--space-3) 0; }
-#explorationRoot summary { list-style: none; display: inline-block; min-height: var(--space-6); padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-2)); border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--text-sm2); letter-spacing: normal; color: var(--muted); cursor: pointer; }
-#explorationRoot summary::-webkit-details-marker { display: none; }
-#explorationRoot summary:hover, #explorationRoot summary:focus-visible { border-color: var(--border); color: var(--text); }
-#explorationRoot details[open] > summary { color: var(--text); }
-#explorationRoot .ex-source { display: block; color: var(--muted); font-size: var(--text-xs); }
-#explorationRoot .memory-item { flex-wrap: wrap; }
-#explorationRoot pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm2); padding: var(--space-3); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
-#explorationRoot .ex-file { display: block; }
-#explorationRoot input[type=file] { display: block; max-width: 100%; margin: var(--space-2) 0; font-family: var(--font-mono); }
-#explorationRoot .memory-item-text { min-width: 0; font-size: var(--text-task); line-height: 1.7; }
+.ex-content { font-size: var(--text-task); line-height: 1.6; overflow-wrap: anywhere; }
+.ex-content h2:not(.config-title) { font-size: var(--text-md); font-weight: 400; margin: 0 0 var(--space-3); }
+.ex-content h3, .ex-content h4 { font-weight: 400; margin: 0 0 var(--space-2); }
+.ex-content p { margin: var(--space-2) 0; white-space: pre-wrap; }
+.ex-content .ex-muted, .ex-content .ex-status { color: var(--muted); font-size: var(--text-sm2); }
+.ex-content .ex-status:empty { display: none; }
+.ex-content .ex-turn { margin: var(--space-4) 0; }
+.ex-content .ex-you p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
+.ex-content .ex-turn > p { font-size: var(--text-task); }
+.ex-content .ex-resume { margin-bottom: var(--space-5); }
+.ex-content .ex-resume p { color: var(--text); font-size: var(--text-task); }
+.ex-content label { display: block; margin-bottom: var(--space-2); }
+.ex-content input:not([type=file]):not([type=checkbox]), .ex-content textarea { box-sizing: border-box; width: 100%; padding: var(--space-3); background: var(--bg); border: 1px solid var(--control-border); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); line-height: 1.6; }
+.ex-content textarea { resize: vertical; }
+.ex-content .ex-send { display: flex; justify-content: flex-end; margin-top: var(--space-2); }
+.ex-content .ex-send button { border-color: var(--accent-glow); color: var(--accent); }
+.ex-content .ex-send button:disabled { border-color: var(--border); }
+.ex-content .ex-send button:not(:disabled):is(:hover,:focus-visible) { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+.ex-content button:disabled { color: var(--muted); cursor: default; }
+.ex-content .ex-context { margin: var(--space-3) 0; }
+.ex-content summary { list-style: none; display: inline-block; min-height: var(--space-6); padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-2)); border: 1px solid transparent; border-radius: var(--radius-md); font-size: var(--text-sm2); letter-spacing: normal; color: var(--muted); cursor: pointer; }
+.ex-content summary::-webkit-details-marker { display: none; }
+.ex-content summary:hover, .ex-content summary:focus-visible { border-color: var(--border); color: var(--text); }
+.ex-content details[open] > summary { color: var(--text); }
+.ex-content .ex-source { display: block; color: var(--muted); font-size: var(--text-xs); }
+.ex-content .memory-item { flex-wrap: wrap; }
+.ex-content pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm2); padding: var(--space-3); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.ex-content .ex-file { display: block; }
+.ex-content input[type=file] { display: block; max-width: 100%; margin: var(--space-2) 0; font-family: var(--font-mono); }
+.ex-content .memory-item-text { min-width: 0; font-size: var(--text-task); line-height: 1.7; }
 @media (max-width: 600px) {
-  #explorationRoot input:not([type=file]):not([type=checkbox]), #explorationRoot textarea { font-size: var(--text-lg); }
+  .ex-content input:not([type=file]):not([type=checkbox]), .ex-content textarea { font-size: var(--text-lg); }
 }
 
-#explorationRoot .ex-today { margin-top: var(--space-3); font-size: var(--text-task); }
-#explorationRoot .ex-secondary { margin-top: var(--space-4); }
-#explorationRoot [data-ex-action=forget]:hover { color: var(--danger); }
+.ex-content .ex-today { margin-top: var(--space-3); font-size: var(--text-task); }
+.ex-content .ex-secondary { margin-top: var(--space-4); }
+.ex-content [data-ex-action=forget]:hover { color: var(--danger); }
 
-#explorationRoot .ex-today .memory-item-btn { opacity: 1; }
+.ex-content .ex-today .memory-item-btn { opacity: 1; }
 
 /* Conversation prose and panel navigation are not compact Memory-row metadata. */
-#explorationRoot .memory-item-btn { font-size: var(--text-sm2); letter-spacing: normal; }
-#explorationRoot .ex-source { font-size: var(--text-sm2); letter-spacing: normal; }
-#explorationRoot .ex-turn > .memory-type-name { font-size: var(--text-sm2); letter-spacing: normal; text-transform: none; }
+.ex-content .memory-item-btn { font-size: var(--text-sm2); letter-spacing: normal; }
+.ex-content .ex-source { font-size: var(--text-sm2); letter-spacing: normal; }
+.ex-content .ex-turn > .memory-type-name { font-size: var(--text-sm2); letter-spacing: normal; text-transform: none; }
 /* Production version of the reviewed conversation / focused-page design. */
-#explorationRoot h3 { font-size: var(--text-md); line-height: 1.6; margin-bottom: var(--space-4); }
-#explorationRoot h4 { font-size: var(--text-base); line-height: 1.7; margin-bottom: var(--space-2); }
-#explorationRoot .ex-links { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
-#explorationRoot .ex-note-section { padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: 1px solid var(--border); }
-#explorationRoot .ex-bounds { margin: var(--space-4) 0; }
-#explorationRoot .ex-bounds > div { margin-bottom: var(--space-3); }
-#explorationRoot .ex-bounds dt { color: var(--muted); font-size: var(--text-sm2); }
-#explorationRoot .ex-bounds dd { margin: 0; }
-#explorationRoot .ex-body > p + p { margin-top: var(--space-3); }
+.ex-content h3 { font-size: var(--text-md); line-height: 1.6; margin-bottom: var(--space-4); }
+.ex-content h4 { font-size: var(--text-base); line-height: 1.7; margin-bottom: var(--space-2); }
+.ex-content .ex-links { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.ex-content .ex-note-section { padding-bottom: var(--space-5); margin-bottom: var(--space-5); border-bottom: 1px solid var(--border); }
+.ex-content .ex-bounds { margin: var(--space-4) 0; }
+.ex-content .ex-bounds > div { margin-bottom: var(--space-3); }
+.ex-content .ex-bounds dt { color: var(--muted); font-size: var(--text-sm2); }
+.ex-content .ex-bounds dd { margin: 0; }
+.ex-content .ex-body > p + p { margin-top: var(--space-3); }
 
 /* v3.4.0 side panel. Sub-pages lead with their own way back; the header only hides Explore. */
-#explorationRoot .ex-subnav { display: inline-flex; margin: 0 0 var(--space-3) calc(-1 * var(--space-2)); }
-#explorationRoot .ex-thinking p { color: var(--muted); }
-#explorationRoot .ex-turn.ex-turn-in { animation: fadeIn var(--dur-fast) var(--ease-out) both; }
+.ex-content .ex-subnav { display: inline-flex; margin: 0 0 var(--space-3) calc(-1 * var(--space-2)); }
+.ex-content .ex-thinking p { color: var(--muted); }
+.ex-content .ex-turn.ex-turn-in { animation: fadeIn var(--dur-fast) var(--ease-out) both; }
 /* Composer: the daily add bar's tokens, so both input rows read as one place. */
-#explorationRoot .ex-prompt { display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateY(var(--motion-rise));
+.ex-content .ex-prompt { display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateY(var(--motion-rise));
   transition: grid-template-rows var(--dur-slow) var(--ease-out), opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out), margin-bottom var(--dur-slow) var(--ease-out); }
-#explorationRoot .ex-prompt.show { grid-template-rows: 1fr; opacity: 1; transform: none; margin-bottom: var(--space-3); }
-#explorationRoot .ex-prompt.arriving { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
-#explorationRoot .ex-prompt > p { min-height: 0; overflow: hidden; margin: 0; font-size: var(--text-task); line-height: 1.6; white-space: normal; padding-left: var(--space-3); border-left: 2px solid var(--accent-glow); }
-#explorationRoot .ex-input-row { display: flex; align-items: flex-end; gap: var(--space-2); }
-#explorationRoot textarea.ex-input {
+.ex-content .ex-prompt.show { grid-template-rows: 1fr; opacity: 1; transform: none; margin-bottom: var(--space-3); }
+.ex-content .ex-prompt.arriving { animation: fadeIn var(--dur-slow) var(--ease-out) both; }
+.ex-content .ex-prompt > p { min-height: 0; overflow: hidden; margin: 0; font-size: var(--text-task); line-height: 1.6; white-space: normal; padding-left: var(--space-3); border-left: 2px solid var(--accent-glow); }
+.ex-content .ex-input-row { display: flex; align-items: flex-end; gap: var(--space-2); }
+.ex-content textarea.ex-input {
   flex: 1; min-width: 0; height: 44px; min-height: 44px; max-height: 40vh; resize: none;
   padding: 11px 14px; background: var(--bg); color: var(--text);
   border: 1px solid var(--control-border); border-radius: var(--radius-lg);
   font-family: var(--font-mono); font-size: var(--text-md); line-height: 20px;
   transition: border-color var(--dur-fast); touch-action: manipulation;
 }
-#explorationRoot textarea.ex-input::placeholder { color: var(--muted); }
-#explorationRoot textarea.ex-input:hover { border-color: var(--muted); }
-#explorationRoot textarea.ex-input:focus { border-color: var(--accent); outline: none; }
-#explorationRoot .ex-mic { display: flex; }
+.ex-content textarea.ex-input::placeholder { color: var(--muted); }
+.ex-content textarea.ex-input:hover { border-color: var(--muted); }
+.ex-content textarea.ex-input:focus { border-color: var(--accent); outline: none; }
+.ex-content .ex-mic { display: flex; }
 @media (max-width: 600px) {
-  #explorationRoot textarea.ex-input { font-size: var(--text-lg); }
+  .ex-content textarea.ex-input { font-size: var(--text-lg); }
   /* Collapse the tab bar when the keyboard is up — recovers ~52px of visible conversation. */
-  #explorationRoot .ex-nav { max-height: 52px; overflow: hidden; transition: max-height var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out), padding var(--dur-base) var(--ease-out); }
-  #explorationRoot:has(textarea.ex-input:focus) .ex-nav { max-height: 0; padding: 0; opacity: 0; }
+  .ex-content .ex-nav { max-height: 52px; overflow: hidden; transition: max-height var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out), padding var(--dur-base) var(--ease-out); }
+  .ex-content:has(textarea.ex-input:focus) .ex-nav { max-height: 0; padding: 0; opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #explorationRoot .ex-prompt { transition: none; transform: none; }
-  #explorationRoot .ex-prompt.arriving, #explorationRoot .ex-turn.ex-turn-in, #explorationRoot .ex-view-in { animation: none; }
+  .ex-content .ex-prompt { transition: none; transform: none; }
+  .ex-content .ex-prompt.arriving, .ex-content .ex-turn.ex-turn-in, .ex-content .ex-view-in { animation: none; }
 }
 
 /* One page navigation, outside the conversation, on desktop and phones. */
-#explorationRoot .ex-nav { display: flex; align-items: center; flex-basis: 100%; gap: var(--space-1); overflow-x: auto; padding: var(--space-2) 0; }
-#explorationRoot .ex-nav-item { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; height: 26px; padding: 0 var(--space-3); border: 1px solid transparent; border-radius: var(--radius-full); background: none; color: var(--muted); font: inherit; font-size: var(--text-xs); cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast); }
-#explorationRoot .ex-nav-item:is(:hover,:focus-visible) { color: var(--text); background: var(--surface2); }
-#explorationRoot .ex-nav-item[aria-current] { color: var(--accent); background: var(--accent-dim); border-color: var(--accent-glow); }
+.ex-content .ex-nav { display: flex; align-items: center; flex-basis: 100%; gap: var(--space-1); overflow-x: auto; padding: var(--space-2) 0; }
+.ex-content .ex-nav-item { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; height: 26px; padding: 0 var(--space-3); border: 1px solid transparent; border-radius: var(--radius-full); background: none; color: var(--muted); font: inherit; font-size: var(--text-xs); cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast); }
+.ex-content .ex-nav-item:is(:hover,:focus-visible) { color: var(--text); background: var(--surface2); }
+.ex-content .ex-nav-item[aria-current] { color: var(--accent); background: var(--accent-dim); border-color: var(--accent-glow); }
 /* View switch fade-rise — animation defined in sidebar.css, scoped here for Explore. */
-#explorationRoot .ex-view-in { animation: exViewIn var(--dur-fast) var(--ease-out) both; }
-#explorationRoot .ex-thinking-dots { display: inline-flex; gap: var(--space-1); padding: var(--space-2) 0; }
-#explorationRoot .ex-thinking-dots i { display: block; width: var(--space-1); height: var(--space-1); border-radius: var(--radius-full); background: var(--muted); }
+.ex-content .ex-view-in { animation: exViewIn var(--dur-fast) var(--ease-out) both; }
+.ex-content .ex-thinking-dots { display: inline-flex; gap: var(--space-1); padding: var(--space-2) 0; }
+.ex-content .ex-thinking-dots i { display: block; width: var(--space-1); height: var(--space-1); border-radius: var(--radius-full); background: var(--muted); }
 
 /* Speaker identity uses the existing brand and prose tokens. */
-#explorationRoot .ex-speaker-logo { font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; letter-spacing: -0.03em; line-height: 1.6; color: var(--text); }
-#explorationRoot .ex-speaker-logo span { color: var(--accent); }
-#explorationRoot .ex-speaker-you { font-weight: 500; color: var(--text); }
+.ex-content .ex-speaker-logo { font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; letter-spacing: -0.03em; line-height: 1.6; color: var(--text); }
+.ex-content .ex-speaker-logo span { color: var(--accent); }
+.ex-content .ex-speaker-you { font-weight: 500; color: var(--text); }

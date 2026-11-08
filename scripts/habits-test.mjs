@@ -93,9 +93,10 @@ async function openPage() {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   await page.waitForFunction(
-    () => typeof Today?.use('habits')._saveHabits === 'function' && document.getElementById('habitList'),
+    () => typeof Today?.use('habits')._saveHabits === 'function',
     { timeout: 15000 }
   );
+  await page.evaluate(()=>Today.use('sidebar').open('habits'));
   await page.evaluate(() => {
     window.dropboxAutoSave = () => {};
     window.playHabitDoneSound = () => {};

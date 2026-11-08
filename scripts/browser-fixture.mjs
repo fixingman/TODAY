@@ -46,3 +46,8 @@ export async function browserState(page) {
     bodyFont:getComputedStyle(document.body).fontFamily,
   }));
 }
+
+export async function openSidebar(page,id) {
+  await page.evaluate(id=>{const sb=Today.use('sidebar');if(!sb.isOpen(id))sb.open(id);},id);
+  await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').hidden&&document.querySelector('#sidebarRoot .ex-sheet-scroll'),{timeout:10000},id);
+}

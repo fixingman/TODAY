@@ -224,7 +224,7 @@ function block(id,name,rows,extra='') {
  return `<section class="memory-type-block" id="${id}"><div class="memory-type-header"><h3 class="memory-type-name" id="${id}Title" tabindex="-1">${name}</h3>${extra}</div>${rows}</section>`;
 }
 async function thread() {
- const target=document.getElementById('memoryThread');if(!target||!document.getElementById('memoryPanel')?.classList.contains('open'))return;
+ const target=document.getElementById('memoryThread');if(!target||!Today.use('sidebar').isOpen('memory'))return;
  const token=++previewEpoch,read=preparedVisit!==visit;preparedVisit=visit;
  try {
   await import('/assets/exploration-entry.js');
@@ -232,7 +232,7 @@ async function thread() {
   if(token!==previewEpoch||!target.isConnected)return;
   const button=`<button type="button" class="memory-item-btn" id="memoryContinue" data-today-click="exploration.open">${preview.doc?'continue →':preview.unavailable?'retry exploration →':'explore a question →'}</button>`;
   const focused=target.contains(document.activeElement);
-  const anchor=document.getElementById('memoryPanel').contains(document.activeElement)&&!focused?document.activeElement:null;
+  const anchor=Today.use('sidebar').getRoot().contains(document.activeElement)&&!focused?document.activeElement:null;
   const top=anchor?.getBoundingClientRect().top;
   target.innerHTML=preview.doc?`<span class="memory-item-text"><span class="memory-thread-question" id="memoryThreadQuestion">${h(preview.doc.question)}</span><span class="memory-thread-recap">${h(preview.summary)}</span>${preview.reading?'<span class="memory-source">TODAY · unconfirmed by you</span>':''}</span>${button}`:`<span class="memory-item-text memory-empty">${h(preview.message || 'A question you can return to, with your notes in Dropbox.')}</span>${button}`;
   if(anchor?.isConnected)window.scrollBy(0,anchor.getBoundingClientRect().top-top);

@@ -69,7 +69,9 @@ try {
   await page.waitForFunction(() => typeof Today?.use('connections').renderManual === 'function'
     && document.getElementById('manualList')
     && document.getElementById('trelloList')
-    && document.getElementById('habitList'), { timeout: 15000 });
+, { timeout: 15000 });
+
+  await page.evaluate(()=>Today.use('sidebar').open('habits'));
 
   const reset = async () => page.evaluate(() => {
     manualTasks = [

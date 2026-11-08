@@ -64,13 +64,13 @@ async function settleMemoryAnimations(page) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    await Promise.allSettled(document.getElementById('memoryPanel').getAnimations({subtree:true})
+    await Promise.allSettled(document.getElementById('sidebarRoot').getAnimations({subtree:true})
       .filter(animation => Number.isFinite(animation.effect.getTiming().iterations))
       .map(animation => animation.finished));
   });
 }
 const waitReading=p=>p.waitForSelector('.reflection-reading',{visible:true});
-async function open(p){await p.evaluate(()=>Today.use('memory').toggle());}
+async function open(p){await p.evaluate(()=>Today.use('memory').toggle());await settleMemoryAnimations(p);}
 async function vote(p,choice){
   await p.focus('.reflection-reading');await p.keyboard.press('Enter');
   await p.waitForSelector(`#reflectionReaction [data-reaction="${choice}"]`,{visible:true});

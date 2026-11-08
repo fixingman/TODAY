@@ -43,7 +43,7 @@
           _wording.init({evidence:_reconcileEvidence, current:()=>_currentReading, save:_saveFeedback,
             stamp:_feedbackStamp, refresh:()=>{_refreshOpenMemory();_refreshMemoryBlock();},
             sync:_feedbackSaveRemote, announce:text=>window._a11yAnnounce?.(text)});
-          if (document.getElementById('memoryPanel')?.classList.contains('open')) _refreshMemoryBlock();
+          if (Today.use('sidebar').isOpen('memory')) _refreshMemoryBlock();
         }).catch(()=>{});
         _refreshOpenMemory();
         return _feedbackPolicy;
@@ -330,7 +330,7 @@
       if (remembers && !_sourceReady) return;
       const canReflect = candidate && Today.use('connections')._aiIsConfigured() && navigator.onLine;
       if (remembers) {
-        if (_feedbackAck && document.getElementById('memoryPanel')?.classList.contains('open')) {
+        if (_feedbackAck && Today.use('sidebar').isOpen('memory')) {
           const ack = document.createElement('div'); ack.id = 'reflectionMemoryBlock'; ack.className = 'memory-type-block reflection-memory-block';
           ack.innerHTML = `<div class="memory-type-header"><span class="memory-type-name">HOW DAYS FELT</span></div>` +
             (_reflectResult ? `<div class="memory-item"><span class="memory-item-text" style="color:var(--muted)">${esc(_reflectResult)}</span></div>` : '') +
@@ -369,7 +369,7 @@
           // Persist only a reading actually rendered after explicit feedback consent.
           const store = evidence.feedback;
           if (store.consentAt && !store.records.some(row => row.id === r.id)
-              && document.getElementById('memoryPanel')?.classList.contains('open')) {
+              && Today.use('sidebar').isOpen('memory')) {
             const records = _feedbackPolicy.mergeRecords([...store.records,r],[],evidence.options);
             if (records.some(row => row.id === r.id) && _saveFeedback({ ...store, records })) _feedbackSaveRemote();
           }
@@ -542,7 +542,7 @@
       const previous = _reflectEvidence;
       const evidence = _reconcileEvidence();
       if (_feedbackAck && !evidence.feedback.records.some(r => r.id === _feedbackAck.id && r.reaction === 'missed')) _feedbackAck = null;
-      if (previous !== evidence.key && document.getElementById('memoryPanel')?.classList.contains('open')) _refreshMemoryBlock();
+      if (previous !== evidence.key && Today.use('sidebar').isOpen('memory')) _refreshMemoryBlock();
     }
 
     function _reflectionClearFromAllMemory() {
@@ -559,7 +559,7 @@
     }
 
     function _refreshMemoryBlock() {
-      if(document.getElementById('memoryPanel')?.getAttribute('aria-busy')==='true')return;
+      if(Today.use('sidebar').getRoot()?.getAttribute('aria-busy')==='true')return;
       const restoreWording = _wording?.preserve();
       const reviewOpen = !!document.getElementById('reflectionFeedbackManage')?.open;
       const existing = document.getElementById('reflectionMemoryBlock');
@@ -569,7 +569,7 @@
         const newBlock = tmp.firstChild;
         if (newBlock) existing.replaceWith(newBlock);
         else existing.remove();
-      } else if (document.getElementById('memoryPanel')?.classList.contains('open')) {
+      } else if (Today.use('sidebar').isOpen('memory')) {
         const container = document.getElementById('memoryKept') || document.getElementById('memoryContent');
         if (!container) return;
         const tmp = document.createElement('div');

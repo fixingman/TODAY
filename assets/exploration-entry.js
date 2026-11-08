@@ -62,7 +62,7 @@ async function preview(read=true){
     });
     explorationObserver.observe(document.getElementById('manualList'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
     explorationObserver.observe(document.getElementById('dayNudge'),{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
-    explorationObserver.observe($.memoryPanel,{attributes:true,attributeFilter:['class']});
+    explorationObserver.observe(document.getElementById('sidebarRoot'),{childList:true});
 
 function disconnect(){previewEpoch++;previewRead=null;previewState=null;previewGrant='';rememberDocument(null);document.querySelector('#memoryThread')?.replaceChildren();}
 document.addEventListener('today:dropbox-disconnected',disconnect);

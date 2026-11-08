@@ -579,6 +579,13 @@ window._startFocus = (function() {
   }
 
 
+  function fitSidebarTimer(){
+    const area=timerEl.closest('.ex-sheet-scroll');
+    if(!area)return false;
+    area.scrollTop+=Math.max(0,timerEl.getBoundingClientRect().top+timerEl.scrollHeight-area.getBoundingClientRect().bottom+8);
+    return true;
+  }
+
   function openUI(taskEl, taskId) {
 
     if (uiTaskEl && uiTaskEl !== taskEl) closeUI(false);
@@ -637,6 +644,7 @@ window._startFocus = (function() {
     document.body.classList.add('focus-locked');
 
     appEl.classList.add('focusing');
+    taskEl.closest('#sbContent')?.classList.add('focusing');
     taskEl.classList.add('focused');
     _setFocusInert(true, taskEl);
     taskEl.after(timerEl);
@@ -656,6 +664,7 @@ window._startFocus = (function() {
     requestAnimationFrame(() => {
       timerEl.classList.add('open');
       timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
+      if(fitSidebarTimer())return;
       if (_enterDelta !== 0 && document.body.style.position === 'fixed') {
 
         document.body.style.transition = 'top var(--dur-base) var(--ease-out)';
@@ -737,6 +746,7 @@ window._startFocus = (function() {
     timerEl.classList.remove('open');
     timerEl.style.maxHeight = '';
     kbdHint.classList.remove('show');
+    uiTaskEl?.closest('#sbContent')?.classList.remove('focusing');
     _setFocusInert(false, uiTaskEl);
     _focusResetAI(true);
     _updateBreatheOverlay(false);
@@ -869,13 +879,7 @@ window._startFocus = (function() {
   window._focusExpandTimer = function() {
     if (!timerEl || !timerEl.classList.contains('open')) return;
     timerEl.style.maxHeight = timerEl.scrollHeight + 'px';
-
-
-
-
-
-
-
+    if(fitSidebarTimer())return;
     if (document.body.style.position === 'fixed') {
       const rect = timerEl.getBoundingClientRect();
       const _addRow = document.querySelector('.add-task-row');
@@ -1114,18 +1118,15 @@ window._startFocus = (function() {
         tickFor(taskId);
       }
     });
-    // If timer completed in the background, the fill's pulse animation created
-    // a GPU compositor layer while hidden. On restore that layer can render at
-    // the wrong position, masking the task list ("blank" UI). Pause/resume the
-    // WAAPI pulse to force the compositor to recreate the layer at the correct
-    // position. (BUG-004 recurrence; pulse is WAAPI since v2.17.94 — the old
-    // animationPlayState toggle targeted the deleted CSS animation, a no-op.)
+    // Recreate a completed timer's compositor layer on visibility restore (BUG-004).
     const fill = document.getElementById('focusFill');
     if (fill && fill._pulseAnim) {
       fill._pulseAnim.pause();
       requestAnimationFrame(() => { if (fill._pulseAnim) fill._pulseAnim.play(); });
     }
   });
+
+  document.addEventListener('today:sidebar-unmount',event=>{if(uiTaskEl&&event.detail?.contains(uiTaskEl))closeUI(false);});
 
   // Click handler
   document.addEventListener('click', function(e) {

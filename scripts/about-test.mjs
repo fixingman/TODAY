@@ -98,6 +98,7 @@ async function openPage(context = browser) {
     { timeout: 15000 }
   );
   await page.evaluate(() => {
+    Today.use('sidebar').open('about');
     window.dropboxBackup   = () => {};
     window.dropboxAutoSave = () => {};
     // Stub clipboard so sharing tests don't require real clipboard permission
@@ -114,9 +115,9 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      Today.use('about').toggleInfo();
+      if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');
       const panel = document.getElementById('infoPanel');
-      return { panelOpen: !!(panel && panel.classList.contains('open')) };
+      return { panelOpen: Today.use('sidebar').isOpen('about')&&!document.getElementById('sidebarRoot').hidden };
     });
     await expectAll('toggleInfo opens panel', { ...result, noErrors: errors.length === 0 });
     ok('toggleInfo: infoPanel gains "open" class');
@@ -143,7 +144,7 @@ try {
   {
     const { page, errors } = await openPage();
     const result = await page.evaluate(() => {
-      Today.use('about').toggleInfo(); // internally calls renderDailyPoem()
+      if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about'); // internally calls renderDailyPoem()
       const el = document.getElementById('dailyPoem');
       return { hasContent: !!(el && el.innerHTML.length > 0) };
     });

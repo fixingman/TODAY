@@ -207,24 +207,24 @@ try{
  const send=async()=>{await page.focus('#exThought');await page.keyboard.press('Enter');};
  const start=async()=>{await page.mouse.move(page.viewport().width-20,200);await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await wait(()=>getComputedStyle(document.getElementById('exQuestion')).visibility==='visible');await click('#exQuestion');await page.keyboard.press('Enter');};
  // Sub-pages have their own back link; at the conversation the only way out is the hide control.
- const back=async()=>{await click(await page.$('#explorationRoot [data-ex-action="back"]')?'#explorationRoot [data-ex-action="back"]':'#explorationRoot [data-ex-action="hide"]');};
+ const back=async()=>{await click(await page.$('#sidebarRoot [data-ex-action="back"]')?'#sidebarRoot [data-ex-action="back"]':'#sidebarRoot [data-ex-action="hide"]');};
  await page.addScriptTag({content:await readFile(join(ROOT,'scripts/node_modules/axe-core/axe.min.js'),'utf8')});
- const checkLayout=async state=>{for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});assert.equal(await page.$eval('#explorationRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length),0,`${state} at ${width}px`);const result=await page.evaluate(()=>axe.run(document.getElementById('explorationRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(result.violations.map(row=>row.id),[],`${state} axe at ${width}px`);if([390,1024].includes(width)){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(ROOT,`.context/memory-clarity/after-${state}-${width}.png`),fullPage:true});}}};
+ const checkLayout=async state=>{for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});assert.equal(await page.$eval('#sidebarRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length),0,`${state} at ${width}px`);const result=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(result.violations.map(row=>row.id),[],`${state} axe at ${width}px`);if([390,1024].includes(width)){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(ROOT,`.context/memory-clarity/after-${state}-${width}.png`),fullPage:true});}}};
  await mkdir(join(ROOT,'.context/exploration-layout-restored'),{recursive:true});await mkdir(join(ROOT,'.context/memory-clarity'),{recursive:true});
- await wait(()=>document.querySelector('#memoryViewStyles')?.sheet);assert.equal(await page.$eval('#memoryPanel',node=>node.classList.contains('open')),false,'Memory code and styles warm while the sheet is closed');
+ await wait(()=>document.querySelector('#memoryViewStyles')?.sheet);assert.equal(await page.evaluate(()=>Today.use('sidebar').isOpen('memory')),false,'Memory code and styles warm while the sheet is closed');
  assert.equal(await page.evaluate(()=>__explorationTest.downloads),0,'Warming Memory never reads the private Dropbox document');
  await page.evaluate(()=>{__explorationTest.unavailable=true;});await click('[data-ex-origin="list"]');
- assert.equal(await page.$eval('#explorationRoot',node=>!node.hidden&&node.classList.contains('ex-sheet')),true,'Explore surface opens while entry import is held');
- assert.equal(await page.$eval('#memoryPanel',node=>node.classList.contains('open')),false,'Opening Explore from the list leaves Memory closed');
+ assert.equal(await page.$eval('#sidebarRoot',node=>!node.hidden&&node.classList.contains('ex-sheet')),true,'Explore surface opens while entry import is held');
+ assert.equal(await page.evaluate(()=>Today.use('sidebar').isOpen('memory')),false,'Opening Explore from the list leaves Memory closed');
  assert.equal(await page.evaluate(()=>__explorationTest.downloads),0,'No preview read before modules load');
- await click('[data-today-click="memory.exploration-cancel"]');releaseEntry();
+ await click('[data-sidebar-close]');releaseEntry();
  await wait(()=>{try{return !!Today.use('exploration-entry');}catch{return false;}});
- assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),true,'Cancelling held import cannot reopen Explore');
+ assert.equal(await page.$eval('#sidebarRoot',node=>node.hidden),true,'Cancelling held import cannot reopen Explore');
  await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('explorationStyles'));
  assert.equal(await page.$('#exQuestion'),null,'Setup content waits for its stylesheet');releaseStyle();
- await wait(()=>document.querySelector('#explorationRoot [role=status]')?.textContent.includes('could not open'));
- assert.equal(await page.$eval('#explorationRoot',node=>node.hasAttribute('aria-busy')),false,'A stylesheet failure ends loading and retains the hide control');
- await click('[data-today-click="memory.exploration-cancel"]');await click('[data-ex-origin="list"]');
+ await wait(()=>document.querySelector('#sidebarRoot [role=status]')?.textContent.includes('could not open'));
+ assert.equal(await page.$eval('#sidebarRoot',node=>node.hasAttribute('aria-busy')),false,'A stylesheet failure ends loading and retains the hide control');
+ await click('[data-sidebar-close]');await click('[data-ex-origin="list"]');
  await wait(()=>document.querySelector('.ex-status')?.textContent.includes('come back online'));
  assert.equal(await page.evaluate(()=>__explorationTest.downloads),1,'Explore performs one canonical read without Memory preview');
  assert.equal(await page.$('#exQuestion'),null,'An unreachable document offers recovery without pretending the file is missing');
@@ -250,13 +250,13 @@ try{
  await page.evaluate(()=>{document.getElementById('newTask').blur();document.getElementById('exQuestion').blur();});await page.mouse.move(0,0);await new Promise(resolve=>setTimeout(resolve,400));
  assert.deepEqual(await page.evaluate(()=>{const pick=node=>{const c=getComputedStyle(node);return [c.fontSize,c.fontFamily,c.height,c.paddingTop,c.paddingLeft,c.borderTopLeftRadius];};return JSON.stringify(pick(document.getElementById('exQuestion')))===JSON.stringify(pick(document.getElementById('newTask')));}),true,'Explore reply field matches the daily capture input');
  assert.deepEqual(await page.evaluate(()=>{
-  const pane=document.getElementById('explorationRoot'),foot=pane.querySelector('.ex-sheet-foot'),input=document.getElementById('exQuestion');
+  const pane=document.getElementById('sidebarRoot'),foot=pane.querySelector('.ex-sheet-foot'),input=document.getElementById('exQuestion');
   const root=getComputedStyle(document.documentElement),sheet=getComputedStyle(pane),footer=getComputedStyle(foot),field=getComputedStyle(input);
   const rgb=value=>{const node=document.createElement('span');node.style.color=value;document.body.append(node);const colour=getComputedStyle(node).color;node.remove();return colour;};
   return [sheet.backgroundColor===footer.backgroundColor,footer.borderTopWidth==='0px',
    field.backgroundColor===rgb(root.getPropertyValue('--bg')),field.borderTopColor===rgb(root.getPropertyValue('--color-control-border-elevated'))];
  }),[true,true,true,true],'Continuous soft conversation/question/composer, darker input and elevated control contrast');
- assert.deepEqual(await page.$eval('#exTitle',node=>{const own=getComputedStyle(node),native=getComputedStyle(document.getElementById('memoryTitle'));return [own.fontSize===native.fontSize,own.fontWeight===native.fontWeight,own.fontFamily===native.fontFamily];}),[true,true,true],'Explore uses the native sheet-title role exactly');
+ assert.deepEqual(await page.$eval('#exTitle',node=>{const own=getComputedStyle(node),native=getComputedStyle(document.getElementById('connectionsTitle'));return [own.fontSize===native.fontSize,own.fontWeight===native.fontWeight,own.fontFamily===native.fontFamily];}),[true,true,true],'Explore uses the native sheet-title role exactly');
  assert.equal(await page.$eval('#exViewTitle',node=>getComputedStyle(node).fontSize),await page.$eval(':root',node=>getComputedStyle(node).getPropertyValue('--text-md').trim()));
  assert.ok(await page.$('#exSetupSources'),'Data scope stays visible as a compact disclosure');
  await page.evaluate(()=>{__explorationTest.rejectNextWrite=true;});await start();
@@ -382,7 +382,7 @@ try{
  await mkdir(join(ROOT,'.context/ci-test-results/explore-continuity'),{recursive:true});
  for(const width of [390,1024]){await page.setViewport({width,height:900});await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-continuity/living-note-${width}.png`),fullPage:true});}
  const callsBeforeReturn=await page.evaluate(()=>__explorationTest.ai.length);
- await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  assert.equal(await page.$eval('.ex-resume p',node=>node.textContent),savedSummary,'A later visit resumes the saved understanding');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),callsBeforeReturn,'Returning makes no model request');
  await click('[data-ex-action="step"]');assert.ok(await page.$('[data-ex-action="step-decline"]'),'Chosen step survives ordinary reply and reopen');await checkLayout('retained-step');
@@ -455,31 +455,34 @@ try{
   assert.ok(await page.$eval('#dayNudgeReact .nudge-react',group=>[...group.querySelectorAll('button')].every(button=>button.getBoundingClientRect().right<=group.getBoundingClientRect().right+1)),`Reading feedback and Explore fit at ${width}px`);
  }
  await page.screenshot({path:join(ROOT,'.context/ci-test-results/task-row-explore/nudge-actions-1024.png'),fullPage:true});
- await click('#dayNudgeReact [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#explorationRoot .ex-context')).catch(async error=>{console.error('Reading handoff state',await page.evaluate(()=>({rootHidden:document.getElementById('explorationRoot').hidden,rootText:document.getElementById('explorationRoot').textContent.slice(0,240),backgroundInert:document.getElementById('main-app').inert,focusLocked:document.body.classList.contains('focus-locked'),context:document.querySelector('#dayNudgeReact [data-ex-origin="nudge"]')?.dataset})));throw error;});
+ await click('#dayNudgeReact [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#sidebarRoot .ex-context')).catch(async error=>{console.error('Reading handoff state',await page.evaluate(()=>({rootHidden:document.getElementById('sidebarRoot').hidden,rootText:document.getElementById('sidebarRoot').textContent.slice(0,240),backgroundInert:document.getElementById('main-app').inert,focusLocked:document.body.classList.contains('focus-locked'),context:document.querySelector('#dayNudgeReact [data-ex-origin="nudge"]')?.dataset})));throw error;});
  const assertReadingEntry=async label=>{
-  assert.ok(await page.$eval('#explorationRoot .ex-context',node=>node.textContent.includes('A fictional daily reading.')&&node.textContent.includes('AI reading')),'The exact clicked reading opens as AI context');
+  assert.ok(await page.$eval('#sidebarRoot .ex-context',node=>node.textContent.includes('A fictional daily reading.')&&node.textContent.includes('AI reading')),'The exact clicked reading opens as AI context');
   assert.equal(await page.$eval('[data-ex-action="include"]',node=>node.textContent),'include in reply','The reading starts unselected');
   assert.deepEqual(await page.evaluate(()=>({calls:__explorationTest.ai.length,entries:Today.use('exploration').document().entries.length,reaction:_memoryLineFor('morning nudge',_localISO()).reaction||null})),contextualState,label+' neither votes, requests AI nor changes the journal merely by opening');
-  await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);
+  await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);
  };
  await assertReadingEntry('Nudge Explore');
- await click('#infoBtn');await wait(()=>document.querySelector('#infoPanel.open #todayNudgeBlock [data-ex-origin="nudge"]'));
+ await click('#infoBtn');await wait(()=>document.querySelector('#sidebarRoot #todayNudgeBlock [data-ex-origin="nudge"]'));
  await click('#todayNudgeBlock .week-summary');
  assert.ok(await page.$eval('#todayNudgeBlock .nudge-react',node=>node.classList.contains('open')),'About reveals Explore beside the feedback controls');
  await page.setViewport({width:390,height:900});
  assert.ok(await page.$eval('#todayNudgeBlock .nudge-react',group=>[...group.querySelectorAll('button')].every(button=>button.getBoundingClientRect().right<=group.getBoundingClientRect().right+1)),'About reading actions fit on a phone');
  await page.screenshot({path:join(ROOT,'.context/ci-test-results/task-row-explore/about-reading-actions-390.png'),fullPage:true});
- await click('#todayNudgeBlock [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#explorationRoot .ex-context'));
+ await click('#todayNudgeBlock [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#sidebarRoot .ex-context'));
  await assertReadingEntry('About Explore');
+ await page.evaluate(()=>Today.use('sidebar').open('about'));await wait(()=>document.getElementById('todayNudgeBlock'));
+ await click('#todayNudgeBlock .week-summary');await wait(()=>document.querySelector('#todayNudgeBlock .nudge-react')?.classList.contains('open'));
  await page.evaluate(()=>localStorage.setItem('day_nudge_ai_'+_localISO(),'A replacement daily reading.'));
- await click('#todayNudgeBlock [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#explorationRoot #exThought'));
- assert.equal(await page.$('#explorationRoot .ex-context'),null,'A stale reading control cannot supply withdrawn text or silently substitute a new reading');
- await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);
+ await page.evaluate(()=>{window.__staleClicks=[];document.addEventListener('click',event=>{__staleClicks.push({action:event.target.closest('[data-today-click]')?.dataset.todayClick,origin:event.target.closest('[data-ex-origin]')?.dataset.exOrigin});},true);});
+ await click('#todayNudgeBlock [data-ex-origin="nudge"]');await wait(()=>document.querySelector('#sidebarRoot #exThought')).catch(async error=>{console.error('Stale handoff',await page.evaluate(()=>({clicks:__staleClicks,explore:Today.use('exploration').isOpen(),about:Today.use('sidebar').isOpen('about'),busy:document.getElementById('sidebarRoot').getAttribute('aria-busy')})));throw error;});
+ assert.equal(await page.$('#sidebarRoot .ex-context'),null,'A stale reading control cannot supply withdrawn text or silently substitute a new reading');
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);
  await page.evaluate(()=>localStorage.setItem('day_nudge_ai_'+_localISO(),'A fictional daily reading.'));
- await click('#infoBtn');await wait(()=>!document.getElementById('infoPanel').classList.contains('open'));
+ assert.equal(await page.evaluate(()=>Today.use('sidebar').isOpen('about')),false,'Closing Explore closes its shared panel');
  await page.setViewport({width:1024,height:900});
- assert.equal(await page.evaluate(()=>['memoryTitleRow','memoryContent','memoryFooter'].every(id=>!document.getElementById(id).hidden)),true,'Explore never hides Memory sections');
- await click('#todayLogo');await wait(()=>document.getElementById('memoryPanel').classList.contains('open'));
+ assert.equal(await page.$('#memoryContent'),null,'Only the active panel is mounted');
+ await click('#todayLogo');await wait(()=>Today.use('sidebar').isOpen('memory'));
  assert.ok(await page.$eval('#memoryContent',node=>node.getClientRects().length>0),'Memory is visible after returning');assert.ok(await page.$eval('#addTaskBar',node=>getComputedStyle(node).display!=='none'),'Memory follows the normal sheet capture-bar behavior');
  await wait(()=>document.getElementById('memoryContinue'));await click('#memoryContinue');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().today_context.enabled),false,'Returning preserves saved opt-out rather than enabling context');
@@ -489,8 +492,8 @@ try{
  await click('[data-ex-action="reload"]');await wait(()=>document.querySelector('#exThought')&&!document.querySelector('#exThought').readOnly);await page.evaluate(()=>{__explorationTest.lost=true;__explorationTest.malformed=true;});await send();await wait(()=>document.querySelector('[data-ex-action="retry-ai"]'));
  assert.equal((await page.evaluate(()=>__explorationTest.remote)).split('UNSENT_CONFLICT').length-1,1);
  await click('[data-ex-action="retry-ai"]');await wait(()=>!document.querySelector('[data-ex-action="retry-ai"]')&&!document.querySelector('#exThought').readOnly);
- await page.type('#exThought','SECOND_TURN_FICTION');await send();await wait(()=>document.querySelectorAll('#explorationRoot .ex-body > .ex-turn.ex-you').length===2&&document.querySelectorAll('#explorationRoot .ex-body > [data-ex-reading]').length===2&&!document.getElementById('exThought').readOnly);
- assert.ok((await page.$eval('#explorationRoot',root=>root.textContent)).includes('UNSENT_CONFLICT'),'The earlier exchange stays visible during this visit');
+ await page.type('#exThought','SECOND_TURN_FICTION');await send();await wait(()=>document.querySelectorAll('#sidebarRoot .ex-body > .ex-turn.ex-you').length===2&&document.querySelectorAll('#sidebarRoot .ex-body > [data-ex-reading]').length===2&&!document.getElementById('exThought').readOnly);
+ assert.ok((await page.$eval('#sidebarRoot',root=>root.textContent)).includes('UNSENT_CONFLICT'),'The earlier exchange stays visible during this visit');
  assert.equal(await page.$('[data-ex-action="reload"],#exTodayContext'),null,'Healthy conversations do not regain administrative controls');
  await page.type('#exThought','UNSENT_TOOLS_FICTION');await click('#exNotes');await click('[data-ex-action="document"]');await checkLayout('document');await click('[data-ex-action="record"]');await checkLayout('markdown');assert.equal(await page.$('#exNotesTitle,#exThought,[data-ex-action="privacy"]'),null,'Raw document replaces the parent');await back();
  assert.ok(await page.waitForSelector('[data-ex-action="draft-export"]',{timeout:10000}).catch(()=>null),'Unsent text export remains available without Document tools');
@@ -505,8 +508,8 @@ try{
  await page.evaluate(()=>{__explorationTest.hold=true;});await page.type('#exThought','PENDING_FICTION');await send();await wait(()=>typeof __explorationTest.release==='function');await click('[data-ex-action="sources"]');await click('[data-ex-action="source"]');await wait(()=>document.querySelector('.ex-status').textContent.includes('Source choice'));
  const readingsBefore=await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length);await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await new Promise(resolve=>setTimeout(resolve,100));assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length),readingsBefore);
  await click('[data-ex-action="source"]');assert.ok(await page.evaluate(()=>Today.use('exploration-core').current(Today.use('exploration').document())===null));
- for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});const overflow=await page.$eval('#explorationRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length);assert.equal(overflow,0,width+'px notes overflow');}
- await back();await click('#exNotes');await click('[data-ex-action="document"]');await click('[data-ex-action="privacy"]');await checkLayout('privacy');assert.equal(await page.$('#exNotesTitle,#exThought'),null,'Privacy replaces the parent');await click('[data-ex-action="forget"]');await click('[data-ex-action="forget-confirm"]');await wait(()=>document.getElementById('exViewTitle').textContent==='Exploration forgotten');assert.equal(await page.evaluate(()=>__explorationTest.remote),null);assert.ok(!(await page.$eval('#explorationRoot',root=>root.textContent)).includes('CORRECTION_FICTION'));
+ for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});const overflow=await page.$eval('#sidebarRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length);assert.equal(overflow,0,width+'px notes overflow');}
+ await back();await click('#exNotes');await click('[data-ex-action="document"]');await click('[data-ex-action="privacy"]');await checkLayout('privacy');assert.equal(await page.$('#exNotesTitle,#exThought'),null,'Privacy replaces the parent');await click('[data-ex-action="forget"]');await click('[data-ex-action="forget-confirm"]');await wait(()=>document.getElementById('exViewTitle').textContent==='Exploration forgotten');assert.equal(await page.evaluate(()=>__explorationTest.remote),null);assert.ok(!(await page.$eval('#sidebarRoot',root=>root.textContent)).includes('CORRECTION_FICTION'));
  await back();await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exQuestion'));assert.equal(await page.$eval('#exQuestion',input=>input.value),'','Forget clears the setup question as well as journal content');
 
  // Real-data connection uses live refs, keeps source stores separate, and fences withdrawal.
@@ -556,7 +559,7 @@ try{
  assert.equal(await page.evaluate(()=>Today.use('exploration-core').latest(Today.use('exploration').document()).id),beforeFreshness.id);
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeFreshness.calls,'Freshness handling does not regenerate prose');
  await back();
- await click('[data-ex-action="sources"]');await checkLayout('sources');assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#explorationRoot details')].find(node=>node.querySelector('summary')?.textContent.startsWith('TODAY records used')).textContent.includes('NONCE_MEMORY_FICTION')),'Notes exposes the actual live records used by this reading');await back();
+ await click('[data-ex-action="sources"]');await checkLayout('sources');assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#sidebarRoot details')].find(node=>node.querySelector('summary')?.textContent.startsWith('TODAY records used')).textContent.includes('NONCE_MEMORY_FICTION')),'Notes exposes the actual live records used by this reading');await back();
  await page.evaluate(()=>{doneIds.add(manualTasks[0].id);Today.use('connections').renderManual();});
  assert.equal(await page.evaluate(async()=>!!Today.use('exploration-core').current(Today.use('exploration').document(),await Today.use('exploration-context').collect())),true,'Completion alone does not invalidate the same task wording');
  await page.evaluate(()=>{doneIds.delete(manualTasks[0].id);Today.use('connections').renderManual();__explorationTest.hold=true;__explorationTest.release=null;});
@@ -617,14 +620,14 @@ try{
  await mkdir(join(ROOT,'.context/memory-data'),{recursive:true});
  for(const width of [320,390,736,1024]){
   await page.setViewport({width,height:900});
-  const accessibility=await page.evaluate(()=>axe.run(document.getElementById('explorationRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(accessibility.violations.map(row=>row.id),[],width+'px connected sources axe');
+  const accessibility=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(accessibility.violations.map(row=>row.id),[],width+'px connected sources axe');
  }
  await back();await back();await click('[data-ex-action="sources"]');
  await page.screenshot({path:join(ROOT,'.context/exploration-layout-restored/test-fixture-connected-notes.png'),fullPage:true});
- await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('explorationRoot').hidden);
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);
  const downloadsBefore=await page.evaluate(()=>__explorationTest.downloads);
  // Explore opened from Memory leaves Memory open behind it; start a fresh Memory visit.
- if(await page.$eval('#memoryPanel',node=>node.classList.contains('open')))await click('#todayLogo');
+ if(await page.evaluate(()=>Today.use('sidebar').isOpen('memory')))await click('#todayLogo');
  await click('#todayLogo');
  await page.evaluate(()=>{Today.use('memory').render();Today.use('memory').render();});await wait(()=>document.querySelector('#memoryThreadQuestion'));
  assert.equal((await page.evaluate(()=>__explorationTest.downloads))-downloadsBefore,1,'One canonical read per Memory visit, including concurrent redraws');
@@ -636,47 +639,48 @@ try{
  await click('#todayLogo');await click('#todayLogo');await wait(()=>document.querySelector('#memoryThreadQuestion'));assert.equal(await page.$eval('#memoryCoverage',node=>node.open),false,'Coverage resets after leaving Memory');
  for(const width of [320,390,736,1024]){
   await page.setViewport({width,height:900});
-  assert.equal(await page.$eval('#memoryPanel',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length),0,width+'px real Memory containment');
-  const accessibility=await page.evaluate(()=>axe.run(document.getElementById('memoryPanel'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(accessibility.violations.map(row=>row.id),[],width+'px actual Memory axe');
+  assert.equal(await page.$eval('#sidebarRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length),0,width+'px real Memory containment');
+  const accessibility=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(accessibility.violations.map(row=>row.id),[],width+'px actual Memory axe');
   if([390,1024].includes(width)){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(ROOT,'.context/memory-clarity/after-memory-'+width+'.png'),fullPage:true});}
  }
  await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'no-preference'}]);
  await page.evaluate(()=>{__explorationTest.holdDownload=true;__explorationTest.releaseDownload=null;});
  await page.evaluate(()=>{window.__bodyFades=0;const animate=Element.prototype.animate;Element.prototype.animate=function(...args){if(this.classList?.contains('ex-body'))window.__bodyFades++;return animate.apply(this,args);};});
  await click('#memoryContinue');await wait(()=>typeof __explorationTest.releaseDownload==='function');
- assert.equal(await page.$eval('#memoryPanel',node=>node.classList.contains('open')),true);
+ assert.equal(await page.evaluate(()=>Today.use('sidebar').isOpen('explore')),true);
  assert.ok(await page.$('[role="status"]'),'Remote content has an honest loading state');
  await page.evaluate(()=>{__explorationTest.holdDownload=false;__explorationTest.releaseDownload();});
  await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  assert.ok(await page.evaluate(()=>window.__bodyFades>0),'Loaded content fades in instead of jumping');
- assert.equal(await page.$eval('#memoryPanel',node=>node.classList.contains('open')),true,'Memory stays open beside Explore');
+ assert.equal(await page.evaluate(()=>Today.use('sidebar').isOpen('memory')),false,'The shared sidebar switches from Memory to Explore');
  await page.screenshot({path:join(ROOT,'.context/memory-clarity/desktop-loaded.png'),fullPage:true});
- await back();await wait(()=>document.activeElement?.id==='memoryContinue');
+ await back();await wait(()=>document.activeElement?.id==='todayLogo');
+ await click('#todayLogo');await wait(()=>document.getElementById('memoryContinue'));
  await click('#memoryContinue');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  const sheetAI=await page.evaluate(()=>__explorationTest.ai.length);
  await page.type('#exThought','UNSENT_SHEET_SWITCH_FICTION');
  assert.equal(await page.evaluate(()=>!document.getElementById('main-app').inert&&document.getElementById('addTaskBar').inert),true,'Desktop keeps tasks interactive while the chat composer is active');
- await page.setViewport({width:390,height:844});await wait(()=>document.getElementById('explorationRoot').getAttribute('aria-modal')==='true');
+ await page.setViewport({width:390,height:844});await wait(()=>document.getElementById('sidebarRoot').getAttribute('aria-modal')==='true');
  assert.equal(await page.evaluate(()=>document.getElementById('addTaskBar').inert&&getComputedStyle(document.getElementById('addTaskBar')).display==='none'),true,'On phones Explore is full screen and daily capture is hidden');
  await page.setViewport({width:1440,height:900});await wait(()=>!document.getElementById('main-app').inert);
- assert.equal(await page.$eval('#explorationRoot',node=>node.getAttribute('role')),'complementary','Wide screens dock Explore beside the list');
+ assert.equal(await page.$eval('#sidebarRoot',node=>node.getAttribute('role')),'complementary','Wide screens dock Explore beside the list');
  // Both desktop sizes push logo/navigation and rows, keep the panel persistent, and switch composers.
  await mkdir(join(ROOT,'.context/ci-test-results/explore-dock'),{recursive:true});
  for(const width of [601,736,1024,1440]){
   await page.setViewport({width,height:900});
   await page.mouse.move(width-20,200);
-  await wait(()=>{const sheet=document.getElementById('explorationRoot').getBoundingClientRect();return Math.abs(parseFloat(getComputedStyle(document.body).paddingRight)-sheet.width)<1&&['main-app','sticky-header','todayLogo','infoBtn','memoryPanel'].every(id=>document.getElementById(id).getBoundingClientRect().right<=sheet.left+1);});
+  await wait(()=>{const sheet=document.getElementById('sidebarRoot').getBoundingClientRect();return Math.abs(parseFloat(getComputedStyle(document.body).paddingRight)-sheet.width)<1&&['main-app','sticky-header','todayLogo','infoBtn','memoryPanel'].every(id=>document.getElementById(id).getBoundingClientRect().right<=sheet.left+1);});
   await page.focus('#exThought');await page.keyboard.press('Escape');
-  assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'Escape cannot dismiss the sidebar');
+  assert.equal(await page.$eval('#sidebarRoot',node=>node.hidden),false,'Escape cannot dismiss the sidebar');
   assert.equal(await page.$$eval('.ex-nav [data-ex-action="sources"]',nodes=>nodes.length),1,'Sources has one navigation entrance');
   assert.equal(await page.$('.ex-turn [data-ex-action="sources"],.ex-turn [data-ex-action="correct"]'),null,'Chat has no repeated source/correction toolbars');
   await page.mouse.move(80,300);await wait(()=>!document.getElementById('addTaskBar').inert&&getComputedStyle(document.getElementById('exScrim')).opacity==='0');
   assert.equal(await page.evaluate(()=>document.body.classList.contains('ex-task-active')&&getComputedStyle(document.getElementById('exScrim')).opacity==='0'&&document.querySelector('.ex-sheet-foot').inert),true,'Pointer on Today clears its dim and parks the chat composer');
   await page.click('#dateTag');
-  assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'Clicking Today cannot dismiss Explore');
+  assert.equal(await page.$eval('#sidebarRoot',node=>node.hidden),false,'Clicking Today cannot dismiss Explore');
   await page.evaluate(()=>{const hours=Date.prototype.getHours;Date.prototype.getHours=()=>21;try{Today.use('triage').checkTriageBar();}finally{Date.prototype.getHours=hours;}});
   await wait(()=>document.getElementById('triageBar').classList.contains('visible'));
-  const triageLayout=await page.evaluate(()=>{const bar=document.getElementById('triageBar').getBoundingClientRect(),app=document.getElementById('main-app').getBoundingClientRect(),sheet=document.getElementById('explorationRoot').getBoundingClientRect();return {centre:bar.x+bar.width/2,appCentre:app.x+app.width/2,left:bar.left,right:bar.right,sheetLeft:sheet.left};});
+  const triageLayout=await page.evaluate(()=>{const bar=document.getElementById('triageBar').getBoundingClientRect(),app=document.getElementById('main-app').getBoundingClientRect(),sheet=document.getElementById('sidebarRoot').getBoundingClientRect();return {centre:bar.x+bar.width/2,appCentre:app.x+app.width/2,left:bar.left,right:bar.right,sheetLeft:sheet.left};});
   assert.ok(Math.abs(triageLayout.centre-triageLayout.appCentre)<=1&&triageLayout.left>=0&&triageLayout.right<=triageLayout.sheetLeft,'Evening Review must share Today’s available column');
   await page.evaluate(()=>Today.use('triage').checkTriageBar());await wait(()=>document.getElementById('triageBar').classList.contains('hidden'));
   // Fixed task controls are outside .app: body padding alone cannot re-centre them.
@@ -688,7 +692,7 @@ try{
   await click(`.task[data-taskid="${removedId}"] .task-delete`);
   await wait(()=>document.querySelector('#undoToast.show:not([hidden])')&&document.querySelectorAll('#undoReasonRow button').length===4);
   const undoLayout=await page.evaluate(()=>{
-   const toast=document.getElementById('undoToast').getBoundingClientRect(),app=document.getElementById('main-app').getBoundingClientRect(),sheet=document.getElementById('explorationRoot').getBoundingClientRect();
+   const toast=document.getElementById('undoToast').getBoundingClientRect(),app=document.getElementById('main-app').getBoundingClientRect(),sheet=document.getElementById('sidebarRoot').getBoundingClientRect();
    const controls=[...document.querySelectorAll('#undoToast button')].filter(node=>!node.hidden).map(node=>{const r=node.getBoundingClientRect();return {label:node.textContent,left:r.left,right:r.right,top:r.top,bottom:r.bottom,hit:node.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};});
    return {toast:{left:toast.left,right:toast.right,top:toast.top,bottom:toast.bottom,centre:toast.x+toast.width/2},appCentre:app.x+app.width/2,sheetLeft:sheet.left,controls};
   });
@@ -698,27 +702,27 @@ try{
   assert.ok(undoLayout.controls.every(r=>r.left>=undoLayout.toast.left&&r.right<=undoLayout.toast.right+1&&r.top>=undoLayout.toast.top&&r.bottom<=undoLayout.toast.bottom&&r.hit),'Every undo/reason control must remain contained and pointer-accessible');
   await page.focus('#undoToast [data-today-click="tasks.undo"]');await page.keyboard.press('Enter');
   await page.waitForFunction(id=>!!document.querySelector(`.task[data-taskid="${id}"]`)&&document.getElementById('undoToast').hidden,{},removedId);
-  assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'Keyboard Undo must keep Explore open');
+  assert.equal(await page.$eval('#sidebarRoot',node=>node.hidden),false,'Keyboard Undo must keep Explore open');
   await page.evaluate(id=>{manualTasks=manualTasks.filter(task=>task.id!==id);Today.use('connections').renderManual();},removedId);
   await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/tasks-active-${width}.png`),fullPage:false});
-  await page.mouse.move(width-20,200);await wait(()=>document.getElementById('addTaskBar').inert&&!document.querySelector('.ex-sheet-foot').inert&&getComputedStyle(document.getElementById('explorationRoot'),'::after').opacity==='0');
+  await page.mouse.move(width-20,200);await wait(()=>document.getElementById('addTaskBar').inert&&!document.querySelector('.ex-sheet-foot').inert&&getComputedStyle(document.getElementById('sidebarRoot'),'::after').opacity==='0');
   assert.equal(await page.$eval('#exThought',node=>node.value),'UNSENT_SHEET_SWITCH_FICTION','Pane switching preserves the unsent chat draft');
-  assert.ok(await page.evaluate(()=>getComputedStyle(document.getElementById('explorationRoot'),'::after').opacity==='0'),'Pointer on Explore clears its dim');
+  assert.ok(await page.evaluate(()=>getComputedStyle(document.getElementById('sidebarRoot'),'::after').opacity==='0'),'Pointer on Explore clears its dim');
   await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-dock/chat-active-${width}.png`),fullPage:false});
  }
  await page.setViewport({width:1440,height:900});
  // The list column slides aside (--dur-slow); once settled it never sits under the panel.
- await wait(()=>{const app=document.querySelector('.app').getBoundingClientRect(),sheet=document.getElementById('explorationRoot').getBoundingClientRect();return app.right<=sheet.left+1;});
- for(const peer of ['#infoBtn','#habitsBtn','#trelloBtn']){
-  await click(peer);await wait(()=>document.querySelector('#configPanel.open,#habitsPanel.open,#infoPanel.open'));
-  assert.equal(await page.$eval('#explorationRoot',node=>node.hidden),false,'A list-column sheet opens beside docked Explore');
-  assert.equal(await page.$eval('#exThought',node=>node.value),'UNSENT_SHEET_SWITCH_FICTION','The unsent page-held draft stays put');
-  await click(peer);
+ await wait(()=>{const app=document.querySelector('.app').getBoundingClientRect(),sheet=document.getElementById('sidebarRoot').getBoundingClientRect();return app.right<=sheet.left+1;});
+ for(const [peer,id] of [['#infoBtn','about'],['#habitsBtn','habits'],['#todayLogo','memory']]){
+  await click(peer);await page.waitForFunction(id=>Today.use('sidebar').isOpen(id),{},id);
+  assert.equal(await page.$('#exThought'),null,'Changing panels unmounts the previous conversation');
+  await click('#trelloBtn');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
+  assert.equal(await page.$eval('#exThought',node=>node.value),'UNSENT_SHEET_SWITCH_FICTION','Returning to Explore preserves its unsent draft');
  }
  await page.setViewport({width:1024,height:900});
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),sheetAI,'Sheet navigation makes no exploration request');
  await page.$eval('#exThought',node=>{node.value='';node.dispatchEvent(new Event('input',{bubbles:true}));});
- await back();await wait(()=>document.activeElement?.matches('#explorationEntry button'));
+ await back();await wait(()=>['todayLogo','trelloBtn'].includes(document.activeElement?.id)||document.activeElement?.matches('#explorationEntry button'));
  await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
  console.log('  ✓ Native Memory uses actual records, one Dropbox read per visit, correct return focus, per-visit coverage and 320/390/736/1024px axe/containment');
  console.log('  ✓ Live TODAY records work without importing notes; explained creation and saved opt-out are respected; sensitive stores stay separate; fingerprints/epochs fence edits and exclusion; completion stays valid; checkpoint append preserves history');
@@ -730,5 +734,5 @@ try{
  assert.equal(await page.$('#exQuestion,input[type=file]'),null,'Unsupported native versions cannot be re-imported as a downgraded new thread');
  assert.equal(await page.evaluate(()=>__explorationTest.remote),futureBefore.remote);assert.equal(await page.evaluate(()=>__explorationTest.ai.length),futureBefore.calls);assert.equal(await page.evaluate(()=>__explorationTest.uploads.length),futureBefore.uploads);
  console.log('  ✓ Source withdrawal fences delayed AI, re-inclusion cannot revive, widths stay contained, conditional forget clears page and Dropbox; no journal in backup/storage');
-}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('explorationRoot')?.innerHTML,announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('sidebarRoot')?.innerHTML.slice(0,800),announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 console.log('✓ EXPLORATION TEST PASSED');

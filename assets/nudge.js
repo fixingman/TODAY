@@ -179,7 +179,7 @@ window._startNudge = (function() {
         onAccept?.(text);
         _pruneLS(cachePrefix, cacheKey);
         localStorage.setItem(cacheKey, text);
-        if ($.infoPanel?.classList.contains('open')) Today.use('about').renderInfoStats();
+        if (Today.use('sidebar').isOpen('about')) Today.use('about').renderInfoStats();
         dropboxAutoSave();
         if (settled) { if (isCurrent() && onLate) onLate(text); return; }
         settle(text, true);

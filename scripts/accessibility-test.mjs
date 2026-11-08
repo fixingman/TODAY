@@ -10,7 +10,7 @@ import puppeteer from 'puppeteer-core';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const AXE = await readFile(join(ROOT, 'scripts/node_modules/axe-core/axe.min.js'), 'utf8');
-const MIME = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.png':'image/png', '.woff2':'font/woff2' };
+const MIME = { '.css':'text/css', '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.png':'image/png', '.woff2':'font/woff2' };
 
 const server = createServer(async (req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -97,10 +97,10 @@ try {
   ok('controls expose names/state and inactive UI is hidden');
 
   for (const [button, panel, label] of [
-    ['habitsBtn','habitsPanel','habits disclosure'],
-    ['trelloBtn','configPanel','connections disclosure'],
-    ['infoBtn','infoPanel','about disclosure'],
-    ['todayLogo','memoryPanel','memory disclosure'],
+    ['habitsBtn','sidebarRoot','habits disclosure'],
+    ['trelloBtn','sidebarRoot','explore disclosure'],
+    ['infoBtn','sidebarRoot','about disclosure'],
+    ['todayLogo','sidebarRoot','memory disclosure'],
   ]) {
     await page.click('#' + button);
     await waitForFiniteMotion(page, '#' + panel);
@@ -134,8 +134,8 @@ try {
     Today.use('memory').render();
     document.querySelector('[data-today-click="dream.memory-manage"]').click();
   });
-  await waitForFiniteMotion(page, '#memoryPanel');
-  await audit(page, 'managed dream recurrences pass axe', '#memoryPanel');
+  await waitForFiniteMotion(page, '#sidebarRoot');
+  await audit(page, 'managed dream recurrences pass axe', '#sidebarRoot');
 
   await page.click('#todayLogo');
 
@@ -282,9 +282,9 @@ try {
       baseControl: ratio(css.getPropertyValue('--color-control-border'), css.getPropertyValue('--color-surface')),
       elevatedMuted: ratio(css.getPropertyValue('--color-muted-elevated'), css.getPropertyValue('--color-surface2')),
       elevatedControl: ratio(css.getPropertyValue('--color-control-border-elevated'), css.getPropertyValue('--color-surface2')),
-      panelUsesElevatedMuted: getComputedStyle(document.getElementById('memoryPanel')).getPropertyValue('--muted').trim()
+      panelUsesElevatedMuted: getComputedStyle(document.getElementById('sidebarRoot')).getPropertyValue('--muted').trim()
         === css.getPropertyValue('--color-muted-elevated').trim(),
-      panelUsesElevatedControl: getComputedStyle(document.getElementById('memoryPanel')).getPropertyValue('--control-border').trim()
+      panelUsesElevatedControl: getComputedStyle(document.getElementById('sidebarRoot')).getPropertyValue('--control-border').trim()
         === css.getPropertyValue('--color-control-border-elevated').trim(),
     };
   });

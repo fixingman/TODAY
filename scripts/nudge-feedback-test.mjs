@@ -112,6 +112,7 @@ async function fixture(mobile, { hour = 9, seed = {}, expectRequests = 1, feedba
 }
 
 async function state(page) {
+  await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
   return page.evaluate(() => {
     const date = _localISO();
     const strip = document.getElementById('dayNudge');

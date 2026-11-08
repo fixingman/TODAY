@@ -12,38 +12,39 @@
     let _knownWaitingOpen = false;
     let _computedPatterns = [];
     let explorationLoading = null, explorationUI = null, explorationOpening = 0, explorationPlace = null;
-    function cancelExplorationOpen() {
-      explorationOpening++;
-      Today.use('sidebar').close();
-    }
-    Today.ui.register('click','memory.exploration-cancel',cancelExplorationOpen);
-    Today.ui.register('click','exploration.open',async(event,button)=>{
+    async function beginExploration(event,button){
       event.stopPropagation();
       const token=++explorationOpening,kind=button.dataset.exOrigin||'memory';
       const place={kind,button,wasOpen:kind==='memory'&&Today.use('sidebar').isOpen('memory')};
       explorationPlace=place;
-      if(Today.use('sidebar').isOpen('explore')&&kind!=='nudge'){document.getElementById('exTitle')?.focus({preventScroll:true});return;}
+      if(explorationUI?.isOpen?.()&&kind!=='nudge'){document.getElementById('exTitle')?.focus({preventScroll:true});return;}
+      const shell=Today.use('sidebar');
+      const content=shell.prepare('explore','Explore',()=>{explorationOpening++;});
+      content.innerHTML='<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Explore"></button></div><div class="ex-sheet-scroll"><p class="ex-status" role="status">Opening your exploration…</p></div><div class="ex-sheet-foot"></div>';
+      shell.setCloseIcon(content.querySelector('[data-sidebar-close]'));
+      content.querySelector('#exTitle').focus({preventScroll:true});
       try {
         explorationLoading ||= import('/assets/exploration-entry.js').then(()=>Today.use('exploration-entry'));
         explorationUI = await explorationLoading;
         if(token!==explorationOpening)return;
         await explorationUI.open(event,button,place,()=>token===explorationOpening);
-      } catch (_) { explorationLoading=null; if(window._a11yAnnounce)_a11yAnnounce('Exploration could not open. Try opening it again.'); }
-    });
+      } catch (_) { explorationLoading=null;if(token===explorationOpening){shell.getRoot().removeAttribute('aria-busy');content.querySelector('[role=status]').textContent='Exploration could not open. Try opening it again.';} }
+    }
+    Today.ui.register('click','exploration.open',beginExploration);
+    Today.use('sidebar').register('explore',{label:'Explore',icon:'✦︎',order:1,mount(){beginExploration({stopPropagation(){}},document.querySelector('#explorationEntry button'));}});
 
     function _parseAIText(data) {
       if (data.error) return null;
       return (data.content || data.message || '').trim().replace(/^["']+|["']+$/g, '') || null;
     }
 
-    const _sbChevron = ph => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" focusable="false"><path d="${ph?'M5 8l5 5 5-5':'M8 5l5 5-5 5'}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     function toggleMemory() {
       if (Today.use('sidebar').isOpen('memory')) { Today.use('sidebar').close(); return; }
       Today.use('sidebar').open('memory');
     }
     function _mountMemory(container) {
-      const ph = matchMedia('(max-width: 600px)').matches;
-      container.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="memoryTitle" tabindex="-1">✦︎ Memory</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Memory">${_sbChevron(ph)}</button></div><div class="ex-sheet-scroll" id="memoryContent"></div><div class="ex-sheet-foot" id="memoryFooter"></div>`;
+      container.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="memoryTitle" tabindex="-1">✦︎ Memory</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Memory"></button></div><div class="ex-sheet-scroll"><div id="memoryContent"></div><div id="memoryFooter"></div></div><div class="ex-sheet-foot"></div>`;
+      Today.use('sidebar').setCloseIcon(container.querySelector('[data-sidebar-close]'));
       $.configPanel.classList.remove('open');
       Today.use('connections')._endConnectionsPrivacyVisit();
       Today.use('reflections').endFeedbackVisit();

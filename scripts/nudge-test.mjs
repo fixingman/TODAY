@@ -460,7 +460,7 @@ try {
             : scenario === 'malformed-text' ? '' : enriched;
           return { ok: true, json: async () => ({ content }) };
         };
-        document.getElementById('infoPanel').classList.add('open');
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');
         checkDayNudge();
         await window.__nudgeTestWait(() => calls.length >= 1, 'Calendar fixture first request');
         if (finish) {
@@ -561,7 +561,7 @@ try {
         await wait(90);
         const first = audit();
         const initialFallback = document.getElementById('dayNudge').textContent;
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         const aboutEmpty = document.getElementById('todayNudgeBlock').style.display === 'none';
         recover = true;
         checkDayNudge();
@@ -573,7 +573,7 @@ try {
         await wait(90);
         const final = audit();
         const beforeNaturalCheck = document.getElementById('dayNudge').textContent;
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         const aboutRecovered = document.getElementById('todayNudgeBlock').textContent.includes(good);
         checkDayNudge(); // a genuinely later natural check may upgrade the fallback
         const raw = localStorage.getItem('today_nudge_generation_v1');
@@ -629,7 +629,7 @@ try {
         if (release) release();
         await new Promise(r => setTimeout(r, 60));
         const audit = Today.use('nudge').generationAudit();
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         const accepted = ['accepted', 'dismissed'].includes(outcome);
         const expectedStatus = accepted ? 'accepted' : ['still-long','noon'].includes(outcome) ? 'rejected-length' : 'rejected-grounding';
         const afterRepair = document.getElementById('dayNudge').textContent;
@@ -770,7 +770,7 @@ try {
         window.dispatchEvent(new Event('online'));
         checkDayNudge();
         await new Promise(r => setTimeout(r, 50));
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         return {
           policy: gate === 'afternoon' ? calls === 1 : calls === 2
             && localStorage.getItem('day_nudge_ai_' + _localISO()) === good
@@ -840,8 +840,8 @@ try {
         const fallback = document.getElementById('dayNudge').textContent;
         const recovering = cutoff === 'recover' || cutoff === 'undismissed';
         if (cutoff !== 'undismissed') document.getElementById('dayNudge').click();
-        document.getElementById('infoPanel').classList.add('open');
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         if (cutoff === 'noon') Date.prototype.getHours = () => 12;
         if (cutoff === 'offline') Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
         if (cutoff === 'new-day') _nudgeOnNewDay();
@@ -931,8 +931,8 @@ try {
           window.__calls++; return new Promise(resolve => { window.__resolveAI = resolve; });
         };
         mergeRemoteData(payload);
-        document.getElementById('infoPanel').classList.add('open');
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         checkDayNudge();
         await window.__nudgeTestWait(() => window.__calls === 1, 'device B pending request');
         return { retryAllowed: window.__calls === 1,
@@ -941,8 +941,8 @@ try {
       }, failed.payload);
       await expectAll('device B adopted fallback dismissal', bStarted);
       const recovered = await a.page.evaluate(async () => {
-        document.getElementById('infoPanel').classList.add('open');
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         const readyAt = Today.use('nudge').generationAudit().retryAt + 1;
         Date.now = () => readyAt;
         const [id, retry] = window.__retries.entries().next().value;
@@ -1041,7 +1041,7 @@ try {
           && !document.getElementById('dayNudge').textContent.includes('Yesterday response');
         pending[1]({ ok: true, json: async () => ({ content: 'Today has its own grounded line.' }) });
         await new Promise(r => setTimeout(r, 50));
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         return { isolated, newDayBudget: Today.use('nudge').generationAudit().attempts === 1,
           todaySaved: localStorage.getItem('day_nudge_ai_' + _localISO()) === 'Today has its own grounded line.',
           aboutToday: document.getElementById('todayNudgeBlock').textContent.includes('Today has its own grounded line.'),
@@ -1140,7 +1140,7 @@ try {
           let requests = 0;
           window.fetch = async () => { requests++; return {ok:false,json:async()=>({})}; };
           checkDayNudge();
-          Today.use('about').renderInfoStats();
+          if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
           await new Promise(r => setTimeout(r, 100));
           const block=document.getElementById('todayNudgeBlock');
           return {
@@ -1265,7 +1265,7 @@ try {
         checkDayNudge(false);
         const strip = document.getElementById('dayNudgeReact');
         const before = strip.querySelector('[data-react="landed"]')?.getAttribute('aria-pressed') === 'false';
-        Today.use('about').renderInfoStats();
+        if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
         const about = document.getElementById('todayNudgeBlock');
         about.querySelector('[data-react="landed"]').click();
         const landedInStrip = strip.querySelector('[data-react="landed"]')?.getAttribute('aria-pressed') === 'true';

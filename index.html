@@ -132,13 +132,7 @@
       pointer-events: all !important;
     }
 
-    /* Recede — opacity + noise filter for depth, pointer-events off.
-       Enter: rows dim outward from the focused item using --focus-wave-delay;
-       blur follows one --dur-fast beat later on an already-dim element.
-       Dim-then-blur avoids the blurry-opaque-box artifact.
-       Exit: governed by base .task rule — blur dissolves first (200ms), then opacity
-       returns (260ms, 80ms delay). Blur is gone before opacity rises, so no
-       opaque+blurry rectangle at any point. */
+    /* Dim rows outward, then blur. Exit clears blur before opacity returns. */
     .focusing .task:not(.focused),
     .focusing .habit:not(.focused) {
       transition:
@@ -662,22 +656,7 @@
   /* ── Reset ─ */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ============================================================
-     TODAY — Design System Tokens
-     ============================================================
-
-     HOW TO USE:
-       All visual values should reference a token from this block.
-       Never hardcode a colour, radius, spacing, or duration below.
-
-     FIGMA MAPPING:
-       Color    → Figma Variables > Color
-       Space    → Figma Variables > Number (Spacing)
-       Radius   → Figma Variables > Number (Radius)
-       Motion   → Figma Variables > Number (Duration/Easing)
-       Typography is expressed through font-size / weight tokens.
-
-     ============================================================ */
+  /* Design tokens: colours, typography, spacing, radii and motion. Use variables below; full mapping in Design.md. */
 
   :root {
     color-scheme: dark;  /* UA dark hint via CSS too, not only the meta — paints a dark default canvas (BUG-041) */
@@ -1010,13 +989,7 @@
     letter-spacing: -0.03em; line-height: 1;
     display: flex; white-space: nowrap;
     font-size: clamp(48px, 9vw, 96px);
-    /* Paint-gated: hidden until fonts are confirmed loaded (startSplash flips to
-       visible and fades opacity up). visibility:hidden stays in layout so the
-       FontFaceSet still loads, but suppresses paint — no fallback-metrics show.
-       No per-letter transform animation: starting a CSS transform animation on iOS
-       promotes each letter to its own compositing layer and re-rasters the glyph at
-       animation start — glyphs could repaint mid-motion no matter how the reveal was
-       timed (BUG-032, six passes). The logo reveals as ONE unit, opacity only. */
+    /* Gate paint on loaded fonts. Reveal the whole logo with opacity; per-letter transforms re-raster on iOS (BUG-032). */
     visibility: hidden;
     opacity: 0;
   }
@@ -2141,13 +2114,7 @@
     margin-right: var(--space-2);
   }
 
-  /* inline-block, not inline: when this wraps to its own line on narrow
-     screens (long text + link + checklist badge don't all fit), a plain
-     `display: inline` element's leading margin is suppressed by the browser
-     at the wrap point — the badge lands flush against the container edge
-     with no visible spacing, reading as an orphaned row rather than a
-     continuation of the line above. inline-block is an atomic box, so its
-     margin renders correctly whether it stays on the same line or wraps. */
+  /* Atomic inline boxes preserve badge spacing when a narrow row wraps. */
   .task-meta {
     display: inline-block;
     margin-left: var(--space-2);
@@ -4417,12 +4384,12 @@
   <div class="sticky-header-inner">
     <div class="header">
       <div class="header-left">
-        <h1 class="today-brand"><button class="today-logo" id="todayLogo" type="button" data-today-click="memory.toggle" aria-label="Open memory" aria-controls="memoryPanel" aria-expanded="false">TO<span>DAY</span></button></h1>
+        <h1 class="today-brand"><button class="today-logo" id="todayLogo" type="button" data-today-click="memory.toggle" aria-label="Open memory" aria-controls="sidebarRoot" aria-expanded="false">TO<span>DAY</span></button></h1>
       </div>
       <div class="header-actions">
-        <button class="btn-icon" id="habitsBtn" type="button" aria-label="Open habits" aria-controls="habitsPanel" aria-expanded="false" data-today-click="habits.toggle">◎&#xFE0E;</button>
+        <button class="btn-icon" id="habitsBtn" type="button" aria-label="Open habits" aria-controls="sidebarRoot" aria-expanded="false" data-today-click="habits.toggle">◎&#xFE0E;</button>
         <button class="btn-icon" id="trelloBtn" type="button" aria-label="Open Explore" aria-controls="sidebarRoot" aria-expanded="false" data-today-click="exploration.open">✧</button>
-        <button class="btn-icon" id="infoBtn" type="button" aria-label="Open about" aria-controls="infoPanel" aria-expanded="false" data-today-click="about.toggle">ℹ&#xFE0E;</button>
+        <button class="btn-icon" id="infoBtn" type="button" aria-label="Open about" aria-controls="sidebarRoot" aria-expanded="false" data-today-click="about.toggle">ℹ&#xFE0E;</button>
       </div>
     </div>
     <!-- Subheader: date + progress bar -->
@@ -4712,14 +4679,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '403.5h';
+const DEV_HOURS     = '404.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.7.1': 'Sidebar panels keep their styling, focus and drafts when you switch, with clearer loading and reliable mobile controls.',
   '3.7.0': 'Memory, Habits, and About now open in the sidebar alongside Explore — one consistent panel across the whole app.',
   '3.6.1': 'Explore fills the desktop window to the top again. Focus keeps offscreen chrome out of its blur.',
-  '3.6.0': 'Explore opens in a sidebar that will also host Memory, Habits, and About — one consistent panel across the app.',
 };
 
 // Version derives from the newest changelog entry; sw.js is checked by the release gate.

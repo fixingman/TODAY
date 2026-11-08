@@ -95,6 +95,7 @@
       const sb = Today.use('sidebar');
       const habitsOpen = sb.isOpen('habits');
       const configOpen = $.configPanel.classList.contains('open');
+      $.configPanel.hidden=!configOpen;$.configPanel.setAttribute('aria-hidden',String(!configOpen));
       const infoOpen   = sb.isOpen('about');
       const memoryOpen = sb.isOpen('memory');
       const exploreOpen = sb.isOpen('explore');
@@ -850,7 +851,6 @@
         // Loads the existing opt-in reader; never changes credentials or consent.
         calendarForNudge: _loadCalendar,
       });
-      Today.ui.register('click', 'connections.toggle', toggleConfig);
       Today.ui.register('click', 'connections.trello-auth', trelloAuth);
       Today.ui.register('click', 'connections.trello-load', loadTrello);
       Today.ui.register('click', 'connections.trello-clear', clearTrello);

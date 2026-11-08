@@ -1129,6 +1129,7 @@ try {
       const fixture = await habitFixture(options);
       if (owner === 'habit') await startHabit(fixture.page);
       else {
+        await fixture.page.evaluate(()=>Today.use('sidebar').close(true));
         await fixture.page.evaluate(() => { manualTasks[0].id = 'manual_1700000000000'; manualTasks[0].text = 'Fix the export crash'; Today.use('connections').renderManual(); document.querySelector('.task-text').click(); });
         await fixture.page.waitForSelector('.focus-timer.open');
       }

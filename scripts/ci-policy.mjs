@@ -10,6 +10,7 @@ export const SUITE = [
   "visual-test",
   "splash-test",
   "platform-test",
+  "sidebar-test",
   "service-worker-test",
   "connections-test",
   "trello-test",
@@ -123,9 +124,11 @@ export const GROUPS = {
       "sw.js",
       "assets/feedback-policy.js",
       "assets/runtime.js",
+      "assets/sidebar.js",
+      "assets/sidebar.css",
       "assets/util.js"
     ],
-    "suites": [],
+    "suites": ["sidebar-test"],
     "full": true,
     "performance": true
   },

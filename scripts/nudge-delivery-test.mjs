@@ -98,6 +98,7 @@ async function fixture(mobile, { hour = 9, seed = {}, expectRequests = 1 } = {})
 }
 
 async function state(page) {
+  await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
   return page.evaluate(() => {
     const date = _localISO();
     const strip = document.getElementById('dayNudge');
@@ -150,7 +151,7 @@ try {
       await page.waitForFunction(() => Today.use('nudge').generationAudit().status !== 'started', { timeout: 5000 });
       assert.equal((await state(page)).cached, QUIET_LINE,
         'the old word-pattern veto must not discard this ordinary reading: ' + JSON.stringify(await page.evaluate(() => Today.use('nudge').generationAudit())));
-      await page.click('#infoBtn');
+      await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
       const accepted = await state(page);
       assert.equal(accepted.text, QUIET_LINE);
       assert.deepEqual(accepted.spoken, [QUIET_LINE]);
@@ -190,7 +191,7 @@ try {
             assert.equal((await state(page)).cached, null, 'grounding still rejects an unsafe recovery');
             assert.deepEqual((await state(page)).spoken, []);
           } else {
-            await page.click('#infoBtn');
+            await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
             const accepted = await state(page);
             assert.equal(accepted.cached, QUIET_LINE);
             assert.deepEqual(accepted.spoken, [QUIET_LINE]);
@@ -222,7 +223,7 @@ try {
       await page.waitForFunction(() => window.__dailyRequests.length === 1);
       await page.evaluate(line => window.__reply(line), QUIET_LINE);
       await page.waitForFunction(line => localStorage.getItem('day_nudge_ai_2026-10-19') === line, {}, QUIET_LINE);
-      await page.click('#infoBtn');
+      await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
       agree(await state(page), 'natural midnight rollover');
       await page.reload({ waitUntil: 'load' });
       await page.waitForFunction(() => _appReady && window.__initialSyncSettled);
@@ -255,10 +256,11 @@ try {
           const fallback = await state(page);
           assert.match(fallback.text, /still here from yesterday/);
           assert.equal(fallback.feedback, false, 'fallback must not acquire AI vote controls');
+          if(['dismissed','late-touched'].includes(scenario))await page.evaluate(()=>Today.use('sidebar').close(true));
           if (scenario === 'dismissed') await page.click('#dayNudge');
           // A press on the strip (without dismissing) means the person may be reading it.
           if (scenario === 'late-touched') await page.$eval('#dayNudge', el => el.dispatchEvent(new PointerEvent('pointerdown', { bubbles:true })));
-          await page.click('#infoBtn');
+          await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
           if (scenario === 'noon') await page.evaluate(() => window.__advance(3 * 60 * 60 * 1000));
           if (scenario === 'body-late') {
             await page.evaluate(line => window.__replyBody(line), LINE);
@@ -288,7 +290,7 @@ try {
           assert.equal(await page.$('#todayNudgeBlock .nudge-audit'), null, 'a second tap hides the readout');
           const canUpgrade = ['late', 'body-late', 'repair', 'late-touched'].includes(scenario);
           if (canUpgrade) {
-            await page.click('#infoBtn');
+            await page.evaluate(()=>Today.use('sidebar').close());
             const returned = await state(page);
             // Closing About hands its line to an undismissed fallback strip (Oct 18 decision).
             assert.equal(returned.text, LINE, 'closing About upgrades the undismissed fallback strip');
@@ -302,7 +304,7 @@ try {
             assert.equal(upgraded.feedback, true);
             assert.equal(upgraded.calls, scenario === 'repair' ? 2 : 1, 'wake adopts the cache, never regenerates');
             assert.deepEqual(upgraded.spoken, [LINE], 'real wake must not duplicate the spoken record');
-            await page.click('#infoBtn');
+            await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
             await page.click('#todayNudgeBlock .week-summary');
             await page.waitForFunction(() => document.querySelector('#todayNudgeBlock .nudge-react')?.classList.contains('open'));
             await page.$eval('#todayNudgeBlock .nudge-react', async el => {
@@ -316,8 +318,8 @@ try {
           }
         } else {
           await resolve(page);
-          await page.waitForFunction(line => document.querySelector('#dayNudge .nudge-text')?.textContent === line, {}, LINE);
-          await page.click('#infoBtn');
+          await page.waitForFunction(line => document.querySelector('#dayNudge .nudge-text')?.textContent === line&&document.getElementById('dayNudge').classList.contains('visible'), {}, LINE);
+          await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
           const accepted = await state(page);
           assert.equal(accepted.visible, true);
           assert.ok(accepted.about.includes(LINE));
@@ -326,7 +328,7 @@ try {
           await page.reload({ waitUntil:'load' });
           await page.waitForFunction(() => _appReady);
           await page.waitForFunction(line => document.querySelector('#dayNudge .nudge-text')?.textContent === line, {}, LINE);
-          await page.click('#infoBtn');
+          await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
           const reloaded = await state(page);
           assert.equal(reloaded.calls, 0, 'a cached cold open must not make another AI request');
           assert.ok(reloaded.about.includes(LINE));
@@ -360,7 +362,7 @@ try {
           await page.waitForFunction(line => document.querySelector('#dayNudge .nudge-text')?.textContent === line, {}, LINE);
         }
         if (scenario === 'voted-sync-done') {
-          await page.click('#infoBtn');
+          await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
           await page.click('#todayNudgeBlock .week-summary');
           await page.waitForSelector('#todayNudgeBlock .nudge-react.open');
           await page.$eval('#todayNudgeBlock .nudge-react',async el=>{
@@ -368,7 +370,7 @@ try {
           });
           await page.click('#todayNudgeBlock [data-react="landed"]');
           assert.equal((await state(page)).reaction,'landed');
-          await page.click('#infoBtn');
+          await page.evaluate(()=>Today.use('sidebar').close());
         }
         const prefix=scenario.includes('overlap') ? 'Buy a library card' : scenario==='complete-unrelated' ? 'Water' : 'Choose';
         const id=await page.evaluate(text=>manualTasks.find(t=>t.text.startsWith(text))?.id,prefix);
@@ -384,7 +386,7 @@ try {
           await wake(page,mobile ? 'visibility' : 'focus');
         }
         await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-        await page.click('#infoBtn');
+        await page.evaluate(()=>{if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');});
         const open=await state(page);
         if (scenario==='next-day-cache') {
           assert.equal(open.aboutShown,false,'yesterday’s reading is not presented as today’s');
@@ -399,7 +401,7 @@ try {
           if (scenario==='voted-sync-done') assert.equal(open.reaction,'landed','sync/completion retains the vote');
         }
         agree(open,`${scenario} with About open`);
-        await page.click('#infoBtn');
+        await page.evaluate(()=>Today.use('sidebar').close());
         agree(await state(page),`${scenario} after About close`);
         await wake(page,mobile ? 'visibility' : 'focus');
         await page.evaluate(()=>new Promise(r=>setTimeout(r,50)));

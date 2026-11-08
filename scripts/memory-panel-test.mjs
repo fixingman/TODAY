@@ -180,9 +180,9 @@ try {
     const result = await page.evaluate(() => {
       const panel = document.getElementById('memoryPanel');
       Today.use('memory').toggle();
-      const opened = panel.classList.contains('open');
+      const opened = Today.use('sidebar').isOpen('memory');
       Today.use('memory').toggle();
-      const closed = !panel.classList.contains('open');
+      const closed = !Today.use('sidebar').isOpen('memory');
       return { opened, closed };
     });
     await expectAll('panel toggle', { ...result, noErrors: errors.length === 0 });
@@ -266,7 +266,7 @@ try {
       const configPanel = document.getElementById('configPanel');
       Today.use('memory').openConnections();
       return {
-        memoryClosed: !memoryPanel.classList.contains('open'),
+        memoryClosed: !Today.use('sidebar').isOpen('memory'),
         configOpen: configPanel.classList.contains('open'),
       };
     });
@@ -381,6 +381,7 @@ try {
       const tomb = new Set(appMemory.clearedHypothesisIds);
       const all = ['semantic', 'episodic', 'procedural'].flatMap(t => appMemory.memory[t]);
 
+      if(!Today.use('sidebar').isOpen('memory'))Today.use('sidebar').open('memory');
       Today.use('memory').render();
       const panel = document.getElementById('memoryContent');
       const text = panel.textContent;
@@ -428,6 +429,7 @@ try {
         { date: '2026-08-24', tasksDone: 1, tasksAdded: 2, tasksAddedFixed: true },
         { date: '2026-08-25', tasksDone: 31, tasksAdded: 31, tasksAddedFixed: true },
       ]));
+      if(!Today.use('sidebar').isOpen('memory'))Today.use('sidebar').open('memory');
       Today.use('memory').render();
       const text = document.getElementById('memoryContent')?.textContent || '';
       return {
@@ -476,7 +478,7 @@ try {
       ];
       appMemory.revokedKnownItems = { 'sn:manual_s3': new Date().toISOString() };
       Today.use('memory').toggle();
-      const content = document.getElementById('memoryContent');
+      let content = document.getElementById('memoryContent');
       const text = content?.textContent || '';
       const knownFirst = text.indexOf('STILL OPEN') >= 0 && text.indexOf('STILL OPEN') < text.indexOf('WHAT HOLDS');
       const blocks = [...content.querySelectorAll(':scope > .memory-type-block')];
@@ -497,9 +499,11 @@ try {
       const dismissedFromRecordOnly = !content.textContent.includes('book blood test')
         && !!appMemory.revokedKnownItems['sn:manual_s1'] && JSON.stringify(soonTasks) === tasksBefore;
       delete appMemory.revokedKnownItems['sn:manual_s1'];
+      if(!Today.use('sidebar').isOpen('memory'))Today.use('sidebar').open('memory');
       Today.use('memory').render();
       Today.use('memory').toggle();
       Today.use('memory').toggle();
+      content=document.getElementById('memoryContent');
       const waitingResetsOnReopen = waitingButton()?.getAttribute('aria-expanded') === 'false'
         && !content.textContent.includes('book blood test');
       Today.use('dreambank').renderMemory(document.getElementById('memoryKept'));
@@ -508,6 +512,7 @@ try {
       // empty state
       appMemory.returningTasks = {}; appMemory.obligationHistory = []; appMemory.taskOutcomes = [];
       soonTasks = [];
+      if(!Today.use('sidebar').isOpen('memory'))Today.use('sidebar').open('memory');
       Today.use('memory').render();
       const empty = document.getElementById('memoryContent')?.textContent || '';
 
@@ -543,6 +548,7 @@ try {
       appMemory.kindVerdicts = {
         'letgo-reason': { landed: 0, missed: 2, retired: '2026-09-07', updated: 'x' },
       };
+      if(!Today.use('sidebar').isOpen('memory'))Today.use('sidebar').open('memory');
       Today.use('memory').render();
       const content = () => document.getElementById('memoryContent');
       const absentWithRecord = !content().textContent.includes('RETIRED') &&
@@ -550,6 +556,7 @@ try {
       const preserved = appMemory.kindVerdicts['letgo-reason'].missed === 2 &&
         appMemory.kindVerdicts['letgo-reason'].retired === '2026-09-07';
       appMemory.kindVerdicts = {};
+      if(!Today.use('sidebar').isOpen('memory'))Today.use('sidebar').open('memory');
       Today.use('memory').render();
       return { absentWithRecord, preserved, absentWhenEmpty: !/RETIRED|nothing retired/.test(content().textContent) };
     });

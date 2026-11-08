@@ -373,8 +373,8 @@ const SCENES = {
     interact: async (page) => {
       await page.evaluate(() => document.getElementById('todayLogo')?.click());
       await page.waitForFunction(
-        () => document.getElementById('memoryPanel')?.classList.contains('open')
-          && !document.getElementById('memoryPanel').hasAttribute('aria-busy')
+        () => Today.use('sidebar').isOpen('memory')
+          && !document.getElementById('sidebarRoot').hasAttribute('aria-busy')
           && document.getElementById('memoryViewStyles')?.sheet
           && document.querySelector('#memoryCoverage summary')?.textContent,
         { timeout: 5000 },

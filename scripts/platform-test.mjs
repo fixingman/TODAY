@@ -136,6 +136,7 @@ async function openPage(options = {}) {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(URL_BASE, { waitUntil: 'load', timeout: 15000 });
   await page.waitForFunction(() => window.__platformTest.swRegistrations.length === 1, { timeout: 3000 });
+  await page.evaluate(()=>Today.use('sidebar').open('about'));
   return { page, errors };
 }
 
@@ -388,6 +389,7 @@ try {
       viewport: { width: 375, height: 812 },
       userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
     });
+    await page.evaluate(()=>Today.use('sidebar').close(true));
     const result = await page.evaluate(async () => {
       const input = document.getElementById('newTask');
       const bar = document.getElementById('addTaskBar');

@@ -19,7 +19,7 @@
   let recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
   const dataContext=()=>Today.use('exploration-context');
   let visitStart = 0, sourceWindow = 50, shownPrompt = '', turnCount = 0;
-  let activePane = 'explore', pendingObservation = null, awaitingReply = false, thinkingMotion = [];
+  let pendingObservation = null, awaitingReply = false, thinkingMotion = [];
   const wide = matchMedia('(min-width: 601px)'), phone = matchMedia('(max-width: 600px)');
   const status = (text, nextAction = '') => { message = text; recovery = nextAction; render(); };
   const sidebar = () => Today.use('sidebar');
@@ -31,6 +31,7 @@
     });
     return stylesLoading;
   }
+  document.addEventListener('today:sidebar-unmount',event=>{if(root&&event.detail===root){opened=false;epoch++;controller?.abort();abortAI();}});
   const validSession = token => opened && token === epoch && activeGrant === grant();
   function abortAI() { if(pendingReading&&retryId)retryReading=true;aiController?.abort(); aiController = null; pendingReading = false;if(suggestionMessage==='Thinking…')suggestionMessage='The context changed. You can ask again.'; }
   function wipe() {
@@ -47,30 +48,7 @@
     if (root) { root.replaceChildren(); root.removeAttribute('aria-busy'); }
     root = null;
   }
-  // Desktop panes stay interactive. Only the phone presentation is modal.
-  function activatePane(next) {
-    if (!opened || phone.matches || activePane === next) return;
-    const focused=document.activeElement;
-    if ((next==='tasks' && focused?.closest('.ex-sheet-foot')) || (next==='explore' && focused?.closest('#addTaskBar'))) focused.blur();
-    activePane=next; modality();
-  }
-  function modality() {
-    const shown = opened, modal = shown && phone.matches;
-    sidebar().modality(shown);
-    const bar=byId('addTaskBar'); if(bar)bar.inert=modal || (shown && activePane==='explore');
-    document.body.classList.toggle('ex-task-active',shown && activePane==='tasks');
-    const foot=root?.querySelector('.ex-sheet-foot'); if(foot)foot.inert=shown && !modal && activePane==='tasks';
-  }
-  document.addEventListener('pointermove',event=>{
-    if(!opened || phone.matches || event.pointerType==='touch')return;
-    activatePane(event.clientX >= root.getBoundingClientRect().left?'explore':'tasks');
-  },{passive:true});
-  document.addEventListener('pointerdown',event=>{if(opened&&!phone.matches)activatePane(event.clientX>=root.getBoundingClientRect().left?'explore':'tasks');},{passive:true});
-  document.addEventListener('focusin',event=>{
-    if(!opened || phone.matches)return;
-    if(root.contains(event.target))activatePane('explore');
-    else if(event.target.closest('#main-app,#sticky-header,#addTaskBar'))activatePane('tasks');
-  });
+  function modality(){sidebar().modality();}
   function close() {
     if (!opened) return;
     sidebar().close();
@@ -101,9 +79,9 @@
   }
   function _mount(container, ctx) {
     const { hooks, place, context } = ctx || {};
-    root = container; root.setAttribute('aria-labelledby','exTitle');
+    root = container;root.classList.add('ex-content');
     const token=++epoch; host = hooks; origin = place; opened = true; view = 'conversation'; trail = []; forgot = false; message = '';
-    activePane='explore'; incoming = context || null; includeIncoming = false; correctionTarget = null; correctionText = '';suggestionMessage='';
+    incoming = context || null; includeIncoming = false; correctionTarget = null; correctionText = '';suggestionMessage='';
     shownPrompt = ''; turnCount = 0;
     load();
   }
@@ -512,11 +490,6 @@
     if(!opened||!root||root.hidden)return;
     const inside=root.contains(document.activeElement);
     if(event.key==='Escape'&&(inside||phone.matches)&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();if(trail.length)leave();return;}
-    if(event.key!=='Tab'||!phone.matches||!inside)return;
-    const items=[...root.querySelectorAll('button:not([disabled]),textarea,input,summary,[href]')].filter(node=>node.getClientRects().length);
-    if(!items.length)return;
-    if(event.shiftKey&&document.activeElement===items[0]){event.preventDefault();items.at(-1).focus();}
-    else if(!event.shiftKey&&document.activeElement===items.at(-1)){event.preventDefault();items[0].focus();}
   },true);
   [wide,phone].forEach(query=>query.addEventListener('change',()=>{modality();sidebar().fitViewport();render();}));
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',()=>{if(root)animateThinking();});
@@ -530,5 +503,5 @@
     unmount() { const place = origin; hide(); host?.restore?.(place); },
     label: 'Explore', icon: '✦︎', order: 1,
   });
-  Today.define('exploration',{open,hide,close,isOpen:()=>opened,refreshSources,clearInfluence(){hide();wipe();},document:()=>doc,decorate});
+  Today.define('exploration',{open,hide:()=>sidebar().close(true),close,isOpen:()=>opened,refreshSources,clearInfluence(){if(sidebar().isOpen('explore'))sidebar().close(true);wipe();},document:()=>doc,decorate});
 })();
