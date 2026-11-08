@@ -37,6 +37,40 @@ try{
  await page.evaluate(()=>Today.use('sidebar').close(true));
  await page.click('#habitsBtn');await page.click('[data-sidebar-close]');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'habitsBtn','Close returns focus to the opener');
+ // Native header openers can sit on the Today side of the new boundary.
+ // Moving straight back to Today must restore capture without a sidebar detour.
+ for(const width of [1280,736]){
+  await page.setViewport({width,height:900});
+  for(const [id,opener]of [['habits','#habitsBtn'],['about','#infoBtn'],['memory','#todayLogo']]){
+   await page.mouse.move(80,220);await page.click(opener);
+   await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').classList.contains('entering'),{},id);
+   assert.equal(await page.$eval('#addTaskBar',node=>getComputedStyle(node).visibility),'hidden',id+' initially selects its panel');
+   await page.mouse.move(80,250);
+   await page.waitForFunction(()=>{const bar=document.getElementById('addTaskBar'),s=getComputedStyle(bar);return s.visibility==='visible'&&s.opacity==='1'&&!bar.inert;});
+   if(id==='habits')await page.screenshot({path:join(root,`.context/ci-test-results/sidebar/habits-capture-${width}.png`)});
+   const input=await page.$('#newTask'),box=await input.boundingBox();
+   assert.ok(await page.evaluate(({x,y})=>document.elementFromPoint(x,y)?.id==='newTask',{x:box.x+box.width/2,y:box.y+box.height/2}),id+' restores a usable task input');
+   await input.click();await page.keyboard.type('Fictional capture draft');
+   await page.mouse.move(width-20,250);
+   assert.equal(await page.evaluate(()=>document.activeElement.id),'newTask','Hover cannot steal an active capture draft');
+   await page.click('#sidebarRoot .ex-sheet-head');
+   assert.equal(await page.$eval('#newTask',node=>node.value),'Fictional capture draft','Explicit pane selection retains the draft');
+   await page.$eval('#newTask',node=>{node.value='';node.dispatchEvent(new Event('input',{bubbles:true}));});
+   await page.evaluate(()=>Today.use('sidebar').close(true));
+  }
+ }
+ await page.setViewport({width:1280,height:900});
+ await page.click('#habitsBtn');
+ await page.waitForFunction(()=>!document.getElementById('sidebarRoot').classList.contains('entering'));
+ await page.click('#habitNewBtn');
+ await page.waitForFunction(()=>document.activeElement.id==='habitInput');
+ await page.waitForFunction(()=>getComputedStyle(document.getElementById('addTaskBar')).visibility==='hidden');
+ await page.keyboard.type('Fictional habit draft');await page.mouse.move(80,250);
+ assert.equal(await page.evaluate(()=>document.activeElement.id),'habitInput','Hover cannot interrupt naming a habit');
+ assert.equal(await page.$eval('#addTaskBar',node=>getComputedStyle(node).visibility),'hidden');
+ await page.click('.task-text');
+ assert.equal(await page.$eval('#habitInput',node=>node.value),'Fictional habit draft','Explicit task selection preserves the habit draft');
+ await page.keyboard.press('Escape');await page.evaluate(()=>Today.use('sidebar').close(true));
  // A cold Explore entry replaces content inside the existing frame. Observe the
  // whole transition: a settled screenshot cannot detect a replayed entrance.
  await openSidebar(page,'about');

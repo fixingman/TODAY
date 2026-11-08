@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 157 | ⏳ Verify | Opening Habits hides the task input; moving directly back over Today does not restore it. | v3.7.7 |
 | 156 | ⏳ Verify | A deployed update forces a second boot or refresh in an open desktop PWA session. | v3.7.5 |
 | 155 | ⏳ Verify | Task-list daily reading remains after not really; optional reason keeps the strip open indefinitely. | v3.7.4 |
 | 154 | ⏳ Verify | Desktop title area leaks scrolling content; Explore replays panel entry and steals input ownership. Desktop PWA needs persistent header and Focus-dimmed peer panels; mobile paint ends early. | v3.7.3 |
@@ -51,6 +52,18 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-157 — Habits leaves task capture hidden
+
+**Report (November 8):** task input disappears immediately on opening Habits, before New habit or Edit, and does not return when the pointer moves over Today.
+
+**Cause:** the native Habits opener sits on the Today side of the newly opened sidebar. Opening selects the sidebar but records the pointer as already over Today; subsequent movement within Today never crosses the recorded boundary. Memory can share this geometry. Existing tests mounted panels and checked crossings after deliberately entering the sidebar; they did not exercise this direct native-opener return.
+
+**Fix (v3.7.7):** arm the first task-side pointer movement after opening Habits/Memory/About. Preserve Explore's composer/crossing behavior, active text input protection, explicit click/keyboard pane selection and mobile modality. No habit/task persistence or sync change.
+
+**Verification:** retained fictional pointer/visibility trace and old-runtime regression failure under `.context/habits-capture/`. The native regression covers1280/736px, real capture visibility/hit testing/typing, capture/habit draft protection and the existing Explore/phone checks. Final fresh validation passes seven suites without failures/flakes in44.4s (`.context/fresh-UghkwD/receipt.json`): sidebar, Habits, Explore, accessibility, design, smoke and invariants. The first new draft assertion sampled a visibility transition; wait for the real settled state before checking retained focus. Installed acceptance remains separate.
 
 ---
 

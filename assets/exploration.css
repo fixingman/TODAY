@@ -90,6 +90,7 @@
 /* One page navigation, outside the conversation, on desktop and phones. */
 .ex-content .ex-nav { display: flex; align-items: center; flex-basis: 100%; gap: var(--space-1); overflow-x: auto; padding: var(--space-2) 0; }
 .ex-content .ex-nav-item { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; height: 26px; padding: 0 var(--space-3); border: 1px solid transparent; border-radius: var(--radius-full); background: none; color: var(--muted); font: inherit; font-size: var(--text-xs); cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast); }
+.ex-content .ex-nav [data-ex-action=notes] { margin-inline-start: auto; }
 .ex-content .ex-nav-item:is(:hover,:focus-visible) { color: var(--text); background: var(--surface2); }
 .ex-content .ex-nav-item[aria-current] { color: var(--accent); background: var(--accent-dim); border-color: var(--accent-glow); }
 /* View switch fade-rise — animation defined in sidebar.css, scoped here for Explore. */

@@ -207,7 +207,7 @@ try{
  const send=async()=>{await page.focus('#exThought');await page.keyboard.press('Enter');};
  const start=async()=>{await page.mouse.move(page.viewport().width-20,200);await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await wait(()=>getComputedStyle(document.getElementById('exQuestion')).visibility==='visible');await click('#exQuestion');await page.keyboard.press('Enter');};
  // Sub-pages have their own back link; at the conversation the only way out is the hide control.
- const back=async()=>{await click(await page.$('#sidebarRoot [data-ex-action="back"]')?'#sidebarRoot [data-ex-action="back"]':'#sidebarRoot [data-ex-action="hide"]');};
+ const back=async()=>{const local='#sidebarRoot [data-ex-action="back"]',chat='.ex-nav [data-ex-action="conversation"]:not([aria-current])';await click(await page.$(local)?local:await page.$(chat)?chat:'#sidebarRoot [data-ex-action="hide"]');};
  await page.addScriptTag({content:await readFile(join(ROOT,'scripts/node_modules/axe-core/axe.min.js'),'utf8')});
  const checkLayout=async state=>{for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});assert.equal(await page.$eval('#sidebarRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length),0,`${state} at ${width}px`);const result=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(result.violations.map(row=>row.id),[],`${state} axe at ${width}px`);if([390,1024].includes(width)){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(ROOT,`.context/memory-clarity/after-${state}-${width}.png`),fullPage:true});}}};
  await mkdir(join(ROOT,'.context/exploration-layout-restored'),{recursive:true});await mkdir(join(ROOT,'.context/memory-clarity'),{recursive:true});
@@ -292,6 +292,39 @@ try{
  assert.equal(await page.$('[data-ex-action="retry-ai"]'),null,'Retry appears only after a real failure');
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'exThought','Reply completion retains composer focus');
+
+ // Earlier is an index, with saved text opened deliberately rather than repeated at landing.
+ const beforeEarlier=await page.evaluate(()=>({record:Today.use('exploration-core').stringify(Today.use('exploration').document()),calls:__explorationTest.ai.length,writes:__explorationTest.uploads.length}));
+ await click('.ex-nav [data-ex-action="history"]');
+ assert.equal(await page.$('.ex-body .ex-turn'),null,'Earlier landing does not expose the transcript');
+ assert.equal(await page.$('.ex-body .ex-subnav'),null,'Top-level pages use header navigation, without a conversation CTA');
+ assert.ok(await page.$('.ex-body [data-ex-action="original-history"]'),'Earlier always offers the saved conversation, including when its sources remain valid');
+ await mkdir(join(ROOT,'.context/ci-test-results/explore-earlier'),{recursive:true});
+ for(const width of [320,390,736,1024,1440]){
+  await page.setViewport({width,height:900});
+  const nav=await page.evaluate(()=>{
+   const root=document.querySelector('.ex-nav'),buttons=[...root.querySelectorAll('button')],rect=root.getBoundingClientRect();
+   const [chat,earlier,note,sources]=buttons.map(node=>node.getBoundingClientRect());
+   return {order:buttons.map(node=>node.dataset.exAction),left:Math.abs(chat.left-rect.left)<1,right:Math.abs(sources.right-rect.right)<1,fit:root.scrollWidth<=root.clientWidth+1,separate:note.left>=earlier.right};
+  });
+  assert.deepEqual(nav,{order:['conversation','history','notes','sources'],left:true,right:true,fit:true,separate:true},width+'px keeps the two icon tabs left and the text tabs right');
+  const a11y=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
+  assert.deepEqual(a11y.violations.map(row=>row.id),[],width+'px Earlier accessibility');
+  await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-earlier/landing-${width}.png`),fullPage:true});
+ }
+ await page.focus('.ex-nav [data-ex-action="conversation"]');
+ for(const expected of ['history','notes','sources']){await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.dataset.exAction),expected,'Tab order follows the visible navigation');}
+ await page.focus('.ex-body [data-ex-action="original-history"]');await page.keyboard.press('Enter');
+ assert.ok(await page.$('[data-ex-saved-reading]'),'Saved exchanges remain readable after explicit keyboard selection');
+ assert.equal(await page.$('#exThought,[data-ex-reading]'),null,'Saved conversation remains historical, without a composer/current reading');
+ assert.ok(await page.$('#exHistoryNotice'));
+ await page.screenshot({path:join(ROOT,'.context/ci-test-results/explore-earlier/saved-conversation.png'),fullPage:true});
+ await back();assert.equal(await page.$('.ex-body .ex-turn'),null,'Returning to Earlier restores the compact landing');
+ assert.equal(await page.evaluate(()=>document.activeElement.dataset.exAction),'original-history','Return restores the saved-conversation action focus');
+ for(const target of ['notes','sources','history']){await click('.ex-nav [data-ex-action="'+target+'"]');assert.equal(await page.$('.ex-body .ex-subnav'),null,'Header navigation makes the in-content conversation link redundant');}
+ assert.deepEqual(await page.evaluate(()=>({record:Today.use('exploration-core').stringify(Today.use('exploration').document()),calls:__explorationTest.ai.length,writes:__explorationTest.uploads.length})),beforeEarlier,'Reading/navigation does not change the journal or request AI');
+ await page.setViewport({width:1024,height:900});await click('.ex-nav [data-ex-action="conversation"]');
+
  // The phone keyboard must stay dismissed through pending and completed replies.
  await page.setViewport({width:390,height:900});
  await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
@@ -486,7 +519,7 @@ try{
  assert.ok(await page.$eval('#memoryContent',node=>node.getClientRects().length>0),'Memory is visible after returning');assert.ok(await page.$eval('#addTaskBar',node=>getComputedStyle(node).display!=='none'),'Memory follows the normal sheet capture-bar behavior');
  await wait(()=>document.getElementById('memoryContinue'));await click('#memoryContinue');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().today_context.enabled),false,'Returning preserves saved opt-out rather than enabling context');
- await click('[data-ex-action="history"]');await checkLayout('history');assert.equal(await page.$('#exThought'),null,'History replaces the conversation');assert.ok(await page.$$eval('[data-ex-reading]',nodes=>nodes.length>0),'Returning keeps both sides of earlier exchanges inspectable');await back();
+ await click('[data-ex-action="history"]');await checkLayout('history');assert.equal(await page.$('#exThought,.ex-body .ex-turn'),null,'Earlier replaces the conversation with its compact entry');await click('[data-ex-action="original-history"]');assert.ok(await page.$$eval('[data-ex-saved-reading]',nodes=>nodes.length>0)&&await page.$('.ex-you'),'Returning keeps both sides of earlier exchanges inspectable after opening the saved conversation');await back();await back();
  await page.evaluate(()=>{__explorationTest.conflict=true;});await page.type('#exThought','UNSENT_CONFLICT');await send();await wait(()=>document.querySelector('.ex-status').textContent.includes('changed'));
  assert.equal(await page.$eval('#exThought',input=>input.value),'UNSENT_CONFLICT');assert.ok(!(await page.evaluate(()=>__explorationTest.remote)).includes('UNSENT_CONFLICT'));
  await click('[data-ex-action="reload"]');await wait(()=>document.querySelector('#exThought')&&!document.querySelector('#exThought').readOnly);await page.evaluate(()=>{__explorationTest.lost=true;__explorationTest.malformed=true;});await send();await wait(()=>document.querySelector('[data-ex-action="retry-ai"]'));

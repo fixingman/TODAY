@@ -164,7 +164,8 @@
   }
   function backLink() {
     const parent=trail.at(-1)?.view;
-    const label=parent==='notes'?'living note':parent==='document'?'your document':parent==='history'?'earlier conversation':'conversation';
+    if(!parent||parent==='conversation')return '';
+    const label=parent==='notes'?'living note':parent==='document'?'your document':parent==='history'?'earlier':'back';
     return action('back',`<span aria-hidden="true">‹ </span>${label}`,`aria-label="Back to ${label}"`,'memory-item-btn ex-subnav');
   }
   function notice() {
@@ -244,11 +245,10 @@
     if(view==='privacy')return privacyHTML(disabled);
     if(view==='record')return title('Markdown')+`<pre>${h(core.stringify(doc))}</pre>${action('export','export document')}`;
     if(view==='import')return title('Earlier notes')+`<p>Add a Markdown journal or checkpoint to this exploration. Your existing notes stay. Nothing is sent to AI by importing.</p><label class="memory-item-btn ex-file">choose a document<input type="file" accept=".md,.txt,text/plain,text/markdown" data-today-change="exploration.checkpoint" ${disabled}></label>`;
-    if(view==='history'||view==='original-history') {
-      const all=doc.entries.filter(entry=>['observation','reading'].includes(entry.kind)),saved=view==='original-history';
-      const hidden=all.some(entry=>entry.kind==='reading'&&!core.supportedReading(doc,entry,liveSources));
-      const explanation=saved?'<p class="ex-muted" id="exHistoryNotice">Saved history only. Replies may rely on information that has changed or been removed; reading them here does not restore them as current understanding.</p>':hidden?`<p class="ex-muted">Some saved AI replies cannot support the current conversation.</p><div class="ex-links">${action('original-history','read saved conversation')}</div>`:'';
-      return title(saved?'Saved conversation':'Earlier conversation')+explanation+turnsHTML(all.slice(-historyWindow),reading,saved)+(all.length>historyWindow?action('more-history','show earlier conversation'):'');
+    if(view==='history')return title('Earlier')+action('original-history','saved conversation');
+    if(view==='original-history') {
+      const all=doc.entries.filter(entry=>['observation','reading'].includes(entry.kind));
+      return title('Saved conversation')+'<p class="ex-muted" id="exHistoryNotice">Saved history only. Replies may rely on information that has changed or been removed; reading them here does not restore them as current understanding.</p>'+turnsHTML(all.slice(-historyWindow),reading,true)+(all.length>historyWindow?action('more-history','show earlier conversation'):'');
     }
     if(view==='correct')return title('Your wording')+`<label for="exCorrection">How would you put it?</label><textarea id="exCorrection" rows="5" maxlength="8000" data-today-input="exploration.correction">${h(correctionText)}</textarea><p class="ex-muted">Your correction stays alongside the earlier version. It does not verify an explanation.</p>${reading?.id===correctionTarget?action('amend','keep correction',disabled):'<p>The supporting reading changed. Your wording is still here; return to the note to review it.</p>'}${action('cancel-correction','cancel')}`;
     return '';
@@ -473,7 +473,7 @@
     if(!retained||busy||pendingReading||retained.reading.id!==button.dataset.stepId)return;
     if(await commit(core.append(doc,row('step','',{target:retained.reading.id,decision}))))render();
   }
-  Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(button.dataset.exNav){navigation++;view=button.dataset.exAction;trail=view==='conversation'?[]:[{view:'conversation',scroll:0}];confirmForget=false;render();root?.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');byId('exViewTitle')?.focus({preventScroll:true});return;}if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
+  Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(button.dataset.exNav){navigation++;view=button.dataset.exAction;trail=[];confirmForget=false;render();root?.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');byId('exViewTitle')?.focus({preventScroll:true});return;}if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
   Today.ui.register('input','exploration.draft',(_event,input)=>{fitInput(input);promptFor(input.value);draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
   Today.ui.register('input','exploration.correction',(_event,input)=>{correctionText=input.value;});
   Today.ui.register('input','exploration.question',(_event,input)=>{fitInput(input);promptFor(input.value);setupQuestion=input.value;});

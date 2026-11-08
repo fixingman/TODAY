@@ -80,7 +80,9 @@ function open(id,ctx){
   root.removeAttribute('aria-labelledby');root.setAttribute('aria-label',panel.label);
   const content=getContent();content.className='';content.replaceChildren();
   if(phone.matches&&!history.state?.sidebar)history.pushState({sidebar:true},'');
-  surface(true);hoverPane=pointerX===null?null:pointerPane(pointerX);panel.mount(content,ctx);root.removeAttribute('aria-busy');renderPanelNav();modality();
+  // Peer-panel openers may sit on Today's side. Let the next move restore
+  // capture there; Explore keeps its composer until an actual pane crossing.
+  surface(true);hoverPane=id==='explore'&&pointerX!==null?pointerPane(pointerX):'sidebar';panel.mount(content,ctx);root.removeAttribute('aria-busy');renderPanelNav();modality();
   if(!wasOpen)motion('entering');else content.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');
   sync();
 }
