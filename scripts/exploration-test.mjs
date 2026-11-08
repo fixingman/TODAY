@@ -293,35 +293,29 @@ try{
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'exThought','Reply completion retains composer focus');
 
- // Earlier is an index, with saved text opened deliberately rather than repeated at landing.
+ // Earlier visits fold into Chat above the current one; there is no Earlier tab.
  const beforeEarlier=await page.evaluate(()=>({record:Today.use('exploration-core').stringify(Today.use('exploration').document()),calls:__explorationTest.ai.length,writes:__explorationTest.uploads.length}));
- await click('.ex-nav [data-ex-action="history"]');
- assert.equal(await page.$('.ex-body .ex-turn'),null,'Earlier landing does not expose the transcript');
+ await click('.ex-nav [data-ex-action="conversation"]');
+ assert.equal(await page.$('.ex-nav [data-ex-action="history"]'),null,'The Earlier tab is gone');
  assert.equal(await page.$('.ex-body .ex-subnav'),null,'Top-level pages use header navigation, without a conversation CTA');
- assert.ok(await page.$('.ex-body [data-ex-action="original-history"]'),'Earlier always offers the saved conversation, including when its sources remain valid');
  await mkdir(join(ROOT,'.context/ci-test-results/explore-earlier'),{recursive:true});
  for(const width of [320,390,736,1024,1440]){
   await page.setViewport({width,height:900});
   const nav=await page.evaluate(()=>{
    const root=document.querySelector('.ex-nav'),buttons=[...root.querySelectorAll('button')],rect=root.getBoundingClientRect();
-   const [chat,earlier,note,sources]=buttons.map(node=>node.getBoundingClientRect());
-   return {order:buttons.map(node=>node.dataset.exAction),left:Math.abs(chat.left-rect.left)<1,right:Math.abs(sources.right-rect.right)<1,fit:root.scrollWidth<=root.clientWidth+1,separate:note.left>=earlier.right};
+   const [chat,note,sources]=buttons.map(node=>node.getBoundingClientRect());
+   return {order:buttons.map(node=>node.dataset.exAction),left:Math.abs(chat.left-rect.left)<1,right:Math.abs(sources.right-rect.right)<1,fit:root.scrollWidth<=root.clientWidth+1,separate:note.left>=chat.right};
   });
-  assert.deepEqual(nav,{order:['conversation','history','notes','sources'],left:true,right:true,fit:true,separate:true},width+'px keeps the two icon tabs left and the text tabs right');
+  assert.deepEqual(nav,{order:['conversation','notes','sources'],left:true,right:true,fit:true,separate:true},width+'px keeps Chat left and the text tabs right');
   const a11y=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));
-  assert.deepEqual(a11y.violations.map(row=>row.id),[],width+'px Earlier accessibility');
-  await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-earlier/landing-${width}.png`),fullPage:true});
+  assert.deepEqual(a11y.violations.map(row=>row.id),[],width+'px Chat with earlier visits accessibility');
+  await page.screenshot({path:join(ROOT,`.context/ci-test-results/explore-earlier/chat-${width}.png`),fullPage:true});
  }
  await page.focus('.ex-nav [data-ex-action="conversation"]');
- for(const expected of ['history','notes','sources']){await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.dataset.exAction),expected,'Tab order follows the visible navigation');}
- await page.focus('.ex-body [data-ex-action="original-history"]');await page.keyboard.press('Enter');
- assert.ok(await page.$('[data-ex-saved-reading]'),'Saved exchanges remain readable after explicit keyboard selection');
- assert.equal(await page.$('#exThought,[data-ex-reading]'),null,'Saved conversation remains historical, without a composer/current reading');
- assert.ok(await page.$('#exHistoryNotice'));
- await page.screenshot({path:join(ROOT,'.context/ci-test-results/explore-earlier/saved-conversation.png'),fullPage:true});
- await back();assert.equal(await page.$('.ex-body .ex-turn'),null,'Returning to Earlier restores the compact landing');
- assert.equal(await page.evaluate(()=>document.activeElement.dataset.exAction),'original-history','Return restores the saved-conversation action focus');
- for(const target of ['notes','sources','history']){await click('.ex-nav [data-ex-action="'+target+'"]');assert.equal(await page.$('.ex-body .ex-subnav'),null,'Header navigation makes the in-content conversation link redundant');}
+ for(const expected of ['notes','sources']){await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.dataset.exAction),expected,'Tab order follows the visible navigation');}
+ await click('.ex-nav [data-ex-action="conversation"]');
+ assert.deepEqual(await page.evaluate(()=>({record:Today.use('exploration-core').stringify(Today.use('exploration').document()),calls:__explorationTest.ai.length,writes:__explorationTest.uploads.length})),beforeEarlier,'Showing earlier visits never writes or calls AI');
+ for(const target of ['notes','sources']){await click('.ex-nav [data-ex-action="'+target+'"]');assert.equal(await page.$('.ex-body .ex-subnav'),null,'Header navigation makes the in-content conversation link redundant');}
  assert.deepEqual(await page.evaluate(()=>({record:Today.use('exploration-core').stringify(Today.use('exploration').document()),calls:__explorationTest.ai.length,writes:__explorationTest.uploads.length})),beforeEarlier,'Reading/navigation does not change the journal or request AI');
  await page.setViewport({width:1024,height:900});await click('.ex-nav [data-ex-action="conversation"]');
 
@@ -519,7 +513,7 @@ try{
  assert.ok(await page.$eval('#memoryContent',node=>node.getClientRects().length>0),'Memory is visible after returning');assert.ok(await page.$eval('#addTaskBar',node=>getComputedStyle(node).display!=='none'),'Memory follows the normal sheet capture-bar behavior');
  await wait(()=>document.getElementById('memoryContinue'));await click('#memoryContinue');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().today_context.enabled),false,'Returning preserves saved opt-out rather than enabling context');
- await click('[data-ex-action="history"]');await checkLayout('history');assert.equal(await page.$('#exThought,.ex-body .ex-turn'),null,'Earlier replaces the conversation with its compact entry');await click('[data-ex-action="original-history"]');assert.ok(await page.$$eval('[data-ex-saved-reading]',nodes=>nodes.length>0)&&await page.$('.ex-you'),'Returning keeps both sides of earlier exchanges inspectable after opening the saved conversation');await back();await back();
+ assert.equal(await page.$('.ex-nav [data-ex-action="history"]'),null,'No Earlier tab');assert.ok(await page.$('.ex-body .ex-you'),'Your earlier words stay in Chat');assert.ok(await page.$('.ex-earlier .ex-day'),'Earlier visits sit above a date divider in Chat');
  await page.evaluate(()=>{__explorationTest.conflict=true;});await page.type('#exThought','UNSENT_CONFLICT');await send();await wait(()=>document.querySelector('.ex-status').textContent.includes('changed'));
  assert.equal(await page.$eval('#exThought',input=>input.value),'UNSENT_CONFLICT');assert.ok(!(await page.evaluate(()=>__explorationTest.remote)).includes('UNSENT_CONFLICT'));
  await click('[data-ex-action="reload"]');await wait(()=>document.querySelector('#exThought')&&!document.querySelector('#exThought').readOnly);await page.evaluate(()=>{__explorationTest.lost=true;__explorationTest.malformed=true;});await send();await wait(()=>document.querySelector('[data-ex-action="retry-ai"]'));
@@ -626,22 +620,13 @@ try{
   return {document:core.stringify(d),reply:core.latest(d).text,ai:__explorationTest.ai.length,writes:__explorationTest.uploads.length};
  });
  await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('unavailable'));
- assert.ok(await page.$('[data-ex-action="original-history"]'),'Missing supporting context offers the original saved conversation');
- await click('[data-ex-action="original-history"]');
- assert.ok(await page.$$eval('[data-ex-saved-reading]',(nodes,text)=>nodes.some(node=>node.textContent.includes(text)),savedReturn.reply),'Original saved AI reply remains readable on deliberate record inspection');
- assert.equal(await page.$('[data-ex-reading],#exThought'),null,'Historical inspection has no current-reading marker or composer');
- assert.ok(await page.$eval('#exHistoryNotice',node=>node.textContent.includes('Saved history only')));
+ assert.equal(await page.$('[data-ex-action="original-history"]'),null,'No separate saved-conversation page; the withheld notice stands alone');
+ assert.equal(await page.evaluate(()=>!!document.querySelector('[data-ex-reading="'+Today.use('exploration-core').latest(Today.use('exploration').document()).id+'"]')),false,'Chat withholds the unsupported reply');
  assert.deepEqual(await page.evaluate(()=>{
   const core=Today.use('exploration-core'),d=Today.use('exploration').document();
   return [core.stringify(d),__explorationTest.ai.length,__explorationTest.uploads.length,core.context(d,[]).prior_hypothesis];
- }),[savedReturn.document,savedReturn.ai,savedReturn.writes,null],'Inspecting saved replies never writes, calls AI or restores unsupported understanding');
- await checkLayout('saved-conversation');
- await back();assert.equal(await page.$('[data-ex-saved-reading]'),null,'Leaving record inspection restores filtered ordinary views');
- await click('.ex-nav [data-ex-action="history"]');
- assert.equal(await page.evaluate(()=>!!document.querySelector('[data-ex-reading="'+Today.use('exploration-core').latest(Today.use('exploration').document()).id+'"]')),false,'Normal Earlier still withholds the unsupported reply');
- assert.equal(await page.$('[data-ex-saved-reading]'),null,'Normal Earlier never opts into original history automatically');
- await click('[data-ex-action="original-history"]');
- assert.equal(await page.$eval('.ex-nav [data-ex-action="history"]',node=>node.getAttribute('aria-current')),'page','Saved conversation belongs to the Earlier navigation item');
+ }),[savedReturn.document,savedReturn.ai,savedReturn.writes,null],'Withholding never writes, calls AI or restores unsupported understanding');
+ await checkLayout('withheld-reply');
  await back();await click('#exNotes');
  await page.evaluate(()=>{const {index,task}=__explorationTest.returnTask;manualTasks.splice(index,0,task);Today.use('connections').renderManual();});
  await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('changed'));

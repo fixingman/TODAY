@@ -158,7 +158,7 @@
     const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
     const chatIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 2h6a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H6l-4 2V4a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
     const calendarIcon='<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 1v3m6-3v3M2 5h10M3 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>';
-    const pages=[['conversation',chatIcon,'Chat'],['history',calendarIcon,'Earlier'],['notes','Living note'],['sources','Sources']];
+    const pages=[['conversation',chatIcon,'Chat'],['notes','Living note'],['sources','Sources']];
     const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label,ariaL])=>action(page,label,`data-ex-nav="true" ${ariaL?`aria-label="${ariaL}" title="${ariaL}" `:''}${page==='notes'?'id="exNotes" ':''}${view===page||(page==='history'&&view==='original-history')?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
     return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${nav}`;
   }
@@ -189,9 +189,27 @@
     };
     return explanations[state.reason]||'';
   }
+  // Earlier visits fold into Chat above the current one, like a message thread: a window
+  // of turns grows on demand, separated by quiet date dividers. Old replies follow the
+  // same rule as current ones: shown only while still supported, otherwise one
+  // "withheld" line; your own words always stay.
+  const dayLabel=at=>{const d=new Date(at);return isNaN(d)?'':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});};
+  function earlierHTML() {
+    const earlier=doc.entries.slice(0,visitStart).filter(entry=>['observation','reading'].includes(entry.kind));
+    if(!earlier.length)return '';
+    const shown=earlier.slice(-historyWindow);let html='',day='';
+    if(earlier.length>shown.length)html+=`<div class="ex-earlier-more">${action('more-history','show earlier')}</div>`;
+    for(const entry of shown){
+      const label=dayLabel(entry.at);
+      if(label&&label!==day){day=label;html+=`<p class="ex-day" role="separator">${h(label)}</p>`;}
+      if(entry.kind==='observation'||core.supportedReading(doc,entry,liveSources))html+=turnsHTML([entry],null);
+      else html+='<p class="ex-muted ex-withheld">An earlier reply is withheld because what it relied on has changed. Your words remain.</p>';
+    }
+    return `<section class="ex-earlier" aria-label="Earlier conversation">${html}</section><p class="ex-day ex-day-now" role="separator">${visitStart<doc.entries.length?'Now':''}</p>`;
+  }
   function readingNotice(reading) {
     const text=!reading&&readingExplanation();
-    return text?`<p class="ex-muted" id="exReadingNotice">${h(text)}</p><div class="ex-links">${action('original-history','read saved conversation')}</div>`:'';
+    return text?`<p class="ex-muted" id="exReadingNotice">${h(text)}</p>`:'';
   }
   const title=(text,id='exViewTitle')=>`<h3 id="${id}" tabindex="-1">${h(text)}</h3>`;
   function conversationHTML(reading,disabled) {
@@ -200,6 +218,7 @@
     const currentReply=reading&&sessionEntries.some(entry=>entry.id===reading.id);
     let html=title(doc.question);
     if(!latestUser&&!currentReply&&doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-resume"><span class="ex-source">${reading?'Where we left off':'Your words'}</span><p>${h(reading?(core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1)?.text||reading.summary):doc.entries.findLast(entry=>entry.kind==='observation'&&core.included(doc,entry.id))?.text||doc.question)}</p></div>`;
+    html+=earlierHTML();
     html+=turnsHTML(pendingObservation && !sessionEntries.some(entry=>entry.id===pendingObservation.id)?[...sessionEntries,pendingObservation]:sessionEntries,reading);
     if(pendingReading||awaitingReply)html+=thinkingHTML();
     html+=readingNotice(reading);
@@ -432,7 +451,7 @@
     async 'today-toggle'(){abortAI();const policy=doc.today_context||{enabled:false,excluded:[]};const next={...doc,schema_version:3,revision:doc.revision+1,updated_at:now(),today_context:{enabled:!policy.enabled,epoch:id(),excluded:policy.excluded,included:policy.included||[]}};if(await commit(next)){await refreshSources(false);render();}},
     async 'today-pin'(button){abortAI();const source=liveSources.find(row=>row.id===button.dataset.todaySourceId&&row.selectable!==false),policy=doc.today_context;if(!source||!policy)return;const ids=[...new Set([...(policy.included||[]).filter(id=>liveSources.some(row=>row.id===id&&row.selectable!==false)),source.id])];if(ids.length>8||ids.filter(id=>liveSources.find(row=>row.id===id)?.evidence_kind==='AI interpretation').length>2)return status('Choose up to eight records, including at most two AI readings. Leave one out to make room.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),included:ids,excluded:policy.excluded.filter(id=>id!==source.id)}}))render();},
     async 'today-source'(button){abortAI();const target=button.dataset.todaySourceId,policy=doc.today_context;if(!policy||!liveSources.some(source=>source.id===target))return;const excluded=policy.excluded.includes(target)?policy.excluded.filter(value=>value!==target):[...policy.excluded,target];if(excluded.length>96)return status('Disconnect TODAY context to clear all its influence.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),excluded,included:(policy.included||[]).filter(id=>id!==target)}}))render();},
-    back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'original-history'(){go('original-history');}, 'more-history'(){historyWindow+=24;render();},
+    back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'original-history'(){go('original-history');}, 'more-history'(){const box=scroller(),from=box?box.scrollHeight-box.scrollTop:0;historyWindow+=24;render();const next=scroller();if(next)next.scrollTop=next.scrollHeight-from;next?.querySelector('.ex-earlier .ex-turn, .ex-earlier .ex-withheld')?.setAttribute('tabindex','-1');},
     'more-sources'(){sourceWindow+=50;render();},
     connections(){hide();host.connections();}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
