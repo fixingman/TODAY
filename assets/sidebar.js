@@ -52,6 +52,12 @@ function modality(open=!!active){
   root.setAttribute('role',modal?'dialog':'complementary');
   if(modal)root.setAttribute('aria-modal','true');else root.removeAttribute('aria-modal');
 }
+// Every panel, every opener: with a mouse, the side under the cursor owns input as soon as
+// a panel opens or switches. Without a known pointer the panel keeps it.
+function followPointer(){
+  if(!active||phone.matches||pointerX===null||!matchMedia('(pointer: fine)').matches){hoverPane='sidebar';modality();return;}
+  hoverPane=pointerPane(pointerX);pane=hoverPane;modality();
+}
 function activate(next){
   if(!active||phone.matches||pane===next)return;
   const focused=document.activeElement;
@@ -110,7 +116,7 @@ const pointerPane=x=>x>=innerWidth-root.offsetWidth?'sidebar':'tasks';
 function prepare(id,label,cancel){
   const wasOpen=!!active&&!closing;
   generation++;closing=false;getRoot();if(active&&!pending){document.dispatchEvent(new CustomEvent('today:sidebar-unmount',{detail:getContent()}));registry.get(active)?.unmount?.();}returnFocus ||= document.activeElement;active=id;pending=cancel;pane='sidebar';root.hidden=false;root.setAttribute('aria-label',label);root.setAttribute('aria-busy','true');
-  const content=getContent();content.className='';content.replaceChildren();renderPanelNav();surface(true);hoverPane=pointerX===null?null:pointerPane(pointerX);if(wasOpen)root.classList.remove('entering','leaving');else motion('entering');return content;
+  const content=getContent();content.className='';content.replaceChildren();renderPanelNav();surface(true);followPointer();if(wasOpen)root.classList.remove('entering','leaving');else motion('entering');return content;
 }
 function open(id,ctx){
   const panel=registry.get(id);if(!panel)return;
@@ -122,9 +128,7 @@ function open(id,ctx){
   root.removeAttribute('aria-labelledby');root.setAttribute('aria-label',panel.label);
   const content=getContent();content.className='';content.replaceChildren();
   if(phone.matches&&!history.state?.sidebar)history.pushState({sidebar:true},'');
-  // Peer-panel openers may sit on Today's side. Let the next move restore
-  // capture there; Explore keeps its composer until an actual pane crossing.
-  surface(true);hoverPane=id==='explore'&&pointerX!==null?pointerPane(pointerX):'sidebar';panel.mount(content,ctx);root.removeAttribute('aria-busy');renderPanelNav();modality();
+  surface(true);panel.mount(content,ctx);root.removeAttribute('aria-busy');renderPanelNav();followPointer();
   if(!wasOpen)motion('entering');else content.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');
   sync();
 }
@@ -146,7 +150,8 @@ const typing=()=>{const el=document.activeElement;if(!el?.matches('input,textare
 const isOpen=id=>!closing&&(id?active===id:!!active);
 document.addEventListener('pointermove',event=>{pointerX=event.clientX;if(!active||event.pointerType==='touch')return;const next=pointerPane(pointerX);if(next!==hoverPane&&!typing())activate(next);hoverPane=next;},{passive:true});
 document.addEventListener('pointerdown',event=>{pointerX=event.clientX;if(active){hoverPane=pointerPane(pointerX);activate(hoverPane);}},{passive:true});
-document.addEventListener('focusin',event=>{if(active)activate(root.contains(event.target)?'sidebar':'tasks');});
+// Only a real control choosing focus moves input; a panel title focused for screen readers does not.
+document.addEventListener('focusin',event=>{if(active&&!event.target.matches?.('[tabindex="-1"]'))activate(root.contains(event.target)?'sidebar':'tasks');});
 document.addEventListener('click',event=>{
   const closeButton=event.target.closest('[data-sidebar-close]'),tab=event.target.closest('.sb-panel-btn');
   if(!root?.contains(closeButton||tab))return;

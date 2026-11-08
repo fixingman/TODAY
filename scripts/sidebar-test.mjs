@@ -96,15 +96,15 @@ try{
  await page.evaluate(()=>Today.use('sidebar').close(true));
  await page.click('#habitsBtn');await page.click('[data-sidebar-close]');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'habitsBtn','Close returns focus to the opener');
- // Native header openers can sit on the Today side of the new boundary.
- // Moving straight back to Today must restore capture without a sidebar detour.
+ // Openers sit on the Today side of the boundary. On every panel, including Explore, the
+ // side under the cursor owns input from the moment the panel opens: capture stays without
+ // any detour through the panel, and moving within the list never loses it.
  for(const width of [1280,736]){
   await page.setViewport({width,height:900});
-  for(const [id,opener]of [['habits','#habitsBtn'],['about','#infoBtn'],['memory','#todayLogo']]){
+  for(const [id,opener]of [['habits','#habitsBtn'],['about','#infoBtn'],['memory','#todayLogo'],['explore','#trelloBtn']]){
    await page.mouse.move(80,220);await page.click(opener);
    await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').classList.contains('entering'),{},id);
-   assert.equal(await page.$eval('#addTaskBar',node=>getComputedStyle(node).visibility),'hidden',id+' initially selects its panel');
-   await page.mouse.move(80,250);
+   await page.mouse.move(80,240);await page.mouse.move(90,250);
    await page.waitForFunction(()=>{const bar=document.getElementById('addTaskBar'),s=getComputedStyle(bar);return s.visibility==='visible'&&s.opacity==='1'&&!bar.inert;});
    if(id==='habits')await page.screenshot({path:join(root,`.context/ci-test-results/sidebar/habits-capture-${width}.png`)});
    const input=await page.$('#newTask'),box=await input.boundingBox();
@@ -137,7 +137,7 @@ try{
  await page.evaluate(()=>{const root=document.getElementById('sidebarRoot');window.__switchClasses=[];window.__switchObserver=new MutationObserver(records=>{for(const record of records)__switchClasses.push(record.oldValue||'',root.className);});__switchObserver.observe(root,{attributes:true,attributeFilter:['class'],attributeOldValue:true});window.__frame=root;});
  await page.click('#trelloBtn');
  await page.waitForFunction(()=>{try{return Today.use('exploration').isOpen();}catch{return false;}});
- await page.mouse.move(80,220);assert.equal(await page.evaluate(()=>document.body.classList.contains('ex-task-active')),false,'Opening Explore does not follow a pointer that stayed outside');
+ await page.mouse.move(80,220);await page.waitForFunction(()=>document.body.classList.contains('ex-task-active'));assert.ok(true,'Explore follows the pointer like every panel: over the list, capture owns input (Can, November 8)');
  assert.ok(await page.evaluate(()=>__frame===document.getElementById('sidebarRoot')&&!__switchClasses.some(value=>/\b(entering|leaving)\b/.test(value))),'Cold Explore switches content without replaying shell motion');
  await page.click('#trelloBtn');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
  assert.equal(await page.$eval('#trelloBtn',node=>node.getAttribute('aria-expanded')),'false','Explore repeats the same toggle-close contract as other header buttons');

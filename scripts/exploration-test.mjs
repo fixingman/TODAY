@@ -203,9 +203,12 @@ try{
   return {mapped:mapped>0,intact:JSON.stringify(before)===JSON.stringify(after),focus:typeof window._focusOnCheck==='function'};
  });
  assert.deepEqual(inputModel,{mapped:true,intact:true,focus:true},'Desktop Focus and CSS use the same explicit input model');
- const click=async selector=>{for(let attempt=0;;attempt++){try{await page.$eval(selector,node=>node.scrollIntoView({block:"center"}));await page.click(selector);return;}catch(error){if(attempt>=3||!/detached|not clickable/i.test(error.message))throw error;await new Promise(resolve=>setTimeout(resolve,50));}}},wait=fn=>page.waitForFunction(fn,{timeout:10000});
- const send=async()=>{await page.focus('#exThought');await page.keyboard.press('Enter');};
- const nativeType=page.type.bind(page);page.type=async(selector,...rest)=>{if(/^#ex/.test(selector))await page.waitForFunction(selector=>{const input=document.querySelector(selector);return input&&!input.closest('[inert]')&&!input.readOnly&&!input.disabled&&getComputedStyle(input).visibility==='visible';},{timeout:10000},selector);return nativeType(selector,...rest);};
+ const toPanel=async()=>{const width=page.viewport().width;if(width<=600)return;await page.mouse.move(width-60,300);await page.waitForFunction(()=>!document.body.classList.contains('ex-task-active'),{timeout:10000});};
+ const click=async selector=>{if(/data-ex-|^#ex/.test(selector))await toPanel();for(let attempt=0;;attempt++){try{await page.$eval(selector,node=>node.scrollIntoView({block:"center"}));await page.click(selector);return;}catch(error){if(attempt>=3||!/detached|not clickable/i.test(error.message))throw error;await new Promise(resolve=>setTimeout(resolve,50));}}},wait=fn=>page.waitForFunction(fn,{timeout:10000});
+ // Wide screens give input to the side under the cursor, so reach into Explore the way a
+ // person does before typing or clicking there.
+ {const type=page.type.bind(page);page.type=async(selector,...rest)=>{if(/^#ex/.test(selector)){await toPanel();await page.waitForFunction(selector=>{const input=document.querySelector(selector);return input&&!input.closest('[inert]')&&!input.readOnly&&!input.disabled&&getComputedStyle(input).visibility==='visible';},{timeout:10000},selector);}return type(selector,...rest);};}
+ const send=async()=>{await toPanel();await page.focus('#exThought');await page.keyboard.press('Enter');};
  const start=async()=>{await page.mouse.move(page.viewport().width-20,200);await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await wait(()=>getComputedStyle(document.getElementById('exQuestion')).visibility==='visible');await click('#exQuestion');await page.keyboard.press('Enter');};
  // Sub-pages have their own back link; at the conversation the only way out is the hide control.
  const back=async()=>{const local='#sidebarRoot [data-ex-action="back"]',chat='.ex-nav [data-ex-action="conversation"]:not([aria-current])';await click(await page.$(local)?local:await page.$(chat)?chat:'#sidebarRoot [data-ex-action="hide"]');};
@@ -413,6 +416,8 @@ try{
  await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  assert.equal(await page.$eval('.ex-resume p',node=>node.textContent),savedSummary,'A later visit resumes the saved understanding');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),callsBeforeReturn,'Returning makes no model request');
+ // Reopened from the list, the cursor's side (the list) owns input; reach into the panel first.
+ await page.mouse.move(page.viewport().width-60,300);await wait(()=>!document.body.classList.contains('ex-task-active'));
  await click('[data-ex-action="step"]');assert.ok(await page.$('[data-ex-action="step-decline"]'),'Chosen step survives ordinary reply and reopen');await checkLayout('retained-step');
  await click('[data-ex-action="step-decline"]');await wait(()=>document.querySelector('.ex-note-section')===null&&document.getElementById('exViewTitle')?.textContent==='Something to try');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),callsBeforeReturn,'Declining makes no model call');
