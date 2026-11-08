@@ -54,9 +54,35 @@ function activate(next){
   if((next==='tasks'&&focused?.closest('.ex-sheet-foot'))||(next==='sidebar'&&focused?.closest('#addTaskBar')))focused.blur();
   pane=next;modality();
 }
+// Phone: lock the page at the top while a sheet is open. iOS home-screen apps can draw
+// fixed layers offset by the page's scroll (low header, unpainted bottom band).
+let lockedScroll=null;
+function lockPage(open){
+  const lock=open&&phone.matches;
+  if(lock&&lockedScroll===null){
+    lockedScroll=window.scrollY;
+    Object.assign(document.body.style,{position:'fixed',top:-lockedScroll+'px',left:'0',right:'0'});
+    window.scrollTo(0,0);
+  }else if(!lock&&lockedScroll!==null){
+    const y=lockedScroll;lockedScroll=null;
+    Object.assign(document.body.style,{position:'',top:'',left:'',right:''});
+    window.scrollTo(0,y);
+  }
+}
+// Temporary: tap a sheet title to read the real viewport numbers (remove once confirmed).
+document.addEventListener('click',event=>{
+  const title=event.target.closest?.('.ex-sheet-head .config-title');if(!title||!root?.contains(title))return;
+  let out=root.querySelector('#sheetReadout');
+  if(out){out.remove();return;}
+  const r=root.getBoundingClientRect(),h=root.querySelector('.ex-sheet-head')?.getBoundingClientRect(),vv=window.visualViewport,probe=document.createElement('div');
+  probe.style.cssText='position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden';document.body.append(probe);const safe=probe.getBoundingClientRect().height;probe.remove();
+  out=document.createElement('p');out.id='sheetReadout';out.className='ex-muted';out.style.cssText='flex-basis:100%;margin:0;font-size:var(--text-xs)';
+  out.textContent=`sheet ${Math.round(r.top)}–${Math.round(r.bottom)} · head ${Math.round(h?.top||0)} · inner ${innerHeight} · vv ${Math.round(vv?.height||0)}@${Math.round(vv?.offsetTop||0)} · scroll ${Math.round(scrollY)} · safe ${Math.round(safe)} · screen ${screen.height} · lock ${lockedScroll}`;
+  root.querySelector('.ex-sheet-head')?.append(out);
+});
 function surface(open){
   document.body.classList.toggle('ex-open',open);document.body.classList.remove('ex-closing');
-  modality(open);fitViewport();
+  lockPage(open);modality(open);fitViewport();
 }
 function motion(cls){
   const token=generation;
@@ -124,7 +150,7 @@ document.addEventListener('keydown',event=>{
   if(event.shiftKey&&document.activeElement===items[0]){event.preventDefault();items.at(-1).focus();}
   else if(!event.shiftKey&&document.activeElement===items.at(-1)){event.preventDefault();items[0].focus();}
 },true);
-phone.addEventListener('change',()=>{modality();fitViewport();root?.querySelectorAll('[data-sidebar-close]').forEach(setCloseIcon);});
+phone.addEventListener('change',()=>{lockPage(!!active);modality();fitViewport();root?.querySelectorAll('[data-sidebar-close]').forEach(setCloseIcon);});
 window.addEventListener('popstate',()=>{if(active&&phone.matches)close();});
 if(window.visualViewport)for(const event of ['resize','scroll'])visualViewport.addEventListener(event,fitViewport);
 Today.define('sidebar',{register,prepare,open,close,isOpen,getRoot,surface,fitViewport,motion,modality,setCloseIcon});
