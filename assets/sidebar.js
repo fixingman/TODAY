@@ -18,9 +18,7 @@ function setCloseIcon(button){
   for(const [name,value]of Object.entries({d:phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5',stroke:'currentColor','stroke-width':1.5,'stroke-linecap':'round','stroke-linejoin':'round'}))path.setAttribute(name,value);
   svg.append(path);button.replaceChildren(svg);
 }
-// Phone keyboard only: the sheet follows the visual viewport while the keyboard is up.
-// Otherwise it is pinned to all four edges (CSS), and any pan iOS leaves behind after the
-// keyboard closes is reset, so the header never sits low and the bottom never stops short.
+// Fit the keyboard viewport; otherwise use the sheet's CSS edges.
 let fitFrame=0,keyboardWasOpen=false;
 function fitViewport(){
   cancelAnimationFrame(fitFrame);
@@ -36,6 +34,12 @@ function fitViewport(){
   });
 }
 function modality(open=!!active){
+  if(open&&root){
+    if(!root.querySelector('.sb-panel-nav'))renderPanelNav();
+    const head=root.querySelector('.ex-sheet-head'),nav=root.querySelector('.sb-panel-nav');
+    nav.hidden=!head;
+    if(head&&head.nextElementSibling!==nav)head.after(nav);
+  }
   const modal=open&&phone.matches;
   for(const id of ['main-app','sticky-header']){const node=document.getElementById(id);if(node)node.inert=!!modal;}
   const bar=document.getElementById('addTaskBar');if(bar)bar.inert=!!modal||(open&&pane==='sidebar'&&active==='explore');
@@ -54,8 +58,7 @@ function activate(next){
   if((next==='tasks'&&focused?.closest('.ex-sheet-foot'))||(next==='sidebar'&&focused?.closest('#addTaskBar')))focused.blur();
   pane=next;modality();
 }
-// Phone: lock the page at the top while a sheet is open. iOS home-screen apps can draw
-// fixed layers offset by the page's scroll (low header, unpainted bottom band).
+// Save scroll before .ex-open clips the page; restore it on close.
 let lockedScroll=null;
 function lockPage(open){
   const lock=open&&phone.matches;
@@ -81,8 +84,10 @@ document.addEventListener('click',event=>{
   root.querySelector('.ex-sheet-head')?.append(out);
 });
 function surface(open){
+  if(open)lockPage(true);
   document.body.classList.toggle('ex-open',open);document.body.classList.remove('ex-closing');
-  lockPage(open);modality(open);fitViewport();
+  if(!open)lockPage(false);
+  modality(open);fitViewport();
 }
 function motion(cls){
   const token=generation;

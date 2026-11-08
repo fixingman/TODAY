@@ -12,16 +12,17 @@
     let _knownWaitingOpen = false;
     let _computedPatterns = [];
     let explorationLoading = null, explorationUI = null, explorationOpening = 0, explorationPlace = null;
-    async function beginExploration(event,button){
+    async function beginExploration(event,button,entering=false){
       event.stopPropagation();
       const shell=Today.use('sidebar'),kind=button.dataset.exOrigin||'memory';
-      if(shell.isOpen('explore')&&kind!=='nudge'){shell.close();return;}
+      if(shell.isOpen('explore')&&kind!=='nudge'&&!entering){shell.close();return;}
       const token=++explorationOpening;
       const place={kind,button,wasOpen:kind==='memory'&&Today.use('sidebar').isOpen('memory')};
       explorationPlace=place;
       const content=shell.prepare('explore','Explore',()=>{explorationOpening++;});
       content.innerHTML='<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Explore"></button></div><div class="ex-sheet-scroll"><p class="ex-status" role="status">Opening your exploration…</p></div><div class="ex-sheet-foot"></div>';
       shell.setCloseIcon(content.querySelector('[data-sidebar-close]'));
+      shell.modality();
       content.querySelector('#exTitle').focus({preventScroll:true});
       try {
         explorationLoading ||= import('/assets/exploration-entry.js').then(()=>Today.use('exploration-entry'));
@@ -31,7 +32,7 @@
       } catch (_) { explorationLoading=null;if(token===explorationOpening){shell.getRoot().removeAttribute('aria-busy');content.querySelector('[role=status]').textContent='Exploration could not open. Try opening it again.';} }
     }
     Today.ui.register('click','exploration.open',beginExploration);
-    Today.use('sidebar').register('explore',{label:'Explore',icon:'✦︎',order:1,mount(){beginExploration({stopPropagation(){}},document.querySelector('#explorationEntry button'));}});
+    Today.use('sidebar').register('explore',{label:'Explore',icon:'✦︎',order:1,mount(){beginExploration({stopPropagation(){}},document.querySelector('#explorationEntry button'),true);}});
 
     function _parseAIText(data) {
       if (data.error) return null;

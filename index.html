@@ -3024,6 +3024,10 @@
     :root { --ex-sheet-width: 100vw; }
     .ex-sheet { border-left: 0; top: 0; bottom: 0; height: auto; background: var(--surface); }
     html:has(body.ex-open) { overflow: hidden; }
+    /* Override inline startup paint on touch phones, never narrow desktop windows. */
+    @media (pointer: coarse) {
+      html:has(body.ex-open), body.ex-open { background-color: var(--surface) !important; }
+    }
     .ex-sheet::before { content:''; position:fixed; inset:0; background:var(--surface); z-index:-1; pointer-events:none; }
     .ex-sheet-head, .ex-sheet-scroll { background: var(--surface); }
     .ex-sheet-scroll { padding: var(--space-5) var(--space-4) var(--space-4); }
@@ -4686,14 +4690,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '410h';
+const DEV_HOURS     = '410.5h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.8.2': 'Phone panel headings sit above navigation, with a matching page background while open.',
   '3.8.1': 'Connections in Explore now have consistent headings, navigation and controls.',
   '3.8.0': 'Connections are now part of Explore — open Explore and tap the link icon to see and manage your connected services.',
-  '3.7.12': 'Moving the cursor back over your list brings the task bar back on every panel, including Habits and Explore.',
 };
 
 // Version follows CHANGELOG; smoke checks SW parity.

@@ -26,7 +26,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 | 157 | ⏳ Verify | Opening Habits hides the task input; moving directly back over Today does not restore it. | v3.7.7 |
 | 156 | ⏳ Verify | A deployed update forces a second boot or refresh in an open desktop PWA session. | v3.7.5 |
 | 155 | ⏳ Verify | Task-list daily reading remains after not really; optional reason keeps the strip open indefinitely. | v3.7.4 |
-| 154 | ⏳ Verify | Desktop title area leaks scrolling content; Explore replays panel entry and steals input ownership. Desktop PWA needs persistent header and Focus-dimmed peer panels; mobile paint ends early. | v3.7.3 |
+| 154 | ⏳ Verify | Mobile panels have a low header and dark bottom band; prior desktop/sidebar continuity repairs remain recorded below. | v3.8.2 phone follow-up |
 | 153 | ⏳ Verify | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | v3.7.2 |
 | 152 | ⏳ Verify | Native window controls turn gray only while a sidebar is open; retain Today’s dark base theme. | v3.7.6 |
 | 151 | ⏳ Verify | Offscreen TODAY can flash as moving haze when entering Focus on a long list, with or without Explore. | v3.6.1 follow-up |
@@ -106,6 +106,10 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 ## BUG-154 — Desktop header and sidebar continuity
+
+**Phone follow-up (v3.8.2):** Can confirms v3.7.8/3.7.10 did not correct the installed appearance. All four screenshots have the same186px/62pt bottom band. The supplied readout is `sheet 0–812 · head 61 · inner 812 · vv 812@0 · scroll 0 · safe 62 · screen 874 · lock 0`: the sheet fills its reported viewport, with no current/pre-lock scroll; the61px navigation row precedes the safe-area-padded header. Reorder the actual DOM so the protected header/close row leads and navigation follows, rebuilding that placement after Explore/Connections redraws. Paint both narrow coarse-pointer page backings with the panel surface while open, restoring original inline backgrounds on close and preserving native theme metadata. This treats the backing; it does not claim another62px of usable viewport. Keep keyboard fitting, modal focus and drafts. Capture task-list scroll before the open-panel overflow rule resets it; a controlled280→0 class toggle reproduces the prior lost return position. Correct the cold Explore panel-navigation entry so it enters rather than toggles itself shut; retain the normal repeated-header toggle.
+
+**Verification scope:** the new native-safe-inset Chromium fixture rejects the old61px header offset and separately requires both document backing colours, DOM/visual ordering, redraws, native panel selection, keyboard dimensions, close restoration and desktop isolation. It cannot reproduce the physical iOS strip. Local evidence and Can's actual readout remain under `.context/mobile-sidebar-investigation/`; installed full-screen/keyboard acceptance remains required. Earlier combined validation passed12 suites (`.context/fresh-7YEOkO/receipt.json`). The isolated staged publication candidate also passes12 suites without failures/flakes in103.1s (`.context/mobile-sidebar-investigation/staged-validation/receipt.json`), excluding the other session’s pending changes. Preserve the initial narrow-desktop failure and its verified coarse-pointer scope correction. Dev publication authorized; installed phone acceptance remains required.
 
 **Reported November 8:** transparent native-title area exposes scrolling tasks. Explore refocuses instead of toggling closed, cursor motion can hide the active composer, and changing from another panel replays shell entry. Can also requests a pinned desktop-PWA header and sidebar dimming during Focus, and reports a mobile bottom-edge paint gap.
 
