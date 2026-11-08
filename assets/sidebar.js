@@ -34,12 +34,6 @@ function fitViewport(){
   });
 }
 function modality(open=!!active){
-  if(open&&root){
-    if(!root.querySelector('.sb-panel-nav'))renderPanelNav();
-    const head=root.querySelector('.ex-sheet-head'),nav=root.querySelector('.sb-panel-nav');
-    nav.hidden=!head;
-    if(head&&head.nextElementSibling!==nav)head.after(nav);
-  }
   const modal=open&&phone.matches;
   for(const id of ['main-app','sticky-header']){const node=document.getElementById(id);if(node)node.inert=!!modal;}
   const bar=document.getElementById('addTaskBar');if(bar)bar.inert=!!modal||(open&&pane==='sidebar'&&active==='explore');
@@ -102,21 +96,12 @@ function motion(cls){
   return Promise.all(root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||'')).map(a=>a.finished.catch(()=>{}))).then(()=>{if(token===generation)root.classList.remove(cls);});
 }
 function sync(){Today.use('connections').syncActiveButtons();}
-function renderPanelNav(){
-  let nav=root.querySelector('.sb-panel-nav');
-  if(!nav){nav=document.createElement('nav');nav.className='sb-panel-nav';nav.setAttribute('aria-label','Sections');root.prepend(nav);}
-  nav.replaceChildren();
-  for(const [id,p]of [...registry].sort(([,a],[,b])=>(a.order||99)-(b.order||99))){
-    const button=document.createElement('button');button.type='button';button.className='sb-panel-btn';button.dataset.sidebarPanel=id;button.setAttribute('aria-label',p.label);button.textContent=p.icon;
-    if(id===active)button.setAttribute('aria-current','page');nav.append(button);
-  }
-}
 function register(id,adapter){registry.set(id,adapter);}
 const pointerPane=x=>x>=innerWidth-root.offsetWidth?'sidebar':'tasks';
 function prepare(id,label,cancel){
   const wasOpen=!!active&&!closing;
   generation++;closing=false;getRoot();if(active&&!pending){document.dispatchEvent(new CustomEvent('today:sidebar-unmount',{detail:getContent()}));registry.get(active)?.unmount?.();}returnFocus ||= document.activeElement;active=id;pending=cancel;pane='sidebar';root.hidden=false;root.setAttribute('aria-label',label);root.setAttribute('aria-busy','true');
-  const content=getContent();content.className='';content.replaceChildren();renderPanelNav();surface(true);followPointer();if(wasOpen)root.classList.remove('entering','leaving');else motion('entering');return content;
+  const content=getContent();content.className='';content.replaceChildren();surface(true);followPointer();if(wasOpen)root.classList.remove('entering','leaving');else motion('entering');return content;
 }
 function open(id,ctx){
   const panel=registry.get(id);if(!panel)return;
@@ -128,7 +113,7 @@ function open(id,ctx){
   root.removeAttribute('aria-labelledby');root.setAttribute('aria-label',panel.label);
   const content=getContent();content.className='';content.replaceChildren();
   if(phone.matches&&!history.state?.sidebar)history.pushState({sidebar:true},'');
-  surface(true);panel.mount(content,ctx);root.removeAttribute('aria-busy');renderPanelNav();followPointer();
+  surface(true);panel.mount(content,ctx);root.removeAttribute('aria-busy');followPointer();
   if(!wasOpen)motion('entering');else content.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');
   sync();
 }
@@ -153,9 +138,9 @@ document.addEventListener('pointerdown',event=>{pointerX=event.clientX;if(active
 // Only a real control choosing focus moves input; a panel title focused for screen readers does not.
 document.addEventListener('focusin',event=>{if(active&&!event.target.matches?.('[tabindex="-1"]'))activate(root.contains(event.target)?'sidebar':'tasks');});
 document.addEventListener('click',event=>{
-  const closeButton=event.target.closest('[data-sidebar-close]'),tab=event.target.closest('.sb-panel-btn');
-  if(!root?.contains(closeButton||tab))return;
-  event.stopPropagation();if(closeButton)close();else if(active!==tab.dataset.sidebarPanel)open(tab.dataset.sidebarPanel);
+  const closeButton=event.target.closest('[data-sidebar-close]');
+  if(!root?.contains(closeButton))return;
+  event.stopPropagation();close();
 },true);
 document.addEventListener('keydown',event=>{
   if(!active||!phone.matches||event.key!=='Tab')return;

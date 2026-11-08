@@ -7,30 +7,3 @@
 }
 .ex-view-in { animation: exViewIn var(--dur-fast) var(--ease-out) both; }
 @media (prefers-reduced-motion: reduce) { .ex-view-in { animation: none; } }
-
-/* Mobile panel nav — allows switching between registered panels without
-   leaving the sidebar. Hidden on desktop (top-bar icons do that job). */
-.sb-panel-nav {
-  display: none;
-  align-items: center;
-  gap: var(--space-1);
-  overflow-x: auto;
-  padding: var(--space-2) var(--space-5);
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-@media (max-width: 600px) {
-  .sb-panel-nav { display: flex; }
-}
-.sb-panel-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0; height: 44px; min-width: 44px; padding: 0 var(--space-3);
-  border: 1px solid transparent; border-radius: var(--radius-full);
-  background: none; color: var(--muted); font: inherit;
-  font-size: var(--text-xs); cursor: pointer;
-  transition: color var(--dur-fast), background var(--dur-fast), border-color var(--dur-fast);
-  touch-action: manipulation;
-}
-.sb-panel-btn:is(:hover, :focus-visible) { color: var(--text); background: var(--surface2); }
-.sb-panel-btn[aria-current] { color: var(--accent); background: var(--accent-dim); border-color: var(--accent-glow); }

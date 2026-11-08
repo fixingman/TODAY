@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Panel icon row removed (app v3.8.7)
+
+The v3.8.3 entry recorded removing the section-icon row under phone panel titles, but the code change stayed uncommitted, so dev kept the row (Can, November 8). This ships it: `renderPanelNav` and its `.sb-panel-*` styles are removed; panels are reached from the Today header. `sidebar-test` asserts no icon row at every width.
+
 ## Quieter Connections controls (app v3.8.6)
 
 Can, November 8: Dropbox's manual Save is removed (sync saves on every change; Restore and Forget stay). The default AI is a state, not an action: the chosen provider shows a read-only accent `default` label in the row-status token, and the other offers `make default`. The Your name card uses the connection-row card, title and status tokens, and its chips use the neutral reason-chip tokens (border, `--radius-sm`, 32px) instead of an accent fill. On phones, connected rows still show only Forget.

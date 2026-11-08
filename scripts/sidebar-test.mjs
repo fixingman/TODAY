@@ -30,21 +30,21 @@ try{
  const pageBacking=await page.evaluate(()=>[document.documentElement,document.body].map(node=>getComputedStyle(node).backgroundColor));
  const settleShell=()=>page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>Number.isFinite(a.effect.getTiming().iterations)).map(a=>a.finished.catch(()=>{}))));
  const shellBounds=()=>page.evaluate(()=>{
-  const panel=document.getElementById('sidebarRoot'),head=panel.querySelector('.ex-sheet-head'),nav=panel.querySelector('.sb-panel-nav'),scroll=panel.querySelector('.ex-sheet-scroll');
-  const r=panel.getBoundingClientRect(),h=head.getBoundingClientRect(),n=nav.getBoundingClientRect(),s=scroll.getBoundingClientRect();
-  return {top:r.top,bottom:r.bottom,headOffset:h.top-r.top,padding:parseFloat(getComputedStyle(head).paddingTop),navBelow:n.top>=h.bottom-1,contentBelow:s.top>=n.bottom-1,domOrder:!!(head.compareDocumentPosition(nav)&Node.DOCUMENT_POSITION_FOLLOWING),oneNav:panel.querySelectorAll('.sb-panel-nav').length===1,navVisible:!nav.hidden&&n.height>0,background:[document.documentElement,document.body].map(node=>getComputedStyle(node).backgroundColor),surface:getComputedStyle(panel).backgroundColor};
+  const panel=document.getElementById('sidebarRoot'),head=panel.querySelector('.ex-sheet-head'),scroll=panel.querySelector('.ex-sheet-scroll');
+  const r=panel.getBoundingClientRect(),h=head.getBoundingClientRect(),s=scroll.getBoundingClientRect();
+  return {top:r.top,bottom:r.bottom,headOffset:h.top-r.top,padding:parseFloat(getComputedStyle(head).paddingTop),contentBelow:s.top>=h.bottom-1,noPanelNav:!panel.querySelector('.sb-panel-nav,.sb-panel-btn,[aria-label="Sections"]'),background:[document.documentElement,document.body].map(node=>getComputedStyle(node).backgroundColor),surface:getComputedStyle(panel).backgroundColor};
  });
  const checkPhoneShell=async label=>{
   await settleShell();const state=await shellBounds();
   assert.equal(state.headOffset,0,label+' puts the header first, without the old61px navigation offset');
   assert.equal(state.padding,74,label+' applies the62px safe inset once, with existing12px spacing');
-  assert.ok(state.navBelow&&state.contentBelow&&state.domOrder&&state.oneNav&&state.navVisible,label+' keeps one usable navigation row after the header in DOM and visual order');
+  assert.ok(state.noPanelNav&&state.contentBelow,label+' has no added section-icon row between its header and content');
   assert.deepEqual(state.background,[state.surface,state.surface],label+' paints both page backings in the sidebar surface');
   return state;
  };
  for(const id of ['habits','about','memory','explore']){
   if(id==='explore'){
-   await openSidebar(page,'memory');await page.click('.sb-panel-btn[data-sidebar-panel="explore"]');
+   await page.click('#trelloBtn');
    await page.waitForSelector('#exConnections',{visible:true,timeout:10000});
   }
   await openSidebar(page,id);const state=await checkPhoneShell(id);
@@ -64,8 +64,10 @@ try{
   assert.deepEqual(await page.evaluate(()=>[document.documentElement,document.body].map(node=>getComputedStyle(node).backgroundColor)),pageBacking,'Closing restores both original inline page backgrounds');
   assert.equal(await page.$eval('meta[name="theme-color"]',node=>node.content),theme,'Mobile panel paint does not change native theme metadata');
  }
- // Native mobile panel selection must survive reconstruction of Explore's header.
- await openSidebar(page,'explore');await page.click('.sb-panel-btn[data-sidebar-panel="habits"]');await checkPhoneShell('native Habits switch');
+ // Another panel remains reachable through the existing Today header after closing.
+ await openSidebar(page,'explore');await page.click('#sidebarRoot [data-ex-action="hide"]');
+ await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
+ await page.click('#habitsBtn');await checkPhoneShell('native Habits entry');
  await page.evaluate(()=>Today.use('sidebar').close(true));
  await page.evaluate(()=>{document.getElementById('main-app').style.minHeight='2000px';scrollTo(0,280);});
  const entryScroll=await page.evaluate(()=>scrollY);assert.ok(entryScroll>0);
@@ -82,10 +84,10 @@ try{
    await openSidebar(page,id);
    await page.waitForFunction(()=>document.getElementById('sidebarRoot').getAnimations({subtree:true}).every(a=>!Number.isFinite(a.effect.getTiming().iterations)||a.playState!=='running'));
    const state=await page.evaluate(()=>{
-    const panel=document.getElementById('sidebarRoot'),nav=panel.querySelector('.sb-panel-nav'),close=panel.querySelector('[data-sidebar-close]'),r=close.getBoundingClientRect();
-    return {nav:getComputedStyle(nav).display,role:panel.getAttribute('role'),named:!!panel.getAttribute('aria-label'),inert:document.getElementById('main-app').inert,visible:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===close,overflow:panel.scrollWidth>panel.clientWidth+1,buttons:nav.querySelectorAll('button').length};
+    const panel=document.getElementById('sidebarRoot'),close=panel.querySelector('[data-sidebar-close]'),r=close.getBoundingClientRect();
+    return {noPanelNav:!panel.querySelector('.sb-panel-nav,.sb-panel-btn,[aria-label="Sections"]'),role:panel.getAttribute('role'),named:!!panel.getAttribute('aria-label'),inert:document.getElementById('main-app').inert,visible:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===close,overflow:panel.scrollWidth>panel.clientWidth+1};
    });
-   assert.equal(state.nav,width>600?'none':'flex');assert.equal(state.role,width>600?'complementary':'dialog');assert.ok(state.named&&state.visible&&!state.overflow);assert.equal(state.inert,width<=600);assert.equal(state.buttons,4);
+   assert.ok(state.noPanelNav,'No panel-switching icon row at '+width+'px');assert.equal(state.role,width>600?'complementary':'dialog');assert.ok(state.named&&state.visible&&!state.overflow);assert.equal(state.inert,width<=600);
    if(width>600)assert.deepEqual(await page.evaluate(()=>[document.documentElement,document.body].map(node=>getComputedStyle(node).backgroundColor)),pageBacking,'Desktop panes retain the original page backing');
    await page.screenshot({path:join(root,`.context/ci-test-results/sidebar/${id}-${width}.png`)});
   }
@@ -148,8 +150,10 @@ try{
  }
  await page.evaluate(()=>__switchObserver.disconnect());await page.click('#trelloBtn');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
  await page.setViewport({width:390,height:900});await openSidebar(page,'about');
- await page.focus('.sb-panel-btn');await page.keyboard.down('Shift');await page.keyboard.press('Tab');await page.keyboard.up('Shift');
- assert.ok(await page.evaluate(()=>document.getElementById('sidebarRoot').contains(document.activeElement)),'Phone focus wraps inside the whole sidebar');
+ await page.focus('#sidebarRoot [data-sidebar-close]');await page.keyboard.down('Shift');await page.keyboard.press('Tab');await page.keyboard.up('Shift');
+ assert.ok(await page.evaluate(()=>document.getElementById('sidebarRoot').contains(document.activeElement)&&!document.activeElement.matches('[data-sidebar-close]')),'Shift+Tab from Hide wraps to the last panel control');
+ await page.keyboard.press('Tab');
+ assert.ok(await page.evaluate(()=>document.activeElement.matches('#sidebarRoot [data-sidebar-close]')),'Tab from the last control wraps back to Hide');
  await page.evaluate(()=>Today.use('sidebar').close(true));
  assert.deepEqual(await page.evaluate(()=>['main-app','sticky-header','addTaskBar'].map(id=>document.getElementById(id).inert)),[false,false,false]);
  // The visual viewport may shrink before/during keyboard display. Its composer
