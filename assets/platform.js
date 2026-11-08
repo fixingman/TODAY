@@ -8,20 +8,7 @@
     if (_platformStarted) return;
     _platformStarted = true;
 
-// Native controls use theme-color. Blend into Explore instead of adding a strip.
-const overlayMode = matchMedia('(display-mode: window-controls-overlay)');
-const windowTheme = document.querySelector('meta[name="theme-color"]');
-const originalTheme = windowTheme?.content;
-function updateWindowTheme() {
-  if (!windowTheme) return;
-  const exploring = document.body.classList.contains('ex-open') || document.body.classList.contains('ex-closing');
-  const colour = overlayMode.matches && exploring
-    ? getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() : originalTheme;
-  if (windowTheme.content !== colour) windowTheme.content = colour;
-}
-new MutationObserver(updateWindowTheme).observe(document.body, {attributes:true, attributeFilter:['class']});
-overlayMode.addEventListener('change', updateWindowTheme);
-updateWindowTheme();
+// Keep native window chrome on the base Today theme, including with a sidebar open.
 
 // ─── Service Worker registration + background updates ────────────────────────────────
 // Only register SW on actual deployment domains, skip preview iframes and local dev

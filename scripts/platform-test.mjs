@@ -184,6 +184,29 @@ try {
   }
   ok('long-list desktop standalone header stays pinned; ordinary tabs and phones retain their scroll behavior');
 
+  // Chromium can re-show its origin label after a theme-color change. Real
+  // sidebar actions must cause zero metadata mutations, including transient ones.
+  {
+    const {page,errors}=await openPage({windowControlsOverlay:true});
+    await page.evaluate(()=>{
+      window.__themeWitness=document.querySelector('meta[name="theme-color"]');
+      window.__sidebarThemeChanges=[];
+      window.__themeObserver=new MutationObserver(records=>{for(const r of records)__sidebarThemeChanges.push({before:r.oldValue,after:__themeWitness.content});});
+      __themeObserver.observe(__themeWitness,{attributes:true,attributeFilter:['content'],attributeOldValue:true});
+      Today.use('sidebar').close(true);
+    });
+    for(let pass=0;pass<2;pass++)for(const [id,button]of [['habits','#habitsBtn'],['about','#infoBtn'],['memory','#todayLogo'],['explore','#trelloBtn']]){
+      await page.click(button);
+      await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').classList.contains('entering'),{},id);
+      await page.click('#sidebarRoot [data-sidebar-close],#sidebarRoot [data-ex-action="hide"]');
+      await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
+    }
+    const state=await page.evaluate(()=>({changes:__sidebarThemeChanges,stillSameDocument:__themeWitness===document.querySelector('meta[name="theme-color"]'),theme:__themeWitness.content,base:getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim()}));
+    if(state.changes.length||!state.stillSameDocument||state.theme!==state.base)await fail('sidebar actions must not retrigger native origin UI through theme changes',state);
+    if(errors.length)await fail('sidebar theme fixture errors',errors);
+    await page.close();ok('cold/warm native sidebar actions keep theme-color unchanged and preserve the document');
+  }
+
   // Native window chrome cannot be drawn headlessly. Exercise the actual overlay CSS
   // with left/right/compact browser-reported geometry, without changing selectors or
   // non-geometry declarations. Ordinary-tab fallback stays the real native media result.
@@ -240,7 +263,7 @@ try {
           header:header.top>=profile.height,close:close.top>=profile.height,
           paneToTop:pane.getBoundingClientRect().top===0,
           paneFits:pane.getBoundingClientRect().bottom===innerHeight,
-          controlsMatchPane:profile.height===0 ? getComputedStyle(document.body).backgroundColor===theme : panelColor===theme,
+          controlsMatchToday:getComputedStyle(document.body).backgroundColor===theme,
           transparentDrag:getComputedStyle(drag).backgroundColor==='rgba(0, 0, 0, 0)',
           softerPane:panelColor!==getComputedStyle(document.body).backgroundColor,
           continuous:panelColor===getComputedStyle(pane.querySelector('.ex-sheet-foot')).backgroundColor,
@@ -282,12 +305,13 @@ try {
       document.body.classList.add('ex-closing');
       await Promise.resolve();
       const meta=document.querySelector('meta[name=theme-color]');
-      const leaving=meta.content.trim()===getComputedStyle(document.documentElement).getPropertyValue('--surface').trim();
+      const background=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      const leaving=meta.content.trim()===background;
       document.body.classList.remove('ex-closing');
       await Promise.resolve();
-      return leaving && meta.content==='#0e0e10';
+      return leaving && meta.content.trim()===background;
     });
-    if (!closedTheme) await fail('native controls must blend through Explore close and restore the original theme');
+    if (!closedTheme) await fail('native controls must keep Today’s dark background through sidebar close');
     await page.evaluate(() => {
       window.__setOverlay(false);
       for (const item of window.__overlayFixtureRules) { item.media.media.mediaText=item.original;for(const saved of item.rules)saved.rule.style.cssText=saved.original; }
