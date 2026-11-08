@@ -12,6 +12,7 @@
   const connection = () => Today.use('connections');
   let doc = null, revision = null, draft = '', draftWorkspace = null, imported = '', incoming = null, includeIncoming = false;
   let host = null, root = null, origin = null, view = 'conversation', trail = [], busy = false, message = '', epoch = 0;
+  let configPanelAnchor = null;
   let controller = null, aiController = null, pendingReading = false, activeGrant = '', retryId = null;
   let snapshot = null, forgot = false, opened = false, loaded = false, confirmForget = false;
   let suggestionMessage = '', correctionTarget = null, correctionText = '', setupQuestion = '', historyWindow = 24, navigation = 0;
@@ -34,7 +35,23 @@
   document.addEventListener('today:sidebar-unmount',event=>{if(root&&event.detail===root){opened=false;epoch++;controller?.abort();abortAI();}});
   const validSession = token => opened && token === epoch && activeGrant === grant();
   function abortAI() { if(pendingReading&&retryId)retryReading=true;aiController?.abort(); aiController = null; pendingReading = false;if(suggestionMessage==='Thinking…')suggestionMessage='The context changed. You can ask again.'; }
+  function _mountConfigPanel() {
+    const panel = byId('configPanel'), mount = byId('exConnectionsMount');
+    if (!panel || !mount) return;
+    configPanelAnchor = {parent: panel.parentNode, next: panel.nextSibling};
+    mount.append(panel);
+    panel.classList.add('open'); panel.hidden = false;
+    connection().renderConnections(); connection()._aiRenderConfig?.();
+  }
+  function _unmountConfigPanel() {
+    const panel = byId('configPanel');
+    if (!configPanelAnchor || !panel) return;
+    configPanelAnchor.parent.insertBefore(panel, configPanelAnchor.next || null);
+    panel.classList.remove('open'); panel.hidden = true;
+    configPanelAnchor = null;
+  }
   function wipe() {
+    _unmountConfigPanel();
     liveSources=[];sourceGeneration++;pendingSources=[];
     epoch++; controller?.abort(); abortAI(); doc = null; revision = null; draft = ''; imported = ''; incoming = null;
     snapshot = null; retryId = null; taskPending = null; activeGrant = ''; busy = false; forgot = false; loaded = false;
@@ -43,6 +60,7 @@
     if (root) root.replaceChildren(); decorate();
   }
   function hide() {
+    _unmountConfigPanel();
     arrivalMotion?.cancel();
     opened = false; pendingObservation = null; awaitingReply = false; thinkingMotion.forEach(a=>a.cancel()); thinkingMotion=[]; epoch++; controller?.abort(); abortAI(); busy = false; dictation()?.stop();
     if (root) { root.replaceChildren(); root.removeAttribute('aria-busy'); }
@@ -58,13 +76,23 @@
     if(next==='step'&&view!==next&&!pendingReading)suggestionMessage='';
     view=next;
   }
+  function renderConnectionsView() {
+    if (!root) return;
+    const label = origin?.kind==='memory' ? 'Hide Explore, back to Memory' : 'Hide Explore';
+    root.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="exTitle" tabindex="-1">⚡︎ Connections</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${action('back','<span aria-hidden="true">‹ </span>Explore','aria-label="Back to Explore"','memory-item-btn ex-subnav')}</div><div class="ex-sheet-scroll ex-connections-view" id="exConnectionsMount"></div><div class="ex-sheet-foot"></div>`;
+    _mountConfigPanel();
+    byId('connectionsTitle')?.focus({preventScroll:true});
+  }
   function go(next, trigger = document.activeElement) {
+    if (configPanelAnchor) _unmountConfigPanel();
     navigation++;trail.push({view, scroll:scroller()?.scrollTop||0, action:trigger?.dataset.exAction, id:trigger?.id});
-    enterView(next); confirmForget=false; render();
+    enterView(next); confirmForget=false;
+    if (next === 'connections') { renderConnectionsView(); } else { render(); }
     byId('exViewTitle')?.focus({preventScroll:true});
-    const box=scroller(); if(box)box.scrollTop=0;
+    const box=scroller(); if(box&&next!=='connections')box.scrollTop=0;
   }
   function leave() {
+    if (configPanelAnchor) _unmountConfigPanel();
     if (trail.length) {
       navigation++;const previous=trail.pop();enterView(previous.view);confirmForget=false;render();
       const target=(previous.id&&byId(previous.id)) || [...root.querySelectorAll('[data-ex-action]')].find(node=>node.dataset.exAction===previous.action);
@@ -159,8 +187,10 @@
     const chatIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 2h6a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H6l-4 2V4a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
     const calendarIcon='<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M4 1v3m6-3v3M2 5h10M3 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>';
     const pages=[['conversation',chatIcon,'Chat'],['notes','Living note'],['sources','Sources']];
+    const connIcon=`<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><path d="M5 7a3 3 0 0 0 4.5.4L11 5.9A3 3 0 0 0 6.8 1.7L5.8 2.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M9 7a3 3 0 0 0-4.5-.4L3 8.1a3 3 0 0 0 4.2 4.2l1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
     const nav=doc?`<nav class="ex-nav" aria-label="Explore pages">${pages.map(([page,label,ariaL])=>action(page,label,`data-ex-nav="true" ${ariaL?`aria-label="${ariaL}" title="${ariaL}" `:''}${page==='notes'?'id="exNotes" ':''}${view===page||(page==='history'&&view==='original-history')?'aria-current="page"':''}`,'ex-nav-item')).join('')}</nav>`:'';
-    return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${nav}`;
+    const connBtn = action('connections', connIcon, 'aria-label="Connections" title="Connections"', 'ex-nav-item ex-conn-btn');
+    return `<h2 class="config-title" id="exTitle" tabindex="-1">✦︎ Explore</h2>${action('hide',chevron(phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5'),`aria-label="${label}"`,'ex-hide')}${nav}${connBtn}`;
   }
   function backLink() {
     const parent=trail.at(-1)?.view;
@@ -453,7 +483,7 @@
     async 'today-source'(button){abortAI();const target=button.dataset.todaySourceId,policy=doc.today_context;if(!policy||!liveSources.some(source=>source.id===target))return;const excluded=policy.excluded.includes(target)?policy.excluded.filter(value=>value!==target):[...policy.excluded,target];if(excluded.length>96)return status('Disconnect TODAY context to clear all its influence.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),excluded,included:(policy.included||[]).filter(id=>id!==target)}}))render();},
     back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'original-history'(){go('original-history');}, 'more-history'(){const box=scroller(),from=box?box.scrollHeight-box.scrollTop:0;historyWindow+=24;render();const next=scroller();if(next)next.scrollTop=next.scrollHeight-from;next?.querySelector('.ex-earlier .ex-turn, .ex-earlier .ex-withheld')?.setAttribute('tabindex','-1');},
     'more-sources'(){sourceWindow+=50;render();},
-    connections(){hide();host.connections();}, reload:load, create:createDocument, send,
+    connections(){go('connections');}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
     'retry-ai'(){return ask(false);}, experiment(){return ask(true);},
     correct(){const reading=chosenReading();if(!reading)return;if(correctionTarget!==reading.id){correctionTarget=reading.id;correctionText=core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1)?.text||reading.summary;}go('correct');byId('exCorrection')?.focus({preventScroll:true});}, 'cancel-correction'(){correctionTarget=null;correctionText='';leave();},
@@ -492,7 +522,7 @@
     if(!retained||busy||pendingReading||retained.reading.id!==button.dataset.stepId)return;
     if(await commit(core.append(doc,row('step','',{target:retained.reading.id,decision}))))render();
   }
-  Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(button.dataset.exNav){navigation++;view=button.dataset.exAction;trail=[];confirmForget=false;render();root?.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');byId('exViewTitle')?.focus({preventScroll:true});return;}if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
+  Today.ui.register('click','exploration.action',(event,button)=>{event.stopPropagation();if(button.dataset.exNav){if(configPanelAnchor)_unmountConfigPanel();navigation++;view=button.dataset.exAction;trail=[];confirmForget=false;render();root?.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');byId('exViewTitle')?.focus({preventScroll:true});return;}if(!button.disabled)Promise.resolve(actions[button.dataset.exAction]?.(button)).catch(()=>{busy=false;status('The update could not be completed. Your document has not been replaced.');});});
   Today.ui.register('input','exploration.draft',(_event,input)=>{fitInput(input);promptFor(input.value);draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
   Today.ui.register('input','exploration.correction',(_event,input)=>{correctionText=input.value;});
   Today.ui.register('input','exploration.question',(_event,input)=>{fitInput(input);promptFor(input.value);setupQuestion=input.value;});

@@ -108,3 +108,14 @@
 #explorationRoot .ex-day { margin: var(--space-5) 0 var(--space-3); text-align: center; color: var(--muted); font-size: var(--text-xs); letter-spacing: 0.06em; }
 #explorationRoot .ex-day:empty { display: none; }
 #explorationRoot .ex-withheld { margin: var(--space-3) 0; }
+
+/* Connections view inside Explore — strip the floating-card styling from configPanel */
+.ex-connections-view { padding: 0; }
+.ex-connections-view #configPanel {
+  border: none; border-radius: 0; background: none;
+  padding: var(--space-3) var(--space-5) var(--space-6);
+  margin: 0; overflow: visible;
+}
+/* Connections button in Explore nav — push to right, always visible */
+.ex-content .ex-conn-btn { margin-inline-start: auto; opacity: 0.6; }
+.ex-content .ex-conn-btn:is(:hover,:focus-visible) { opacity: 1; }

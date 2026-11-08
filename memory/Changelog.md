@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Connections inside Explore (app v3.8.0)
+
+Connections settings and service management (Trello, Dropbox, Gmail, Calendar, AI keys) are now accessible from within Explore via a dedicated Connections view, reached by the link icon (⚡) in the Explore nav. When you open the Connections view, the existing `#configPanel` node is teleported into Explore's scroll area and given the `.open` class so all existing render functions (`renderConnections()`, `_aiRenderConfig()`, `loadTrelloBoards()`) continue to work without change. On leave/hide/go, the panel is restored to its original DOM position. The standalone `#trelloBtn` already opened Explore (since v3.7.0); the floating config panel trigger (`toggleConfig`) is no longer exposed in the top bar — connections live exclusively under Explore from here.
+
 ## November 8 CI repair (engineering, app v3.7.11)
 
 Dev42474274958 and deployed-performance42475191526 fail only the decoded-shell limit:1240065 bytes against1240064. The deployed five-run timings pass. Reclaim557 bytes of redundant shell comments instead of raising payload/timing limits; preserve the phone diagnosis and behavior. Earlier dev42471710091 has60 passes and three diagnostic-retry flakes: Reflection mounts Memory before init fills `$`; Explore's phone fixture sends Enter while the captured focus is its heading; and the worker fixture can reopen a controlled client before last-window activation. Wait for successful startup, reuse the explicit input-focus Send helper, and observe the waiting worker's activated state from an out-of-scope blank page before reopening. Preserve all functional assertions, deadlines, baselines and failure evidence. Controlled pre-init delay, heading focus and delayed last-client closure compare old/repaired drivers. Targeted checks pass four suites without flakes; final combined checks, controls and publication status live in `.context/latest-ci-repair/receipt.json`. Hosted validation of the eventual committed candidate remains separate. The pending Explore output allowance has its own application entry below.
