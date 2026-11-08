@@ -21,7 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 153 | ⏳ Verify | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | v3.7.1 |
+| 153 | ⏳ Verify | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | v3.7.2 |
 | 152 | ⏳ Verify | Dark strip returns above Explore and survives Chromium’s title-bar toggle. | v3.6.1 correction |
 | 151 | ⏳ Verify | Offscreen TODAY can flash as moving haze when entering Focus on a long list, with or without Explore. | v3.6.1 follow-up |
 | 150 | ⏳ Verify | Delete undo/reason bar stays centred on the window and overlaps Explore instead of following Today. | v3.5.1 |
@@ -56,6 +56,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Evidence (November 8):** v3.7.0 dev42424267836 and master42424288959 fail19 suites. Keep complete first-attempt logs and the hosted evidence under `.context/sidebar-completion/failed-evidence/`. Earlier v3.6.1 passed59 and failed3; no earlier receipt approves this repair.
 
 **Repair (v3.7.1):** retain the shared sidebar architecture and token-based mobile navigation. Its CSS already exists; test servers must serve CSS, and Explore must scope content styles to its new mount. Centralize modal state, pointer/input ownership, close chevrons, focus restoration, cancellation and generation fencing. Register a cold Explore entry so all four panels remain reachable. Preserve drafts across panel changes and end private reads/AI sessions at close rather than after animation. Keep Memory feedback in its scrollable content and habit Focus controls within the panel. Update actual DOM consumers and fixtures to the mounted-panel contract; classify shared files for full CI, preserve lint ceilings/deadlines/budgets, and review only the changed Memory screenshot baseline.
+
+**Hosted follow-up (v3.7.2):** dev42428237403 passes62/63 suites without flakes; Dreambank core unit boot exposes an unguarded document listener. Guard registration with the existing sidebar-root check; browser cleanup remains immediate. Retain the failed artifact and original logs. Six final fresh checks pass without failures/flakes in19.7s (`.context/fresh-cdKU3O/receipt.json`); exact-candidate full hosted proof remains required.
 
 **Verification:** the final fresh snapshot passes26 suites with zero failures/flakes in204.9s (`.context/fresh-1C9alf/receipt.json`). Source fingerprints match. Earlier failed receipts remain retained. Full hosted validation is requested for the exact published candidate. New actual-panel regression covers desktop/phone/narrow widths, named modal state, navigation visibility, close hit targets, focus restoration and rapid reopen. Installed Chromium window paint, the original offscreen-logo report and live-account/AI-writing acceptance remain separate.
 

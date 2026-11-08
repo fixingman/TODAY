@@ -669,8 +669,8 @@
         _confirmDeleteId = null; _openId = null;
         _rerenderMemory();
       });
-      document.addEventListener('today:sidebar-unmount',()=>{_readEpoch++;_remoteRead=null;_openId=null;_confirmDeleteId=null;_listOpen=false;_rerenderMemory();});
       const _sidebarRoot = typeof document === 'undefined' ? null : document.getElementById('sidebarRoot');
+      if (_sidebarRoot) document.addEventListener('today:sidebar-unmount',()=>{_readEpoch++;_remoteRead=null;_openId=null;_confirmDeleteId=null;_listOpen=false;_rerenderMemory();});
       if (_sidebarRoot && typeof MutationObserver !== 'undefined') {
         new MutationObserver(() => {
           if (Today.use('sidebar').isOpen('memory')) return;
