@@ -65,6 +65,9 @@ try{
   await page.setViewport({width,height:900});
   for(const id of ['habits','about','memory','explore']){
    await openSidebar(page,id);
+   // Sample settled paint: a partial view fade can round premultiplied surface
+   // channels down by one on Linux. Keep exact color/alpha assertions below.
+   await page.evaluate(()=>Promise.all(document.getElementById('sidebarRoot').getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||'')&&Number.isFinite(a.effect.getTiming().iterations)).map(a=>a.finished.catch(()=>{}))));
    for(const height of [710,900]){
     await page.evaluate(height=>{Object.defineProperty(visualViewport,'height',{configurable:true,value:height});visualViewport.dispatchEvent(new Event('resize'));},height);
     await page.waitForFunction(height=>Math.abs(document.getElementById('sidebarRoot').getBoundingClientRect().height-height)<1,{},height);

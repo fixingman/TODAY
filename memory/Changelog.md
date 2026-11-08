@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Mobile paint fixture readiness (engineering, app v3.7.4)
+
+Linux dev42435146448 passed62 suites and failed only the mobile About bottom-paint check. Its retained screenshot is uniformly22/22/25/255 at the sampled edge versus the final surface23/23/26/255; it is not a missing background. The driver sampled a panel content fade before completion. Wait for the actual finite sidebar/view entrance animations before the existing exact color/alpha checks; do not change runtime, baselines, tolerances, deadlines or app/SW metadata. A held-animation Mac probe verifies readiness but does not reproduce Linux quantization. The corrected driver still rejects a deliberately missing mobile backing. Initial local sidebar/invariant/planner/evidence checks pass four suites in17.3s without failures/flakes; the isolated candidate also passes these four checks; full hosted validation remains required. Retain original logs/artifacts and controls under `.context/nudge-vote-dismiss/`.
+
 ## Sidebar fixture startup readiness (engineering, app v3.7.2)
 
 Full dev42429152253 passes61 suites, with Dropbox and nudge passing only on diagnostic retry. Preserve the failed evidence in `.context/sidebar-completion/dev-372-failed-evidence/`. Their fixtures waited for exported functions while deferred startup could still be pending: a late startup pull consumed the download-recovery response, and offline preflight ran before observation memory was ready. A controlled120ms held startup reproduces both original failures and verifies the readiness guard (`.context/sidebar-completion/boot-race-control.json`). Wait for actual memory readiness inside the existing15s preparation bound; reconnect waits for accepted state with the existing5s helper instead of a50ms sleep. All assertions, runtime, budgets, baselines and app/SW version remain unchanged. Four fresh suites pass without failures/flakes in55.8s (`.context/fresh-QXwvgE/receipt.json`); exact-SHA full hosted proof remains required.
