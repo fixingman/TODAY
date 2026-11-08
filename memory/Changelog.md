@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Lighter connections icon (app v3.8.5)
+
+Explore's connections button used a link icon drawn on a 14-unit grid but shown at 20px, so its 1.5 stroke rendered about 2.1px, heavier than the hide chevron and mic. Can chose a plug (November 8), now drawn on the 20-unit grid at the shared 1.5px stroke.
+
 ## Readable chat history (app v3.8.4)
 
 Earlier-visit AI replies that can no longer be supported (because the data they depended on has changed) previously showed a verbose "withheld" notice in every slot. They now render as the actual reply text at reduced opacity (`ex-turn-stale`, 38% opacity, non-interactive), so the shape of the conversation stays intact and both sides remain visible. The "Now" divider between prior visits and the current conversation is restyled as a chat-style horizontal rule with flanking lines, matching the visual language of every major chat app. No data changes — purely a rendering fix for `earlierHTML()` in `exploration.js`.
