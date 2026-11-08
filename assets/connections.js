@@ -338,7 +338,6 @@
             </div>
             <span class="conn-check" aria-hidden="true">✓</span>
             <div class="connection-row-actions">
-              <button class="btn-sm" data-today-click="connections.dropbox-backup">Save</button>
               <button class="btn-sm" data-today-click="connections.dropbox-restore">Restore</button>
               <button class="btn-sm btn-forget" data-today-click="connections.dropbox-disconnect">Forget</button>
             </div>
@@ -673,7 +672,8 @@
       function _providerRow(id, label, hint, keyLink, keyLinkText, hasKey) {
         const isDefault = bothConnected && defaultProvider === id;
         const defaultBtn = bothConnected
-          ? `<button class="btn-sm${isDefault ? ' primary' : ''}" data-today-click="connections.ai-default" data-provider="${id}">${isDefault ? '✓ ' : ''}Default</button>`
+          // The default is a state, not an action: read-only text, like a row status.
+          ? (isDefault ? `<span class="connection-row-status connected conn-default">default</span>` : `<button class="btn-sm" data-today-click="connections.ai-default" data-provider="${id}">make default</button>`)
           : '';
 
         if (hasKey) {

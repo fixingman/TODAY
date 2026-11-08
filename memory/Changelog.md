@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Quieter Connections controls (app v3.8.6)
+
+Can, November 8: Dropbox's manual Save is removed (sync saves on every change; Restore and Forget stay). The default AI is a state, not an action: the chosen provider shows a read-only accent `default` label in the row-status token, and the other offers `make default`. The Your name card uses the connection-row card, title and status tokens, and its chips use the neutral reason-chip tokens (border, `--radius-sm`, 32px) instead of an accent fill. On phones, connected rows still show only Forget.
+
 ## Lighter connections icon (app v3.8.5)
 
 Explore's connections button used a link icon drawn on a 14-unit grid but shown at 20px, so its 1.5 stroke rendered about 2.1px, heavier than the hide chevron and mic. Can chose a plug (November 8), now drawn on the 20-unit grid at the shared 1.5px stroke.

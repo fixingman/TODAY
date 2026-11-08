@@ -4113,12 +4113,14 @@
   .connection-row-actions .ai-key-input::placeholder { color: var(--muted); opacity: 0.7; }
   /* Name chips — multi-alias input in AI config */
   /* Your name card — B2: title + hint inline, chip list below */
+  /* Same card, title and status tokens as a connection row. */
   .name-card {
-    margin-top: var(--space-3);
+    margin-bottom: var(--space-2);
     padding: var(--space-3) var(--space-4);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
   }
+  .conn-default { display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--space-2); }
   .name-card-header {
     display: flex;
     align-items: baseline;
@@ -4126,13 +4128,6 @@
     gap: var(--space-2);
     margin-bottom: var(--space-3);
   }
-  .name-card-title {
-    font-size: var(--text-xs);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .name-card-hint { font-size: var(--text-xs); color: var(--muted); line-height: 1.5; }
 
   .name-chip-list {
     display: flex;
@@ -4145,14 +4140,15 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    padding: 3px var(--space-2);
-    border: 1px solid var(--accent-dim);
-    border-radius: var(--radius-md);
-    background: var(--accent-dim);
+    /* Neutral chip: the reason-chip tokens, not an accent fill. */
+    min-height: 32px;
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: none;
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--text);
-    letter-spacing: 0.04em;
   }
   .name-chip-remove {
     background: none;
@@ -4450,8 +4446,8 @@
     <!-- Your name(s) — used by meeting mode to know which action items are yours (v2.22.0) -->
     <div class="name-card" id="meetingNameWrap" style="display:none">
       <div class="name-card-header">
-        <span class="name-card-title">Your name</span>
-        <span class="name-card-hint">Spots your tasks in meetings</span>
+        <span class="connection-row-title">Your name</span>
+        <span class="connection-row-status">Spots your tasks in meetings</span>
       </div>
       <div class="name-chip-list" id="nameChipList">
         <!-- chips + inline input rendered by renderMeetingNames() -->
@@ -4695,9 +4691,9 @@ const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.8.6': 'Connections: Dropbox loses its unused Save button, the default AI shows as a quiet label, and Your name matches the other rows.',
   '3.8.5': 'Explore’s connections button is a lighter plug icon, matching the other panel icons.',
   '3.8.4': 'Earlier Explore replies now stay visible in chat history — context-changed replies are shown faded so the conversation stays readable.',
-  '3.8.3': 'Phone panels no longer show an extra row of section icons.',
 };
 
 // Version follows CHANGELOG; smoke checks SW parity.
