@@ -18,11 +18,22 @@ function setCloseIcon(button){
   for(const [name,value]of Object.entries({d:phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5',stroke:'currentColor','stroke-width':1.5,'stroke-linecap':'round','stroke-linejoin':'round'}))path.setAttribute(name,value);
   svg.append(path);button.replaceChildren(svg);
 }
+// Phone keyboard only: the sheet follows the visual viewport while the keyboard is up.
+// Otherwise it is pinned to all four edges (CSS), and any pan iOS leaves behind after the
+// keyboard closes is reset, so the header never sits low and the bottom never stops short.
+let fitFrame=0,keyboardWasOpen=false;
 function fitViewport(){
-  if(!root)return;
-  const fit=active&&phone.matches&&window.visualViewport;
-  root.style.height=fit?visualViewport.height+'px':'';
-  root.style.top=fit?visualViewport.offsetTop+'px':'';
+  cancelAnimationFrame(fitFrame);
+  fitFrame=requestAnimationFrame(()=>{
+    if(!root)return;
+    const vv=window.visualViewport;
+    const keyboard=!!(active&&phone.matches&&vv&&vv.height<window.innerHeight-120);
+    root.style.height=keyboard?vv.height+'px':'';
+    root.style.top=keyboard?vv.offsetTop+'px':'';
+    root.style.bottom=keyboard?'auto':'';
+    if(keyboardWasOpen&&!keyboard&&active&&phone.matches)window.scrollTo(0,0);
+    keyboardWasOpen=keyboard;
+  });
 }
 function modality(open=!!active){
   const modal=open&&phone.matches;
