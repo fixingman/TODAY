@@ -107,7 +107,18 @@
 #explorationRoot .ex-earlier-more { display: flex; justify-content: center; margin-bottom: var(--space-4); }
 #explorationRoot .ex-day { margin: var(--space-5) 0 var(--space-3); text-align: center; color: var(--muted); font-size: var(--text-xs); letter-spacing: 0.06em; }
 #explorationRoot .ex-day:empty { display: none; }
-#explorationRoot .ex-withheld { margin: var(--space-3) 0; }
+/* Stale earlier reading — context changed since last visit; show faded to preserve shape */
+#explorationRoot .ex-turn.ex-turn-stale { opacity: 0.38; pointer-events: none; user-select: none; }
+#explorationRoot .ex-turn.ex-turn-stale .ex-speaker-logo,
+#explorationRoot .ex-turn.ex-turn-stale .ex-speaker-logo span { color: var(--muted); }
+/* Now divider — chat-style horizontal rule marking where the current conversation begins */
+#explorationRoot .ex-day-now {
+  display: flex; align-items: center; gap: var(--space-3);
+  color: var(--text); opacity: 0.55; letter-spacing: 0.04em;
+  margin: var(--space-6) 0 var(--space-5);
+}
+#explorationRoot .ex-day-now::before,
+#explorationRoot .ex-day-now::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* Header actions share the native close-control footprint; Hide stays rightmost. */
 .ex-content .ex-head-actions { display: flex; align-items: center; gap: var(--space-1); margin-inline-start: auto; }

@@ -233,7 +233,7 @@
       const label=dayLabel(entry.at);
       if(label&&label!==day){day=label;html+=`<p class="ex-day" role="separator">${h(label)}</p>`;}
       if(entry.kind==='observation'||core.supportedReading(doc,entry,liveSources))html+=turnsHTML([entry],null);
-      else html+='<p class="ex-muted ex-withheld">An earlier reply is withheld because what it relied on has changed. Your words remain.</p>';
+      else{const text=entry.synthesis_version===1?entry.text:(core.amendments(doc,entry.id).at(-1)?.text||entry.text);if(text)html+=`<div class="ex-turn ex-turn-stale" data-ex-stale="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(text)}</p></div>`;}
     }
     return `<section class="ex-earlier" aria-label="Earlier conversation">${html}</section><p class="ex-day ex-day-now" role="separator">${visitStart<doc.entries.length?'Now':''}</p>`;
   }

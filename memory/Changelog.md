@@ -2,6 +2,14 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Readable chat history (app v3.8.4)
+
+Earlier-visit AI replies that can no longer be supported (because the data they depended on has changed) previously showed a verbose "withheld" notice in every slot. They now render as the actual reply text at reduced opacity (`ex-turn-stale`, 38% opacity, non-interactive), so the shape of the conversation stays intact and both sides remain visible. The "Now" divider between prior visits and the current conversation is restyled as a chat-style horizontal rule with flanking lines, matching the visual language of every major chat app. No data changes — purely a rendering fix for `earlierHTML()` in `exploration.js`.
+
+## Phone panel nav removed (app v3.8.3)
+
+Phone panels no longer show a redundant row of section-nav icons at the bottom. The `.sb-panel-nav` / `.sb-panel-btn` styles and `renderPanelNav()` call were removed; `followPointer()` replaces the previous `hoverPane` initialization, and the `focusin` handler skips elements with `tabindex="-1"` to prevent spurious pane switches on programmatic focus.
+
 ## Connections inside Explore (app v3.8.0)
 
 Connections settings and service management (Trello, Dropbox, Gmail, Calendar, AI keys) are now accessible from within Explore via a dedicated Connections view, reached by the link icon (⚡) in the Explore nav. When you open the Connections view, the existing `#configPanel` node is teleported into Explore's scroll area and given the `.open` class so all existing render functions (`renderConnections()`, `_aiRenderConfig()`, `loadTrelloBoards()`) continue to work without change. On leave/hide/go, the panel is restored to its original DOM position. The standalone `#trelloBtn` already opened Explore (since v3.7.0); the floating config panel trigger (`toggleConfig`) is no longer exposed in the top bar — connections live exclusively under Explore from here.
