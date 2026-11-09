@@ -165,6 +165,20 @@ try{
  assert.ok(await page.evaluate(()=>document.activeElement.matches('#sidebarRoot [data-sidebar-close]')),'Tab from the last control wraps back to Hide');
  await page.evaluate(()=>Today.use('sidebar').close(true));
  assert.deepEqual(await page.evaluate(()=>['main-app','sticky-header','addTaskBar'].map(id=>document.getElementById(id).inert)),[false,false,false]);
+ // A held real fadeIn must fence paint sampling; the old fadeInPlain-only wait misses it.
+ await page.evaluate(()=>{
+  Today.use('sidebar').open('about');
+  window.__paintFade=document.getElementById('sidebarRoot').getAnimations({subtree:true}).find(a=>a.animationName==='fadeIn');
+  if(!__paintFade)throw Error('Phone entrance must expose its actual fadeIn');
+  __paintFade.pause();__paintFade.currentTime=__paintFade.effect.getTiming().duration/2;
+ });
+ let paintSettled=false;
+ const heldPaint=settleShell().then(()=>{paintSettled=true;});
+ await page.evaluate(()=>Promise.all(document.getElementById('sidebarRoot').getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||'')).map(a=>a.finished.catch(()=>{}))));
+ assert.equal(paintSettled,false,'A partial fade remains outside the paint acceptance window');
+ await page.evaluate(()=>__paintFade.finish());await heldPaint;
+ assert.equal(paintSettled,true,'Paint sampling is released after the real fade finishes');
+ await page.evaluate(()=>Today.use('sidebar').close(true));
  // The visual viewport may shrink before/during keyboard display. Its composer
  // stays fitted while the same surface paints through the layout viewport bottom.
  for(const width of [320,390]){
@@ -173,7 +187,7 @@ try{
    await openSidebar(page,id);
    // Sample settled paint: a partial view fade can round premultiplied surface
    // channels down by one on Linux. Keep exact color/alpha assertions below.
-   await page.evaluate(()=>Promise.all(document.getElementById('sidebarRoot').getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||'')&&Number.isFinite(a.effect.getTiming().iterations)).map(a=>a.finished.catch(()=>{}))));
+   await settleShell();
    for(const height of [710,900]){
     await page.evaluate(height=>{Object.defineProperty(visualViewport,'height',{configurable:true,value:height});visualViewport.dispatchEvent(new Event('resize'));},height);
     await page.waitForFunction(height=>Math.abs(document.getElementById('sidebarRoot').getBoundingClientRect().height-height)<1,{},height);

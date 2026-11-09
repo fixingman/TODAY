@@ -68,7 +68,11 @@ browser = await puppeteer.launch({
 // and dismiss flag seeded so init()'s checkDayNudge(false) cannot render,
 // keeping _nudgeRendered=false. skipDismiss=true lets init() render the nudge.
 async function openPage({ extraSeed, hourOverride = 9, skipDismiss = false, context = browser } = {}) {
-  const page = await context.newPage();
+  // Each scenario owns its browser storage, service worker and pending page work.
+  const owned = context === browser;
+  const scope = owned ? await browser.createBrowserContext() : context;
+  const page = await scope.newPage();
+  if (owned) page.close = () => scope.close();
   await installFixtureClock(page,FIXTURE_NOW);
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
@@ -143,6 +147,18 @@ try {
     ok('pre-extraction: checkDayNudge/checkHabitNudge inline; assets/nudge.js not yet created');
     console.log('\nNudge tests passed (pre-extraction baseline, 1 check).');
   } else {
+    // Clearing one scenario must never clear or import another scenario's state.
+    {
+      const a = await openPage();
+      await a.page.evaluate(() => localStorage.setItem('fixture_owner', 'first scenario'));
+      const b = await openPage();
+      await expectAll('nudge fixtures own independent storage', {
+        firstRetained: await a.page.evaluate(() => localStorage.getItem('fixture_owner') === 'first scenario'),
+        secondClean: await b.page.evaluate(() => localStorage.getItem('fixture_owner') === null),
+      });
+      await Promise.all([a.page.close(), b.page.close()]);
+      ok('nudge fixture storage is isolated across scenarios');
+    }
     // 1. Cached AI text → shows immediately when cache is valid.
     {
       const { page, errors } = await openPage({
