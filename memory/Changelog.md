@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Critical HTML icon extraction (app v3.8.14)
+
+The v3.8.13 full functional gate passed, but one cold first paint measured7,004ms against7,000ms; retain run42717829906 and its original evidence. Remove the34,098-character inline Apple touch icon from the HTML ahead of the app scripts. Serve the identical25557-byte PNG as a separately cached asset; no artwork, splash choreography, font or timing-budget change. Regression coverage pins the original image digest, external link, offline precache and absence of large embedded images. This reduces the critical HTML transfer rather than accepting a retry or raising the first-paint limit. All five local measured runs pass (cold FCP worst6,748ms); six focused fresh-checkout checks pass without failures/flakes. Hosted verification still needs this exact fix commit.
+
 ## Explore conversation typography (app v3.8.13)
 
 Apply the reviewed speaker split: user messages keep DM Mono13.5/300 with1.85 leading and−0.02em tracking; TODAY reply text uses Bricolage Grotesque14/300 with1.75 leading, natural tracking and24px turn separation. Controls, metadata, source pages and composer remain unchanged. Self-host the original22,232-byte Latin font instance at optical size14/weight300, load it through the existing lazy Explore stylesheet and precache for offline use. The font asset allowance grows from100KiB to116KiB to accommodate this explicitly chosen new face (actual combined fonts115,648 bytes); runtime/timing/eager-script limits remain unchanged. No AI/data changes.

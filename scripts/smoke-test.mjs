@@ -45,6 +45,18 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
   }
   console.log(`  ✓ CHANGELOG entry count (3)`);
 
+  // Keep the unchanged home-screen artwork out of the critical HTML download.
+  {
+    const icon = _rfs095(new URL('../assets/apple-touch-icon.png', import.meta.url));
+    const actual = (await import('node:crypto')).createHash('sha256').update(icon).digest('hex');
+    if (!indexSrc.includes('rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png"') ||
+        !swSrc.includes("'/assets/apple-touch-icon.png'") ||
+        actual !== 'd5fdbceaa203bd21794771c89b3bd2c4c1c72437ed31be3087aaed8d002084a0') throw new Error('Home-screen artwork must remain byte-identical, external and precached');
+    if (/data:image\/[^"\s]{4096}/.test(indexSrc)) throw new Error('Large embedded image in critical HTML');
+    console.log('  ✓ unchanged home-screen icon is external and cached');
+  }
+
+
   // BUG-095: every input the user types content into must opt out of browser
   // autofill, or task titles, habit names and AI questions get copied into a store
   // the app cannot clear. This regresses the moment anyone adds a new input.
