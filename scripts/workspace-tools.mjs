@@ -97,6 +97,7 @@ export function setupWorkspace(root,run=spawnSync) {
 
 export async function main(args) {
   const [mode,...rest]=args;
+  if(mode==='publish')return (await import('./release-publish.mjs')).main(rest,ROOT);
   if(mode==='runtime'&&!rest.length){console.log(process.version);return 0;}
   if(mode==='setup'&&!rest.length)return setupWorkspace(ROOT);
   if(mode==='archive'&&!rest.length){const r=spawnSync(process.execPath,['scripts/ci-invariants.mjs'],{cwd:ROOT,env:childEnvironment(),stdio:'inherit'});if(r.error)throw r.error;return r.status??1;}
@@ -104,7 +105,7 @@ export async function main(args) {
     mkdirSync(join(ROOT,'.context'),{recursive:true});
     return freshCheck(ROOT,rest.length?rest[1].split(','):['smoke-test']);
   }
-  throw Error('Usage: bash scripts/dev.sh setup|archive|fresh [--suites name,name]');
+  throw Error('Usage: bash scripts/dev.sh setup|archive|fresh [--suites name,name] | publish SHA [--master] [--suites name,name] [--run ID]');
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).then(code=>{process.exitCode=code;}).catch(error=>{console.error(error.message);process.exitCode=1;});

@@ -26,7 +26,7 @@ Conductor reads shared repository settings from the remote default branch for lo
 
 ## CI execution and evidence
 
-Hosted functional checks use up to three independent runners, balanced by advisory suite weights. The existing planner still chooses coverage, and the final `test` gate checks every result. Five-run performance stays on a separate runner; verified master reuse skips both jobs. Payload fails before browser setup. See the [CI contract](../docs/ci-release-evidence.md#parallel-execution-november-8) for evidence and failure handling. A failed parallel workflow needs **Re-run all jobs**, since reports from separate run attempts cannot be mixed. Keep local fresh checks scoped to affected suites; do not run the full inventory locally just to duplicate the hosted release gate.
+Hosted functional checks use up to five independent runners, balanced by advisory suite weights. The existing planner still chooses coverage, and the final `test` gate checks every result. Five-run performance stays on a separate runner; verified master reuse skips both jobs. Payload fails before browser setup. See the [CI contract](../docs/ci-release-evidence.md#parallel-execution-november-8) for evidence and failure handling. A failed parallel workflow needs **Re-run all jobs**, since reports from separate run attempts cannot be mixed. Keep local fresh checks scoped to affected suites; do not run the full inventory locally just to duplicate the hosted release gate.
 
 ## Dependable tests
 
@@ -50,7 +50,7 @@ Each fixture owns its output directories and cleanup. Tests must not depend on e
 4. Require complete successful exact-commit Linux evidence with no failed/flaky suites and all performance budgets passing. Run `release:preflight` immediately before the authorized identical-SHA fast-forward to master. Never amend or add a metadata commit between proof and promotion.
 5. Give one concise final receipt: version/commit, branches, CI links/status and remaining acceptance limits. During an end-to-end operation report useful milestones, not repeated descriptions of an unchanged wait. Be token mindful: start one CI watcher with output redirected to local logs, wait for completion, and inspect the final result once. Do not repeatedly query an unchanged run, reread logs or send waiting updates. Recheck only on a failure, an actionable change or a user status request.
 
-The existing `release:status`, `release:preflight` and `release:dispatch` commands remain authoritative. A dedicated end-to-end publish command is a possible follow-up; no new automatic branch-pushing service is enabled by these changes.
+Use `npm run release:publish --prefix scripts -- FULL_SHA [--master] [--suites name,name] [--run RUN_ID]` after reviewing and committing the candidate on dev. It validates locally, pushes dev and waits quietly. Only an authorised `--master` request invokes exact-SHA full proof/preflight, normal promotion and master CI. Add `CI-Validation: full` before committing a new master candidate. Default local validation is smoke plus invariants; pass the affected suites explicitly. The command preserves existing work, refuses stale/dirty/mismatched candidates and keeps raw logs with one `.context/publish-*/receipt.json`. Resume using the same SHA/run rather than starting duplicate CI. The existing status/preflight/dispatch commands remain authoritative; no background publishing service is enabled.
 
 ## Product acceptance and maintenance
 

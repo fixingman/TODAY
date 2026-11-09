@@ -136,6 +136,8 @@ Status symbols used throughout:
 
 **Discipline is automatic; publication is human-gated.** Review the relevant contracts and run appropriate checks without waiting for a reminder. Commit only when Can asks; an authorized commit includes the dev push. Master requires explicit authorization and the exact-commit proof/preflight in the CI contract. Never force a promotion or use an older commit's proof.
 
+**The publishing command does not grant approval.** Invoke `release:publish --master` only when Can has authorised master publication for that work; the default remains dev-only.
+
 **Match the publishing request.** A dev-only push ends with its commit, CI link and current status. A request for dev and master includes the required verification and identical-commit promotion. A status question authorizes one check. Keep a single release status/receipt and report milestones; avoid repetitive waiting messages or unnecessary full reruns. Necessary communication still follows the active session instructions.
 
 **Version the application when the application changes.** Runtime/UI/copy/prompts, shipped assets, persistence or sync changes require the app/SW version and user-facing changelog update. Documentation, tests, CI and developer-hook-only commits keep the current app/SW version and record engineering changes in the technical changelog. Every commit still needs its own required checks; an unchanged version never makes an older SHA's proof reusable. Before master promotion, ensure any application changes since master have an appropriate version bump.

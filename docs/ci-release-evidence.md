@@ -8,6 +8,27 @@ v3.4.0 at `150a66e01189ce0c1d4fbe34efc1d3aa1e323c4c` was published on dev/master
 
 Earlier v3.3.3 proof at `275930b2bd88d8aa59a36d229ba0e04b6ca67e6a`: [full dev41936998954](https://github.com/fixingman/TODAY/actions/runs/41936998954) and [master41938698136](https://github.com/fixingman/TODAY/actions/runs/41938698136).
 
+## One publishing command
+
+After reviewing and committing the candidate on `dev`, use its full 40-character SHA:
+
+```sh
+# Publish dev and wait quietly for its CI (default local check: smoke + invariants).
+npm run release:publish --prefix scripts -- FULL_SHA
+
+# Only after master publication is authorised; name the affected local suites.
+npm run release:publish --prefix scripts -- FULL_SHA --master --suites ci-tooling-test,release-publish-test
+
+# Resume the same candidate using its recorded dev run.
+npm run release:publish --prefix scripts -- FULL_SHA --master --run RUN_ID
+```
+
+The command keeps review/staging/committing outside automation. It requires a clean candidate on `dev`, one trusted origin for both fetch and push, and ordinary fast-forward pushes. New candidates intended for master need the existing `CI-Validation: full` commit trailer. Default publication is dev-only; `--master` is the explicit promotion option and must only be used within Can's authorisation. A dev-only selected run remains diagnostic, not master release proof.
+
+It runs the existing fresh check with the explicitly named suites (or smoke by default), pushes dev, finds only that SHA's trusted workflow, and uses one quiet 60-second CI watcher. Registration lookup is bounded to two minutes at 15-second intervals; missing/failed/cancelled CI stops without retrying or starting another run. Master additionally requires the existing exact-candidate `release-status.mjs preflight` against the successful dev run. Local files, HEAD and remote branch refs are checked again before promotion. Master CI is watched once and final refs must still match the candidate. The command does not amend commits, force-push, dispatch CI or change release policy.
+
+Milestones stay short; raw command logs and one atomic receipt live in `.context/publish-*/`. A second publisher in the same workspace is refused by `.context/publish.lock`. Normal completion/refusal releases its own lock; after an interrupted process, review the recorded owner before removing a stale lock. Failure preserves any already-pushed branch and concurrent work; use the receipt's SHA/run to resume. CI cannot invoke the publisher automatically. The launcher selects the existing supported Node, without changing global runtime or routing configuration.
+
 ## Commands
 
 Run from a clean checkout of the exact candidate, using the supported Node version. SHA means a full 40-character commit ID, never a version number or moving branch name.
@@ -28,13 +49,13 @@ Promotion remains an explicitly authorized action outside the helper. Immediatel
 
 ## Parallel execution (November 8)
 
-The existing change planner and full-release policy still choose the checks. The `plan` job checks payload before dependency/browser setup and assigns the selected inventory to at most three balanced functional jobs, each on its own pinned Ubuntu runner. Small selections use one or two jobs. Weights affect scheduling only; unknown/shared changes retain the full fallback. The five-run performance gate has its own runner, with the original profile/budgets, and can overlap functional work without CPU contention on either runner.
+The existing change planner and full-release policy still choose the checks. The `plan` job checks payload before dependency/browser setup and assigns the selected inventory to at most five balanced functional jobs, each on its own pinned Ubuntu runner. Small selections use fewer jobs. Weights affect scheduling only; unknown/shared changes retain the full fallback. The five-run performance gate has its own runner, with the original profile/budgets, and can overlap functional work without CPU contention on either runner.
 
 The always-running `test` job remains the final gate. `ci-shards.mjs` checks the canonical plan, every suite exactly once, original first-attempt outcomes, candidate SHA, workflow/run attempt, environment and unchanged input fingerprints before combining reports. It keeps each shard's original summary and raw logs. Missing/duplicate/failed/flaky/changed results or artifact collisions fail the merge and final gate. The existing release-evidence verifier still requires the complete inventory and all five passing performance runs for the exact candidate. Selected-only success cannot approve master.
 
 Verified master reuse skips the functional and performance jobs entirely and retains cheap invariants. Never combine jobs from different workflow attempts: use **Re-run all jobs** after a failed run. Old or partial artifacts do not supply approval. Evidence/artifact names include both run and attempt; the final proof artifact name and verifier contract stay unchanged.
 
-Baseline: dev42528361401 spent555.1 seconds in sequential functional checks and about14 seconds in checkout/setup. Three balanced workers target roughly three to four minutes of functional wall time plus queue/setup/aggregation; this is an estimate until the first successful hosted run. This changes latency, not required coverage; total runner minutes may rise slightly because of extra setup. Implementation and local fixtures are not hosted release proof. GitHub's [matrix execution](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations) and [artifact transport](https://github.com/actions/download-artifact) document the scheduling mechanism.
+The first parallel release, dev42530842799, passed 63 suites and all five performance runs in 258 seconds versus 577 seconds for the prior sequential workflow. The next candidate uses those actual per-suite durations to balance at most five runners; the64-check inventory (including the new publisher suite) is projected at about 110 seconds per worker before setup. Overall roughly three minutes remains a target until hosted verification. Weights affect scheduling only; the complete inventory, exact-candidate proof, pinned environment, timeouts and all five performance runs remain required. Extra setup can slightly increase total runner minutes. GitHub's [matrix execution](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations) and [artifact transport](https://github.com/actions/download-artifact) document the mechanism.
 
 ## Evidence contract
 

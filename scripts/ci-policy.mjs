@@ -28,6 +28,7 @@ export const SUITE = [
   "console-probe-test",
   "ci-plan-test",
   "release-evidence-test",
+  "release-publish-test",
   "browser-fixture-test",
   "ci-tooling-test",
   "performance-harness-test",
@@ -465,6 +466,7 @@ export const GROUPS = {
     "suites": [
       "ci-plan-test",
       "release-evidence-test",
+      "release-publish-test",
       "browser-fixture-test",
       "ci-tooling-test",
       "console-probe-test",

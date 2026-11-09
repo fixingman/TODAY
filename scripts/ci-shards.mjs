@@ -8,12 +8,72 @@ import { createRepoPlan } from './ci-plan.mjs';
 import { executionPolicy } from './ci-execution.mjs';
 import { digest, requireValue } from './release-evidence.mjs';
 
-// Advisory seconds from dev42528361401; changing weights cannot remove a test.
+// Advisory seconds measured in dev42530842799; weights cannot remove a check.
+export const MAX_SHARDS = 5;
 const WEIGHTS = {
-  'focus-wording-test':57,'nudge-delivery-test':54,'nudge-test':54,'splash-test':44,
-  'focus-test':44,'gmail-feedback-test':35,'pool-wording-test':31,'assistant-test':26,
-  'sidebar-test':22,'exploration-test':21,'triage-test':16,'dropbox-test':14,
-  'meeting-test':10,'day-lifecycle-test':10,'platform-test':9,
+  "ci-invariants": 1.703,
+  "design-lint": 0.072,
+  "token-parity-test": 0.026,
+  "timezone-test": 0.087,
+  "component-contract-test": 0.057,
+  "smoke-test": 2.343,
+  "accessibility-test": 4.362,
+  "visual-test": 7.232,
+  "splash-test": 43.539,
+  "platform-test": 9.375,
+  "sidebar-test": 21.141,
+  "service-worker-test": 9.099,
+  "connections-test": 5.824,
+  "trello-test": 1.948,
+  "gmail-test": 3.659,
+  "gmail-feedback-test": 32.395,
+  "pool-wording-test": 28.024,
+  "calendar-test": 1.642,
+  "calendar-nudge-policy-unit-test": 0.054,
+  "task-enrich-test": 5.667,
+  "dropbox-test": 13.09,
+  "sync-merge-unit-test": 0.034,
+  "dreambank-unit-test": 0.04,
+  "meeting-extract-unit-test": 0.027,
+  "error-monitor-unit-test": 0.025,
+  "console-probe-test": 0.571,
+  "ci-plan-test": 0.392,
+  "release-evidence-test": 0.177,
+  "browser-fixture-test": 0.968,
+  "ci-tooling-test": 5.379,
+  "performance-harness-test": 4.126,
+  "sound-test": 2.844,
+  "startup-test": 1.623,
+  "zones-test": 2.36,
+  "task-actions-test": 3.914,
+  "task-bounce-test": 0.024,
+  "assistant-test": 25.215,
+  "ai-assist-unit-test": 0.025,
+  "writing-evaluator-test": 0.166,
+  "feedback-policy-unit-test": 0.043,
+  "suggestion-policy-unit-test": 0.027,
+  "suggestion-outcomes-test": 0.682,
+  "nudge-test": 51.051,
+  "nudge-feedback-test": 5.257,
+  "nudge-delivery-test": 53.911,
+  "habits-test": 3.689,
+  "triage-test": 15.515,
+  "meeting-test": 9.616,
+  "voice-capture-test": 2.61,
+  "memory-panel-test": 3.681,
+  "exploration-test": 21.032,
+  "observation-pool-test": 0.039,
+  "mailto-test": 0.086,
+  "about-test": 6.911,
+  "reflections-test": 7.556,
+  "reflection-feedback-test": 5.835,
+  "day-lifecycle-test": 8.759,
+  "drag-test": 5.235,
+  "focus-test": 43.635,
+  "focus-wording-test": 55.236,
+  "focus-session-unit-test": 0.025,
+  "insights-test": 4.532,
+  "noticed-model-unit-test": 0.025
 };
 const context = env => Object.fromEntries(['GITHUB_SHA','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT',
   'GITHUB_WORKFLOW_REF','GITHUB_EVENT_NAME','GITHUB_REF'].map(key=>[key,env[key]||null]));
@@ -26,7 +86,7 @@ export function shardPlan(policy, workflow = {}) {
   requireValue(Array.isArray(selected)&&selected.length>0&&new Set(selected).size===selected.length
     && selected.every(name=>SUITE.includes(name)), 'Invalid planned suite inventory');
   const suites=SUITE.filter(name=>selected.includes(name));
-  const count=Math.min(3,Math.ceil(suites.length/12));
+  const count=Math.min(MAX_SHARDS,Math.ceil(suites.length/12));
   const workers=Array.from({length:count},(_,id)=>({id,suites:[],estimatedSeconds:0}));
   for(const name of [...suites].sort((a,b)=>(WEIGHTS[b]||3)-(WEIGHTS[a]||3)||SUITE.indexOf(a)-SUITE.indexOf(b))) {
     const worker=[...workers].sort((a,b)=>a.estimatedSeconds-b.estimatedSeconds||a.id-b.id)[0];

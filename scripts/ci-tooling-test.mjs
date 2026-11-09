@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, symlinkSync, cpSync } from 'node:fs';
 import { freshSnapshot, dependenciesReady, childEnvironment, setupWorkspace, freshCheck } from './workspace-tools.mjs';
 import { PNG } from 'pngjs';
-import { shardPlan, mergeShards } from './ci-shards.mjs';
+import { shardPlan, mergeShards, MAX_SHARDS } from './ci-shards.mjs';
 import { SUITE } from './ci-policy.mjs';
 import { verifyFinal } from './ci-final.mjs';
 const DIR = dirname(fileURLToPath(import.meta.url));
@@ -231,7 +231,7 @@ try {
       GITHUB_WORKFLOW_REF:'fixingman/TODAY/.github/workflows/test.yml@refs/heads/dev',GITHUB_EVENT_NAME:'push',GITHUB_REF:'refs/heads/dev'};
     const policy={candidateSha:sha,mode:'full',performance:true,plan:{mode:'full',suites:SUITE}};
     const plan=shardPlan(policy,shardWorkflow);
-    assert.equal(plan.workers.length,3);
+    assert.equal(plan.workers.length,MAX_SHARDS);
     assert.deepEqual(SUITE.filter(name=>plan.workers.some(worker=>worker.suites.includes(name))),SUITE);
     assert.equal(plan.workers.reduce((n,w)=>n+w.suites.length,0),SUITE.length);
     assert.ok(Math.max(...plan.workers.map(w=>w.estimatedSeconds))-Math.min(...plan.workers.map(w=>w.estimatedSeconds))<=3);

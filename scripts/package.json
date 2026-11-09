@@ -17,6 +17,7 @@
     "test:ci": "node ci-execution.mjs --run",
     "test:policy": "node ci-execution.mjs",
     "test:release": "node test-all.mjs && node performance-test.mjs --no-audit-check",
+    "release:publish": "bash dev.sh publish",
     "release:status": "node release-status.mjs status",
     "release:preflight": "node release-status.mjs preflight",
     "release:dispatch": "node release-status.mjs dispatch",
