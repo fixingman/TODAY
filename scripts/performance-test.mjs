@@ -225,6 +225,17 @@ async function waitForReady(page, includeSplash) {
   await new Promise(resolve => setTimeout(resolve, 250));
 }
 
+async function navigationDelivery(response) {
+  if(!response)return null;
+  const headers=response.headers(),timing=response.timing();
+  // Capture only public delivery metadata from this response; never URLs/cookies.
+  return {status:response.status(),fromServiceWorker:response.fromServiceWorker(),fromBrowserCache:response.fromCache(),
+    headers:Object.fromEntries(['cache-status','age','etag','server-timing','x-nf-request-id']
+      .filter(name=>typeof headers[name]==='string').map(name=>[name,headers[name].slice(0,1024)])),
+    networkTiming:timing?Object.fromEntries(['dnsStart','dnsEnd','connectStart','connectEnd','sslStart','sslEnd',
+      'sendStart','sendEnd','receiveHeadersStart','receiveHeadersEnd'].filter(name=>typeof timing[name]==='number').map(name=>[name,timing[name]])):null};
+}
+
 async function prepareWarm(page, paths) {
   const start = Date.now();
   // Preparation is outside the subsequent navigation clock and reported separately.
@@ -253,16 +264,16 @@ async function coldAndWarm(browser, url, tracePath) {
   await session.send('Storage.clearDataForOrigin', { origin: new URL(url).origin, storageTypes: 'all' });
   if (tracePath) await page.tracing.start({ path: tracePath, screenshots: false,
     categories: ['devtools.timeline', 'v8.execute', 'disabled-by-default-devtools.timeline.stack'] });
-  await page.goto(url, { waitUntil: 'load', timeout: 30000 });
+  const coldResponse=await page.goto(url, { waitUntil: 'load', timeout: 30000 });
   await waitForReady(page, true);
-  const cold = await readPageMetrics(page);
+  const cold = {...await readPageMetrics(page),delivery:await navigationDelivery(coldResponse)};
   if (tracePath) await page.tracing.stop();
   const warmPreparation=await prepareWarm(page,paths);
   if (tracePath) await page.tracing.start({ path: tracePath.replace('cold-trace.json', 'warm-trace.json'),
     screenshots: false, categories: ['devtools.timeline', 'v8.execute', 'disabled-by-default-devtools.timeline.stack'] });
-  await page.reload({ waitUntil: 'load', timeout: 30000 });
+  const warmResponse=await page.reload({ waitUntil: 'load', timeout: 30000 });
   await waitForReady(page, true);
-  const warm = await readPageMetrics(page);
+  const warm = {...await readPageMetrics(page),delivery:await navigationDelivery(warmResponse)};
   if (tracePath) await page.tracing.stop();
   await context.close();
   return { cold, warm, warmPreparation };
@@ -510,8 +521,8 @@ try {
       coldLongTasks: runs.map(run => run.cold.longTaskEntries),
       // Original measured runs carry attribution even if the later trace replay is fast.
       runs: runs.map((run, i) => ({ run: i + 1,
-        cold: { navigationTiming:run.cold.navigationTiming, longAnimationFrames: run.cold.longAnimationFrames, supportsLongAnimationFrames: run.cold.supportsLongAnimationFrames },
-        warm: { preparation:run.warmPreparation, navigationTiming:run.warm.navigationTiming, longAnimationFrames: run.warm.longAnimationFrames, supportsLongAnimationFrames: run.warm.supportsLongAnimationFrames },
+        cold: { delivery:run.cold.delivery, navigationTiming:run.cold.navigationTiming, longAnimationFrames: run.cold.longAnimationFrames, supportsLongAnimationFrames: run.cold.supportsLongAnimationFrames },
+        warm: { delivery:run.warm.delivery, preparation:run.warmPreparation, navigationTiming:run.warm.navigationTiming, longAnimationFrames: run.warm.longAnimationFrames, supportsLongAnimationFrames: run.warm.supportsLongAnimationFrames },
         interactions: run.interactions.diagnostics,
       })),
     },

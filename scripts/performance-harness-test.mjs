@@ -15,6 +15,7 @@ const helper = name => {
 const installObservers = helper('installObservers');
 const readPageMetrics = helper('readPageMetrics');
 const prepareWarm = helper('prepareWarm');
+const navigationDelivery = helper('navigationDelivery');
 const armInteraction = helper('armInteraction');
 const interactionStart = source.indexOf('async function interactionRun(');
 const interactionEnd = source.indexOf('\nfunction timingSummary(',interactionStart);
@@ -45,10 +46,17 @@ const html = `<!doctype html><html><body>
       document.querySelector('.focus-timer').classList.add('open');
     });
   </script></body></html>`;
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   if(req.url==='/fixture-worker.js'){
     res.writeHead(200,{'Content-Type':'text/javascript'});
     res.end("addEventListener('activate',event=>event.waitUntil(clients.claim()));");return;
+  }
+  if(req.url.startsWith('/slow-navigation')){
+    await new Promise(resolve=>setTimeout(resolve,1100));
+    res.setHeader('Cache-Status','"Netlify Edge"; fwd=miss; stored');
+    res.setHeader('X-NF-Request-ID','fictional-original-request');
+    res.setHeader('Server-Timing','origin;dur=1100');
+    res.setHeader('Set-Cookie','fixture-private-value=fictional');
   }
   res.setHeader('Content-Type', 'text/html');res.end(html);
 });
@@ -138,6 +146,22 @@ try {
   assert.ok(queued.enterFocus>budgets.timing['interactions.enterFocus'],'queued diagnostic delivery cannot hide real input blocking');
   assert.ok(queued.diagnostics.longAnimationFrames.flatMap(frame=>frame.scripts)
     .some(script=>script.sourceFunctionName==='coldAudioWarmup'),'pending diagnostic records are drained before their snapshot: '+JSON.stringify(queued));
+  const deliveryContext=await browser.createBrowserContext();
+  try {
+    const page=await deliveryContext.newPage();await page.setJavaScriptEnabled(false);
+    const response=await page.goto('http://127.0.0.1:'+server.address().port+'/slow-navigation?not-exported=1');
+    const metric=await readPageMetrics(page),delivery=await navigationDelivery(response);
+    assert.ok(metric.ttfb>budgets.timing['cold.ttfb'],'server delay still fails the unchanged cold first-byte ceiling');
+    assert.equal(delivery.status,200);assert.equal(delivery.fromServiceWorker,false);assert.equal(delivery.fromBrowserCache,false);
+    assert.equal(delivery.headers['cache-status'],'"Netlify Edge"; fwd=miss; stored');
+    assert.equal(delivery.headers['x-nf-request-id'],'fictional-original-request');
+    assert.equal(delivery.headers['server-timing'],'origin;dur=1100');
+    assert.ok(delivery.networkTiming.receiveHeadersStart-delivery.networkTiming.sendEnd>1000,'original response metadata retains the network wait');
+    assert.equal(delivery.headers['set-cookie'],undefined);
+    assert.ok(!JSON.stringify(delivery).includes('not-exported')&&!JSON.stringify(delivery).includes('fixture-private-value'),'URL queries and unrelated private headers stay out of evidence');
+    assert.equal(await navigationDelivery(null),null);
+  } finally {await deliveryContext.close();}
+  console.log('  ✓ original navigation delivery retains CDN/cache/request ID and numeric network phases; delayed first byte still fails; queries/cookies are excluded');
   const prepContext=await browser.createBrowserContext();
   try {
     const page=await prepContext.newPage();await page.goto('http://127.0.0.1:'+server.address().port+'/fixture.html');
