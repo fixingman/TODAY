@@ -55,7 +55,7 @@ browser = await puppeteer.launch({
   args: ['--no-first-run', '--disable-extensions'],
 });
 
-async function openPage(extraSeed, owner = browser) {
+async function openPage(extraSeed, owner = browser, beforeReady) {
   const page = await owner.newPage();
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
@@ -76,13 +76,30 @@ async function openPage(extraSeed, owner = browser) {
     { extra: extraSeed || null }
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await page.waitForFunction(
-    // Exported functions precede the deferred startup pull/cleanup. Settle that
-    // boundary before scenarios install credentials and per-request responses.
-    () => typeof dropboxBackup === 'function' && typeof mergeRemoteData === 'function'
-      && typeof _doneTodayCount === 'function' && Today.use('nudge').memoryReady(),
-    { timeout: 15000 }
-  );
+  if (beforeReady) await beforeReady(page);
+  try {
+    await page.waitForFunction(
+      // Model readiness is independent of paint; background device tabs may suspend rAF.
+      () => {
+        try {
+          return typeof dropboxBackup === 'function' && typeof mergeRemoteData === 'function'
+            && typeof _doneTodayCount === 'function' && Today.use('nudge').memoryReady();
+        } catch (error) {
+          if (error.message === 'TODAY component is not available: nudge') return false;
+          throw error;
+        }
+      },
+      { timeout: 15000, polling: 50 }
+    );
+  } catch (error) {
+    const state = await page.evaluate(() => ({
+      visibility: document.visibilityState, readyState: document.readyState,
+      booting: document.body?.hasAttribute('data-booting'),
+      interactive: performance.getEntriesByName('today:interactive').length > 0,
+      memoryReady: (() => { try { return Today.use('nudge').memoryReady(); } catch { return false; } })(),
+    }));
+    throw new Error('Dropbox fixture startup did not settle: ' + JSON.stringify({ ...state, errors }), { cause: error });
+  }
   await page.evaluate(() => {
     window.loadTrelloBoards   = () => {};
     window._aiRenderConfig    = () => {};
@@ -92,6 +109,38 @@ async function openPage(extraSeed, owner = browser) {
 }
 
 try {
+  // Hold real boot while suspending only the driver's animation-frame observer.
+  {
+    const owner = { newPage: async () => {
+      const page = await browser.newPage();
+      await page.evaluateOnNewDocument(() => {
+        const Native = MessageChannel;
+        window.MessageChannel = function() {
+          const channel = new Native(), post = channel.port2.postMessage.bind(channel.port2);
+          channel.port2.postMessage = (...args) => {
+            let habits = false; try { habits = !!window.Today?.use('habits'); } catch {}
+            if (habits && !window.__bootHeld) {
+              window.__bootHeld = true; window.__releaseBoot = () => post(...args);
+            } else post(...args);
+          };
+          return channel;
+        };
+      });
+      return page;
+    } };
+    const { page, errors } = await openPage(null, owner, async page => {
+      await page.waitForFunction(() => typeof window.__releaseBoot === 'function', { timeout: 15000 });
+      // Pause the frame observer while the real model startup continues.
+      await page.mainFrame().mainRealm().evaluate(() => { window.requestAnimationFrame = () => 0; });
+      await page.evaluate(() => { setTimeout(() => window.__releaseBoot(), 100); });
+    });
+    await expectAll('startup without observer animation frames', {
+      memoryReady: await page.evaluate(() => Today.use('nudge').memoryReady()),
+      noErrors: errors.length === 0,
+    });
+    await page.close();
+    ok('fixture observes real boot completion even when frame polling is suspended');
+  }
   // 1. _addDeletedId + _getDeletedIds: adds tombstone with correct id.
   {
     const { page, errors } = await openPage();

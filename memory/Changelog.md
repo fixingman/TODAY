@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Dropbox fixture readiness (engineering; application unchanged)
+
+Investigate dev42714056520 at63ead175: `dropbox-test` times out in `openPage` while opening the second isolated device, then passes on diagnostic retry; the strict gate correctly rejects it. A controlled real startup yield reproduces a missing nudge-component lookup while Dropbox exports already exist; the poller can time out even though boot and memory become ready. Guard only that expected registration gap, poll this model predicate independently of animation frames, and retain the original15-second deadline. Add a held-boot/suspended-observer regression plus boot/visibility/readiness/page-error diagnostics on failure. No sync/merge/backup implementation, timing limits or retry policy changes. Original hosted logs and controls: `.context/ci-63ead175/`. The full corrected Dropbox suite passes against isolated63ead175, including real two-device convergence. Both controls reject the broken paths while boot/memory are actually ready. Receipt: `.context/ci-63ead175/repair-receipt.json`; ongoing habit/task work stays out.
+
 ## Sources hierarchy and controls (app v3.8.12)
 
 Prioritise Next reply and group notes/last-reply evidence as Reference. Carry the same wording-first typography, quiet date/provenance, native chevrons,44px controls and labelled policy disclosures through every child page. Show inclusion state alongside editable context; keep recorded reply sources read-only, paginate twelve at a time, and use visible/total counts plus consistent empty states. Short records no longer repeat their text or expose an expansion control with no additional content. Preserve eligibility, consent, AI input, full wording, source retirement and private storage. Returning from Privacy reveals its disclosure and restores the visible opener. Explicit reduced-motion summary/icon guards remove a transient default-colour outline caused by the global duration override.
