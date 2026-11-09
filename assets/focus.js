@@ -521,22 +521,14 @@ window._startFocus = (function() {
     _breatheRun(fillEl, !on);
   }
 
-  function _setFocusInert(on, activeRow) {
-    const selectors = '.task,.habit,.section-header,.empty,.config-panel,.morning-nudge,#dayNudgeReact,#triageBar';
-    document.querySelectorAll(selectors).forEach(el => {
-      if (on && (el === activeRow || el.contains(activeRow))) return;
-      if (on) {
-        el.dataset.focusA11yHidden = '1';
-        el.inert = true;
-        el.setAttribute('aria-hidden', 'true');
-      } else if (el.dataset.focusA11yHidden === '1') {
-        delete el.dataset.focusA11yHidden;
-        el.inert = false;
-        el.removeAttribute('aria-hidden');
-      }
-    });
-
-
+  // Blurred UI is unreachable.
+  function _setFocusInert(on, row) {
+    const g = id => document.getElementById(id), set = (el, v) => { el.inert = v; v ? el.setAttribute('aria-hidden', 'true') : el.removeAttribute('aria-hidden'); el.toggleAttribute('data-focus-off', v); };
+    if (!on) return document.querySelectorAll('[data-focus-off]').forEach(el => set(el, false));
+    const mark = el => el && !el.inert && ![row, timerEl, kbdHint].some(k => k && el.contains(k)) && set(el, true);
+    const app = g('main-app'), stop = app.contains(row) ? app : g('sbContent');
+    [g('sticky-header'), g('triageBar'), ...(stop === app ? [] : app.children)].forEach(mark);
+    for (let n = row; n !== stop && stop?.contains(n); n = n.parentElement) [...n.parentElement.children].forEach(mark);
   }
 
   function _clearFocusWave() {
