@@ -19,7 +19,7 @@
   let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [];
   let recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
   const dataContext=()=>Today.use('exploration-context');
-  let visitStart = 0, sourceWindow = 6, browseWindow = 12, sourceQuery = '', shownPrompt = '', turnCount = 0;
+  let visitStart = 0, sourceWindow = 6, browseWindow = 12, usedWindow = 12, sourceQuery = '', shownPrompt = '', turnCount = 0;
   let pendingObservation = null, awaitingReply = false, thinkingMotion = [];
   const wide = matchMedia('(min-width: 601px)'), phone = matchMedia('(max-width: 600px)');
   const status = (text, nextAction = '') => { message = text; recovery = nextAction; render(); };
@@ -56,7 +56,7 @@
     epoch++; controller?.abort(); abortAI(); doc = null; revision = null; draft = ''; imported = ''; incoming = null;
     snapshot = null; retryId = null; taskPending = null; activeGrant = ''; busy = false; forgot = false; loaded = false;
     setupQuestion = ''; draftWorkspace = null; view = 'conversation'; trail = []; correctionTarget = null; correctionText = ''; confirmForget = false; retryReading = false;
-    recovery = '';suggestionMessage='';sourceWindow=6;browseWindow=12;sourceQuery='';
+    recovery = '';suggestionMessage='';sourceWindow=6;browseWindow=12;usedWindow=12;sourceQuery='';
     if (root) root.replaceChildren(); decorate();
   }
   function hide() {
@@ -97,6 +97,7 @@
     if (trail.length) {
       navigation++;const previous=trail.pop();enterView(previous.view);confirmForget=false;render();
       const target=(previous.id&&byId(previous.id)) || [...root.querySelectorAll('[data-ex-action]')].find(node=>node.dataset.exAction===previous.action);
+      for(let detail=target?.closest('details');detail;detail=detail.parentElement?.closest('details'))detail.open=true;
       (target||byId('exViewTitle')||byId('exTitle'))?.focus({preventScroll:true});
       const box=scroller(); if(box)box.scrollTop=previous.scroll;return;
     }
@@ -107,7 +108,7 @@
     sidebar().open('explore', { hooks, place, context });
   }
   function _mount(container, ctx) {
-    sourceWindow=6;browseWindow=12;sourceQuery='';
+    sourceWindow=6;browseWindow=12;usedWindow=12;sourceQuery='';
     const { hooks, place, context } = ctx || {};
     root = container;root.classList.add('ex-content');
     const token=++epoch; host = hooks; origin = place; opened = true; view = 'conversation'; trail = []; forgot = false; message = '';
@@ -172,32 +173,37 @@
     if(prior&&!chosenReading())message='';
     if(changed&&update)render();
   }
-  // Preview first; opening a record reveals its complete wording and controls.
-  function sourceCard(key,kind,text,tools='',note='') {
-    const preview=text.replace(/\s+/g,' ').trim();
-    return `<details class="ex-source-card" id="exSource-${h(key)}"><summary id="exSummary-${h(key)}"><span class="ex-source">${h(kind)}</span><span class="ex-source-preview">${h(preview.slice(0,120))}${preview.length>120?'…':''}</span></summary><div class="ex-source-body">${tools}<p>${h(text)}</p>${note?`<p class="ex-muted">${h(note)}</p>`:''}</div></details>`;
+  // Source wording leads; provenance, state and controls use the same quiet rows.
+  function sourceCard(key,kind,text,tools='',note='',state='') {
+    const preview=text.replace(/\s+/g,' ').trim(),brief=preview===text&&preview.length<=120;
+    if(brief&&!tools&&!note)return `<div class="ex-source-card ex-source-record" id="exSource-${h(key)}"><p>${h(text)}</p><span class="ex-source">${h(kind)}</span></div>`;
+    return `<details class="ex-source-card${brief?' ex-source-card-short':''}" id="exSource-${h(key)}"><summary id="exSummary-${h(key)}"><span class="ex-source-preview">${h(preview.slice(0,120))}${preview.length>120?'…':''}</span><span class="ex-source">${h(kind)}</span>${chevron('M8 5l5 5-5 5')}</summary><div class="ex-source-body">${tools?`<div class="ex-source-toolbar"><span class="ex-source">${h(state)}</span>${tools}</div>`:''}${brief?'':`<p>${h(text)}</p>`}${note?`<p class="ex-muted">${h(note)}</p>`:''}</div></details>`;
   }
+  const sourceHeading=(label,count='',tools='')=>`<div class="ex-source-group-head"><h4 class="config-label ex-source-label">${h(label)}${count!==''?` <span class="ex-source-count">${h(count)}</span>`:''}</h4>${tools}</div>`;
+  const sourceHelp=(key,label,body)=>`<details class="ex-source-help" id="${key}"><summary>${chevron('M8 5l5 5-5 5')}<span>${h(label)}</span></summary>${body}</details>`;
+  const sourceEmpty=(heading,text)=>`<div class="ex-source-empty"><h4>${h(heading)}</h4><p>${h(text)}</p></div>`;
+  const sourcePager=(name,label,shown,total,noun)=>total>shown?`<div class="ex-source-pagination"><span class="ex-source">${shown} of ${total} ${noun}</span>${action(name,label,'','memory-item-btn ex-source-action')}</div>`:'';
   function todayCard(source,choose=false){
-    const excluded=doc.today_context.excluded.includes(source.id);
-    return sourceCard('today-'+source.id,source.source_type+(excluded?' · left out':''),source.text,
-      action(choose?'today-pin':'today-source',choose||excluded?'include':'leave out',`data-today-source-id="${h(source.id)}" ${busy?'disabled':''}`),source.selection_reason||'');
+    const excluded=doc.today_context.excluded.includes(source.id),state=choose?'Not selected':excluded?'Left out':'Included';
+    return sourceCard('today-'+source.id,source.source_type+(source.chosen?' · chosen by you':''),source.text,
+      action(choose?'today-pin':'today-source',choose||excluded?'include':'leave out',`data-today-source-id="${h(source.id)}" ${busy?'disabled':''}`,'memory-item-btn ex-source-action'),source.selection_reason||'',state);
   }
   function todayHTML(disabled){
-    const policy=doc.today_context,chosen=selectedSources();
-    let html=title('Next reply')+'<div id="exTodayContext">';
-    if(!policy?.enabled)return html+'<p>Only your notes are used.</p>'+action('today-toggle','include TODAY records',disabled)+'</div>';
+    const policy=doc.today_context,enabled=!!policy?.enabled,chosen=selectedSources();
+    let html=title('Next reply')+'<p class="ex-source-intro">Review what this reply can draw on.</p><div id="exTodayContext">';
+    html+=`<div class="ex-source-scope"><div><span class="ex-source-name">Tasks &amp; Memory</span><span class="ex-source${enabled?' ex-source-enabled':''}">${enabled?'On':'Off · notes only'}</span></div>${action('today-toggle',enabled?'turn off':'turn on',`${disabled} aria-label="Use tasks and Memory" aria-pressed="${enabled}"`,'memory-item-btn ex-source-action')}</div>`;
+    if(!enabled)return html+'<p class="ex-muted">Your note choices stay as you set them.</p></div>';
     const omitted=liveSources.filter(row=>policy.excluded.includes(row.id));
-    html+='<p>Your notes and relevant tasks &amp; Memory. Up to eight TODAY records per reply.</p>'+action('today-toggle','use only my notes',disabled);
-    html+='<div class="ex-source-list">'+(chosen.map(source=>todayCard(source)).join('')||'<p class="ex-muted">No matching records yet. Your notes can still lead.</p>')+'</div>';
-    html+=action('sources-browse','choose other records');
-    if(omitted.length)html+='<h4 class="ex-source-heading">Left out</h4>'+omitted.map(source=>todayCard(source)).join('');
-    return html+'<p class="ex-muted">Selection follows your question and latest words. Connections remain tentative. Changing sources can withhold earlier replies; including them again won’t restore those replies.</p></div>';
+    html+=sourceHeading('Selected records',chosen.length,action('sources-browse','choose records','','memory-item-btn ex-source-action'));
+    html+='<div class="ex-source-list">'+(chosen.map(source=>todayCard(source)).join('')||sourceEmpty('Your notes lead','No matching TODAY records yet. Choose records to add specific context.'))+'</div>';
+    if(omitted.length)html+=sourceHeading('Left out',omitted.length)+'<div class="ex-source-list">'+omitted.map(source=>todayCard(source)).join('')+'</div>';
+    return html+sourceHelp('exSourceSelection','How selection works','<p>Up to eight TODAY records are selected from your question and latest words. You can choose others. A connection is a possibility, not a conclusion.</p><p>Changing sources can withhold earlier replies. Including them again won’t restore those replies.</p>')+'</div>';
   }
   function browseSourcesHTML(){
     const chosen=selectedSources(),query=sourceQuery.trim().toLocaleLowerCase();
     const other=liveSources.filter(row=>row.selectable!==false&&!chosen.some(source=>source.id===row.id)&&!doc.today_context?.excluded.includes(row.id));
     const found=other.filter(row=>(row.text+' '+row.source_type).toLocaleLowerCase().includes(query));
-    return title('Other records')+`<label for="exSourceSearch">Find a task or Memory record</label><input id="exSourceSearch" type="search" maxlength="200" value="${h(sourceQuery)}" data-today-input="exploration.source-search"><p class="ex-muted" role="status">${found.length} ${found.length===1?'record':'records'}</p><div class="ex-source-list">${found.slice(0,browseWindow).map(source=>todayCard(source,true)).join('')||'<p>No matching records.</p>'}</div>${found.length>browseWindow?action('more-records','show more records'):''}`;
+    return title('Other records')+`<label for="exSourceSearch">Find a task or Memory record</label><input id="exSourceSearch" type="search" maxlength="200" value="${h(sourceQuery)}" data-today-input="exploration.source-search"><p class="ex-muted" role="status">${found.length} ${found.length===1?'record':'records'}</p><div class="ex-source-list">${found.slice(0,browseWindow).map(source=>todayCard(source,true)).join('')||sourceEmpty(query?'No matching records':'No other records',query?'Try different words or clear your search.':'Your current selection stays as it is.')}</div>${sourcePager('more-records','show more records',browseWindow,found.length,'records')}`;
   }
 
   // The header control only ever hides Explore; sub-pages carry their own way back.
@@ -215,7 +221,7 @@
     const parent=trail.at(-1)?.view;
     if(!parent||parent==='conversation')return '';
     const label=parent==='sources'?'Sources':parent==='sources-next'?'Next reply':parent==='notes'?'living note':parent==='document'?'your document':parent==='history'?'earlier':'back';
-    return action('back',`<span aria-hidden="true">‹ </span>${label}`,`aria-label="Back to ${label}"`,'memory-item-btn ex-subnav');
+    return action('back',chevron('M12 5l-5 5 5 5')+h(label),`aria-label="Back to ${label}"`,'memory-item-btn ex-subnav');
   }
   function notice() {
     const text = message === 'Kept in your Dropbox' ? '' : message || (!doc && busy ? 'Opening your exploration…' : '');
@@ -288,26 +294,35 @@
       <div class="ex-links">${action('step','something to try')}${action('document','your document')}</div>`;
   }
   function sourcesHTML(reading) {
-    const notes=core.sources(doc),included=notes.filter(entry=>core.included(doc,entry.id)).length;
-    const link=(page,label,description)=>action(page,`<span><span class="ex-source-name">${label}</span><span class="ex-source">${h(description)}</span></span>${chevron('M8 5l5 5-5 5')}`,'','memory-item-btn ex-source-link');
-    return title('Sources')+'<p>Choose what supports your replies.</p><div class="ex-source-menu">'+
-      link('sources-next','Next reply',doc.today_context?.enabled?'Your notes + '+selectedSources().length+' TODAY records':'Only your notes')+
-      link('sources-notes','Your notes',included+' of '+notes.length+' included')+
-      link('sources-last','Last reply',reading?(reading.today_sources?.length||0)+' TODAY records used':'No current reply')+
-      '</div><p class="ex-muted">Feelings, dreams, email and Calendar stay separate.</p>'+action('privacy','privacy &amp; storage');
+    const notes=core.sources(doc),omitted=notes.filter(entry=>!core.included(doc,entry.id)).length;
+    const link=(page,label,description,primary=false)=>action(page,`<span><span class="ex-source-name">${h(label)}</span><span class="ex-source">${h(description)}</span></span>${chevron('M8 5l5 5-5 5')}`,'','memory-item-btn ex-source-link'+(primary?' ex-source-link-primary':''));
+    const used=reading?.today_sources?.length||0,selected=selectedSources().length;
+    const upcoming=selected?'Your notes + '+selected+' TODAY '+(selected===1?'record':'records'):'Your notes · no TODAY records selected';
+    return title('Sources')+'<p class="ex-source-intro">Review the context behind your replies.</p><div class="ex-source-menu">'+
+      link('sources-next','Next reply',doc.today_context?.enabled?upcoming:'Only your included notes',true)+
+      sourceHeading('Reference')+
+      link('sources-notes','Your notes',notes.length+(notes.length===1?' note':' notes')+(omitted?' · '+omitted+' left out':''))+
+      link('sources-last','Last reply',reading?(used?used+' TODAY '+(used===1?'record':'records')+' used':'Your notes only'):'No current reply')+
+      '</div>'+sourceHelp('exSourcePrivacy','About your sources','<p>Feelings, dreams, email and Calendar stay separate.</p>'+action('privacy','privacy &amp; storage','','memory-item-btn ex-source-action'));
   }
   function ownSourcesHTML(){
     const notes=core.sources(doc);
-    return title('Your notes')+'<p>Newest first. Open a note to read it or change whether it is included.</p><div class="ex-source-list">'+notes.slice(-sourceWindow).reverse().map(entry=>sourceCard('note-'+entry.id,
-      (entry.kind==='observation'?'Your words':entry.kind==='amendment'?'Your correction':entry.source_type||'Your note')+(core.included(doc,entry.id)?'':' · left out'),entry.text,
-      action('source',core.included(doc,entry.id)?'leave out':'include',`data-entry-id="${h(entry.id)}" ${busy?'disabled':''}`),dayLabel(entry.at))).join('')+'</div>'+
-      (notes.length>sourceWindow?action('more-sources','show earlier notes'):'')+'<p class="ex-muted">Leaving a note out withholds replies that depend on it. Including it again does not restore those replies.</p>';
+    return title('Your notes')+`<p class="ex-source-intro">${notes.length} ${notes.length===1?'note':'notes'} · newest first</p><div class="ex-source-list">`+(notes.slice(-sourceWindow).reverse().map(entry=>sourceCard('note-'+entry.id,
+      (entry.kind==='amendment'?'Your correction · ':entry.kind==='context'?(entry.source_type||'Context')+' · ':'')+dayLabel(entry.at)+(core.included(doc,entry.id)?'':' · left out'),entry.text,
+      action('source',core.included(doc,entry.id)?'leave out':'include',`data-entry-id="${h(entry.id)}" ${busy?'disabled':''}`,'memory-item-btn ex-source-action'),'',core.included(doc,entry.id)?'Included':'Left out')).join('')||sourceEmpty('No conversation notes yet','Your words are kept as you write in Chat.'))+'</div>'+
+      sourcePager('more-sources','show earlier notes',sourceWindow,notes.length,'notes')+sourceHelp('exNoteChoices','About note choices','<p>Leaving a note out withholds replies that depend on it. Including it again does not restore those replies.</p>');
   }
   function lastSourcesHTML(reading){
-    return title('Last reply')+(reading?'<p>TODAY records used in the current reading. These can differ from the next reply’s selection.</p><div class="ex-source-list">'+(reading.today_sources||[]).map(ref=>{
+    const refs=reading?.today_sources||[];
+    let html=title('Last reply');
+    if(!reading)return html+sourceEmpty('No current reply','Your saved conversation remains in Chat.');
+    html+='<p class="ex-source-intro">Recorded context behind this reply.</p>';
+    if(refs.length)html+=sourceHeading('Used in this reply',refs.length)+'<div class="ex-source-list">'+refs.slice(0,usedWindow).map(ref=>{
       const source=liveSources.find(row=>row.id===ref.id&&dataContext().matches(ref,row));
       return sourceCard('used-'+ref.id,source?.source_type||'Unavailable',source?.text||'This source is no longer available here.');
-    }).join('')+'</div><p class="ex-muted">Your included notes also support this thread. Replies can quote sources and remain in your document’s history.</p>':'<p>No current reply. Your saved conversation remains in Chat.</p>');
+    }).join('')+'</div>'+sourcePager('more-used-sources','show more records',usedWindow,refs.length,'records');
+    else html+=sourceEmpty('Your notes only','No TODAY records were recorded for this reply.');
+    return html+sourceHelp('exReplySources','About this record','<p>This list shows the TODAY records used then. The next reply’s selection can differ. Your included notes also support the thread.</p><p>Replies can quote sources and stay in your document’s history.</p>');
   }
   function stepHTML(reading,disabled) {
     const retained=core.stepState(doc,liveSources),step=retained?.decision!=='declined'&&retained?.reading.experiment;
@@ -528,7 +543,7 @@
     async 'today-source'(button){abortAI();const target=button.dataset.todaySourceId,policy=doc.today_context;if(!policy||!liveSources.some(source=>source.id===target))return;const excluded=policy.excluded.includes(target)?policy.excluded.filter(value=>value!==target):[...policy.excluded,target];if(excluded.length>96)return status('Disconnect TODAY context to clear all its influence.');if(await commit({...doc,revision:doc.revision+1,updated_at:now(),today_context:{...policy,epoch:id(),excluded,included:(policy.included||[]).filter(id=>id!==target)}}))render();},
     back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'original-history'(){go('original-history');}, 'more-history'(){const box=scroller(),from=box?box.scrollHeight-box.scrollTop:0;historyWindow+=24;render();const next=scroller();if(next)next.scrollTop=next.scrollHeight-from;next?.querySelector('.ex-earlier .ex-turn, .ex-earlier .ex-withheld')?.setAttribute('tabindex','-1');},
     'sources-next'(){go('sources-next');},'sources-notes'(){go('sources-notes');},'sources-last'(){go('sources-last');},'sources-browse'(){go('sources-browse');},
-    'more-sources'(){sourceWindow+=6;render();},'more-records'(){browseWindow+=12;render();},
+    'more-sources'(){sourceWindow+=6;render();},'more-records'(){browseWindow+=12;render();},'more-used-sources'(){usedWindow+=12;render();},
     connections(){go('connections');}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
     'retry-ai'(){return ask(false);}, experiment(){return ask(true);},
