@@ -1,10 +1,10 @@
 // TODAY — Service Worker
-// Strategy: network-first for app shell, strict exclusions for all API calls
+// Strategy: installed-version cache first for the public app shell; API calls bypass
 // Version bump this string to force cache invalidation on deploy.
 // This is the ONE version value still hand-synced — a SW can't import APP_VERSION from
 // index.html (separate context, no build step). scripts/smoke-test.mjs asserts it matches
 // `today-v${APP_VERSION}` and fails the pre-commit gate on drift.
-const CACHE_VERSION  = 'today-v3.8.10';
+const CACHE_VERSION  = 'today-v3.8.11';
 const CACHE_APP_SHELL = [
   '/',
   '/poem.html',
@@ -172,44 +172,28 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ── Fetch: network-first for app shell, bypass for all APIs ──────────────────
+// The complete installed shell is one version, including fresh tabs and refreshes.
+// Worker update checks still go to the network; installation/activation owns replacement.
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
+  const request = event.request, url = new URL(request.url);
+  if (request.method !== 'GET' || !url.protocol.startsWith('http') ||
+      url.origin !== self.location.origin ||
+      BYPASS_ORIGINS.some(origin => url.hostname === origin || url.hostname.endsWith('.' + origin))) return;
 
-  // 1. Always bypass non-GET requests (POST to Dropbox/Trello etc.)
-  if (event.request.method !== 'GET') return;
-
-  // 2. Bypass all external API origins — never intercept
-  if (BYPASS_ORIGINS.some(origin => url.hostname === origin || url.hostname.endsWith('.' + origin))) return;
-
-  // 3. Bypass chrome-extension and non-http(s) schemes
-  if (!url.protocol.startsWith('http')) return;
-
-  // 4. Only handle same-origin navigation requests (the app shell)
-  // This deliberately excludes cross-origin font/image requests
-  if (url.origin !== self.location.origin) return;
-
-  // Network-first: try network, on failure serve cache, on cache miss serve offline fallback
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Successful network response — update cache for next offline visit
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(async () => {
-        // Network failed — try cache
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-
-        // Nothing in cache — serve branded offline screen for navigation requests
-        // (non-navigation requests like fonts just fail silently)
-        if (event.request.mode === 'navigate') {
-          return caches.match('/__offline');
-        }
-      })
-  );
+  const key = url.pathname === '/index.html' ? '/' : url.pathname;
+  const shell = CACHE_APP_SHELL.includes(key);
+  // Private/API responses and unknown static resources are never cached.
+  if (!shell && request.mode !== 'navigate') return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_VERSION);
+    if (shell) {
+      const cached = await cache.match(key);
+      if (cached) return cached;
+    }
+    try { return await fetch(request); }
+    catch (error) {
+      if (request.mode === 'navigate') return await cache.match('/__offline') || Response.error();
+      throw error;
+    }
+  })());
 });

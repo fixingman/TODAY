@@ -21,9 +21,20 @@ const LEGACY_VERSION = 'today-v-test-legacy';
 let serveUpgrade = false;
 let serveFailure = '';
 let failUnknownNetwork = false;
+let holdShell = false;
+const heldShell = [], requests = new Map();
+const releaseShell = () => { holdShell=false;while(heldShell.length)heldShell.shift()(); };
 
 const server = createServer(async (req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  const requestURL = new URL(req.url, 'http://x'), pathname = decodeURIComponent(requestURL.pathname);
+  requests.set(pathname,(requests.get(pathname)||0)+1);
+  if (holdShell && (pathname==='/index.html'||SHELL_PATHS.some(path=>decodeURIComponent(path)===pathname))) {
+    await new Promise(resolve=>heldShell.push(resolve));
+  }
+  if (pathname === '/.netlify/functions/sw-fixture' || req.method === 'POST') {
+    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
+    res.end(JSON.stringify({request:requests.get(pathname)}));return;
+  }
   if (serveFailure && pathname === '/assets/enrichment-feedback.js') {
     if (serveFailure === 'network') req.socket.destroy();
     else { res.writeHead(404); res.end('missing shell fixture'); }
@@ -41,6 +52,10 @@ const server = createServer(async (req, res) => {
   let path = pathname === '/' ? '/index.html' : pathname;
   try {
     let body = path === '/sw.js' ? swSource : await readFile(join(ROOT, path));
+    if (path === '/sw.js' && requestURL.searchParams.has('network-control')) {
+      assert.ok(body.includes('if (cached) return cached;'));
+      body=body.replace('if (cached) return cached;','if (cached) return fetch(request);');
+    }
     if (path === '/sw.js' && (serveFailure || serveUpgrade)) {
       body = body.replace(CACHE_VERSION, serveFailure ? CACHE_VERSION + '-test-' + serveFailure : UPGRADE_VERSION);
     }
@@ -70,6 +85,25 @@ try {
     headless: 'new',
     args: ['--no-first-run', '--disable-extensions'],
   });
+  // Real negative control: the old network-first choice waits despite a complete cache.
+  const controlContext=await browser.createBrowserContext();
+  try {
+    const control=await controlContext.newPage();
+    await control.goto(BASE+'/__sw-test-seed');
+    await control.evaluate(async()=>{
+      await navigator.serviceWorker.register('/sw.js?network-control',{scope:'/'});
+      await navigator.serviceWorker.ready;
+      if(!navigator.serviceWorker.controller)await new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true}));
+    });
+    holdShell=true;let settled=false;
+    const waiting=control.evaluate(async()=>{const response=await fetch('/');return response.text();}).then(value=>{settled=true;return value;});
+    const deadline=Date.now()+10000;
+    while(!heldShell.length&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,10));
+    assert.ok(heldShell.length,'network-first control reaches the held origin');
+    assert.equal(settled,false,'original strategy cannot serve the complete cache before the network responds');
+    releaseShell();assert.ok((await waiting).includes('main-app'));
+    console.log('  ✓ network-first control stalls on the origin despite a complete installed shell');
+  } finally { releaseShell();await controlContext.close(); }
   page = await browser.newPage();
   await page.evaluateOnNewDocument(() => {
     localStorage.setItem('splash_shown_at', String(Date.now()));
@@ -114,6 +148,42 @@ try {
   assert.equal(installed.offlineFallbackCached, true);
   console.log(`  ✓ fresh install controls the app and caches all ${SHELL_PATHS.length} shell resources`);
   console.log('  ✓ activation purges a stale cache');
+
+  // The installed shell must remain usable while every public origin response is held.
+  const beforeShell=new Map(requests);holdShell=true;
+  try {
+    await page.reload({waitUntil:'load',timeout:15000});
+    await page.waitForFunction(()=>performance.getEntriesByName('today:interactive').length===1);
+    assert.equal(heldShell.length,0,'a warm app load must not request the origin shell');
+    assert.equal(requests.get('/'),beforeShell.get('/'),'warm HTML comes from the installed cache');
+    const aliases=await page.evaluate(async current=>{
+      const html=await (await fetch('/index.html?code=FICTIONAL_NOT_STORED')).text();
+      const keys=await (await caches.open(current)).keys();
+      return {app:html.includes('main-app'),queryStored:keys.some(request=>new URL(request.url).search)};
+    },CACHE_VERSION);
+    assert.deepEqual(aliases,{app:true,queryStored:false},'canonical app aliases do not create query-bearing cache entries');
+  } finally { releaseShell(); }
+  console.log('  ✓ warm navigation, full runtime and query alias load from the installed version with origin responses held');
+
+  const bypass=await page.evaluate(async current=>{
+    const a=await (await fetch('/.netlify/functions/sw-fixture?fictional=1')).json();
+    const b=await (await fetch('/.netlify/functions/sw-fixture?fictional=1')).json();
+    const post=await (await fetch('/assets/runtime.js',{method:'POST',body:'fictional'})).json();
+    const keys=await (await caches.open(current)).keys();
+    return {fresh:b.request>a.request,post:post.request>0,privateCached:keys.some(request=>new URL(request.url).pathname.startsWith('/.netlify/'))};
+  },CACHE_VERSION);
+  assert.deepEqual(bypass,{fresh:true,post:true,privateCached:false});
+  const miss=await page.evaluate(async current=>{
+    const path='/assets/today-og.png',cache=await caches.open(current),original=await cache.match(path);
+    const foreign=await caches.open('unrelated-worker-cache');
+    try {
+      await foreign.put(path,new Response('foreign',{headers:{'X-Foreign':'yes'}}));await cache.delete(path);
+      const response=await fetch(path);
+      return {network:response.ok&&!response.headers.has('X-Foreign'),uncached:!await cache.match(path)};
+    } finally {await cache.put(path,original);await caches.delete('unrelated-worker-cache');}
+  },CACHE_VERSION);
+  assert.deepEqual(miss,{network:true,uncached:true},'misses use network without adopting another version or mutating the installed shell');
+  console.log('  ✓ API/POST bypass stays fresh and uncached; a shell miss uses network without cross-cache/version pollution');
 
   for (const failure of ['missing','network']) {
     serveFailure = failure;
@@ -187,13 +257,12 @@ try {
   assert.deepEqual(retained,{controller:true,marker:'original-session',draft:'Fictional unsent draft',cache:true});
   assert.equal(automaticNavigations,0,'installing an update cannot reload the open app');
 
-  // New code may be opened/refreshed under an existing controller. It must not
-  // cause another boot when register() finds the already waiting worker.
+  // Additional windows keep the active installed version while its update waits.
   secondPage=await browser.newPage();
   let secondNavigations=0;
   secondPage.on('framenavigated',frame=>{if(frame===secondPage.mainFrame())secondNavigations++;});
   await secondPage.goto(BASE+'/',{waitUntil:'load',timeout:15000});
-  assert.equal(await secondPage.$eval('meta[name=sw-fixture-build]',node=>node.content),'upgrade');
+  assert.equal(await secondPage.$eval('meta[name=sw-fixture-build]',node=>node.content),'base');
   await secondPage.evaluate(async()=>{
     await navigator.serviceWorker.ready;
     window.__secondMarker='fresh-session';
@@ -211,15 +280,15 @@ try {
   assert.ok(await secondPage.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting),'legacy takeover messages are ignored');
   console.log('  ✓ background updates, visibility checks and fresh windows preserve open sessions and drafts');
 
-  // A user refresh gets the network-first document, without a second reload.
+  // A manual refresh keeps the coherent installed shell until every window closes.
   await secondPage.reload({waitUntil:'load',timeout:15000});
   await secondPage.evaluate(async()=>{await navigator.serviceWorker.ready;await (await navigator.serviceWorker.getRegistration('/')).update();});
   assert.equal(secondNavigations,2,'manual refresh cannot trigger another automatic refresh');
-  assert.equal(await secondPage.$eval('meta[name=sw-fixture-build]',node=>node.content),'upgrade');
+  assert.equal(await secondPage.$eval('meta[name=sw-fixture-build]',node=>node.content),'base');
   assert.ok(await secondPage.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration('/')).waiting));
   assert.equal(automaticNavigations,0);
   page.off('framenavigated',countNavigation);
-  console.log('  ✓ a manual refresh receives current network content exactly once');
+  console.log('  ✓ a manual refresh receives the active installed version exactly once');
 
   // Observe activation from outside the worker scope. Opening the app immediately
   // after close() can race client removal and keep the old controller alive.
@@ -253,6 +322,7 @@ try {
       offlineFallbackCached: cached.has('/__offline'),
     };
   }, { upgraded: UPGRADE_VERSION, shell: SHELL_PATHS });
+  assert.equal(await page.$eval('meta[name=sw-fixture-build]',node=>node.content),'upgrade','the next session receives the newly activated complete version');
   assert.equal(upgraded.shellComplete, true);
   assert.equal(upgraded.offlineFallbackCached, true);
   console.log('  ✓ closing every app window activates the complete update and retires the old cache');
@@ -307,6 +377,7 @@ try {
   console.log('  ✓ cached app shell and branded fallback both load offline');
   console.log('✓ SERVICE WORKER TEST PASSED');
 } finally {
+  releaseShell();
   if (page) await page.setOfflineMode(false).catch(() => {});
   if (secondPage) await secondPage.close().catch(() => {});
   if (browser) await browser.close();

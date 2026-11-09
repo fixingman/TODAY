@@ -14,6 +14,7 @@ const helper = name => {
 };
 const installObservers = helper('installObservers');
 const readPageMetrics = helper('readPageMetrics');
+const prepareWarm = helper('prepareWarm');
 const armInteraction = helper('armInteraction');
 const interactionStart = source.indexOf('async function interactionRun(');
 const interactionEnd = source.indexOf('\nfunction timingSummary(',interactionStart);
@@ -28,6 +29,7 @@ const html = `<!doctype html><html><body>
   <main id="main-app"><input id="newTask"><ul id="manualList"><li class="task"><span class="task-text">Fictional focus task</span></li></ul></main>
   <div class="focus-timer"></div>
   <script>
+    const APP_VERSION='fixture';
     function block(ms) { const until = performance.now() + ms; while (performance.now() < until) {} }
     function startupBlock() { block(280); document.body.appendChild(document.createElement('hr')); window.fixtureReady = true; }
     window.runStartupBlock = () => setTimeout(startupBlock, 0);
@@ -43,7 +45,13 @@ const html = `<!doctype html><html><body>
       document.querySelector('.focus-timer').classList.add('open');
     });
   </script></body></html>`;
-const server = createServer((req, res) => { res.setHeader('Content-Type', 'text/html'); res.end(html); });
+const server = createServer((req, res) => {
+  if(req.url==='/fixture-worker.js'){
+    res.writeHead(200,{'Content-Type':'text/javascript'});
+    res.end("addEventListener('activate',event=>event.waitUntil(clients.claim()));");return;
+  }
+  res.setHeader('Content-Type', 'text/html');res.end(html);
+});
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 let browser;
 try {
@@ -71,6 +79,8 @@ try {
       const startup = await readPageMetrics(page);
       assert.ok(startup.tbt > budgets.timing['cold.tbt'], 'a real startup block still breaches the original gate: ' + JSON.stringify(startup));
       assert.equal(startup.supportsLongAnimationFrames, !unsupported);
+      assert.ok(startup.navigationTiming.responseStart>0);
+      assert.ok(Object.values(startup.navigationTiming).every(value=>typeof value==='number'),'original navigation phases contain no URLs or query values');
       if (!unsupported) {
         const scripts = startup.longAnimationFrames.flatMap(frame => frame.scripts);
         assert.ok(scripts.some(script => script.sourceFunctionName === 'startupBlock' && script.duration >= 250), 'original blocking callback is attributed');
@@ -128,6 +138,20 @@ try {
   assert.ok(queued.enterFocus>budgets.timing['interactions.enterFocus'],'queued diagnostic delivery cannot hide real input blocking');
   assert.ok(queued.diagnostics.longAnimationFrames.flatMap(frame=>frame.scripts)
     .some(script=>script.sourceFunctionName==='coldAudioWarmup'),'pending diagnostic records are drained before their snapshot: '+JSON.stringify(queued));
+  const prepContext=await browser.createBrowserContext();
+  try {
+    const page=await prepContext.newPage();await page.goto('http://127.0.0.1:'+server.address().port+'/fixture.html');
+    await page.evaluate(async()=>{await navigator.serviceWorker.register('/fixture-worker.js');await navigator.serviceWorker.ready;});
+    let prepared=false;
+    const preparation=prepareWarm(page,['/fixture-shell']).then(result=>{prepared=true;return result;});
+    await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+    assert.equal(prepared,false,'an activated controlling worker without a complete shell cannot start the warm measurement');
+    assert.equal(await page.evaluate(()=>caches.has('today-vfixture')),false,'readiness cannot create a missing version cache');
+    await page.evaluate(async()=>{const cache=await caches.open('today-vfixture');await cache.put('/fixture-shell',new Response('fictional shell'));});
+    const result=await preparation;
+    assert.equal(result.complete,true);assert.ok(result.durationMs>=0);
+  } finally {await prepContext.close();}
+  console.log('  ✓ installed-warm preparation requires the active worker and complete version cache; its duration stays outside and separate from navigation');
   console.log('  ✓ actual input starts timing; pre-input automation delay is separate; pointerdown blocking still fails the existing ceiling');
   console.log('  ✓ original startup/input callbacks are attributed; unsupported attribution preserves timing guards; source queries are excluded');
 } finally {

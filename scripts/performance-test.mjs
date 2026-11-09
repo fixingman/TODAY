@@ -19,6 +19,7 @@ const ROOT = join(SCRIPT_DIR, '..');
 const BUDGET_PATH = join(SCRIPT_DIR, 'performance-budgets.json');
 const BASELINE_PATH = join(ROOT, 'memory', 'performance-baseline.json');
 const AUDIT_PATH = join(ROOT, 'memory', 'Performance-audit.md');
+const workerSource = await readFile(join(ROOT,'sw.js'),'utf8');
 const START_MARKER = '<!-- GENERATED:PERFORMANCE:START -->';
 const END_MARKER = '<!-- GENERATED:PERFORMANCE:END -->';
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -190,6 +191,10 @@ async function readPageMetrics(page) {
     const resources = performance.getEntriesByType('resource');
     return {
       ttfb: navigation?.responseStart || 0,
+      // Numeric navigation phases from the original visit, without URLs or queries.
+      navigationTiming: Object.fromEntries(['workerStart','fetchStart','domainLookupStart','domainLookupEnd',
+        'connectStart','connectEnd','requestStart','responseStart','responseEnd','transferSize']
+        .map(name=>[name,navigation?.[name]||0])),
       fcp: paint['first-contentful-paint'] || 0,
       lcp: observed.lcp || 0,
       cls: observed.cls || 0,
@@ -220,7 +225,26 @@ async function waitForReady(page, includeSplash) {
   await new Promise(resolve => setTimeout(resolve, 250));
 }
 
+async function prepareWarm(page, paths) {
+  const start = Date.now();
+  // Preparation is outside the subsequent navigation clock and reported separately.
+  // A controller alone does not establish a complete installed shell.
+  await page.waitForFunction(async paths => {
+    const registration=await navigator.serviceWorker?.getRegistration();
+    if(!navigator.serviceWorker?.controller||registration?.active?.state!=='activated')return false;
+    const name='today-v'+APP_VERSION;
+    if(!await caches.has(name))return false;
+    const cache=await caches.open(name),keys=new Set((await cache.keys()).map(request=>new URL(request.url).pathname));
+    return paths.every(path=>keys.has(new URL(path,location.origin).pathname));
+  },{timeout:15000},paths);
+  return {complete:true,durationMs:Date.now()-start};
+}
+
 async function coldAndWarm(browser, url, tracePath) {
+  const shell=workerSource.match(/const CACHE_APP_SHELL\s*=\s*\[([\s\S]*?)\];/);
+  if(!shell)throw new Error('Warm measurement requires a declared installed shell');
+  const paths=[...shell[1].matchAll(/'([^']+)'/g)].map(match=>match[1]);
+  if(!paths.length)throw new Error('Warm measurement requires a nonempty installed shell');
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
   await installObservers(page);
@@ -233,14 +257,7 @@ async function coldAndWarm(browser, url, tracePath) {
   await waitForReady(page, true);
   const cold = await readPageMetrics(page);
   if (tracePath) await page.tracing.stop();
-  await page.evaluate(async () => {
-    if ('serviceWorker' in navigator) {
-      await Promise.race([
-        navigator.serviceWorker.ready.catch(() => null),
-        new Promise(resolve => setTimeout(resolve, 3000)),
-      ]);
-    }
-  });
+  const warmPreparation=await prepareWarm(page,paths);
   if (tracePath) await page.tracing.start({ path: tracePath.replace('cold-trace.json', 'warm-trace.json'),
     screenshots: false, categories: ['devtools.timeline', 'v8.execute', 'disabled-by-default-devtools.timeline.stack'] });
   await page.reload({ waitUntil: 'load', timeout: 30000 });
@@ -248,7 +265,7 @@ async function coldAndWarm(browser, url, tracePath) {
   const warm = await readPageMetrics(page);
   if (tracePath) await page.tracing.stop();
   await context.close();
-  return { cold, warm };
+  return { cold, warm, warmPreparation };
 }
 
 // Arm before automation begins, but time only the actual input through the first
@@ -493,8 +510,8 @@ try {
       coldLongTasks: runs.map(run => run.cold.longTaskEntries),
       // Original measured runs carry attribution even if the later trace replay is fast.
       runs: runs.map((run, i) => ({ run: i + 1,
-        cold: { longAnimationFrames: run.cold.longAnimationFrames, supportsLongAnimationFrames: run.cold.supportsLongAnimationFrames },
-        warm: { longAnimationFrames: run.warm.longAnimationFrames, supportsLongAnimationFrames: run.warm.supportsLongAnimationFrames },
+        cold: { navigationTiming:run.cold.navigationTiming, longAnimationFrames: run.cold.longAnimationFrames, supportsLongAnimationFrames: run.cold.supportsLongAnimationFrames },
+        warm: { preparation:run.warmPreparation, navigationTiming:run.warm.navigationTiming, longAnimationFrames: run.warm.longAnimationFrames, supportsLongAnimationFrames: run.warm.supportsLongAnimationFrames },
         interactions: run.interactions.diagnostics,
       })),
     },

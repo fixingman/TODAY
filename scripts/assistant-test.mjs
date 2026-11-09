@@ -67,8 +67,10 @@ browser = await puppeteer.launch({
   args: ['--no-first-run', '--disable-extensions'],
 });
 
-async function openPage(extraSeed, viewport = { width:1200, height:900 }) {
-  const page = await browser.newPage();
+async function openPage(extraSeed, viewport = { width:1200, height:900 }, sharedScope) {
+  const scope=sharedScope||await browser.createBrowserContext();
+  const page = await scope.newPage();
+  if(!sharedScope)page.close=()=>scope.close();
   await page.setViewport(viewport);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -88,10 +90,15 @@ async function openPage(extraSeed, viewport = { width:1200, height:900 }) {
     { extra: extraSeed || null }
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await page.waitForFunction(
-    () => typeof Today?.use('assistant')._aiAnalyzeTask === 'function',
-    { timeout: 15000 }
-  );
+  try {
+    await page.waitForFunction(
+      () => !document.body.hasAttribute('data-booting') && performance.getEntriesByName('today:interactive').length===1 && typeof Today?.use('assistant')._aiAnalyzeTask === 'function',
+      { timeout: 15000 }
+    );
+  } catch(error) {
+    console.error('Assistant fixture startup',JSON.stringify(await page.evaluate(errors=>({errors,booting:document.body?.hasAttribute('data-booting'),interactive:performance.getEntriesByName('today:interactive').length}),errors)));
+    throw error;
+  }
   await page.evaluate(() => {
     window.dropboxAutoSave    = () => {};
     window.dropboxBackup      = () => {};
@@ -152,6 +159,19 @@ async function captureRecoveryTask(page, text = recoveryText) {
 }
 
 try {
+    // Reproduce the old shared-storage boundary, then verify the owned default.
+    for(const shared of [true,false]){
+      const scope=shared?await browser.createBrowserContext():null;
+      let first,second;
+      try {
+        first=await openPage(undefined,undefined,scope);
+        await first.page.evaluate(()=>localStorage.setItem('assistant-fixture-owner','fictional-first'));
+        second=await openPage(undefined,undefined,scope);
+        const retained=await first.page.evaluate(()=>localStorage.getItem('assistant-fixture-owner')==='fictional-first');
+        await expectAll(shared?'shared-context negative control':'owned assistant scenarios',{expectedIsolation:retained===!shared});
+      }finally{if(scope)await scope.close();else{if(first)await first.page.close();if(second)await second.page.close();}}
+    }
+    ok('shared-context control clears an older scenario; owned contexts retain its storage and finish successful boot before use');
   // A new task reordered before its first cloud round trip keeps that position
   // when an older snapshot and a delayed tip arrive in either order.
   for (const mobile of [false, true]) for (const tipFirst of [false, true]) {

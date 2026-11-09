@@ -39,6 +39,24 @@
 
 .ex-content .ex-today .memory-item-btn { opacity: 1; }
 
+/* Sources has one overview; each destination replaces it in the same pane. */
+.ex-content .ex-source-menu, .ex-content .ex-source-list { margin: var(--space-4) 0; }
+.ex-content .ex-source-link { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; min-height: calc(var(--space-6) * 2); padding: var(--space-3); text-align: left; white-space: normal; }
+.ex-content .ex-source-link + .ex-source-link { margin-top: var(--space-2); }
+.ex-content .ex-source-link > span { min-width: 0; }
+.ex-content .ex-source-link svg { flex-shrink: 0; }
+.ex-content .ex-source-name { display: block; color: var(--text); font-size: var(--text-md); margin-bottom: var(--space-1); }
+.ex-content .ex-source-card { border-bottom: 1px solid var(--border); }
+.ex-content .ex-source-card > summary { display: block; position: relative; box-sizing: border-box; width: 100%; margin: 0; padding: var(--space-3) var(--space-6) var(--space-3) var(--space-2); font-size: var(--text-task); color: var(--text); }
+.ex-content .ex-source-card > summary::after { content: '+'; position: absolute; right: var(--space-2); top: var(--space-3); color: var(--muted); }
+.ex-content .ex-source-card[open] > summary::after { content: '−'; }
+.ex-content .ex-source-preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-top: var(--space-1); }
+.ex-content .ex-source-card[open] .ex-source-preview { -webkit-line-clamp: 1; color: var(--muted); }
+.ex-content .ex-source-body { padding: 0 var(--space-2) var(--space-3); }
+.ex-content .ex-source-body p { margin-top: 0; }
+.ex-content .ex-source-body > button { margin-bottom: var(--space-2); }
+.ex-content .ex-source-heading { margin-top: var(--space-5); }
+
 /* Conversation prose and panel navigation are not compact Memory-row metadata. */
 .ex-content .memory-item-btn { font-size: var(--text-sm2); letter-spacing: normal; }
 .ex-content .ex-source { font-size: var(--text-sm2); letter-spacing: normal; }

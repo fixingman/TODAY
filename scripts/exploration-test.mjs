@@ -211,10 +211,11 @@ try{
  const send=async()=>{await toPanel();await page.focus('#exThought');await page.keyboard.press('Enter');};
  const start=async()=>{await page.mouse.move(page.viewport().width-20,200);await wait(()=>document.activeElement?.id==='exQuestion'||document.getElementById('exQuestion'));await wait(()=>getComputedStyle(document.getElementById('exQuestion')).visibility==='visible');await click('#exQuestion');await page.keyboard.press('Enter');};
  // Sub-pages have their own back link; at the conversation the only way out is the hide control.
+ const sourceAction=async selector=>{await page.$eval(selector,node=>{const details=node.closest('details');if(details&&!details.open)details.querySelector('summary').click();});await click(selector);};
  const back=async()=>{const local='#sidebarRoot [data-ex-action="back"]',chat='.ex-nav [data-ex-action="conversation"]:not([aria-current])';await click(await page.$(local)?local:await page.$(chat)?chat:'#sidebarRoot [data-ex-action="hide"]');};
  await page.addScriptTag({content:await readFile(join(ROOT,'scripts/node_modules/axe-core/axe.min.js'),'utf8')});
- const checkLayout=async state=>{for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});assert.equal(await page.$eval('#sidebarRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length),0,`${state} at ${width}px`);const result=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(result.violations.map(row=>row.id),[],`${state} axe at ${width}px`);if([390,1024].includes(width)){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(ROOT,`.context/memory-clarity/after-${state}-${width}.png`),fullPage:true});}}};
- await mkdir(join(ROOT,'.context/exploration-layout-restored'),{recursive:true});await mkdir(join(ROOT,'.context/memory-clarity'),{recursive:true});
+ const checkLayout=async state=>{for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});assert.equal(await page.$eval('#sidebarRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length),0,`${state} at ${width}px`);const result=await page.evaluate(()=>axe.run(document.getElementById('sidebarRoot'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}}));assert.deepEqual(result.violations.map(row=>row.id),[],`${state} axe at ${width}px`);if([390,1024].includes(width)){await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:join(ROOT,state.startsWith('sources')?`.context/ci-test-results/explore-sources/${state}-${width}.png`:`.context/memory-clarity/after-${state}-${width}.png`),fullPage:true});}}};
+ await mkdir(join(ROOT,'.context/exploration-layout-restored'),{recursive:true});await mkdir(join(ROOT,'.context/memory-clarity'),{recursive:true});await mkdir(join(ROOT,'.context/ci-test-results/explore-sources'),{recursive:true});
  await wait(()=>document.querySelector('#memoryViewStyles')?.sheet);assert.equal(await page.evaluate(()=>Today.use('sidebar').isOpen('memory')),false,'Memory code and styles warm while the sheet is closed');
  assert.equal(await page.evaluate(()=>__explorationTest.downloads),0,'Warming Memory never reads the private Dropbox document');
  await page.evaluate(()=>{__explorationTest.unavailable=true;});await click('[data-ex-origin="list"]');
@@ -275,7 +276,7 @@ try{
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0,'An unconfigured first Send keeps the observation without a model request');
  assert.equal(await page.$('.ex-resume'),null,'A new thread does not invent a resumption');
  assert.equal(await page.$('#exTodayContext,[data-ex-action="reload"],[data-ex-action="export"]'),null,'Conversation keeps administration in Notes');
- await click('[data-ex-action="sources"]');await click('#exTodayContext > summary');await click('[data-ex-action="today-toggle"]');await wait(()=>Today.use('exploration').document().today_context.enabled===false);await back();
+ await click('[data-ex-action="sources"]');await click('[data-ex-action="sources-next"]');await click('[data-ex-action="today-toggle"]');await wait(()=>Today.use('exploration').document().today_context.enabled===false);await click('.ex-nav [data-ex-action="conversation"]');
  await page.evaluate(()=>{localStorage.setItem('today_ai_key_claude','fictional-key');localStorage.setItem('today_ai_provider','claude');});
  await page.evaluate(()=>{__explorationTest.hold=true;__explorationTest.release=null;});await page.type('#exThought','OBS_FICTION: an unplanned experience');
  await page.keyboard.down('Shift');await page.keyboard.press('Enter');await page.keyboard.up('Shift');
@@ -549,11 +550,14 @@ try{
  await click('[data-ex-action="retry-ai"]');await wait(()=>!document.querySelector('[data-ex-action="retry-ai"]')&&!document.querySelector('#exThought').readOnly);
  assert.equal((await page.evaluate(()=>__explorationTest.remote)).split('WRITE_RECOVERY_FICTION').length-1,1,'Retry does not duplicate the observation');
  console.log('  ✓ CAS conflict retains unsent text, lost write acknowledgement reconciles, failed AI retries without duplicate observation');
- await page.evaluate(()=>{__explorationTest.hold=true;});await page.type('#exThought','PENDING_FICTION');await send();await wait(()=>typeof __explorationTest.release==='function');await click('[data-ex-action="sources"]');await click('[data-ex-action="source"]');await wait(()=>document.querySelector('.ex-status').textContent.includes('Source choice'));
+ const withdrawnNote=await page.evaluate(()=>{const d=Today.use('exploration').document(),reading=Today.use('exploration-core').latest(d);return (reading.source_ids||reading.evidence_ids).findLast(id=>d.entries.some(row=>row.id===id&&row.kind==='observation'));});assert.ok(withdrawnNote,'Withdrawal fixture uses a note supporting the earlier reading');
+ await page.evaluate(()=>{__explorationTest.hold=true;});await page.type('#exThought','PENDING_FICTION');await send();await wait(()=>typeof __explorationTest.release==='function');await click('[data-ex-action="sources"]');await click('[data-ex-action="sources-notes"]');
+ while(!await page.$('[data-entry-id="'+withdrawnNote+'"]'))await click('[data-ex-action="more-sources"]');
+ await sourceAction('[data-entry-id="'+withdrawnNote+'"]');await wait(()=>document.querySelector('.ex-status').textContent.includes('Source choice'));
  const readingsBefore=await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length);await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await new Promise(resolve=>setTimeout(resolve,100));assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length),readingsBefore);
- await click('[data-ex-action="source"]');assert.ok(await page.evaluate(()=>Today.use('exploration-core').current(Today.use('exploration').document())===null));
+ await sourceAction('[data-entry-id="'+withdrawnNote+'"]');await wait(()=>!document.querySelector('[data-ex-action="source"]').disabled);assert.ok(await page.evaluate(()=>Today.use('exploration-core').current(Today.use('exploration').document())===null));
  for(const width of [320,390,736,1024]){await page.setViewport({width,height:900});const overflow=await page.$eval('#sidebarRoot',root=>[...root.querySelectorAll('*')].filter(node=>{const rect=node.getBoundingClientRect();return rect.width&&rect.right>innerWidth+1;}).length);assert.equal(overflow,0,width+'px notes overflow');}
- await back();await click('#exNotes');await click('[data-ex-action="document"]');await click('[data-ex-action="privacy"]');await checkLayout('privacy');assert.equal(await page.$('#exNotesTitle,#exThought'),null,'Privacy replaces the parent');await click('[data-ex-action="forget"]');await click('[data-ex-action="forget-confirm"]');await wait(()=>document.getElementById('exViewTitle').textContent==='Exploration forgotten');assert.equal(await page.evaluate(()=>__explorationTest.remote),null);assert.ok(!(await page.$eval('#sidebarRoot',root=>root.textContent)).includes('CORRECTION_FICTION'));
+ await click('.ex-nav [data-ex-action="conversation"]');await click('#exNotes');await click('[data-ex-action="document"]');await click('[data-ex-action="privacy"]');await checkLayout('privacy');assert.equal(await page.$('#exNotesTitle,#exThought'),null,'Privacy replaces the parent');await click('[data-ex-action="forget"]');await click('[data-ex-action="forget-confirm"]');await wait(()=>document.getElementById('exViewTitle').textContent==='Exploration forgotten');assert.equal(await page.evaluate(()=>__explorationTest.remote),null);assert.ok(!(await page.$eval('#sidebarRoot',root=>root.textContent)).includes('CORRECTION_FICTION'));
  await back();await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exQuestion')&&!document.getElementById('exQuestion').readOnly);assert.equal(await page.$eval('#exQuestion',input=>input.value),'','Forget clears the setup question as well as journal content');
 
  // Real-data connection uses live refs, keeps source stores separate, and fences withdrawal.
@@ -589,11 +593,11 @@ try{
  await (await page.$('[data-today-change="exploration.checkpoint"]')).uploadFile(openingPath);await wait(()=>__explorationTest.remote.includes('Original fictional checkpoint retained.'));assert.equal(await page.evaluate(()=>Today.use('exploration').document().today_context.enabled),true,'Adding earlier notes preserves the TODAY connection');await back();await back();await back();
 
  await page.evaluate(()=>{const today=_localISO();appMemory.memory.semantic=[{id:'MEMORY_FICTION',type:'semantic',text:'NONCE_MEMORY_FICTION: evenings favour unhurried beginnings.',status:'confirmed',lastSeen:today,seenWeeks:['2026-10-12','2026-10-19','2026-10-26']}];_saveMemory();});
- await click('[data-ex-action="sources"]');await wait(()=>document.querySelector('[data-ex-action="today-pin"][data-today-source-id="memory:semantic:MEMORY_FICTION"]'));
- await page.$eval('#exTodayContext',node=>{node.open=true;node.querySelector('details').open=true;});await click('[data-ex-action="today-pin"][data-today-source-id="memory:semantic:MEMORY_FICTION"]');await wait(()=>Today.use('exploration').document().today_context.included?.includes('memory:semantic:MEMORY_FICTION'));
- assert.equal(await page.evaluate(()=>!document.querySelector('#exOtherRecords')||document.querySelector('#exOtherRecords').open),true,'Choosing a source preserves the open picker while other records remain');
+ await click('[data-ex-action="sources"]');await click('[data-ex-action="sources-next"]');await click('[data-ex-action="sources-browse"]');await wait(()=>document.querySelector('[data-ex-action="today-pin"][data-today-source-id="memory:semantic:MEMORY_FICTION"]'));
+ await sourceAction('[data-ex-action="today-pin"][data-today-source-id="memory:semantic:MEMORY_FICTION"]');await wait(()=>Today.use('exploration').document().today_context.included?.includes('memory:semantic:MEMORY_FICTION'));
+ assert.equal(await page.$eval('#exViewTitle',node=>node.textContent),'Other records','Choosing a source keeps the picker view');
  assert.ok(await page.evaluate(()=>document.activeElement.id==='exViewTitle'||document.activeElement.dataset.exAction==='today-pin'),'A source choice keeps meaningful focus');
- await back();await page.type('#exThought','The fictional project has a new possibility.');await send();await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
+ await click('.ex-nav [data-ex-action="conversation"]');await page.type('#exThought','The fictional project has a new possibility.');await send();await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  assert.ok(await page.evaluate(()=>{const rows=JSON.parse(__explorationTest.ai.at(-1).messages[0].content).context.records;return rows.some(row=>row.id==='memory:semantic:MEMORY_FICTION'&&row.evidence_kind==='AI interpretation'&&row.source_type.includes('unconfirmed'));}),'Chosen Memory interpretations reach the writer with their unconfirmed provenance');
 
  const beforeFreshness=await page.evaluate(()=>({calls:__explorationTest.ai.length,id:Today.use('exploration-core').latest(Today.use('exploration').document()).id}));
@@ -603,19 +607,19 @@ try{
  assert.equal(await page.evaluate(()=>Today.use('exploration-core').latest(Today.use('exploration').document()).id),beforeFreshness.id);
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),beforeFreshness.calls,'Freshness handling does not regenerate prose');
  await back();
- await click('[data-ex-action="sources"]');await checkLayout('sources');assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#sidebarRoot details')].find(node=>node.querySelector('summary')?.textContent.startsWith('TODAY records used')).textContent.includes('NONCE_MEMORY_FICTION')),'Notes exposes the actual live records used by this reading');await back();
+ await click('[data-ex-action="sources"]');await checkLayout('sources');await click('[data-ex-action="sources-last"]');assert.ok(await page.$eval('.ex-source-list',node=>node.textContent.includes('NONCE_MEMORY_FICTION')),'Last reply exposes the actual live records used by this reading');await click('.ex-nav [data-ex-action="conversation"]');
  await page.evaluate(()=>{doneIds.add(manualTasks[0].id);Today.use('connections').renderManual();});
  assert.equal(await page.evaluate(async()=>!!Today.use('exploration-core').current(Today.use('exploration').document(),await Today.use('exploration-context').collect())),true,'Completion alone does not invalidate the same task wording');
  await page.evaluate(()=>{doneIds.delete(manualTasks[0].id);Today.use('connections').renderManual();__explorationTest.hold=true;__explorationTest.release=null;});
  await page.type('#exThought','Another fictional project observation.');await send();await wait(()=>typeof __explorationTest.release==='function');
- await click('[data-ex-action="sources"]');await click('#exTodayContext > summary');await click('[data-ex-action="today-source"]');await wait(()=>Today.use('exploration').document().today_context.excluded.length>0&&!document.querySelector('[data-ex-action="today-source"]').disabled);
+ await click('[data-ex-action="sources"]');await click('[data-ex-action="sources-next"]');await sourceAction('[data-ex-action="today-source"]');await wait(()=>Today.use('exploration').document().today_context.excluded.length>0&&!document.querySelector('[data-ex-action="today-source"]').disabled);
  const beforeLate=await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length);
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await new Promise(resolve=>setTimeout(resolve,100));
  await page.waitForFunction(()=>!document.querySelector('[data-ex-reading]'));
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length),beforeLate);
- await page.$eval('#exTodayContext',node=>{node.open=true;});await page.evaluate(()=>[...document.querySelectorAll('[data-ex-action="today-source"]')].find(button=>button.textContent==='include').click());await wait(()=>Today.use('exploration').document().today_context.excluded.length===0);
+ await page.evaluate(()=>{const button=[...document.querySelectorAll('[data-ex-action="today-source"]')].find(button=>button.textContent==='include');button.id='exReinclude';});await sourceAction('#exReinclude');await wait(()=>Today.use('exploration').document().today_context.excluded.length===0);
  assert.equal(await page.evaluate(async()=>Today.use('exploration-core').current(Today.use('exploration').document(),await Today.use('exploration-context').collect())),null,'Re-inclusion cannot revive an earlier linked reading');
- await back();await click('[data-ex-action="retry-ai"]');await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
+ await click('.ex-nav [data-ex-action="conversation"]');await click('[data-ex-action="retry-ai"]');await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  await page.evaluate(()=>{__explorationTest.hold=true;__explorationTest.release=null;});await page.type('#exThought','A fictional project follow-up.');await send();await wait(()=>typeof __explorationTest.release==='function');
  await page.evaluate(()=>{manualTasks[0].text='Edited task after the request';Today.use('connections').renderManual();_saveMemory();});
  await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('A task used in the earlier interpretation has changed')&&!document.querySelector('#exThought').readOnly);
@@ -772,6 +776,52 @@ try{
  await click('[data-ex-origin="list"]');await wait(()=>document.querySelector('.ex-status')?.textContent.includes('newer version'));
  assert.equal(await page.$('#exQuestion,input[type=file]'),null,'Unsupported native versions cannot be re-imported as a downgraded new thread');
  assert.equal(await page.evaluate(()=>__explorationTest.remote),futureBefore.remote);assert.equal(await page.evaluate(()=>__explorationTest.ai.length),futureBefore.calls);assert.equal(await page.evaluate(()=>__explorationTest.uploads.length),futureBefore.uploads);
+ // Dense source records remain navigable without broadening data scope or requesting AI.
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);
+ const sourceBaseline=await page.evaluate(()=>{
+  const core=Today.use('exploration-core'),at=new Date().toISOString();
+  let dense=core.create('A fictional field trip?','','dense-sources-fiction',at);
+  for(let i=0;i<18;i++)dense=core.append(dense,{id:'dense-note-'+i,kind:'observation',at,text:'Fictional note '+i+': '+('A long original observation with room for uncertainty. '.repeat(30))+' END_NOTE_'+i});
+  dense.today_context={enabled:true,epoch:'dense-allowed',excluded:[]};
+  manualTasks=Array.from({length:45},(_,i)=>({id:'dense-task-'+i,text:'A fictional unrelated record '+i+(i===30?' UNIQUE_SEARCH_FICTION':'')}));
+  __explorationTest.remote=core.stringify(dense);
+  return {calls:__explorationTest.ai.length,uploads:__explorationTest.uploads.length,remote:__explorationTest.remote};
+ });
+ await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exThought'));
+ await click('[data-ex-action="sources"]');
+ assert.deepEqual(await page.$$eval('.ex-source-menu button',nodes=>nodes.map(node=>node.dataset.exAction)),['sources-next','sources-notes','sources-last']);
+ assert.equal(await page.$('.ex-source-card'),null,'Overview never expands record content');
+ assert.ok(await page.$eval('.ex-body',node=>node.textContent.length<500),'Overview remains short even with long saved notes');
+ await checkLayout('sources-overview');
+ await click('[data-ex-action="sources-notes"]');
+ assert.equal(await page.$$eval('.ex-source-card',nodes=>nodes.length),6,'Start with six recent notes');
+ assert.equal(await page.$eval('.ex-source-card summary',node=>node.textContent.includes('Fictional note 17:')),true,'Newest note leads');
+ assert.equal(await page.$$eval('.ex-source-card[open]',nodes=>nodes.length),0,'Full text starts collapsed');
+ await page.focus('.ex-source-card summary');await page.keyboard.press('Enter');
+ assert.ok(await page.$eval('.ex-source-card',node=>node.open&&node.querySelector('.ex-source-body p').textContent.endsWith('END_NOTE_17')),'Native keyboard disclosure exposes the complete original text');
+ assert.ok(await page.$eval('.ex-source-card',node=>node.querySelector('button').getBoundingClientRect().top<node.querySelector('.ex-source-body p').getBoundingClientRect().top),'Source control precedes long full text');
+ await checkLayout('sources-notes');
+ await click('[data-ex-action="more-sources"]');assert.equal(await page.$$eval('.ex-source-card',nodes=>nodes.length),12,'Reveal six older notes on request');
+ await click('[data-ex-action="back"]');
+ assert.equal(await page.evaluate(()=>document.activeElement.dataset.exAction),'sources-notes','Returning restores the opening row');
+ await click('[data-ex-action="sources-next"]');await click('[data-ex-action="sources-browse"]');
+ assert.equal(await page.$$eval('.ex-source-card',nodes=>nodes.length),12,'Picker starts with twelve previews');
+ await click('[data-ex-action="more-records"]');assert.equal(await page.$$eval('.ex-source-card',nodes=>nodes.length),24);
+ await page.type('#exSourceSearch','UNIQUE_SEARCH_FICTION');
+ assert.equal(await page.$$eval('.ex-source-card',nodes=>nodes.length),1,'Search can find a record outside the first page');
+ assert.equal(await page.$eval('#exSourceSearch',node=>node===document.activeElement&&node.selectionStart===node.value.length),true,'Search keeps caret through redraws');
+ assert.equal(await page.$eval('.ex-nav [data-ex-action="sources"]',node=>node.getAttribute('aria-current')),'page','Sources stays current in child views');
+ await checkLayout('sources-picker');
+ await page.$eval('#exSourceSearch',node=>{node.value='';node.dispatchEvent(new Event('input',{bubbles:true}));});
+ assert.equal(await page.$$eval('.ex-source-card',nodes=>nodes.length),12,'Clearing the search resets the preview window');
+ await click('[data-ex-action="back"]');assert.equal(await page.$eval('#exViewTitle',node=>node.textContent),'Next reply');
+ await click('[data-ex-action="back"]');await click('[data-ex-action="sources-last"]');
+ assert.ok(await page.$eval('.ex-body',node=>node.textContent.includes('No current reply')),'No current reply is an explicit empty state');
+ assert.equal(await page.evaluate(()=>__explorationTest.ai.length),sourceBaseline.calls,'All source navigation/search is AI-free');
+ assert.equal(await page.evaluate(()=>__explorationTest.uploads.length),sourceBaseline.uploads,'Browsing never changes source permissions');
+ assert.equal(await page.evaluate(()=>__explorationTest.remote),sourceBaseline.remote,'Navigation leaves the private document unchanged');
+ assert.deepEqual(errors,[]);
+ console.log('  ✓ Dense Sources overview, full-text keyboard disclosures, newest-first pagination, searchable picker, return focus and four-width accessibility');
  console.log('  ✓ Source withdrawal fences delayed AI, re-inclusion cannot revive, widths stay contained, conditional forget clears page and Dropbox; no journal in backup/storage');
 }catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,composer:{value:document.getElementById('exThought')?.value,readOnly:document.getElementById('exThought')?.readOnly},mobileKeys:window.__explorationTest?.mobileKeys,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('sidebarRoot')?.innerHTML.slice(0,800),announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 console.log('✓ EXPLORATION TEST PASSED');
