@@ -65,7 +65,7 @@ Never write the bare keyword `ease-out`: it is the browser's gentle curve, not `
 ## Animation Types
 
 ### Explore surface (v3.4.0)
-Wide: the panel slides in from the right (`exSlideIn`, `--dur-slow` / `--ease-out`; out `--dur-base` / `--ease-in`) while the list column re-centres over `--dur-slow`. Phone: head and conversation rise from below (`exRiseIn`) behind a still input row that crossfades (`fadeInPlain`), so the input area reads as fixed. TODAY's next question unfolds with `0fr → 1fr` + `--motion-rise` after a reply and folds away while answering. Reduced motion: none of it moves.
+Wide: the panel slides in from the right (`exSlideIn`, `--dur-slow` / `--ease-out`; out `--dur-base` / `--ease-in`) while the list column re-centres over `--dur-slow`. Phone (Can, November 9): panels appear rather than travel: head and content `fadeIn` (rise `--motion-rise`) over `--dur-fast` / `--ease-out`, the composer `fadeInPlain`; closing fades over `--dur-exit` / `--ease-out`. Switching between open panels does not animate. Reduced motion: none of it moves.
 
 Desktop panel changes (v3.7.3) retain the mounted shell without replaying its entrance/exit; only replacement content uses the existing fast transition. An active text caret owns its composer across pointer movement. During task Focus, the peer sidebar recedes through its existing pseudo-surface opacity transition to the shared chrome-recede level; reduced motion reaches the same state immediately.
 

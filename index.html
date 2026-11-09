@@ -3014,13 +3014,12 @@
     body.ex-open { overflow: hidden; }
     body.ex-open .add-task-row { display: none; }
     .ex-sheet.entering, .ex-sheet.leaving { animation: none; }
-    .ex-sheet.entering :is(.ex-sheet-head, .ex-sheet-scroll) { animation: exRiseIn var(--dur-slow) var(--ease-out) both; }
-    .ex-sheet.leaving :is(.ex-sheet-head, .ex-sheet-scroll) { animation: exRiseOut var(--dur-base) var(--ease-in) both; }
-    .ex-sheet.entering .ex-sheet-foot { animation: fadeInPlain var(--dur-base) var(--ease-out) both; }
-    .ex-sheet.leaving .ex-sheet-foot { animation: exFadeOut var(--dur-base) var(--ease-in) both; }
+    /* Phone panels appear, not travel: a short rise and fade in, a quicker fade out. */
+    .ex-sheet.entering :is(.ex-sheet-head, .ex-sheet-scroll) { animation: fadeIn var(--dur-fast) var(--ease-out) both; }
+    .ex-sheet.leaving :is(.ex-sheet-head, .ex-sheet-scroll) { animation: exFadeOut var(--dur-exit) var(--ease-out) both; }
+    .ex-sheet.entering .ex-sheet-foot { animation: fadeInPlain var(--dur-fast) var(--ease-out) both; }
+    .ex-sheet.leaving .ex-sheet-foot { animation: exFadeOut var(--dur-exit) var(--ease-out) both; }
   }
-  @keyframes exRiseIn { from { transform: translateY(100dvh); } to { transform: none; } }
-  @keyframes exRiseOut { from { transform: none; } to { transform: translateY(100dvh); } }
   @keyframes exFadeOut { from { opacity: 1; } to { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) {
     .ex-sheet.entering, .ex-sheet.leaving, .ex-sheet.entering *, .ex-sheet.leaving * { animation: none !important; }
