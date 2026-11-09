@@ -223,24 +223,40 @@
     const label=parent==='sources'?'Sources':parent==='sources-next'?'Next reply':parent==='notes'?'living note':parent==='document'?'your document':parent==='history'?'earlier':'back';
     return action('back',chevron('M12 5l-5 5 5 5')+h(label),`aria-label="Back to ${label}"`,'memory-item-btn ex-subnav');
   }
+  // One message system for the chat (Can, November 9): info and setup notes in the info
+  // family, errors in the danger family with their fix beside them, "done" as a quiet line.
+  const noteIcon='<svg class="ex-note-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="5.75" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5v3M7 9.5v.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  const failure=/could not|couldn’t|couldn't|has not confirmed|cannot|unavailable|too large|exceed|too many|needs a newer|changed\. Reload|changed\. Reopen/i;
+  function note(text,{kind='info',actions='',id='',status=false}={}) {
+    if(kind==='done')return `<p class="ex-status ex-done" role="status"${id?` id="${id}"`:''}>${h(text)}</p>`;
+    return `<div class="ex-note${kind==='error'?' ex-note-error':''}" role="${kind==='error'?'alert':'status'}"${id?` id="${id}"`:''}>${noteIcon}<p${status?' class="ex-status"':''}>${text}</p>${actions?`<span class="ex-note-actions">${actions}</span>`:''}</div>`;
+  }
   function notice() {
-    const text = message === 'Kept in your Dropbox' ? '' : message || (!doc && busy ? 'Opening your exploration…' : '');
-    return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p>${text && !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : ''}</div>`;
+    if(message==='Kept in your Dropbox')return '';
+    const text = message || (!doc && busy ? 'Opening your exploration…' : '');
+    if(!text)return '<div class="ex-notice"><p class="ex-status" role="status"></p></div>';
+    if(!doc&&busy&&!message)return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p></div>`;
+    const actions = !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : '';
+    return `<div class="ex-notice">${note(h(text),{kind:failure.test(text)?'error':'info',actions,status:true})}</div>`;
   }
   function turnsHTML(entries,reading,saved=false) {
-    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you"><span class="ex-source ex-speaker-you">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && (saved||core.supportedReading(doc,entry,liveSources)) ? `<div class="ex-turn" ${saved?'data-ex-saved-reading':'data-ex-reading'}="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
+    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you${retryReading&&entry.id===retryId?' ex-unanswered':''}"><span class="ex-source ex-speaker-you">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && (saved||core.supportedReading(doc,entry,liveSources)) ? `<div class="ex-turn" ${saved?'data-ex-saved-reading':'data-ex-reading'}="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
   }
+  // Option A (Can, November 9): name what the hidden reply relied on, why, and what to do.
+  // Returns trusted HTML; record text is escaped.
   function readingExplanation() {
-    const state=core.readingStatus(doc,core.latest(doc),liveSources);
-    const source=state.sourceId?.startsWith('task:')?'A task':'A Memory record';
+    const latest=core.latest(doc),state=core.readingStatus(doc,latest,liveSources);
+    const named=id=>{const row=liveSources.find(source=>source.id===id);if(!row)return '';const text=String(row.text).trim();const short=text.length>60?text.slice(0,57).trimEnd()+'…':text;return (id.startsWith('task:')?'your task ':'')+'<b>“'+h(short)+'”</b>';};
+    const leftOut=(latest?.today_sources||[]).find(ref=>doc.today_context?.excluded.includes(ref.id))?.id;
+    const lead='TODAY’s reply here ';
     const explanations={
-      'opening-changed':'You added earlier notes after this interpretation. Continue the conversation to read them together.',
-      'context-off':'TODAY context is off, so its earlier interpretation is hidden. Your notes are still saved.',
-      'context-changed':'You changed which TODAY records this exploration can use. Continue the conversation for a new interpretation.',
-      'source-left-out':'You left out a record used in the earlier interpretation, so it is hidden. Your notes are still saved.',
-      'note-left-out':'You changed which notes this exploration can use, so its earlier interpretation is hidden. Your notes are still saved.',
-      'source-changed':source+' used in the earlier interpretation has changed. Continue the conversation for a new interpretation.',
-      'source-unavailable':'Some context behind an earlier reply is unavailable. Your conversation is still saved.'
+      'opening-changed':lead+'came before <b>the notes you added</b>, so it’s hidden. Reply to read them together.',
+      'context-off':lead+'relied on <b>your tasks and Memory</b>, which are off for this exploration, so it’s hidden. Turn them on in Sources to see it.',
+      'context-changed':lead+'relied on <b>records you’ve since changed in Sources</b>, so it’s hidden. Reply for an updated one.',
+      'source-left-out':lead+'relied on '+(named(leftOut)||'<b>a record you left out</b>')+(leftOut&&named(leftOut)?', which you left out':'')+', so it’s hidden. Include it again in Sources to bring it back.',
+      'note-left-out':lead+'relied on <b>a note you left out</b>, so it’s hidden. Include it again in Sources to bring it back.',
+      'source-changed':lead+'relied on '+(named(state.sourceId)||'<b>a record</b>')+', which has since changed, so it’s hidden. Reply for an updated one.',
+      'source-unavailable':lead+'relied on <b>a record that’s no longer there</b>, so it’s hidden. Reply for an updated one.'
     };
     return explanations[state.reason]||'';
   }
@@ -248,7 +264,8 @@
   // of turns grows on demand, separated by quiet date dividers. Old replies follow the
   // same rule as current ones: shown only while still supported, otherwise one
   // "withheld" line; your own words always stay.
-  const dayLabel=at=>{const d=new Date(at);return isNaN(d)?'':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});};
+  const dayLabel=at=>{const d=new Date(at);if(isNaN(d))return '';const day=_localISO(d),today=_localISO(),y=new Date();y.setDate(y.getDate()-1);
+    return day===today?'Today':day===_localISO(y)?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});};
   function earlierHTML() {
     const earlier=doc.entries.slice(0,visitStart).filter(entry=>['observation','reading'].includes(entry.kind));
     if(!earlier.length)return '';
@@ -260,11 +277,12 @@
       if(entry.kind==='observation'||core.supportedReading(doc,entry,liveSources))html+=turnsHTML([entry],null);
       else{const text=entry.synthesis_version===1?entry.text:(core.amendments(doc,entry.id).at(-1)?.text||entry.text);if(text)html+=`<div class="ex-turn ex-turn-stale" data-ex-stale="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(text)}</p></div>`;}
     }
-    return `<section class="ex-earlier" aria-label="Earlier conversation">${html}</section><p class="ex-day ex-day-now" role="separator">${visitStart<doc.entries.length?'Now':''}</p>`;
+    const now=dayLabel(doc.entries[visitStart]?.at||new Date().toISOString());
+    return `<section class="ex-earlier" aria-label="Earlier conversation">${html}</section>${now&&now!==day?`<p class="ex-day ex-day-now" role="separator">${h(now)}</p>`:''}`;
   }
   function readingNotice(reading) {
     const text=!reading&&readingExplanation();
-    return text?`<p class="ex-muted" id="exReadingNotice">${h(text)}</p>`:'';
+    return text?note(text,{id:'exReadingNotice'}):'';
   }
   const title=(text,id='exViewTitle')=>`<h3 id="${id}" tabindex="-1">${h(text)}</h3>`;
   function conversationHTML(reading,disabled) {
@@ -273,13 +291,17 @@
     const currentReply=reading&&sessionEntries.some(entry=>entry.id===reading.id);
     let html=title(doc.question);
     if(!latestUser&&!currentReply&&doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-resume"><span class="ex-source">${reading?'Where we left off':'Your words'}</span><p>${h(reading?(core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1)?.text||reading.summary):doc.entries.findLast(entry=>entry.kind==='observation'&&core.included(doc,entry.id))?.text||doc.question)}</p></div>`;
-    html+=earlierHTML();
+    const earlier=earlierHTML();
+    // Every day starts with its divider, including a first visit with no history.
+    html+=earlier||(sessionEntries.length?`<p class="ex-day" role="separator">${h(dayLabel(sessionEntries[0].at))}</p>`:'');
     html+=turnsHTML(pendingObservation && !sessionEntries.some(entry=>entry.id===pendingObservation.id)?[...sessionEntries,pendingObservation]:sessionEntries,reading);
     if(pendingReading||awaitingReply)html+=thinkingHTML();
     html+=readingNotice(reading);
     if(draftWorkspace&&draftWorkspace!==doc.workspace_id)html+=`<p>Your draft belongs to a different document. ${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</p>`;
     html+=incomingHTML(disabled);
-    if(retryReading&&retryId&&!busy&&!pendingReading)html+=`<p class="ex-muted">Your last reply is kept. ${action('retry-ai','try reply again',disabled)}</p>`;
+    const retry=retryReading&&retryId&&!busy&&!pendingReading;
+    html+=retry&&/could not reply/i.test(message)?'':notice();
+    if(retry)html+=note('TODAY couldn’t reply. Your message is kept.',{kind:'error',actions:action('retry-ai','try again',disabled)});
     const step=core.activeStep(doc,liveSources);
     if(step)html+=`<div class="ex-links">${action('step',step.decision==='kept'?'the step you kept':'something to try')}</div>`;
     return html;
@@ -408,13 +430,29 @@
   function fitInput(input) { if(!input)return; input.style.height=''; input.style.height=Math.min(input.scrollHeight+2, innerHeight*0.4)+'px'; }
   function promptFor(value) { byId('exPromptWrap')?.classList.toggle('show', !value.trim() && !pendingReading); }
   function thinkingHTML() {
-    return '<div class="ex-turn ex-thinking" role="status" aria-label="TODAY is thinking"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><span class="ex-thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>';
+    return '<div class="ex-turn ex-thinking" role="status" aria-label="TODAY is thinking"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><span class="ex-thinking-star" aria-hidden="true">✦︎</span></div>';
+  }
+  // Consecutive turns from one speaker share a label; a divider or note starts a new group.
+  function groupTurns() {
+    let prev='';
+    root.querySelectorAll('.ex-body > *, .ex-earlier > *').forEach(node=>{
+      if(node.classList.contains('ex-earlier'))return;
+      if(!node.classList.contains('ex-turn')||node.classList.contains('ex-thinking')){prev='';return;}
+      const who=node.classList.contains('ex-you')?'you':'today';node.classList.toggle('ex-turn-cont',who===prev);prev=who;
+    });
+  }
+  function showJump(box) {
+    const jump=document.createElement('button');jump.type='button';jump.className='ex-jump';
+    jump.innerHTML=chevron('M5 8l5 5 5-5').replace('width="20" height="20"','width="12" height="12"')+'new reply';
+    const hide=()=>{if(box.scrollHeight-box.scrollTop-box.clientHeight<48){jump.remove();box.removeEventListener('scroll',hide);}};
+    jump.addEventListener('click',()=>{box.scrollTo({top:box.scrollHeight,behavior:_motionReduced()?'auto':'smooth'});});
+    box.append(jump);box.addEventListener('scroll',hide,{passive:true});
   }
   function animateThinking() {
     thinkingMotion.forEach(animation=>animation.cancel());thinkingMotion=[];
-    root.querySelectorAll('.ex-thinking-dots i').forEach((dot,index)=>{
-      const animation=_loopPulse(dot,[{opacity:0.35,transform:'scale(0.8)'},{opacity:1,transform:'scale(1)'},{opacity:0.35,transform:'scale(0.8)'}],_motionDuration('--dur-emphasis')*2);
-      if(animation){animation.currentTime=index*_motionDuration('--dur-base');thinkingMotion.push(animation);}
+    root.querySelectorAll('.ex-thinking-star').forEach(star=>{
+      const animation=_loopPulse(star,_KF_BREATHE_SMALL,_motionDuration('--dur-emphasis')*4);
+      if(animation)thinkingMotion.push(animation);
     });
   }
   function render() {
@@ -433,8 +471,9 @@
     const disabled = busy || pendingReading ? 'disabled' : '';
     const reading=chosenReading();
     const box=scroller(), keep=box?box.scrollTop:0, turns=doc?doc.entries.length:0, newer=turns!==turnCount||pendingReading||!!pendingObservation;
+    const atEnd=!box||box.scrollHeight-box.scrollTop-box.clientHeight<48, replied=turns>turnCount&&core.latest(doc)?.kind==='reading'&&turnCount>0;
     turnCount=turns;
-    let html='<div class="ex-body">'+notice();
+    let html='<div class="ex-body">'+(view==='conversation'&&doc?'':notice());
     if(forgot)html+=title('Exploration forgotten')+'<p>The document was removed from Dropbox. Your daily tasks stay.</p>';
     else if(!doc){
       html+=title(loaded?'Start with an experience':'Open your exploration');
@@ -445,7 +484,11 @@
     root.innerHTML=`<div class="ex-sheet-head">${controls()}</div><div class="ex-sheet-scroll">${html}</div></div><div class="ex-sheet-foot">${composerHTML()}</div>`;
     if(view==='conversation'&&turns>visitStart&&!pendingReading)scroller()?.querySelector('.ex-turn:last-of-type')?.classList.add('ex-turn-in');
     modality();animateThinking();
-    const nextBox=scroller(); if(nextBox) nextBox.scrollTop = view==='conversation'&&newer ? nextBox.scrollHeight : keep;
+    groupTurns();
+    // A reply that lands while you're reading further up waits behind "new reply".
+    const nextBox=scroller(), follow=view==='conversation'&&newer&&(atEnd||!!pendingObservation||!replied);
+    if(nextBox){nextBox.scrollTop=follow?nextBox.scrollHeight:keep;if(view==='conversation'&&replied&&!follow)showJump(nextBox);}
+    if(replied)window._a11yAnnounce?.('TODAY replied.');
     fitInput(byId('exThought')||byId('exQuestion'));
     root.querySelectorAll('details[id]').forEach(node=>{const saved=detailState.find(state=>state.key===node.id);if(saved)node.open=saved.open;});
     if(editing){const input=byId(editing.id);if(input&&!input.disabled&&(!input.readOnly||(!phone.matches&&!matchMedia('(pointer: coarse)').matches))){input.focus({preventScroll:true});input.setSelectionRange(editing.start,editing.end);}}

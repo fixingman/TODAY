@@ -150,21 +150,12 @@
 .ex-content .ex-speaker-you { font-weight: 500; color: var(--text); }
 
 /* v3.7.9: earlier visits fold into Chat. Quiet dividers, no extra chrome. */
-#explorationRoot .ex-earlier-more { display: flex; justify-content: center; margin-bottom: var(--space-4); }
-#explorationRoot .ex-day { margin: var(--space-5) 0 var(--space-3); text-align: center; color: var(--muted); font-size: var(--text-xs); letter-spacing: 0.06em; }
-#explorationRoot .ex-day:empty { display: none; }
+.ex-content .ex-earlier-more { display: flex; justify-content: center; margin-bottom: var(--space-4); }
+.ex-content .ex-day:empty { display: none; }
 /* Stale earlier reading — context changed since last visit; show faded to preserve shape */
-#explorationRoot .ex-turn.ex-turn-stale { opacity: 0.38; pointer-events: none; user-select: none; }
-#explorationRoot .ex-turn.ex-turn-stale .ex-speaker-logo,
-#explorationRoot .ex-turn.ex-turn-stale .ex-speaker-logo span { color: var(--muted); }
-/* Now divider — chat-style horizontal rule marking where the current conversation begins */
-#explorationRoot .ex-day-now {
-  display: flex; align-items: center; gap: var(--space-3);
-  color: var(--text); opacity: 0.55; letter-spacing: 0.04em;
-  margin: var(--space-6) 0 var(--space-5);
-}
-#explorationRoot .ex-day-now::before,
-#explorationRoot .ex-day-now::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.ex-content .ex-turn.ex-turn-stale { opacity: 0.38; pointer-events: none; user-select: none; }
+.ex-content .ex-turn.ex-turn-stale .ex-speaker-logo,
+.ex-content .ex-turn.ex-turn-stale .ex-speaker-logo span { color: var(--muted); }
 
 /* Header actions share the native close-control footprint; Hide stays rightmost. */
 .ex-content .ex-head-actions { display: flex; align-items: center; gap: var(--space-1); margin-inline-start: auto; }
@@ -184,3 +175,33 @@
 .ex-connections-view .conn-check { display: none; }
 .ex-connections-view #aiConfigSection > .config-title { font-family: var(--font-mono); font-size: var(--text-sm2); color: var(--muted); }
 .ex-connections-view .name-card-header { flex-wrap: wrap; }
+
+/* ── Chat, November 9 (Can): reading type, dates, one message system, grouping ── */
+/* Chat prose stays DM Mono, tuned for long reading: lighter, tighter, more leading. */
+.ex-content .ex-turn > p, .ex-content .ex-resume p, .ex-content textarea.ex-input { font-weight: 300; letter-spacing: -0.02em; line-height: 1.85; }
+.ex-content textarea.ex-input { line-height: 20px; }
+/* Date divider: centred, muted, between hairlines; sticks while you scroll that day. */
+.ex-content .ex-day { position: sticky; top: calc(-1 * var(--space-5)); z-index: 1; display: flex; align-items: center; gap: var(--space-3); margin: var(--space-5) 0 var(--space-3); padding: var(--space-1) 0; background: var(--surface); text-align: center; color: var(--muted); font-size: var(--text-xs); letter-spacing: 0.06em; }
+.ex-content .ex-day::before, .ex-content .ex-day::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+/* Notes: not a speaker turn. Info family by default; errors in the danger family. Border and
+   icon carry the kind; no tint, so muted text keeps AA contrast on the panel surface. */
+.ex-content .ex-note { display: flex; align-items: flex-start; gap: var(--space-2); margin: var(--space-4) 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-highlight-border); border-radius: var(--radius-md); color: var(--muted); font-size: var(--text-sm2); line-height: 1.6; }
+.ex-content .ex-note p { margin: 0; flex: 1; min-width: 0; font-size: inherit; white-space: normal; }
+.ex-content .ex-note b { font-weight: 400; color: var(--text); }
+.ex-content .ex-note-icon { flex-shrink: 0; margin-top: 3px; color: var(--highlight); }
+.ex-content .ex-note-error { border-color: var(--color-danger-border); }
+.ex-content .ex-note-error .ex-note-icon { color: var(--danger); }
+.ex-content .ex-note-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); align-self: center; flex-shrink: 0; }
+.ex-content .ex-note-actions .memory-item-btn { color: var(--text); border-color: var(--control-border); }
+.ex-content .ex-done { text-align: center; font-size: var(--text-xs); }
+/* The turn TODAY couldn't answer. */
+.ex-content .ex-unanswered > p { opacity: var(--opacity-mid, 0.6); }
+.ex-content .ex-unanswered > .ex-source::after { content: ' · no reply yet'; color: var(--danger); font-weight: 400; }
+/* Grouping: a second turn from the same speaker drops its label. */
+.ex-content .ex-turn-cont { margin-top: calc(-1 * var(--space-2)); }
+.ex-content .ex-turn-cont > .ex-source { display: none; }
+/* Typing: the nudge star's breath. */
+.ex-content .ex-thinking-star { display: inline-block; color: var(--accent); font-size: var(--text-md); }
+/* Jump to latest: the quiet secondary-control tokens, pinned above the composer. */
+.ex-content .ex-jump { position: sticky; bottom: var(--space-3); z-index: 2; display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) auto 0; min-height: var(--space-8); padding: var(--space-1) var(--space-3); background: var(--surface2); border: 1px solid var(--control-border); border-radius: var(--radius-lg); color: var(--text); font: var(--text-sm2)/1 var(--font-mono); cursor: pointer; }
+.ex-content .ex-jump:hover, .ex-content .ex-jump:focus-visible { border-color: var(--muted); }

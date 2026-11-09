@@ -287,11 +287,11 @@ try{
  await page.keyboard.press('Enter');await wait(()=>typeof __explorationTest.releaseWrite==='function');
  assert.ok(await page.$$eval('.ex-you',nodes=>nodes.some(node=>node.textContent.includes('OBS_FICTION'))),'The sent message renders before Dropbox acknowledges it');
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),0,'AI waits for the durable observation');
- assert.equal(await page.$$eval('.ex-thinking-dots i',nodes=>nodes.length),3,'A compact thinking state appears inline immediately');
- assert.equal(await page.evaluate(()=>document.querySelector('.ex-thinking-dots i').getAnimations().length),0,'Reduced motion has no looping dots');
+ assert.equal(await page.$$eval('.ex-thinking-star',nodes=>nodes.length),1,'A compact thinking state (the breathing star) appears inline immediately');
+ assert.equal(await page.evaluate(()=>document.querySelector('.ex-thinking-star').getAnimations().length),0,'Reduced motion holds the star still');
  await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'no-preference'}]);
  await page.evaluate(()=>{__explorationTest.holdWrite=false;__explorationTest.releaseWrite();});await wait(()=>typeof __explorationTest.release==='function');
- assert.ok(await page.evaluate(()=>document.querySelector('.ex-thinking-dots i').getAnimations().some(a=>a.playState==='running')),'Thinking uses a WAAPI loop with motion enabled');
+ assert.ok(await page.evaluate(()=>document.querySelector('.ex-thinking-star').getAnimations().some(a=>a.playState==='running')),'Thinking uses a WAAPI loop with motion enabled');
  await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'exThought','Enter retains focus while the reply is pending');
  assert.equal(await page.$('[data-ex-action="retry-ai"]'),null,'Retry appears only after a real failure');
@@ -622,14 +622,14 @@ try{
  await click('.ex-nav [data-ex-action="conversation"]');await click('[data-ex-action="retry-ai"]');await wait(()=>document.querySelector('[data-ex-reading]')&&!document.querySelector('#exThought').readOnly);
  await page.evaluate(()=>{__explorationTest.hold=true;__explorationTest.release=null;});await page.type('#exThought','A fictional project follow-up.');await send();await wait(()=>typeof __explorationTest.release==='function');
  await page.evaluate(()=>{manualTasks[0].text='Edited task after the request';Today.use('connections').renderManual();_saveMemory();});
- await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('A task used in the earlier interpretation has changed')&&!document.querySelector('#exThought').readOnly);
+ await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('relied on your task')&&!document.querySelector('#exThought').readOnly);
  const beforeEdit=await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length);
  await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});await new Promise(resolve=>setTimeout(resolve,100));
  await page.waitForFunction(()=>!document.querySelector('[data-ex-reading]'));
  assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.filter(row=>row.kind==='reading').length),beforeEdit);
  await click('#exNotes');
  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('.ex-note-section h4')].some(node=>node.textContent==='So far')),false,'Unavailable status never occupies an interpretation section');
- assert.ok(await page.$eval('#exReadingNotice',node=>node.textContent.includes('A task')&&node.textContent.includes('changed')));
+ assert.ok(await page.$eval('#exReadingNotice',node=>node.textContent.includes('your task')&&node.textContent.includes('since changed')));
  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.ex-note-section p')].some(node=>node.textContent===Today.use('exploration').document().question)),'The open question stays meaningful when the interpretation is unavailable');
  await checkLayout('unavailable-note');
  // A missing live dependency must not be presented as a missing saved document.
@@ -640,7 +640,7 @@ try{
   __explorationTest.returnTask={index,task:manualTasks.splice(index,1)[0]};Today.use('connections').renderManual();
   return {document:core.stringify(d),reply:core.latest(d).text,ai:__explorationTest.ai.length,writes:__explorationTest.uploads.length};
  });
- await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('unavailable'));
+ await wait(()=>document.querySelector('#exReadingNotice')?.textContent.includes('no longer there'));
  assert.equal(await page.$('[data-ex-action="original-history"]'),null,'No separate saved-conversation page; the withheld notice stands alone');
  assert.equal(await page.evaluate(()=>!!document.querySelector('[data-ex-reading="'+Today.use('exploration-core').latest(Today.use('exploration').document()).id+'"]')),false,'Chat withholds the unsupported reply');
  assert.deepEqual(await page.evaluate(()=>{
