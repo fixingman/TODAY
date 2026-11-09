@@ -308,6 +308,12 @@ try {
         () => parseFloat(getComputedStyle(document.getElementById('sticky-header')).opacity) < 0.2,
         { timeout: 500 }
       );
+      // Blurred chrome is out of reach: header controls are inert; capture stays usable.
+      const reach = await page.evaluate(() => ({
+        headerInert: ['#todayLogo','#habitsBtn','#infoBtn'].every(sel => !document.querySelector(sel) || !!document.querySelector(sel).closest('[inert]')),
+        captureUsable: !document.getElementById('newTask').closest('[inert]'),
+      }));
+      await expectAll('Focus keeps blurred chrome out of reach', reach);
       const on = await page.evaluate(() => {
         const hdr = document.getElementById('sticky-header');
         const bar = document.getElementById('addTaskBar');

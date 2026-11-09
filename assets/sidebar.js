@@ -105,7 +105,7 @@ function motion(cls){
   const token=generation;
   if(!root||inline()||_motionReduced())return Promise.resolve();
   root.classList.remove('entering','leaving');void root.offsetWidth;root.classList.add(cls);
-  return Promise.all(root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||'')).map(a=>a.finished.catch(()=>{}))).then(()=>{if(token===generation)root.classList.remove(cls);});
+  return Promise.all(root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeIn)/.test(a.animationName||'')).map(a=>a.finished.catch(()=>{}))).then(()=>{if(token===generation)root.classList.remove(cls);});
 }
 function sync(){Today.use('connections').syncActiveButtons();}
 function register(id,adapter){registry.set(id,adapter);}
