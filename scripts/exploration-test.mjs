@@ -324,15 +324,26 @@ try{
  await page.setViewport({width:1024,height:900});await click('.ex-nav [data-ex-action="conversation"]');
 
  // The phone keyboard must stay dismissed through pending and completed replies.
+ const desktopComposer=await page.$('#exThought');
  await page.setViewport({width:390,height:900});
+ // Media-query callbacks rebuild the composer; wait for their layout frames before native typing.
+ await waitForFonts(page);
+ assert.equal(await desktopComposer.evaluate(node=>node.isConnected),false,'The phone media callbacks replace the desktop composer before typing');
+ await desktopComposer.dispose();
  await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
  await page.evaluate(()=>{
   __explorationTest.hold=true;__explorationTest.release=null;__explorationTest.mobileFocus=[];
+  __explorationTest.mobileKeys=[];
+  __explorationTest.keyTrace=event=>{if(event.key==='Enter')__explorationTest.mobileKeys.push({key:event.key,code:event.keyCode,shift:event.shiftKey,composing:event.isComposing,repeat:event.repeat,trusted:event.isTrusted,target:event.target.id,active:document.activeElement?.id,prevented:event.defaultPrevented,focused:document.hasFocus(),readOnly:event.target.readOnly,value:event.target.value});};
+  document.addEventListener('keydown',__explorationTest.keyTrace);
   __explorationTest.restoreFocus=HTMLElement.prototype.focus;
   HTMLElement.prototype.focus=function(...args){if(this.id==='exThought')__explorationTest.mobileFocus.push(this.readOnly);return __explorationTest.restoreFocus.apply(this,args);};
  });
  try {
-  await page.type('#exThought','MOBILE_FOCUS_FICTION: a small observation.');await send();
+  await page.type('#exThought','MOBILE_FOCUS_FICTION: a small observation.');
+  assert.equal(await page.$eval('#exThought',node=>node.value),'MOBILE_FOCUS_FICTION: a small observation.','Native typing reaches the settled phone composer');
+  await send();
+  assert.ok(await page.evaluate(()=>__explorationTest.mobileKeys.some(event=>event.target==='exThought'&&event.trusted&&event.prevented&&!event.shift&&!event.composing&&!event.repeat)),'Phone Enter reaches the current composer and its submit handler');
   await wait(()=>typeof __explorationTest.release==='function');
   assert.equal(await page.evaluate(()=>document.activeElement.id==='exThought'),false,'Phone Send does not refocus its locked reply field');
   assert.equal(await page.evaluate(()=>__explorationTest.mobileFocus.some(readOnly=>readOnly)),false,'Phone pending renders never focus the readonly reply field');
@@ -340,7 +351,7 @@ try{
   await page.evaluate(()=>{__explorationTest.hold=false;__explorationTest.release();});
   await wait(()=>!document.getElementById('exThought').readOnly);
   assert.equal(await page.evaluate(()=>__explorationTest.mobileFocus.length),focused,'Phone reply completion does not reopen the dismissed keyboard');
- } finally {await page.evaluate(()=>{HTMLElement.prototype.focus=__explorationTest.restoreFocus;delete __explorationTest.restoreFocus;});}
+ } finally {await page.evaluate(()=>{document.removeEventListener('keydown',__explorationTest.keyTrace);HTMLElement.prototype.focus=__explorationTest.restoreFocus;delete __explorationTest.restoreFocus;});}
  await page.setViewport({width:1024,height:900});
  assert.deepEqual(await page.evaluate(()=>{
   const you=document.querySelector('.ex-you .ex-speaker-you'),today=document.querySelector('[data-ex-reading] .ex-speaker-logo'),prompt=document.querySelector('.ex-prompt.show');
@@ -762,5 +773,5 @@ try{
  assert.equal(await page.$('#exQuestion,input[type=file]'),null,'Unsupported native versions cannot be re-imported as a downgraded new thread');
  assert.equal(await page.evaluate(()=>__explorationTest.remote),futureBefore.remote);assert.equal(await page.evaluate(()=>__explorationTest.ai.length),futureBefore.calls);assert.equal(await page.evaluate(()=>__explorationTest.uploads.length),futureBefore.uploads);
  console.log('  ✓ Source withdrawal fences delayed AI, re-inclusion cannot revive, widths stay contained, conditional forget clears page and Dropbox; no journal in backup/storage');
-}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('sidebarRoot')?.innerHTML.slice(0,800),announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+}catch(error){console.error('Fixture state',await testPage.evaluate(()=>({focus:document.activeElement?.tagName+'#'+document.activeElement?.id,taskInput:document.getElementById('newTask')?.value,composer:{value:document.getElementById('exThought')?.value,readOnly:document.getElementById('exThought')?.readOnly},mobileKeys:window.__explorationTest?.mobileKeys,barStyle:getComputedStyle(document.getElementById('addTaskBar')).visibility,tasks:manualTasks.map(t=>t.text),root:document.getElementById('sidebarRoot')?.innerHTML.slice(0,800),announcement:document.querySelector('[role=status]')?.textContent,errors:window.__explorationTest?.uploads?.length,keys:Object.keys(localStorage)})));console.error('Page errors',errors);throw error;}finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 console.log('✓ EXPLORATION TEST PASSED');

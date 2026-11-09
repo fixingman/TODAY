@@ -48,6 +48,10 @@ export async function browserState(page) {
 }
 
 export async function openSidebar(page,id) {
+  const deadline=performance.now()+10000;
+  // Changing Puppeteer's mobile/touch mode can reload the page. Owners register
+  // before init caches DOM nodes; module presence alone cannot permit a mount.
+  await page.waitForFunction(()=>!document.body?.hasAttribute('data-booting')&&performance.getEntriesByName('today:interactive').length>0,{timeout:Math.max(1,deadline-performance.now())});
   await page.evaluate(id=>{const sb=Today.use('sidebar');if(!sb.isOpen(id))sb.open(id);},id);
-  await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').hidden&&document.querySelector('#sidebarRoot .ex-sheet-scroll'),{timeout:10000},id);
+  await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').hidden&&document.querySelector('#sidebarRoot .ex-sheet-scroll'),{timeout:Math.max(1,deadline-performance.now())},id);
 }
