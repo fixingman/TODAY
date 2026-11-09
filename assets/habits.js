@@ -10,14 +10,17 @@
     // habitEditMode remain as inline globals (wholesale-reassigned by Dropbox sync/
     // restore; read directly by drag.js, focus module, merge layer).
 
-    const desktopHistory = matchMedia('(min-width: 601px)');
     let historyObserver, historyList, historyFrame = 0;
     function _stopHistoryFit() {
       historyObserver?.disconnect();
       historyList = null;
       cancelAnimationFrame(historyFrame);
     }
-    desktopHistory.addEventListener('change', () => _fitHabitHistory());
+
+    const PLUS = '<path d="M10 4v12M4 10h12"/>';
+    const PENCIL = '<path d="m13.5 3.5 3 3M4 16l1-4L14 3a1.4 1.4 0 0 1 2 0l1 1a1.4 1.4 0 0 1 0 2l-9 9-4 1Z"/>';
+    const DONE = '<path d="m4 10 4 4 8-8"/>';
+    const _habitIcon = path => `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${path}</svg>`;
 
     function _saveHabits() {
       localStorage.setItem('today_habits',            JSON.stringify(habitsList));
@@ -102,7 +105,8 @@
             const _m = Math.floor((_diff % 3600000) / 60000);
             _ctText = _h > 0 ? `${_h}h ${_m}m left today` : `${_m}m left today`;
           }
-          _countdown.textContent = _ctText;
+          const compact = _hour < 3 ? 'by 3am' : _ctText.replace(' left today', '');
+          _countdown.innerHTML = `<span class="habit-countdown-full" aria-hidden="true">${esc(_ctText.replace(' today', ''))}</span><span class="habit-countdown-short" aria-hidden="true">${esc(compact)}</span><span class="visually-hidden">${esc(_ctText)}</span>`;
           _countdown.style.display = '';
         } else {
           _countdown.style.display = 'none';
@@ -130,12 +134,10 @@
         el.innerHTML = `
           <button type="button" class="habit-check" aria-pressed="${isDone}" aria-label="${isDone ? 'Mark incomplete' : 'Mark complete'}: ${esc(h.name)}" data-today-click="habits.toggle-done" data-habit-id="${esc(h.id)}">${CHK}</button>
           <div class="habit-body"><div class="habit-name">${esc(h.name)}${sessionBadge}</div></div>
-          <div class="habit-history">
-            <div class="habit-week" aria-hidden="true">${dots}</div>
-            <div class="habit-streak" title="${strength}% habit strength">
-              <span class="streak-label${strength >= 80 ? ' hot' : ''}">${strengthTxt}</span>
-            </div>
+          <div class="habit-streak" title="${strength}% habit strength">
+            <span class="streak-label${strength >= 80 ? ' hot' : ''}">${strengthTxt}</span>
           </div>
+          <div class="habit-history"><div class="habit-week" aria-hidden="true">${dots}</div></div>
           <span class="visually-hidden" id="habitSummary-${h.id}">${completedDays} of the last ${week.length} days complete. ${strength}% habit strength.</span>`;
         list.appendChild(el);
       });
@@ -153,9 +155,7 @@
       _fitHabitHistory();
     }
 
-    // History fills the row (Can, November 8): as many days as fit after the strength
-    // label, back to the habit's first stored day. The last 7 days stay full; older days
-    // fade. A short history shows only the days it has.
+    // History fits real stored days across the row; recent seven stay opaque.
     const DOT_STEP = 10; // 5px dot + 5px gap
     function _historyDays(count) {
       const now = _habitNow(), days = [];
@@ -175,7 +175,7 @@
       let completedDays = 0;
       const dots = days.map((d, i) => {
         const done = ds.has(d); if (done) completedDays++;
-        const fadeDays = desktopHistory.matches ? count - 7 : 14;
+        const fadeDays = count - 7;
         const opacity = i >= fadeDays ? 1 : 0.12 + (i / Math.max(1, fadeDays)) * 0.70;
         return `<span class="week-dot${done ? ' filled' : ''}${d === today ? ' is-today' : ''}" style="opacity:${opacity.toFixed(2)}"></span>`;
       }).join('');
@@ -187,14 +187,13 @@
       if (!rows.length) return;
       rows.forEach(row => {
         const h = habitsList.find(x => x.id === row.dataset.habitId); if (!h) return;
-        const history = row.querySelector('.habit-history'), end = history?.lastElementChild;
-        if (!history || !end) return;
-        const gap = parseFloat(getComputedStyle(history).columnGap) || 0;
-        if (desktopHistory.matches && !history.clientWidth) return;
-        const capacity = Math.max(1, Math.floor((history.clientWidth - end.offsetWidth - gap + 5) / DOT_STEP));
-        const count = desktopHistory.matches ? Math.min(capacity, _availableDays(h)) : 21;
+        const history = row.querySelector('.habit-history');
+        if (!history?.clientWidth) return;
+        const inset = parseFloat(getComputedStyle(history).paddingInlineEnd) || 0;
+        const capacity = Math.max(1, Math.floor((history.clientWidth - inset + 5) / DOT_STEP));
+        const count = Math.min(capacity, _availableDays(h));
         const week = row.querySelector('.habit-week');
-        week.classList.toggle('short-history', desktopHistory.matches && count < capacity);
+        week.classList.toggle('short-history', count < capacity);
         if (Number(row.dataset.visibleDays) === count) return;
         week.innerHTML = _historyDots(h, count).dots;
         row.dataset.visibleDays = String(count);
@@ -212,7 +211,8 @@
       Today.use('sidebar').open('habits');
     }
     function _mountHabits(container) {
-      container.innerHTML = `<div class="ex-sheet-head"><h2 class="config-title" id="habitsTitle" tabindex="-1">◎&#xFE0E; Habits</h2><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Habits"></button></div><div class="ex-sheet-scroll" id="habitsContent"><div class="habit-countdown" id="habitCountdown" style="display:none"></div><div class="habit-list" id="habitList" role="list" aria-label="Habits"></div><div class="habit-empty" id="habitEmpty">No habits yet</div><div class="habit-add-row" id="habitAddRow"><label class="visually-hidden" for="habitInput">Habit name</label><input class="habit-input" id="habitInput" type="text" autocomplete="off" maxlength="100" placeholder="Name the habit…" data-today-keydown="habits.input-key"><button class="habit-add-btn" data-today-click="habits.add">Add</button></div><div class="config-actions"><button class="btn-ghost" id="habitNewBtn" data-today-click="habits.new">New habit</button><button class="btn-ghost" id="habitEditBtn" data-today-click="habits.edit" style="display:none">Edit</button></div></div><div class="ex-sheet-foot"></div>`;
+      habitEditMode = false;
+      container.innerHTML = `<div class="ex-sheet-head habit-head"><h2 class="config-title" id="habitsTitle" tabindex="-1">◎&#xFE0E; Habits</h2><div class="habit-countdown" id="habitCountdown" style="display:none"></div><div class="habit-head-actions"><button type="button" class="ex-hide" id="habitNewBtn" data-today-click="habits.new" aria-label="New habit" title="New habit" aria-expanded="false" aria-controls="habitAddRow">${_habitIcon(PLUS)}</button><button type="button" class="ex-hide" id="habitEditBtn" data-today-click="habits.edit" aria-label="Edit habits" title="Edit habits" aria-pressed="false" style="display:none">${_habitIcon(PENCIL)}</button><button type="button" class="ex-hide" data-sidebar-close aria-label="Hide Habits"></button></div></div><div class="ex-sheet-scroll" id="habitsContent"><div class="habit-list" id="habitList" role="list" aria-label="Habits"></div><div class="habit-empty" id="habitEmpty">No habits yet</div><div class="habit-add-row" id="habitAddRow"><label class="visually-hidden" for="habitInput">Habit name</label><input class="habit-input" id="habitInput" type="text" autocomplete="off" maxlength="100" placeholder="Name the habit…" data-today-keydown="habits.input-key"><button class="habit-add-btn" data-today-click="habits.add">Add</button></div></div><div class="ex-sheet-foot"></div>`;
       Today.use('sidebar').setCloseIcon(container.querySelector('[data-sidebar-close]'));
       $.configPanel.classList.remove('open');
       Today.use('connections')._endConnectionsPrivacyVisit();
@@ -259,7 +259,10 @@
       }
       habitEditMode = !habitEditMode;
       const btn = document.getElementById('habitEditBtn');
-      btn.textContent = habitEditMode ? 'Done' : 'Edit';
+      btn.innerHTML = _habitIcon(habitEditMode ? DONE : PENCIL);
+      btn.setAttribute('aria-label', habitEditMode ? 'Finish editing habits' : 'Edit habits');
+      btn.title = btn.getAttribute('aria-label');
+      btn.setAttribute('aria-pressed', String(habitEditMode));
       btn.classList.toggle('active', habitEditMode);
     }
 
@@ -289,6 +292,7 @@
       });
       document.getElementById('habitAddRow').classList.remove('open');
       document.getElementById('habitNewBtn').classList.remove('active');
+      document.getElementById('habitNewBtn').setAttribute('aria-expanded', 'false');
     }
 
     function handleHabitEditKey(e) {
@@ -302,10 +306,11 @@
       const isOpen = row.classList.contains('open');
       row.classList.toggle('open', !isOpen);
       btn.classList.toggle('active', !isOpen);
+      btn.setAttribute('aria-expanded', String(!isOpen));
       if (!isOpen) {
         // Close edit mode if open — exit cleanly without re-rendering
         if (habitEditMode) toggleHabitEditMode();
-        setTimeout(() => document.getElementById('habitInput').focus(), 30);
+        setTimeout(() => document.getElementById('habitInput')?.focus(), 30);
       }
     }
 
@@ -326,6 +331,7 @@
       input.value = '';
       document.getElementById('habitAddRow').classList.remove('open');
       document.getElementById('habitNewBtn').classList.remove('active');
+      document.getElementById('habitNewBtn').setAttribute('aria-expanded', 'false');
     }
 
     // Brief neutral opacity pulse on a checkbox — the uncheck acknowledgement
@@ -499,7 +505,7 @@
       Today.use('sidebar').register('habits', {
         mount: _mountHabits,
         unmount() { _stopHistoryFit(); Today.use('connections').syncActiveButtons(); },
-        label: 'Habits', icon: '◎', order: 3,
+        label: 'Habits', icon: '◎', order: 3, mobileHost: 'habitsPanel',
       });
       Today.ui.register('click', 'habits.toggle', toggleHabits);
       Today.ui.register('click', 'habits.add', addHabit);

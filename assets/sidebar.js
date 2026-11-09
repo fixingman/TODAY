@@ -2,10 +2,21 @@
 (function () {
 'use strict';
 const phone=matchMedia('(max-width: 600px)'), registry=new Map();
-let root=null, active=null, pending=null, generation=0, closing=false, pane='sidebar', returnFocus=null, pointerX=null, hoverPane=null;
+let home=null, root=null, active=null, pending=null, generation=0, closing=false, pane='sidebar', returnFocus=null, pointerX=null, hoverPane=null;
 function getRoot(){
   root ||= document.getElementById('sidebarRoot');
+  if(!home){home=document.createComment('sidebar home');root.before(home);}
   return root;
+}
+// Only adapters with a mobileHost opt into normal page flow on phones.
+const inline=()=>phone.matches&&!!registry.get(active)?.mobileHost;
+function placeRoot(open){
+  const host=open&&inline()?document.getElementById(registry.get(active).mobileHost):null;
+  const previous=root.closest('[data-sidebar-host]');
+  if(previous&&previous!==host){previous.hidden=true;previous.classList.remove('open');}
+  if(host){host.dataset.sidebarHost='';host.hidden=false;host.classList.add('open');if(root.parentNode!==host)host.append(root);root.classList.remove('entering','leaving');Object.assign(root.style,{height:'',top:'',bottom:''});}
+  else if(root.parentNode!==home.parentNode)home.before(root);
+  root.classList.toggle('sb-inline',!!host);
 }
 function getContent(){
   let content=getRoot().querySelector('#sbContent');
@@ -15,7 +26,7 @@ function getContent(){
 function setCloseIcon(button){
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'), path=document.createElementNS(svg.namespaceURI,'path');
   for(const [name,value]of Object.entries({width:20,height:20,viewBox:'0 0 20 20',fill:'none','aria-hidden':'true',focusable:'false'}))svg.setAttribute(name,value);
-  for(const [name,value]of Object.entries({d:phone.matches?'M5 8l5 5 5-5':'M8 5l5 5-5 5',stroke:'currentColor','stroke-width':1.5,'stroke-linecap':'round','stroke-linejoin':'round'}))path.setAttribute(name,value);
+  for(const [name,value]of Object.entries({d:phone.matches?(inline()?'M5 12l5-5 5 5':'M5 8l5 5 5-5'):'M8 5l5 5-5 5',stroke:'currentColor','stroke-width':1.5,'stroke-linecap':'round','stroke-linejoin':'round'}))path.setAttribute(name,value);
   svg.append(path);button.replaceChildren(svg);
 }
 // Fit the keyboard viewport; otherwise use the sheet's CSS edges.
@@ -25,23 +36,23 @@ function fitViewport(){
   fitFrame=requestAnimationFrame(()=>{
     if(!root)return;
     const vv=window.visualViewport;
-    const keyboard=!!(active&&phone.matches&&vv&&vv.height<window.innerHeight-120);
+    const keyboard=!!(active&&phone.matches&&!inline()&&vv&&vv.height<window.innerHeight-120);
     root.style.height=keyboard?vv.height+'px':'';
     root.style.top=keyboard?vv.offsetTop+'px':'';
     root.style.bottom=keyboard?'auto':'';
-    if(keyboardWasOpen&&!keyboard&&active&&phone.matches)window.scrollTo(0,0);
+    if(keyboardWasOpen&&!keyboard&&active&&phone.matches&&!inline())window.scrollTo(0,0);
     keyboardWasOpen=keyboard;
   });
 }
 function modality(open=!!active){
-  const modal=open&&phone.matches;
+  const modal=open&&phone.matches&&!inline();
   for(const id of ['main-app','sticky-header']){const node=document.getElementById(id);if(node)node.inert=!!modal;}
   const bar=document.getElementById('addTaskBar');if(bar)bar.inert=!!modal||(open&&pane==='sidebar'&&active==='explore');
   const foot=root?.querySelector('.ex-sheet-foot');if(foot)foot.inert=open&&!modal&&pane==='tasks';
   document.body.classList.toggle('ex-task-active',open&&pane==='tasks');
   let scrim=document.getElementById('exScrim');
   if(!scrim&&open){scrim=document.createElement('div');scrim.id='exScrim';scrim.className='ex-scrim';document.body.append(scrim);}
-  if(scrim)scrim.hidden=!open||modal;
+  if(scrim)scrim.hidden=!open||phone.matches;
   if(!root)return;
   root.setAttribute('role',modal?'dialog':'complementary');
   if(modal)root.setAttribute('aria-modal','true');else root.removeAttribute('aria-modal');
@@ -61,7 +72,7 @@ function activate(next){
 // Save scroll before .ex-open clips the page; restore it on close.
 let lockedScroll=null;
 function lockPage(open){
-  const lock=open&&phone.matches;
+  const lock=open&&phone.matches&&!inline();
   if(lock&&lockedScroll===null){
     lockedScroll=window.scrollY;
     Object.assign(document.body.style,{position:'fixed',top:-lockedScroll+'px',left:'0',right:'0'});
@@ -84,14 +95,15 @@ document.addEventListener('click',event=>{
   root.querySelector('.ex-sheet-head')?.append(out);
 });
 function surface(open){
+  placeRoot(open);
   if(open)lockPage(true);
-  document.body.classList.toggle('ex-open',open);document.body.classList.remove('ex-closing');
+  document.body.classList.toggle('ex-open',open&&!inline());document.body.classList.remove('ex-closing');
   if(!open)lockPage(false);
   modality(open);fitViewport();
 }
 function motion(cls){
   const token=generation;
-  if(!root||_motionReduced())return Promise.resolve();
+  if(!root||inline()||_motionReduced())return Promise.resolve();
   root.classList.remove('entering','leaving');void root.offsetWidth;root.classList.add(cls);
   return Promise.all(root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeInPlain)/.test(a.animationName||'')).map(a=>a.finished.catch(()=>{}))).then(()=>{if(token===generation)root.classList.remove(cls);});
 }
@@ -112,18 +124,19 @@ function open(id,ctx){
   active=id;pending=null;pane='sidebar';root.hidden=false;
   root.removeAttribute('aria-labelledby');root.setAttribute('aria-label',panel.label);
   const content=getContent();content.className='';content.replaceChildren();
-  if(phone.matches&&!history.state?.sidebar)history.pushState({sidebar:true},'');
-  surface(true);panel.mount(content,ctx);root.removeAttribute('aria-busy');followPointer();
+  if(phone.matches&&!inline()&&!history.state?.sidebar)history.pushState({sidebar:true},'');
+  const scroll=inline()?window.scrollY:null;
+  surface(true);panel.mount(content,ctx);if(scroll!==null)window.scrollTo(0,scroll);root.removeAttribute('aria-busy');followPointer();
   if(!wasOpen)motion('entering');else content.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');
   sync();
 }
 function close(immediate=false){
   if(!active)return;
-  closing=true;const id=active,token=++generation,cancel=pending;if(!cancel)document.dispatchEvent(new CustomEvent('today:sidebar-unmount',{detail:getContent()}));document.body.classList.add('ex-closing');
+  closing=true;const scroll=inline()?window.scrollY:null,id=active,token=++generation,cancel=pending;if(!cancel)document.dispatchEvent(new CustomEvent('today:sidebar-unmount',{detail:getContent()}));document.body.classList.add('ex-closing');
   const finish=()=>{
     if(token!==generation)return;
     active=null;pending=null;closing=false;cancel?.();if(!cancel)registry.get(id)?.unmount?.();
-    root.hidden=true;root.replaceChildren();root.removeAttribute('aria-busy');surface(false);sync();
+    root.hidden=true;root.replaceChildren();root.removeAttribute('aria-busy');surface(false);if(scroll!==null)window.scrollTo(0,scroll);sync();
     if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});returnFocus=null;
   };
   if(immediate||cancel){finish();return Promise.resolve();}return motion('leaving').then(finish);
@@ -143,13 +156,13 @@ document.addEventListener('click',event=>{
   event.stopPropagation();close();
 },true);
 document.addEventListener('keydown',event=>{
-  if(!active||!phone.matches||event.key!=='Tab')return;
+  if(!active||!phone.matches||inline()||event.key!=='Tab')return;
   const items=[...root.querySelectorAll('button:not([disabled]),textarea,input,summary,[href]')].filter(n=>n.getClientRects().length&&!n.closest('[inert]'));
   if(!items.length)return;
   if(event.shiftKey&&document.activeElement===items[0]){event.preventDefault();items.at(-1).focus();}
   else if(!event.shiftKey&&document.activeElement===items.at(-1)){event.preventDefault();items[0].focus();}
 },true);
-phone.addEventListener('change',()=>{lockPage(!!active);modality();fitViewport();root?.querySelectorAll('[data-sidebar-close]').forEach(setCloseIcon);});
+phone.addEventListener('change',()=>{if(root)surface(!!active);root?.querySelectorAll('[data-sidebar-close]').forEach(setCloseIcon);});
 window.addEventListener('popstate',()=>{if(active&&phone.matches)close();});
 if(window.visualViewport)for(const event of ['resize','scroll'])visualViewport.addEventListener(event,fitViewport);
 Today.define('sidebar',{register,prepare,open,close,isOpen,getRoot,surface,fitViewport,motion,modality,setCloseIcon});

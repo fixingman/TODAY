@@ -42,7 +42,7 @@ try{
   assert.deepEqual(state.background,[state.surface,state.surface],label+' paints both page backings in the sidebar surface');
   return state;
  };
- for(const id of ['habits','about','memory','explore']){
+ for(const id of ['about','memory','explore']){
   if(id==='explore'){
    await page.click('#trelloBtn');
    await page.waitForSelector('#exConnections',{visible:true,timeout:10000});
@@ -67,11 +67,19 @@ try{
  // Another panel remains reachable through the existing Today header after closing.
  await openSidebar(page,'explore');await page.click('#sidebarRoot [data-ex-action="hide"]');
  await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
- await page.click('#habitsBtn');await checkPhoneShell('native Habits entry');
+ await page.click('#habitsBtn');await settleShell();
+ const inlineState=await page.evaluate(()=>({parent:document.getElementById('sidebarRoot').parentElement.id,
+  inert:document.getElementById('main-app').inert,locked:document.body.style.position,role:document.getElementById('sidebarRoot').getAttribute('role')}));
+ assert.deepEqual(inlineState,{parent:'habitsPanel',inert:false,locked:'',role:'complementary'},'Only mobile Habits uses page flow below TODAY');
+ await page.focus('#sidebarRoot .habit-check');await page.keyboard.press('Tab');
+ assert.ok(await page.evaluate(()=>!document.getElementById('sidebarRoot').contains(document.activeElement)),'Inline Habits does not trap Tab');
+ await page.evaluate(()=>Today.use('sidebar').open('about'));await checkPhoneShell('Habits to About');
+ assert.equal(await page.$eval('#habitsPanel',n=>n.hidden),true,'Changing panels unmounts the inline host');
  await page.evaluate(()=>Today.use('sidebar').close(true));
  await page.evaluate(()=>{document.getElementById('main-app').style.minHeight='2000px';scrollTo(0,280);});
  const entryScroll=await page.evaluate(()=>scrollY);assert.ok(entryScroll>0);
- await openSidebar(page,'habits');await checkPhoneShell('scrolled entry');
+ await openSidebar(page,'habits');await settleShell();
+ assert.equal(await page.evaluate(()=>scrollY),entryScroll,'Inline Habits does not lock or reset page scroll');
  await page.evaluate(()=>Today.use('sidebar').close(true));
  assert.equal(await page.evaluate(()=>scrollY),entryScroll,'Phone close restores the original task-list scroll');
  await page.evaluate(()=>{document.getElementById('main-app').style.minHeight='';scrollTo(0,0);delete visualViewport.height;delete visualViewport.offsetTop;});
@@ -85,9 +93,10 @@ try{
    await page.waitForFunction(()=>document.getElementById('sidebarRoot').getAnimations({subtree:true}).every(a=>!Number.isFinite(a.effect.getTiming().iterations)||a.playState!=='running'));
    const state=await page.evaluate(()=>{
     const panel=document.getElementById('sidebarRoot'),close=panel.querySelector('[data-sidebar-close]'),r=close.getBoundingClientRect();
-    return {noPanelNav:!panel.querySelector('.sb-panel-nav,.sb-panel-btn,[aria-label="Sections"]'),role:panel.getAttribute('role'),named:!!panel.getAttribute('aria-label'),inert:document.getElementById('main-app').inert,visible:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===close,overflow:panel.scrollWidth>panel.clientWidth+1};
+    return {noPanelNav:!panel.querySelector('.sb-panel-nav,.sb-panel-btn,[aria-label="Sections"]'),role:panel.getAttribute('role'),named:!!panel.getAttribute('aria-label'),inert:document.getElementById('main-app').inert,visible:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===close,overflow:panel.scrollWidth>panel.clientWidth+1,chevron:close.querySelector('path').getAttribute('d')};
    });
-   assert.ok(state.noPanelNav,'No panel-switching icon row at '+width+'px');assert.equal(state.role,width>600?'complementary':'dialog');assert.ok(state.named&&state.visible&&!state.overflow);assert.equal(state.inert,width<=600);
+   assert.ok(state.noPanelNav,'No panel-switching icon row at '+width+'px');assert.equal(state.role,width>600||id==='habits'?'complementary':'dialog');assert.ok(state.named&&state.visible&&!state.overflow);assert.equal(state.inert,width<=600&&id!=='habits');
+   assert.equal(state.chevron,width>600?'M8 5l5 5-5 5':id==='habits'?'M5 12l5-5 5 5':'M5 8l5 5 5-5','Only inline phone Habits collapses upward');
    if(width>600)assert.deepEqual(await page.evaluate(()=>[document.documentElement,document.body].map(node=>getComputedStyle(node).backgroundColor)),pageBacking,'Desktop panes retain the original page backing');
    await page.screenshot({path:join(root,`.context/ci-test-results/sidebar/${id}-${width}.png`)});
   }
@@ -160,7 +169,7 @@ try{
  // stays fitted while the same surface paints through the layout viewport bottom.
  for(const width of [320,390]){
   await page.setViewport({width,height:900});
-  for(const id of ['habits','about','memory','explore']){
+  for(const id of ['about','memory','explore']){
    await openSidebar(page,id);
    // Sample settled paint: a partial view fade can round premultiplied surface
    // channels down by one on Linux. Keep exact color/alpha assertions below.

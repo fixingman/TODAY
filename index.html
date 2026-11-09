@@ -3898,9 +3898,10 @@
 
   .habit {
     display: grid;
-    grid-template-columns: 18px 1fr 205px auto;
+    grid-template-columns: 18px minmax(0, 1fr) var(--space-8);
+    grid-template-areas: 'check name strength' '. history history';
     align-items: center;
-    gap: var(--space-3) var(--space-2);
+    gap: calc(var(--space-2) - var(--space-1) / 2) var(--space-2);
     padding: var(--space-3) var(--space-4);
     border-radius: var(--radius-lg);
     border: 1px solid transparent;
@@ -3937,24 +3938,39 @@
     word-break: break-word; overflow-wrap: break-word; line-height: 1.4;
   }
 
-  .habit-history { display: contents; }
-  .habit-week { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-  @media (min-width: 601px) {
-    /* History starts below the title, with the strength at the end of the fitted trail. */
-    .habit { grid-template-columns: 18px minmax(0, 1fr); grid-template-areas: 'check name' '. history'; row-gap: calc(var(--space-2) + var(--space-1) / 2); }
-    .habit-check { grid-area: check; }
-    .habit-body { grid-area: name; }
-    .habit-history { grid-area: history; display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-    .habit-week { flex: 1; min-width: 0; justify-content: space-between; }
-    .habit-week.short-history { flex: 0 1 auto; justify-content: flex-start; }
-    .habit.editing .habit-edit-input { box-sizing: border-box; }
+  .habit-check { grid-area: check; }
+  .habit-body { grid-area: name; }
+  .habit-history { grid-area: history; display: flex; align-items: center; min-width: 0; padding-inline-end: var(--space-1); }
+  .habit-week { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; justify-content: space-between; }
+  .habit-week.short-history { flex: 0 1 auto; margin-inline-start: auto; justify-content: flex-start; }
+  .habit-streak, .habit-edit-delete { grid-area: strength; justify-self: end; }
+  .habit.editing .habit-edit-input { box-sizing: border-box; }
+  .habit-head { flex-wrap: nowrap; }
+  .habit-head-actions { margin-inline-start: auto; display: flex; gap: var(--space-1); }
+  .habit-head-actions .ex-hide { margin: 0; }
+  .habit-head .habit-countdown { white-space: nowrap; letter-spacing: normal; }
+  .habit-countdown-short { display: none; }
+  @media (max-width: 600px) {
+    .habit-list { gap: calc(var(--space-1) * 1.5); }
+    .habit { padding: var(--space-2); grid-template-columns: 18px minmax(0, 1fr) 205px var(--space-8); grid-template-areas: 'check name history strength'; gap: var(--space-2); }
+    .habit-history { padding-inline-end: 0; }
+    .habit-check::after { inset: calc(-1 * var(--space-3)) calc(-1 * var(--space-2)); }
+    #habitsPanel { overflow: visible; }
+    #habitsPanel .sb-inline { position: static; width: 100%; max-width: none; height: auto; border: 0; }
+    #habitsPanel .sb-inline::before { display: none; }
+    #habitsPanel .habit-head { padding: 0 0 var(--space-2); }
+    #habitsContent { overflow: visible; padding: var(--space-3) 0 0; }
+  }
+  @media (max-width: 360px) {
+    .habit-head { gap: var(--space-1); }
+    .habit-head-actions { gap: 0; }
+    .habit-countdown-full { display: none; }
+    .habit-countdown-short { display: inline; }
   }
   @media (max-width: 480px) {
-    .week-dot:not(:nth-last-child(-n+7)) { display: none; }
+    .habit { grid-template-columns: 18px minmax(0, 1fr) 65px var(--space-8); }
     /* Tighter panel padding — gives back ~16px per side on narrow screens */
     .config-panel { padding: var(--space-3); }
-    /* Habit row: less padding, tighter column gap */
-    .habit { padding: var(--space-2); gap: var(--space-2); grid-template-columns: 18px 1fr 65px auto; }
     /* Tighter section dividers — reclaims vertical space across 3–4 boundaries */
     .panel-section { margin-top: var(--space-3); padding-top: var(--space-3); }
     .config-title { margin-bottom: var(--space-3); }
@@ -4674,14 +4690,14 @@ const DROPBOX_APP_KEY = 'e7xrc6xsw7etlqr';
 
 
 // ─ Version ─
-const DEV_HOURS     = '412h';
+const DEV_HOURS     = '414h';
 const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
+  '3.8.10': 'Habits return below TODAY on phones with compact rows, and New and Edit sit beside the heading.',
   '3.8.9': 'Desktop habits have more room for names, with fading history below and strength at the end.',
   '3.8.8': 'Small Connections cleanup after removing Dropbox’s Save button.',
-  '3.8.7': 'On phones, panels no longer show a row of section icons under the title.',
 };
 
 // Version follows CHANGELOG; smoke checks SW parity.

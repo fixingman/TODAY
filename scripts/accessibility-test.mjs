@@ -251,6 +251,7 @@ try {
   const triageModal = await page.evaluate(() => document.getElementById('triagePanel').getAttribute('aria-modal') === 'true' && document.activeElement.closest('#triageOverlay'));
   if (!triageModal) fail('triage dialog did not receive modal focus');
   await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.getElementById('triageOverlay').hidden);
 
   await page.setViewport({ width: 320, height: 800 });
   await new Promise(resolve => setTimeout(resolve, 100));
@@ -264,6 +265,20 @@ try {
   }));
   if (reflow.overflow || /maximum-scale|user-scalable/.test(reflow.viewport)) fail('320px reflow or zoom-capable viewport failed: ' + JSON.stringify(reflow));
   ok('320px reflow and browser zoom remain available');
+  await page.click('#habitsBtn');
+  await waitForFiniteMotion(page, '#habitsPanel');
+  // Audit the new panel; the visible task list retains its accepted completed-row fade.
+  await audit(page, 'mobile inline Habits passes axe', '#habitsPanel');
+  const inlineHabits = await page.evaluate(() => {
+    const panel=document.getElementById('sidebarRoot');
+    return {parent:panel.parentElement.id,modal:panel.hasAttribute('aria-modal'),
+      mainInert:document.getElementById('main-app').inert,headerInert:document.getElementById('sticky-header').inert,
+      active:Today.use('sidebar').isOpen('habits'),focus:!!window._focusUIActive,triage:document.getElementById('triagePanel').getAttribute('aria-modal')};
+  });
+  if(inlineHabits.parent!=='habitsPanel'||inlineHabits.modal||inlineHabits.mainInert||inlineHabits.headerInert||!inlineHabits.active)
+    fail('mobile Habits must leave TODAY and the task list accessible: '+JSON.stringify(inlineHabits));
+  await page.click('#habitsBtn');
+
 
   const contrast = await page.evaluate(() => {
     const css = getComputedStyle(document.documentElement);
