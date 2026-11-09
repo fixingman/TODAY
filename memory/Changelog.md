@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Explore conversation typography (app v3.8.13)
+
+Apply the reviewed speaker split: user messages keep DM Mono13.5/300 with1.85 leading and−0.02em tracking; TODAY reply text uses Bricolage Grotesque14/300 with1.75 leading, natural tracking and24px turn separation. Controls, metadata, source pages and composer remain unchanged. Self-host the original22,232-byte Latin font instance at optical size14/weight300, load it through the existing lazy Explore stylesheet and precache for offline use. The font asset allowance grows from100KiB to116KiB to accommodate this explicitly chosen new face (actual combined fonts115,648 bytes); runtime/timing/eager-script limits remain unchanged. No AI/data changes.
+
 ## Dropbox fixture readiness (engineering; application unchanged)
 
 Investigate dev42714056520 at63ead175: `dropbox-test` times out in `openPage` while opening the second isolated device, then passes on diagnostic retry; the strict gate correctly rejects it. A controlled real startup yield reproduces a missing nudge-component lookup while Dropbox exports already exist; the poller can time out even though boot and memory become ready. Guard only that expected registration gap, poll this model predicate independently of animation frames, and retain the original15-second deadline. Add a held-boot/suspended-observer regression plus boot/visibility/readiness/page-error diagnostics on failure. No sync/merge/backup implementation, timing limits or retry policy changes. Original hosted logs and controls: `.context/ci-63ead175/`. The full corrected Dropbox suite passes against isolated63ead175, including real two-device convergence. Both controls reject the broken paths while boot/memory are actually ready. Receipt: `.context/ci-63ead175/repair-receipt.json`; ongoing habit/task work stays out.

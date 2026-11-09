@@ -126,8 +126,9 @@ impossible.
 |---|---|---|
 | `--font-mono` | `'DM Mono', monospace` | Body text, task rows, timer |
 | `--font-display` | `'Syne', sans-serif` | Logo, uppercase headings and numbers, triage summary |
+| `--font-explore-reply` (Explore-scoped) | `'Bricolage Grotesque', sans-serif` | TODAY conversation replies only:14px/300,1.75 leading; self-hosted static optical size14 |
 
-Self-hosted under `/fonts/`, pre-cached by service worker. Natural-language sentences use DM Mono; Syne is for uppercase text and numbers (Rule 23). Only upright faces ship, so avoid synthetic italic.
+Self-hosted under `/fonts/`, pre-cached by service worker. Natural-language UI uses DM Mono; Explore replies use the scoped Bricolage face. Syne is for uppercase text and numbers (Rule 23). Only upright faces ship, so avoid synthetic italic.
 
 ### Sizes
 

@@ -1,13 +1,28 @@
+/* Conversation-only face: static 300 weight, optical size pinned to the approved 14px. */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('/fonts/bricolage-grotesque/bricolage-grotesque-text-14-300-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
 /* Approved exploration session, scoped to Memory's sub-view. */
-.ex-content { font-size: var(--text-task); line-height: 1.6; overflow-wrap: anywhere; }
+.ex-content { --font-explore-reply: 'Bricolage Grotesque', sans-serif; font-size: var(--text-task); line-height: 1.6; overflow-wrap: anywhere; }
 .ex-content h2:not(.config-title) { font-size: var(--text-md); font-weight: 400; margin: 0 0 var(--space-3); }
 .ex-content h3, .ex-content h4 { font-weight: 400; margin: 0 0 var(--space-2); }
 .ex-content p { margin: var(--space-2) 0; white-space: pre-wrap; }
 .ex-content .ex-muted, .ex-content .ex-status { color: var(--muted); font-size: var(--text-sm2); }
 .ex-content .ex-status:empty { display: none; }
-.ex-content .ex-turn { margin: var(--space-4) 0; }
+.ex-content .ex-turn { margin: var(--space-6) 0; }
 .ex-content .ex-you p { padding-left: var(--space-3); border-left: 2px solid var(--border); }
-.ex-content .ex-turn > p { font-size: var(--text-task); }
+.ex-content .ex-turn:not(.ex-you) > p {
+  font-family: var(--font-explore-reply); font-size: var(--text-md); font-weight: 300;
+  line-height: 1.75; letter-spacing: normal; font-synthesis: none;
+}
+.ex-content .ex-turn.ex-you > p {
+  font-family: var(--font-mono); font-size: var(--text-task); font-weight: 300;
+  line-height: 1.85; letter-spacing: -0.02em;
+}
 .ex-content .ex-resume { margin-bottom: var(--space-5); }
 .ex-content .ex-resume p { color: var(--text); font-size: var(--text-task); }
 .ex-content label { display: block; margin-bottom: var(--space-2); }

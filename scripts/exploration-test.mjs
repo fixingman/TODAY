@@ -359,6 +359,20 @@ try{
   return [you?.textContent==='You',today?.textContent==='TODAY',getComputedStyle(today).fontFamily.includes('Syne'),getComputedStyle(prompt.querySelector('p')).borderLeftWidth==='2px',parseFloat(getComputedStyle(prompt).marginBottom)>0];
  }),[true,true,true,true,true],'Speaker names remain readable and the question has its own inset grouping');
  await checkLayout('speaker-and-question');
+ // Approved split: preserve speaker/navigation/input typography; load the real reply face.
+ const typography=await page.evaluate(async()=>{
+  const faces=await document.fonts.load('300 14px "Bricolage Grotesque"');
+  const reply=getComputedStyle(document.querySelector('[data-ex-reading] > p'));
+  const user=getComputedStyle(document.querySelector('.ex-turn.ex-you > p'));
+  const label=getComputedStyle(document.querySelector('.ex-speaker-you'));
+  const input=getComputedStyle(document.getElementById('exThought'));
+  return {loaded:faces.length>0&&faces.every(face=>face.status==='loaded'),
+   reply:reply.fontFamily.includes('Bricolage Grotesque')&&reply.fontSize==='14px'&&reply.fontWeight==='300'&&reply.lineHeight==='24.5px'&&reply.letterSpacing==='normal',
+   user:user.fontFamily.includes('DM Mono')&&user.fontSize==='13.5px'&&user.fontWeight==='300'&&Math.abs(parseFloat(user.lineHeight)-24.975)<0.01&&user.letterSpacing==='-0.27px',
+   labels:label.fontFamily.includes('DM Mono'),input:input.fontFamily.includes('DM Mono')};
+ });
+ assert.deepEqual(typography,{loaded:true,reply:true,user:true,labels:true,input:true},'Real Explore replies use Bricolage14/300; user prose keeps tuned mono and controls keep their fonts');
+
  assert.ok(await page.evaluate(()=>__explorationTest.remote.includes('OBS_FICTION')));assert.equal(await page.evaluate(()=>__explorationTest.uploads.filter(row=>row.args.mode==='add').length),2);
  await click('#exNotes');await checkLayout('note');assert.equal(await page.$('#exThought'),null,'The living note replaces the conversation');await click('[data-ex-action="correct"]');await checkLayout('correct');assert.equal(await page.$('#exNotesTitle,#exThought'),null,'Correction replaces its parent');await page.$eval('#exCorrection',input=>{input.value='CORRECTION_FICTION: timing may matter.';});await click('[data-ex-action="amend"]');await wait(()=>__explorationTest.remote.includes('CORRECTION_FICTION')&&!document.querySelector('#exCorrection')&&document.querySelector('[data-ex-action="step"]'));
  assert.equal(await page.$('#exTaskNote,#exDocumentTools,[data-ex-action="task-context"]'),null,'Notes removes duplicate task snapshots and generic tools');

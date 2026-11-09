@@ -1,0 +1,9 @@
+{
+  "source": "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@14,300&display=swap",
+  "upstream": "https://github.com/ateliertriay/bricolage",
+  "license": "SIL OFL 1.1; see OFL.txt",
+  "weight": 300,
+  "opticalSize": 14,
+  "bytes": 22232,
+  "sha256": "ce917722325ce704e69edb2a8182b4d41f07b6ceca749f7a88f2175ef01b4054"
+}
