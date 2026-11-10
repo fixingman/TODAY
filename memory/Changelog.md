@@ -6,6 +6,14 @@
 
 Keep the newest20 distinct application versions across prose and release rows; move older material intact to the archive, preserving evidence and relative links. Refresh the canonical hosted receipt and point current-status notes at it. Keep deployed/installed startup follow-up and overdue product reviews open. DEV_HOURS uses Can’s confirmed estimate rather than an automatic per-release increment; the requested501h display remains a separate, unpublished app change.
 
+## Update pulse and focus sidebar lock (app v3.9.1)
+
+**BUG-161:** The CURRENT badge breath and ℹ-button pulse on new-version install stopped working in v3.7.0 when About was migrated to a lazy sidebar mount. `breatheVersionBadge()` queried `#changelogPanel .version-badge` before `_renderChangelog()` had injected it, so the IntersectionObserver was never attached. Fix: capture the `btn-icon-version` flag before removing it, run `_renderChangelog()` first, then call `breatheVersionBadge()` after the badge is in the DOM.
+
+**BUG-160:** Focus mode left the sidebar (`#sidebarRoot`) interactive — its date/section headers were unblurred, items remained clickable, and the scroll container was scrollable. Root cause: `_setFocusInert` only marked `sticky-header` and `triageBar` when focusing a main-app task; `#sidebarRoot` is a sibling of `#main-app` at the DOM root and was never reached. The `.focusing` class was also not applied to `#sidebarRoot`. Fixes: include `sidebarRoot` in the initial inert list; add/remove `.focusing` on `#sidebarRoot` symmetrically with `#sbContent`.
+
+---
+
 ## Habit daily tasks — opt-in (app v3.9.0, uncommitted)
 
 Per-habit opt-in adds a task to Today each day; checking either the task or the habit marks both done. Action wording can vary by day of week, Calendar event title, or explicit rotation. Configuration, occurrences and completion state travel in the normal private Dropbox backup under `habit_tasks_v1`.

@@ -86,12 +86,13 @@
         localStorage.setItem('sunday_nudge_seen_' + _localISO(), '1');
         _pruneLS('sunday_nudge_seen_', 'sunday_nudge_seen_' + _localISO());
       }
-      if (_ib && _ib.classList.contains('btn-icon-version')) {
+      const _newVersion = _ib?.classList.contains('btn-icon-version');
+      if (_newVersion) {
         _ib.classList.remove('btn-icon-version');
         localStorage.setItem('today_seen_version', APP_VERSION);
-        Today.use('memory').breatheVersionBadge();
       }
       _renderChangelog();
+      if (_newVersion) Today.use('memory').breatheVersionBadge();
       Today.use('platform').refreshInstall();
       container.querySelector('.dev-hours-val').textContent='⏱︎ built in '+DEV_HOURS;
       document.getElementById('aboutTitle')?.focus({ preventScroll: true });

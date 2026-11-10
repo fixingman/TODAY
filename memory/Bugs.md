@@ -21,7 +21,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 160 | 🔧 Local | Focus mode does not obscure sidebar date/section headers, allows clicks and scroll through blurred UI. | — |
+| 161 | ⏳ Verify | CURRENT badge and i-button do not pulse after an update since sidebar migration. | v3.9.1 |
+| 160 | ⏳ Verify | Focus mode does not obscure sidebar date/section headers, allows clicks and scroll through blurred UI. | v3.9.1 |
 | 159 | ⏳ Verify | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | v3.8.1 |
 | 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
 | 157 | ⏳ Verify | Opening Habits hides the task input; moving directly back over Today does not restore it. | v3.7.7 |
@@ -55,6 +56,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-161 — CURRENT badge and i-button do not pulse after an update
+
+**Report (November 10):** After installing a new version, the CURRENT badge in the About changelog no longer breathes and the i-button in the navigation no longer pulses.
+
+**Root cause:** The sidebar migration (v3.7.0) introduced `_mountAbout` as a lazy mount function. Inside it, `Today.use('memory').breatheVersionBadge()` was called (line 92) before `_renderChangelog()` (line 94), which is the function that injects the `.version-badge` element into `#changelogPanel`. `_versionBadgeBreathe` runs `document.querySelector('#changelogPanel .version-badge')` immediately on call — the element doesn't exist yet, so the function returns early. The i-button pulse (via `checkVersionNudge` + `btn-icon-version` + util.js WAAPI observer) was unaffected by this but may also be missing since the same PR, as the class gets removed before the changelog renders.
+
+**Fix (about.js):** Capture the `btn-icon-version` flag into `_newVersion` before removing it, call `_renderChangelog()` first so the badge is in the DOM, then call `breatheVersionBadge()` after.
 
 ---
 
