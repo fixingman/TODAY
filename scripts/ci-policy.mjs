@@ -248,7 +248,8 @@ export const GROUPS = {
     ],
     "dependents": [
       "nudge",
-      "connections"
+      "connections",
+      "habit-tasks"
     ]
   },
   "trello": {
@@ -408,7 +409,8 @@ export const GROUPS = {
     "dependents": [
       "focus",
       "memory",
-      "tasks", "clock"
+      "tasks", "clock",
+      "habit-tasks"
     ]
   },
   "bounce": {
