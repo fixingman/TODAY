@@ -168,7 +168,7 @@ if(process.argv[1]&&existsSync(process.argv[1])&&realpathSync(process.argv[1])==
       process.exit(result.status??1);
     } else if(mode==='merge') {
       requireValue(id===undefined,'Unexpected merge argument');
-      const input=join(dir,'ci-shards'),folders=readdirSync(input).map(name=>join(input,name));
+      const input=join(dir,'ci-shards'),folders=readdirSync(input,{withFileTypes:true}).filter(e=>e.isDirectory()).map(e=>join(input,e.name));
       const shards=folders.map(folder=>({id:read(join(folder,'shard.json')).id,report:read(join(folder,'summary.json'))}));
       const report=mergeShards(plan,shards),output=join(dir,'ci-test-results');mkdirSync(output,{recursive:true});
       for(const folder of folders) {
