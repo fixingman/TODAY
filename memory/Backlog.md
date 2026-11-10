@@ -28,7 +28,7 @@ Rows 1–3 cover current acceptance and verification. Rows 4–5 preserve the ag
 | Priority | ID | Item | State | Next action / gate |
 |---|---|---|---|---|
 | 1 | 15A / 15C / 15D / 15E / 15F | [AI quality and feedback acceptance](#15-sub-items) | Observe / iterate | Morning readings are better and pool/Sunday readings feel good; Focus Ask still needs usefulness improvement. Next Ask checkpoint: November 7 provisional; nudge-retention checkpoint: November 15. Enrichment and post-add verdicts wait for natural exposure. |
-| 2 | 15G | [Release and installed verification](#release-verification) | Verify | v3.2.2 full dev/master validation passed. Future master promotion needs its own exact-SHA proof and explicit approval. Preserve BUG-118/139 installed checks and BUG-135 deployed-performance follow-up. |
+| 2 | 15G | [Release and installed verification](#release-verification) | Verify | [Current hosted proof](../docs/ci-release-evidence.md#recorded-full-release-proof) is recorded separately from installed acceptance. Future master promotion needs its own exact-SHA proof and explicit approval. Preserve BUG-118/139 installed checks and BUG-135 deployed-performance follow-up. |
 | 3 | — | [KNOWN and PATTERNS](#memory-record-and-patterns) | Verdict due | Review the overdue November 1 KNOWN and October 27 PATTERNS checkpoints: useful returns, valued patterns and continued suppression of AI restatements. |
 | 4 | 15B | [HOW DAYS FELT personal style](#15-sub-items) | First post-v3 design; waiting on exposure | Explicitly deferred November 1. Resume design after a second qualifying insight and sufficient reaction signal; bring clarity, data density, style dimensions and possible shared principles with Focus Ask. No additional collection is approved. |
 | 5 | — | [Noticed nudge → memory trail](#memory-record-and-patterns) | Second post-v3 design; gated | After the style-design follow-up and post-v3 acceptance, decide whether accumulated deterministic observations should support interpretation nudges or an inspectable memory trail. No implementation decision yet. |
@@ -177,14 +177,14 @@ The underlying habit/context idea remains open. Preserve the actual Habits compo
 
 ### Release verification
 
-**Hosted release assurance is complete for v2.106.0:** the exact Linux dev proof covers 61 suites and all five performance runs; master verified reuse plus cheap checks. This closes the CI-efficiency rollout, not installed/account or product acceptance.
+**Current hosted release proof:** the [canonical receipt](../docs/ci-release-evidence.md#recorded-full-release-proof) identifies the published exact-SHA dev/master validation. The CI-efficiency rollout is complete; installed/account and product acceptance remain separate.
 
 **Still open:**
 
 - BUG-118: phone/desktop morning delivery, legacy rejection recovery and strip/About agreement through normal use.
 - BUG-139 (v2.106.2): deployed to dev/master (confirmed November 1). Verify the accepted About reading and vote survive completion/sync in real installed use; the fix leaves the writer unchanged.
 - BUG-135: deployed/installed startup evidence. Retain the failed local/deployed measurements; the accepted Linux release proof does not erase them or establish deployed recovery.
-- Current installed Calendar/mail relevance and other explicit account checks remain with [Bugs.md](Bugs.md) and the relevant product item. Technical source/cache/request ownership BUG-127/128 and precache BUG-136 are independently verified and archived; this does not close account relevance or normal installed experience. BUG-137 is verified fixed in v2.106.4; BUG-141 retains the v3.0.8 feedback/CI repair history; the v3.2.2 full hosted gate now passes.
+- Current installed Calendar/mail relevance and other explicit account checks remain with [Bugs.md](Bugs.md) and the relevant product item. Technical source/cache/request ownership BUG-127/128 and precache BUG-136 are independently verified and archived; this does not close account relevance or normal installed experience. BUG-137 is verified fixed in v2.106.4; BUG-141 retains the v3.0.8 feedback/CI repair history; current hosted proof is linked above.
 - Ordinary two-device sync experience remains an installed check; BUG-130's confirmed unread-revision defect is already verified/archived and is not reopened as an implementation task. Do not promise a delivery SLA or lower polling to conceal latency.
 
 Keep the normal fresh-poem/midnight and two-device zone behavior checks; their accepted technical bug fixes stay closed. The one untouched-default nudge upgrade remains bounded to 20 seconds/before noon/no real dismissal. Use the temporary content-free About → Today readout only until phone-first delivery is understood, then remove the readout and display audit events as a separate cleanup. Do not reset live caches/votes or force exposure to close a checklist.

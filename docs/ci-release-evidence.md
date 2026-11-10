@@ -4,6 +4,8 @@
 
 ## Recorded full release proof
 
+**Latest: v3.8.14** at `28e78b8162c0cdebb100b8f05e64c47a7d479945` is published on dev and master. [Full dev42719382645](https://github.com/fixingman/TODAY/actions/runs/42719382645) passed the required functional inventory and all five performance runs; [master42721036073](https://github.com/fixingman/TODAY/actions/runs/42721036073) passed after exact-commit proof verification. This receipt covers this SHA only. Preserve the earlier v3.8.13 cold-FCP failure [42717829906](https://github.com/fixingman/TODAY/actions/runs/42717829906): functional checks passed, but7,004ms exceeded7,000ms. v3.8.14 removes the duplicated icon from critical HTML without changing timing limits. Deployed/installed BUG-135 and real-use acceptance remain open. Local publishing receipt: `.context/ci-42717829906/fix/.context/publish-6h0gHL/receipt.json`.
+
 v3.4.0 at `150a66e01189ce0c1d4fbe34efc1d3aa1e323c4c` was published on dev/master. [Dev42128795111](https://github.com/fixingman/TODAY/actions/runs/42128795111) passed all62 suites with zero failures/flakes and all five performance runs; [master42129968148](https://github.com/fixingman/TODAY/actions/runs/42129968148) verified reuse and passed. This receipt applies only to that commit; newer candidates require their own evidence. Installed/account/writing acceptance remains separate. Earlier failed receipts remain retained.
 
 Earlier v3.3.3 proof at `275930b2bd88d8aa59a36d229ba0e04b6ca67e6a`: [full dev41936998954](https://github.com/fixingman/TODAY/actions/runs/41936998954) and [master41938698136](https://github.com/fixingman/TODAY/actions/runs/41938698136).

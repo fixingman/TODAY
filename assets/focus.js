@@ -527,7 +527,7 @@ window._startFocus = (function() {
     if (!on) return document.querySelectorAll('[data-focus-off]').forEach(el => set(el, false));
     const mark = el => el && !el.inert && ![row, timerEl, kbdHint].some(k => k && el.contains(k)) && set(el, true);
     const app = g('main-app'), stop = app.contains(row) ? app : g('sbContent');
-    [g('sticky-header'), g('triageBar'), ...(stop === app ? [] : app.children)].forEach(mark);
+    [g('sticky-header'), g('triageBar'), ...(stop === app ? [g('sidebarRoot')] : app.children)].forEach(mark);
     for (let n = row; n !== stop && stop?.contains(n); n = n.parentElement) [...n.parentElement.children].forEach(mark);
   }
 
@@ -637,6 +637,7 @@ window._startFocus = (function() {
 
     appEl.classList.add('focusing');
     taskEl.closest('#sbContent')?.classList.add('focusing');
+    if (!taskEl.closest('#sbContent')) document.getElementById('sidebarRoot')?.classList.add('focusing');
     taskEl.classList.add('focused');
     _setFocusInert(true, taskEl);
     taskEl.after(timerEl);
@@ -739,6 +740,7 @@ window._startFocus = (function() {
     timerEl.style.maxHeight = '';
     kbdHint.classList.remove('show');
     uiTaskEl?.closest('#sbContent')?.classList.remove('focusing');
+    document.getElementById('sidebarRoot')?.classList.remove('focusing');
     _setFocusInert(false, uiTaskEl);
     _focusResetAI(true);
     _updateBreatheOverlay(false);

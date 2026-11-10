@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 160 | 🔧 Local | Focus mode does not obscure sidebar date/section headers, allows clicks and scroll through blurred UI. | — |
 | 159 | ⏳ Verify | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | v3.8.1 |
 | 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
 | 157 | ⏳ Verify | Opening Habits hides the task input; moving directly back over Today does not restore it. | v3.7.7 |
@@ -54,6 +55,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-160 — Focus mode does not fully lock the sidebar
+
+**Report (November 10):** When focus mode is active on a main-app task, the sidebar's date/section headers are not blurred, items behind the viewport are still clickable, and the sidebar's scroll container can still be scrolled.
+
+**Root cause:** `_setFocusInert` only marked `sticky-header` and `triageBar` when the focused task is in `main-app` (`stop === app`). `#sidebarRoot` (which is a sibling of `#main-app` at the DOM root, not a child) was never added to the inert list. Separately, `focusing` was only added to `appEl` and `#sbContent` (when the task is in the sidebar), never to `#sidebarRoot` when focusing a main-app task, so the `.focusing .section-header` and `.focusing .app-date` blur CSS did not apply to sidebar elements.
+
+**Fix (focus.js):** Three changes: (1) in `_setFocusInert`, include `g('sidebarRoot')` in the initial mark list when `stop === app`, making the sidebar inert (no clicks, no scroll) during focus; (2) in `openUI`, add `focusing` class to `#sidebarRoot` when the task is in `main-app`, so blur CSS applies to sidebar headers; (3) in `closeUI`, unconditionally remove `focusing` from `#sidebarRoot` on exit, matching the existing `#sbContent` cleanup pattern.
 
 ---
 
@@ -337,9 +348,11 @@ Retain votes after recent evidence changes only when valid stored/current feelin
 
 ## BUG-135 — Startup performance exceeds release budgets
 
+**November 10 status:** the [current hosted release receipt](../docs/ci-release-evidence.md#recorded-full-release-proof) verifies the published startup/icon fix and its unchanged local-source performance gate. This does not establish recovery of the separate live Netlify first-byte failure or installed startup; retain the measurements and follow-ups below.
+
 **Cold delivery investigation, November9 (engineering, v3.8.11 unchanged):** retain the live post-release1.708s first-byte failure in `.context/release-nov9/publishing/.context/deployed-performance.json`. Its original navigation phases show15.7ms DNS,108.1ms connection establishment and1582.5ms from request start to first byte, with no service worker. Eight additional bounded browser delivery samples with page JavaScript disabled measure382–667ms and report Netlify cache misses/stale refreshes; these do not replace the failure or prove its exact server-side cause. Direct HTTP comparison confirms deployed HTML is byte-identical to the candidate, a cache hit around110ms, and normal static misses despite browser-facing no-store headers; do not infer a cache-header defect. The benchmark now captures allowlisted original-response Cache-Status, request ID, server timing and numeric CDP phases for each cold/warm visit. A deliberately1100ms delayed HTML response still breaches the unchanged1000ms limit. Browser/connector access to Netlify request logs is unavailable; precise attribution inside its delivery path remains open. No runtime/header/hosting/threshold change or fix claim. Evidence: `.context/cold-start-nov9/`.
 
-**Local v3.8.11 repair, November9:** Can authorised an optimised runtime repair after reviewing the failed deployed run. Declared public shell files now come from the complete active version cache; HTML/index aliases do not wait for a network response. Known misses use network without rewriting that installed version, and private/API/unknown resources stay uncached. Complete updates retain normal last-window activation; fresh tabs and manual refresh keep the active version until then. A real network-first worker control stalls on a held origin with a complete cache; the repaired worker loads native warm navigation/runtime with every public origin response held. Offline, partial install, API/POST and complete-update controls pass. Warm benchmark preparation explicitly requires a complete active shell and records preparation separately; original navigation phases are retained. Final verification is recorded once in `.context/ci-followup-nov9/implementation.json`. Original deployed failure and BUG-135 stay open pending publication and a successful deployed run of the repaired candidate.
+**Local v3.8.11 repair, November9:** Can authorised an optimised runtime repair after reviewing the failed deployed run. Declared public shell files now come from the complete active version cache; HTML/index aliases do not wait for a network response. Known misses use network without rewriting that installed version, and private/API/unknown resources stay uncached. Complete updates retain normal last-window activation; fresh tabs and manual refresh keep the active version until then. A real network-first worker control stalls on a held origin with a complete cache; the repaired worker loads native warm navigation/runtime with every public origin response held. Offline, partial install, API/POST and complete-update controls pass. Warm benchmark preparation explicitly requires a complete active shell and records preparation separately; original navigation phases are retained. Final verification is recorded once in `.context/ci-followup-nov9/implementation.json`. The cache repair is published; the original deployed failure and BUG-135 stay open pending a successful deployed run and installed verification of the repaired candidate.
 
 **November 9 deployed follow-up:** [42621095874](https://github.com/fixingman/TODAY/actions/runs/42621095874) on dev build v3.8.10 / `31ddcabf` fails unchanged warm FCP/LCP500ms and interactive500ms ceilings: FCP/LCP236/284/248/532/284ms; interactive222.6/264.3/224.6/520/265.5ms. All five warm runs are SW-controlled, with no recorded cold/warm long tasks or blocking. The fourth navigation TTFB is340.2ms versus37.1–51.3ms in the other four; this points to pre-response navigation/SW/network delay but does not establish its cause. Exact-commit local-source release [42614802326](https://github.com/fixingman/TODAY/actions/runs/42614802326) passes64 suites first try and all five benchmarks; warm FCP worst272ms under its4×CPU profile. Deployed check uses1×CPU, so these are distinct measurements. Preserve original JSON/logs and separately labelled diagnostic replay under `.context/ci-followup-nov9/`; no rerun, threshold, cache strategy or runtime change. BUG-135 remains open.
 
