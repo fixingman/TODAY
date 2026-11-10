@@ -19,6 +19,7 @@
 | `today_habit_completions` | JSON object | `{habitId: ['YYYY-MM-DD', ...]}` |
 | `today_habit_events` | JSON object | `{"habitId::YYYY-MM-DD": {type: 'check'|'uncheck', at: ISO}}` — LWW map preventing sync from re-checking unchecked habits (BUG-026) |
 | `today_deleted_habit_ids` | JSON array | IDs of hard-deleted habits (no current UI path — archiving uses `archived:true` on the object instead) |
+| `today_habit_tasks_v1` | JSON object | Opt-in daily task config and occurrence state (v3.9.0). Absent until at least one habit has the feature enabled. Schema: `{configs: {habitId: HabitTaskConfig}, occurrences: {"habitId::YYYY-MM-DD": HabitOccurrence}}`. **HabitTaskConfig**: `{enabled, calendarTiming, calendarTitles, actions: [{id, text, days[], keywords, minutes}], defaultId, updatedAt}`. **HabitOccurrence**: `{habitId, day, actionId, text, createdAt, updatedAt, state: 'active'|'dismissed'|'detached'|'expired', edited}`. Task IDs take the form `habit_task_<habitId>::<YYYY-MM-DD>`. Loaded lazily; presence of this key triggers lazy import of `habit-task-policy.js` and `habit-tasks.js`. |
 
 ### Zones (v5.0)
 

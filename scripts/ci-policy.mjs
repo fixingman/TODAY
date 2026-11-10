@@ -63,7 +63,9 @@ export const SUITE = [
   "focus-wording-test",
   "focus-session-unit-test",
   "insights-test",
-  "noticed-model-unit-test"
+  "noticed-model-unit-test",
+  "habit-task-policy-unit-test",
+  "habit-tasks-test"
 ];
 export const EXCLUDED = {
   "ai-test": "Requires an approved provider key and live calls.",
@@ -460,6 +462,11 @@ export const GROUPS = {
       "dreams",
       "about"
     ]
+  },
+  "habit-tasks": {
+    "files": ["assets/habit-task-policy.js", "assets/habit-tasks.js", "assets/habit-task-editor.js"],
+    "suites": ["habit-task-policy-unit-test", "habit-tasks-test"],
+    "dependents": ["habits", "tasks", "sync"]
   },
   "tooling": {
     "files": [],

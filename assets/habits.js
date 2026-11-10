@@ -248,6 +248,7 @@
           streakDiv.title     = strength + '% habit strength';
           streakDiv.innerHTML = `<span class="streak-label${strength >= 80 ? ' hot' : ''}">${strength > 0 ? strength + '%' : '—'}</span>`;
           del.replaceWith(streakDiv);
+          row.querySelector('.habit-daily-config')?.remove();
           row.classList.remove('editing');
         });
         _saveHabits();
@@ -264,6 +265,7 @@
       btn.title = btn.getAttribute('aria-label');
       btn.setAttribute('aria-pressed', String(habitEditMode));
       btn.classList.toggle('active', habitEditMode);
+      if (!habitEditMode) renderHabits();
     }
 
     function _enterHabitEditMode() {
@@ -283,6 +285,11 @@
         input.placeholder = 'Name the habit…';
         input.addEventListener('keydown', handleHabitEditKey);
         nameDiv.replaceWith(input);
+        const daily = document.createElement('div');
+        daily.className = 'habit-daily-config';
+        daily.innerHTML = '<button type="button" class="ht-button" data-today-click="habits.daily-task">Daily task</button>';
+        daily.querySelector('button').dataset.habitId = id;
+        input.parentElement.append(daily);
         const del       = document.createElement('button');
         del.className   = 'habit-edit-delete';
         del.textContent = '×';
@@ -355,6 +362,7 @@
       // Without this, a 7s background sync re-checks the habit from stale Dropbox data. (BUG-026)
       habitEvents[id + '::' + today] = { type: isNowDone ? 'check' : 'uncheck', at: new Date().toISOString() };
       _saveHabits();
+      if (Today.has('habit-tasks')) Today.use('habit-tasks').fromHabit(id, today, isNowDone);
 
       // If this habit is currently in focus mode, close the UI cleanly — same
       // transition as checking a task during focus (log session, collapse timer).
@@ -481,6 +489,7 @@
       if (!h) return;
       h.archived = true;
       _saveHabits();
+      if (Today.has('habit-tasks')) void Today.use('habit-tasks').reconcile();
       renderHabits();
       if (habitEditMode) _enterHabitEditMode();
       _archiveHabitUndo(h);
@@ -509,6 +518,11 @@
       });
       Today.ui.register('click', 'habits.toggle', toggleHabits);
       Today.ui.register('click', 'habits.add', addHabit);
+      Today.ui.register('click', 'habits.daily-task', (_event, button) => {
+        if (habitEditMode) toggleHabitEditMode();
+        const id = button.dataset.habitId;
+        _loadHabitTaskEditor().then(() => Today.use('habit-task-editor').open(id)).catch(() => {});
+      });
       Today.ui.register('click', 'habits.new', toggleHabitInput);
       Today.ui.register('click', 'habits.edit', toggleHabitEditMode);
       Today.ui.register('click', 'habits.toggle-done', (_event, button) => toggleHabitDone(button.dataset.habitId));
@@ -517,4 +531,19 @@
 
     // _getHabitDates is private (only called by renderHabits inside this module)
   };
+
+  let _habitTasksReady = null;
+  function _loadHabitTasksCore() {
+    if (!_habitTasksReady) _habitTasksReady = import('./habit-task-policy.js')
+      .then(() => import('./habit-tasks.js'))
+      .catch(err => { _habitTasksReady = null; throw err; });
+    return _habitTasksReady;
+  }
+  function _loadHabitTaskEditor() {
+    return _loadHabitTasksCore().then(() => import('./habit-task-editor.js'));
+  }
+
+  Today.ready('load', () => {
+    if (localStorage.getItem('today_habit_tasks_v1')) _loadHabitTasksCore().catch(() => {});
+  });
 })();

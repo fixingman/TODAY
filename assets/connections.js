@@ -646,6 +646,10 @@
 
     // Extract creation timestamp from manual task ID (format: manual_1234567890123)
     function _getCreatedFromId(id) {
+      if (id?.startsWith('habit_task_')) {
+        const task = [...manualTasks, ...soonTasks, ...pastTasks].find(t => t.id === id);
+        return task?.createdAt || Date.now();
+      }
       if (!id || !id.startsWith('manual_')) return Date.now();
       const ts = parseInt(id.replace('manual_', ''));
       return isNaN(ts) ? Date.now() : ts;

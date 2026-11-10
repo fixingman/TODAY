@@ -24,6 +24,8 @@
     return api;
   }
 
+  function has(name) { return components.has(name); }
+
   function dispatch(event) {
     const element = event.target instanceof Element
       ? event.target.closest(`[data-today-${event.type}]`)
@@ -60,6 +62,7 @@
   global.Today = Object.freeze({
     define,
     use,
+    has,
     ready,
     ui: Object.freeze({ register }),
   });

@@ -367,8 +367,10 @@
         } else if (decision === 'done') {
           doneCount++;
           _markDoneInTriage(t.id, t.text);
+          if (Today.has('habit-tasks')) Today.use('habit-tasks').fromTask(t, true);
         } else if (decision === 'soon') {
           soonCount++;
+          if (Today.has('habit-tasks')) Today.use('habit-tasks').detach(t);
           t.zone = 'soon';
           t.zoneChangedAt = new Date().toISOString();
           soonTasks.unshift(t);
@@ -377,6 +379,7 @@
           _memoryOnTaskLetgo(t.text, _letgoReason);
           t.zone = 'past';
           t.status = 'let_go';
+          if (Today.has('habit-tasks')) Today.use('habit-tasks').dismiss(t);
           t.zoneChangedAt = new Date().toISOString();
           pastTasks.unshift(t);
         }
@@ -681,8 +684,16 @@
       doneIds      = _triageSnapshot.doneIds;
       soonTasks    = _triageSnapshot.soonTasks;
       pastTasks    = _triageSnapshot.pastTasks;
+      // Restore check logs before calling fromTask so nextOperation reads pre-triage timestamps.
       localStorage.setItem('today_checked_ids',   _triageSnapshot.checkedIds);
       localStorage.setItem('today_unchecked_ids', _triageSnapshot.uncheckedIds);
+      for (const task of manualTasks.filter(t => t.habitTask)) {
+        const decision = triageDecisions[task.id];
+        if (['done', 'soon', 'letgo'].includes(decision) && Today.has('habit-tasks')) {
+          Today.use('habit-tasks').restore(task);
+          if (decision === 'done') Today.use('habit-tasks').fromTask(task, doneIds.has(task.id));
+        }
+      }
       _saveManual(); _saveDone(); _saveSoon(); _savePast();
       _triageSnapshot = null;
       triageDecisions = {};

@@ -117,7 +117,8 @@ window._startDayLifecycle = (function() {
           .filter(c => c.at && _localISO(new Date(c.at)) === _newDayISO2)
           .map(c => c.id)
       );
-      const doneTasks = manualTasks.filter(t => doneIds.has(t.id) && !_checkedTodayIds.has(t.id));
+      const ht = Today.has('habit-tasks') ? Today.use('habit-tasks') : null;
+      const doneTasks = manualTasks.filter(t => doneIds.has(t.id) && !_checkedTodayIds.has(t.id) && !ht?.current(t));
       doneTasks.forEach(t => {
         t.zone = 'past';
         t.status = 'done';
@@ -127,12 +128,12 @@ window._startDayLifecycle = (function() {
       if (doneTasks.length > 0) _savePast();
 
       // Remove graduated tasks from TODAY (today-checked tasks remain)
-      manualTasks = manualTasks.filter(t => !doneIds.has(t.id) || _checkedTodayIds.has(t.id));
+      manualTasks = manualTasks.filter(t => !doneIds.has(t.id) || _checkedTodayIds.has(t.id) || ht?.current(t));
       _saveManual();
 
       // Clear only manual done IDs that graduated — today-checked IDs are kept
       for (const id of [...doneIds]) {
-        if (id.startsWith('manual_') && !_checkedTodayIds.has(id)) doneIds.delete(id);
+        if (doneTasks.some(t => t.id === id)) doneIds.delete(id);
       }
       _saveDone();
 

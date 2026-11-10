@@ -10,6 +10,7 @@
   const write = (key, value) => localStorage.setItem(PREFIX + key, String(value));
   let epoch = 0, pendingAuth = null, refreshPromise = null, readPromise = null;
   let events = [], lastRead = 0, day = '', state = 'idle', timer = null;
+  let habitCache = null, habitRead = null;
 
   function dayWindow(now = new Date()) {
     const start = new Date(now); start.setHours(0, 0, 0, 0);
@@ -22,7 +23,7 @@
     return state === 'unavailable' ? 'unavailable' : 'connected';
   }
   function render() { Today.use('connections').renderConnections(); }
-  function clearEvents() { events = []; lastRead = 0; day = ''; }
+  function clearEvents() { events = []; lastRead = 0; day = ''; habitCache = null; }
   function expire() {
     write('token_expired', '1'); clearEvents(); state = 'idle'; render();
   }
@@ -154,6 +155,52 @@
       capturedAt: lastRead, windowStart: Date.parse(window.start), windowEnd: Date.parse(window.end),
       epoch, events: events.map(({ start, end }) => ({ start, end })) };
   }
+  // Separate opt-in projection: existing nudge/connection readers never acquire titles.
+  async function habitSnapshot(habitDay, titles = false) {
+    const permission = () => {
+      try {
+        const configs = JSON.parse(localStorage.getItem('today_habit_tasks_v1') || '{}').configs || {};
+        return JSON.stringify(Object.entries(configs).filter(([, c]) => c.enabled && (titles ? c.calendarTitles : c.calendarTiming)));
+      } catch { return '[]'; }
+    };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(habitDay) || permission() === '[]' || document.hidden || !navigator.onLine || connectionState() !== 'connected') return null;
+    const permitted = permission(), captured = epoch, cacheKey = habitDay + ':' + titles + ':' + permitted;
+    if (habitCache?.key === cacheKey && Date.now() - habitCache.value.capturedAt < 300000) return structuredClone(habitCache.value);
+    if (habitRead?.key === cacheKey) return habitRead.promise;
+    const valid = () => epoch === captured && permission() === permitted && !document.hidden && navigator.onLine && connectionState() === 'connected';
+    const promise = (async () => {
+      const start = new Date(habitDay + 'T03:00:00'), end = new Date(start); end.setDate(end.getDate() + 1);
+      const window = { start: start.toISOString(), end: end.toISOString() };
+      try {
+        let token = await ensureToken(); if (!token || !valid()) return null;
+        const query = new URLSearchParams({ timeMin: window.start, timeMax: window.end, singleEvents: 'true', orderBy: 'startTime', showDeleted: 'false', maxResults: '100', maxAttendees: '1',
+          fields: 'nextPageToken,items(status,eventType,start,end,transparency,attendees(self,responseStatus)' + (titles ? ',summary' : '') + ')' });
+        const collected = []; let retried = false;
+        for (let page = 0; page < 5; page++) {
+          const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?' + query;
+          let response = await fetch(url, { headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(12000), cache: 'no-store' });
+          if (response.status === 401 && !retried) {
+            retried = true; token = await ensureToken(true); if (!token || !valid()) return null;
+            response = await fetch(url, { headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(12000), cache: 'no-store' });
+          }
+          if (!valid()) return null;
+          if (response.status === 401) { expire(); return null; }
+          if (!response.ok) return null;
+          const data = await response.json(); if (!valid() || !Array.isArray(data.items)) return null;
+          collected.push(...data.items);
+          if (!data.nextPageToken) {
+            const value = { day: habitDay, capturedAt: Date.now(), events: collected.flatMap(item => normalize([item], window).map(({start, end}) => ({start, end, ...(titles ? {title: typeof item.summary === 'string' ? item.summary.slice(0, 200) : ''} : {})}))).sort((a, b) => a.start - b.start) };
+            habitCache = { key: cacheKey, value }; return structuredClone(value);
+          }
+          if (typeof data.nextPageToken !== 'string') return null;
+          query.set('pageToken', data.nextPageToken);
+        }
+      } catch { /* Routine/default selection remains available. */ }
+      return null;
+    })();
+    habitRead = { key: cacheKey, promise };
+    try { return await promise; } finally { if (habitRead?.promise === promise) habitRead = null; }
+  }
   function stopAuth() {
     if (!pendingAuth) return;
     pendingAuth.abort.abort(); clearTimeout(pendingAuth.timer);
@@ -219,5 +266,5 @@
   window.addEventListener('online', () => { if (read('refresh_token')) refresh(); });
   window.addEventListener('offline', clearEvents);
   window.addEventListener('focus', () => { if (read('refresh_token')) refresh(); });
-  Today.define('calendar', { auth, forget, init, refresh, context, timingSnapshot, connectionState, dayWindow, normalize });
+  Today.define('calendar', { auth, forget, init, refresh, context, timingSnapshot, habitSnapshot, connectionState, dayWindow, normalize });
 })();

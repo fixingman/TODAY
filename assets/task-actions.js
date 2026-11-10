@@ -115,6 +115,9 @@ window._startTaskActions = (function() {
       _setLastLocalChange();
       dropboxAutoSave();
 
+      const linkedTask = manualTasks.find(t => t.id === taskId);
+      if (Today.has('habit-tasks')) Today.use('habit-tasks').fromTask(linkedTask, doneIds.has(taskId));
+
       // Done-today count derives from today_checked_ids (set above via _addCheckedId) — no
       // separate counter to increment. See _doneTodayCount.
       if (doneIds.has(taskId)) {
@@ -486,6 +489,7 @@ window._startTaskActions = (function() {
       const deletedIds = _getDeletedIds().filter(d => d.id !== task.id);
       localStorage.setItem('today_deleted_ids', JSON.stringify(deletedIds));
 
+      if (Today.has('habit-tasks')) Today.use('habit-tasks').restore(task);
       // Re-add task
       const pos = (task._idx != null && task._idx <= manualTasks.length) ? task._idx : manualTasks.length;
       manualTasks.splice(pos, 0, task);
@@ -527,6 +531,7 @@ window._startTaskActions = (function() {
       const habit = habitsList.find(h => h.id === snapshot.id);
       if (habit) {
         habit.archived = false;
+        if (Today.has('habit-tasks')) Today.use('habit-tasks').restoreHabit(habit.id);
         Today.use('habits')._saveHabits();
         Today.use('habits').renderHabits();
         if (habitEditMode) Today.use('habits')._enterHabitEditMode();
@@ -550,6 +555,7 @@ window._startTaskActions = (function() {
         if (_deletedStack.length > 10) _deletedStack.shift();
       }
 
+      if (Today.has('habit-tasks')) Today.use('habit-tasks').dismiss(task);
       _addDeletedId(taskId); // track deletion with timestamp for union merge
       const el = document.querySelector('.task[data-taskid="' + CSS.escape(taskId) + '"]');
       if (!el) return;

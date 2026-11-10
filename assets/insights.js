@@ -253,7 +253,7 @@ function _updateReturningTasksMemory(manualArr, trelloArr) {
     if (_pastSet.has(t.id)) continue;
     let created, focusSessions;
     if (source === 'manual') {
-      if (!t.id.startsWith('manual_')) continue;
+      if (!t.id.startsWith('manual_') && !t.id.startsWith('habit_task_')) continue;
       created       = Today.use('connections')._getCreatedFromId(t.id);
       focusSessions = parseInt(t.focusSessions) || 0;
     } else {

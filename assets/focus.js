@@ -801,7 +801,7 @@ window._startFocus = (function() {
           if (closingTask) delete closingTask.dataset.ageBucket;
         }
         _markTrelloActive(closingTaskId); // persistent un-age (BUG-064)
-      } else if (_hadTime && closingTaskId.startsWith('manual_')) {
+      } else if (_hadTime && manualTasks.some(t => t.id === closingTaskId)) {
         const _mIdx = manualTasks.findIndex(t => t.id === closingTaskId);
         if (_mIdx !== -1) {
           manualTasks[_mIdx].lastActive = Date.now();

@@ -607,6 +607,7 @@
         habits:               safeJSON('today_habits',            []),
         habit_completions:    safeJSON('today_habit_completions', {}),
         habit_events:         habitEvents,
+        habit_tasks_v1:        Today.has('habit-tasks') ? Today.use('habit-tasks').read() : {},
         deleted_habit_ids:    safeJSON('today_deleted_habit_ids', []),
         // Memory — AI's learned patterns and moments
         memory:               Today.use('sync-merge').normalizePoolWording(safeJSON('today_memory', null)),
@@ -1725,6 +1726,7 @@
       if (Today.use('reflections')._reflectionMergeRemote(data)) _changed = true;
 
       updateStats();
+      if (Today.has('habit-tasks') && Today.use('habit-tasks').merge(data.habit_tasks_v1)) _changed = true;
       return _changed;
     }
 
@@ -1906,6 +1908,7 @@
           // Prevent checkNewDay() from running new-day cleanup on the next tick
           // and filtering done tasks out of the state we just restored.
           localStorage.setItem('stat_last_visit', _getAppDay());
+          if (Today.has('habit-tasks')) { Today.use('habit-tasks').merge(data.habit_tasks_v1); Today.use('habit-tasks').setReady(); }
           if (typeof checkDayNudge === 'function') checkDayNudge();
           // Re-check Sunday/habit badges too — same "init() ran before sync landed"
           // gap as the nudge: both read Dropbox-synced state (today_daily_history,
@@ -2200,6 +2203,7 @@
           // the freshest data. Running it in init() before the restore caused done
           // tasks to reappear because the Dropbox pull overwrote the cleaned state.
           applyNewDayCleanup();
+          if (Today.has('habit-tasks')) Today.use('habit-tasks').setReady();
           Today.use('connections').renderManual();
           updateStats();
 

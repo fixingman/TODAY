@@ -7,3 +7,77 @@
 }
 .ex-view-in { animation: exViewIn var(--dur-fast) var(--ease-out) both; }
 @media (prefers-reduced-motion: reduce) { .ex-view-in { animation: none; } }
+
+/* Habit daily-task setup shares the sidebar's width, surfaces and type scale. */
+.ht-editor { display: grid; gap: var(--space-6); padding: var(--space-4); font-size: var(--text-md); line-height: 1.65; min-width: 0; }
+.ht-title, .ht-section h4 { font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 500; margin: 0; overflow-wrap: anywhere; }
+.ht-help { color: var(--muted); font-size: var(--text-md); line-height: 1.65; margin: var(--space-2) 0; }
+.ht-section, .ht-actions, .ht-action, .ht-assist, .ht-field { display: grid; gap: var(--space-3); min-width: 0; }
+.ht-action { margin: 0; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.ht-action > legend { padding: 0 var(--space-2); color: var(--muted); font-size: var(--text-md); }
+.ht-field input, .ht-field textarea, .ht-field select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: var(--space-3); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--text-md); }
+.ht-field textarea { resize: vertical; }
+.ht-check { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; cursor: pointer; }
+.ht-check input, .ht-day input { accent-color: var(--accent); flex-shrink: 0; }
+.ht-button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text); font-family: var(--font-mono); font-size: var(--text-md); cursor: pointer; transition: background var(--dur-fast) var(--ease-std), border-color var(--dur-fast) var(--ease-std); }
+.ht-button:hover { background: var(--surface2); border-color: var(--muted); }
+.ht-button:disabled { opacity: 0.5; cursor: default; }
+.ht-button:focus-visible, .ht-editor summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ht-back { justify-self: start; border-color: transparent; }
+.ht-save { color: var(--accent); border-color: var(--accent); }
+.ht-footer { display: flex; justify-content: flex-end; gap: var(--space-3); }
+.ht-conditions > summary, .ht-assist > summary { min-height: 44px; cursor: pointer; align-content: center; }
+.ht-conditions[open] > summary, .ht-assist[open] > summary { margin-bottom: var(--space-3); }
+.ht-days { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0 0 var(--space-3); padding: 0; border: 0; }
+.ht-days legend { margin-bottom: var(--space-2); }
+.ht-day { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; gap: var(--space-1); cursor: pointer; }
+.ht-status { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.ht-status:empty { display: none; }
+.habit-daily-config { margin-top: var(--space-2); }
+.habit.editing .habit-body { min-width: 0; }
+.ht-editor [hidden] { display: none !important; }
+
+@media (max-width: 600px) {
+  .ht-editor input:not([type="checkbox"]):not([type="radio"]), .ht-editor textarea, .ht-editor select { font-size: var(--text-lg); }
+}
+
+/* Connections panel — rendered dynamically inside the sidebar. */
+.offline-banner { display: none; font-size: var(--text-sm); color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-focus-border); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-4); }
+.offline-banner.visible { display: block; }
+.connections-privacy-note { display: none; margin: calc(-1 * var(--space-2)) 0 var(--space-4); color: var(--muted); font-size: var(--text-sm2); line-height: 1.6; }
+.connections-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.connections-grid.stacked { grid-template-columns: 1fr; }
+.connection-card { padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-xl); display: flex; flex-direction: column; }
+.connection-card-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--space-2); }
+.connection-card-title { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 500; color: var(--text); letter-spacing: 0.04em; }
+.connection-card-hint { font-size: var(--text-xs); color: var(--muted); margin-bottom: var(--space-4); line-height: 1.5; flex: 1; }
+.connection-card .btn-primary { align-self: flex-start; }
+.connection-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-xl); margin-bottom: var(--space-2); }
+.connection-row:last-child { margin-bottom: 0; }
+.connections-grid + .connection-row { margin-top: var(--space-3); }
+.connection-row-info { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; flex: 1; }
+.connection-row-title { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 500; color: var(--text); letter-spacing: 0.04em; white-space: nowrap; }
+.connection-row-title.connected { color: var(--accent); }
+.connection-row-status { font-size: var(--text-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection-row-status.connected { color: var(--accent); }
+.connection-row-status.error { color: var(--danger); }
+.connection-row-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+.connection-row-actions .btn-sm { font-family: var(--font-mono); font-size: var(--text-xs); padding: 6px 12px; border-radius: var(--radius-md); background: none; border: 1px solid var(--border); color: var(--muted); cursor: pointer; letter-spacing: 0.04em; transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast); }
+.connection-row-actions .btn-sm:hover { border-color: var(--muted); color: var(--text); }
+.connection-row-actions .btn-sm.primary { background: var(--accent-dim); border-color: var(--accent-focus-border); color: var(--accent); }
+.connection-row-actions .btn-sm.primary:hover { background: var(--accent-hover); }
+#pwaInstallSection { margin-top: var(--space-2); }
+.connection-row-actions .btn-sm._pwa-revealed { background: none; border-color: transparent; color: var(--text); cursor: default; pointer-events: none; }
+.connection-expanded { padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-xl); margin-bottom: var(--space-2); }
+.connection-expanded-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3); }
+.connection-expanded-title { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 500; color: var(--text); letter-spacing: 0.04em; }
+.connection-expanded-status { font-size: var(--text-xs); color: var(--accent); letter-spacing: 0.04em; }
+.connection-expanded select { width: 100%; font-family: var(--font-mono); font-size: var(--text-sm); padding: var(--space-2) var(--space-3); margin-bottom: var(--space-2); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); cursor: pointer; transition: border-color var(--dur-fast); }
+.connection-expanded select:hover { border-color: var(--muted); }
+.connection-expanded select:focus { border-color: var(--highlight-ui); outline: none; }
+.connection-expanded-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.connection-expanded-actions .btn-sm { flex: 1; font-family: var(--font-mono); font-size: var(--text-xs); padding: 8px 14px; border-radius: var(--radius-md); cursor: pointer; letter-spacing: 0.04em; transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast); }
+.connection-expanded-actions .btn-sm.primary { background: var(--accent-dim); border: 1px solid var(--accent-focus-border); color: var(--accent); }
+.connection-expanded-actions .btn-sm.primary:hover { background: var(--accent-hover); }
+.connection-expanded-actions .btn-sm.ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+.connection-expanded-actions .btn-sm.ghost:hover { border-color: var(--muted); color: var(--text); }
