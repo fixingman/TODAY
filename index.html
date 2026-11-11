@@ -3038,7 +3038,7 @@
     #windowDragRegion { display:block; position:fixed; top:env(titlebar-area-y, 0px); left:env(titlebar-area-x, 0px); width:env(titlebar-area-width, 0px); height:var(--window-titlebar-height); z-index:var(--z-overlay); -webkit-app-region:drag; app-region:drag; }
     .sticky-header, body.focus-locked .sticky-header { top:var(--window-titlebar-height); }
     .section-header { top:calc(var(--sec-sticky-top) + var(--window-titlebar-height)); }
-    .ex-sheet-head { padding-top:calc(max(env(safe-area-inset-top, 0px), var(--window-titlebar-height)) + var(--space-3)); }
+    .ex-sheet { top: var(--window-titlebar-height); }
     #errorIndicator { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 8px); }
     #errorPanel { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 24px); }
   }
