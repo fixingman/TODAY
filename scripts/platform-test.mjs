@@ -261,7 +261,8 @@ try {
           draggable:getComputedStyle(drag).getPropertyValue('-webkit-app-region')==='drag',
           opaqueHeader:getComputedStyle(document.querySelector('.sticky-header')).backgroundColor===getComputedStyle(document.body).backgroundColor,
           header:header.top>=profile.height,close:close.top>=profile.height,
-          paneToTop:pane.getBoundingClientRect().top===0,
+          // BUG-162: the pane starts below the native title area so its surface does not bleed behind the controls.
+          paneBelowTitlebar:pane.getBoundingClientRect().top===profile.height,
           paneFits:pane.getBoundingClientRect().bottom===innerHeight,
           controlsMatchToday:getComputedStyle(document.body).backgroundColor===theme,
           transparentDrag:getComputedStyle(drag).backgroundColor==='rgba(0, 0, 0, 0)',
