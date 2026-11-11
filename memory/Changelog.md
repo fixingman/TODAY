@@ -6,6 +6,18 @@
 
 Keep the newest20 distinct application versions across prose and release rows; move older material intact to the archive, preserving evidence and relative links. Refresh the canonical hosted receipt and point current-status notes at it. Keep deployed/installed startup follow-up and overdue product reviews open. DEV_HOURS uses Can’s confirmed estimate rather than an automatic per-release increment; the requested501h display remains a separate, unpublished app change.
 
+## Habit daily tasks that change (app v3.10.0)
+
+Can's audit of v3.9.0: the daily task repeated the same wording because AI only drafted a fixed list at setup, the setup screen ignored tokens and hierarchy, and nothing in the list showed which habits had a task. Prototyped in `output/habit-daily/`; Can approved both modes per habit with mode-specific marks.
+
+**Two modes per habit.** *Fresh each day* (✦): the coordinator asks the connected AI once per habit per day per device for today's task, sending only the habit name, the user's note and up to 14 earlier task texts; the fallback task shows until it lands and stays if offline/unconnected. *A varied set, rotated* (list-in icon): up to 14 tasks prepared by AI (or added by hand); `choose()` skips recently used ids so the whole set rotates before repeating; the set refreshes weekly while removed wording is kept in `avoid` and excluded. No weekday scheduling in the UI (Can).
+
+**List and edit.** A monochrome mark after the habit name (`aria-label` names the mode). Edit mode keeps rename · daily task · archive; the daily-task button becomes a quiet link naming the mode.
+
+**Setup screen.** Rebuilt on tokens: switch row, mode cards (native radios), note, set chips with remove/add, three-day preview, sticky cancel/save. The per-action days/keywords/minutes fields and the "change today's action" select are gone; existing Calendar flags are preserved but no longer editable.
+
+**Tests:** policy unit (14-cap, mode defaults, rotation, AI-written merge preference); browser suite pins the page clock to its fixture day (it failed on dev once the real date passed 2026-11-10) and adds marks, fresh AI writing (request carries habit/note/earlier only) and set prepare/remove/add.
+
 ## Update pulse and focus sidebar lock (app v3.9.1)
 
 **BUG-161:** The CURRENT badge breath and ℹ-button pulse on new-version install stopped working in v3.7.0 when About was migrated to a lazy sidebar mount. `breatheVersionBadge()` queried `#changelogPanel .version-badge` before `_renderChangelog()` had injected it, so the IntersectionObserver was never attached. Fix: capture the `btn-icon-version` flag before removing it, run `_renderChangelog()` first, then call `breatheVersionBadge()` after the badge is in the DOM.

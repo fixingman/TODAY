@@ -133,7 +133,7 @@
         el.setAttribute('aria-describedby', `habitSummary-${h.id} reorderHelp`);
         el.innerHTML = `
           <button type="button" class="habit-check" aria-pressed="${isDone}" aria-label="${isDone ? 'Mark incomplete' : 'Mark complete'}: ${esc(h.name)}" data-today-click="habits.toggle-done" data-habit-id="${esc(h.id)}">${CHK}</button>
-          <div class="habit-body"><div class="habit-name">${esc(h.name)}${sessionBadge}</div></div>
+          <div class="habit-body"><div class="habit-name">${esc(h.name)}${_dailyMarkHTML(h.id)}${sessionBadge}</div></div>
           <div class="habit-streak" title="${strength}% habit strength">
             <span class="streak-label${strength >= 80 ? ' hot' : ''}">${strengthTxt}</span>
           </div>
@@ -204,6 +204,22 @@
       const dots = row.querySelectorAll('.week-dot');
       const summary = row.querySelector('.visually-hidden');
       if (summary) summary.textContent = `${row.querySelectorAll('.week-dot.filled').length} of the last ${dots.length} days complete. ${strength}% habit strength.`;
+    }
+
+    // Daily-task mark after a habit's name: ✦ written fresh each day, list-in for a varied set.
+    const DAILY_MARK = {
+      fresh: '<span class="habit-daily-star" aria-hidden="true">✦&#xFE0E;</span>',
+      set: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h8M4 10h6M4 14h5M15 8v8M12.5 13.5L15 16l2.5-2.5"/></svg>',
+    };
+    const DAILY_LABEL = { fresh: 'fresh each day', set: 'varied set' };
+    function _dailyMode(id) {
+      const c = safeJSON('today_habit_tasks_v1', {})?.configs?.[id];
+      return c?.enabled === true ? (c.mode === 'fresh' ? 'fresh' : 'set') : '';
+    }
+    function _dailyMarkHTML(id) {
+      const mode = _dailyMode(id); if (!mode) return '';
+      const label = 'Daily task, ' + DAILY_LABEL[mode];
+      return `<span class="habit-daily-mark" role="img" aria-label="${label}" title="${label}">${DAILY_MARK[mode]}</span>`;
     }
 
     function toggleHabits() {
@@ -287,7 +303,11 @@
         nameDiv.replaceWith(input);
         const daily = document.createElement('div');
         daily.className = 'habit-daily-config';
-        daily.innerHTML = '<button type="button" class="ht-button" data-today-click="habits.daily-task">Daily task</button>';
+        const mode = _dailyMode(id);
+        daily.innerHTML = '<button type="button" class="habit-daily-link" data-today-click="habits.daily-task"></button>';
+        const link = daily.firstElementChild;
+        if (mode) { link.classList.add('on'); link.insertAdjacentHTML('afterbegin', DAILY_MARK[mode]); }
+        link.append('daily task' + (mode ? ' · ' + DAILY_LABEL[mode] : ''));
         daily.querySelector('button').dataset.habitId = id;
         input.parentElement.append(daily);
         const del       = document.createElement('button');

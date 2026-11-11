@@ -75,11 +75,30 @@ browser = await puppeteer.launch({
 });
 
 /** Open a fresh page, seed localStorage, wait for boot and lazy modules. */
-async function openPage({ htSeed = HT_SEED, extraSeed = {} } = {}) {
+async function openPage({ htSeed = HT_SEED, extraSeed = {}, ai = null } = {}) {
   const page = await browser.newPage();
+  // ai: a reply object for /.netlify/functions/ai-assist; requests are recorded in window.__aiBodies.
+  if (ai) {
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      if (!req.url().includes('/.netlify/functions/ai-assist')) return req.continue();
+      const body = JSON.parse(req.postData() || '{}');
+      const reply = typeof ai === 'function' ? ai(body) : ai;
+      req.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(reply) });
+    });
+  }
   await page.setViewport({ width: 1200, height: 900 });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  // Pin the page clock to the fixture day so the suite does not depend on today's date.
+  await page.evaluateOnNewDocument(fixture => {
+    const Real = Date, offset = fixture - Real.now();
+    class FixtureDate extends Real {
+      constructor(...args) { super(...(args.length ? args : [Real.now() + offset])); }
+      static now() { return Real.now() + offset; }
+    }
+    window.Date = FixtureDate;
+  }, FIXTURE_NOW);
   await page.evaluateOnNewDocument(
     (habits, htRaw, extra) => {
       localStorage.clear();
@@ -365,6 +384,85 @@ try {
     }));
     await page.close();
     ok('editor opens from Daily task button; no overflow at 1200px or 390px; screenshots saved');
+  }
+
+  // ── 13. List marks follow each habit's mode; saving a mode updates the mark ──
+  {
+    const { page } = await openPage();
+    await page.evaluate(() => Today.use('sidebar').open('habits'));
+    await page.waitForSelector('#habitList .habit');
+    await expectAll('mark for a legacy (set) config only', await page.evaluate(() => ({
+      setMark: document.querySelector('[data-habit-id="habit_a"] .habit-daily-mark')?.getAttribute('aria-label') === 'Daily task, varied set',
+      noMark: !document.querySelector('[data-habit-id="habit_b"] .habit-daily-mark'),
+    })));
+    await page.evaluate(() => Today.use('habits').toggleHabitEditMode());
+    await expectAll('edit link names the mode', await page.evaluate(() => ({
+      a: document.querySelector('[data-habit-id="habit_a"] .habit-daily-link')?.textContent === 'daily task · varied set',
+      b: document.querySelector('[data-habit-id="habit_b"] .habit-daily-link')?.textContent === 'daily task',
+    })));
+    await page.click('[data-habit-id="habit_a"] .habit-daily-link');
+    await page.waitForSelector('.ht-editor');
+    await page.click('.ht-mode:has([value="fresh"])');
+    await page.type('#htNote', 'Twenty pages at most');
+    await page.screenshot({ path: join(SHOTS, 'editor-fresh.png') });
+    await page.click('.ht-save');
+    await page.waitForSelector('#habitList .habit');
+    await expectAll('fresh mode saved and marked', await page.evaluate(() => {
+      const c = Today.use('habit-tasks').read().configs.habit_a;
+      return { mode: c.mode === 'fresh', note: c.note === 'Twenty pages at most', kept: c.actions[0].text === 'Read for 20 minutes',
+        mark: document.querySelector('[data-habit-id="habit_a"] .habit-daily-mark')?.getAttribute('aria-label') === 'Daily task, fresh each day' };
+    }));
+    await page.close();
+    ok('list mark follows the mode (✦ fresh · list-in set); edit link names it; saving updates it');
+  }
+
+  // ── 14. Fresh each day: the AI writes today's task once, from habit/note/earlier wording only ──
+  {
+    const seed = structuredClone(HT_SEED);
+    Object.assign(seed.configs.habit_a, { mode: 'fresh', note: 'Evenings only' });
+    const { page } = await openPage({ htSeed: seed, extraSeed: { today_ai_provider: 'claude', today_ai_key_claude: 'test-key' },
+      ai: body => (globalThis.__lastAi = body, { text: 'Read one chapter before dinner' }) });
+    await page.waitForFunction(id => manualTasks.find(t => t.id === id)?.text === 'Read one chapter before dinner', { timeout: 8000 }, TASK_ID);
+    const sent = JSON.parse(globalThis.__lastAi.messages[0].content);
+    await expectAll('fresh task written by AI', await page.evaluate((id, key) => ({
+      occurrence: Today.use('habit-tasks').read().occurrences[key]?.actionId === 'ai',
+      notEdited: Today.use('habit-tasks').read().occurrences[key]?.edited === false,
+    }), TASK_ID, TASK_ID.replace('habit_task_', '')));
+    await expectAll('fresh request carries only habit, note, earlier', {
+      keys: JSON.stringify(Object.keys(sent).sort()) === '["earlier","habit","note"]',
+      habit: sent.habit === 'Morning read', note: sent.note === 'Evenings only',
+    });
+    await page.close();
+    ok('fresh mode replaces the fallback with an AI-written task; request holds habit, note and earlier wording only');
+  }
+
+  // ── 15. A varied set: prepare, remove, add your own; save keeps the set and the avoid list ──
+  {
+    const texts = ['Read a poem aloud', 'Ten pages of the novel', 'Read an essay', 'Reread a favourite chapter'];
+    const { page } = await openPage({ extraSeed: { today_ai_provider: 'claude', today_ai_key_claude: 'test-key' },
+      ai: { actions: texts.map(text => ({ text })) } });
+    await page.evaluate(() => Today.use('sidebar').open('habits'));
+    await page.evaluate(() => Today.use('habits').toggleHabitEditMode());
+    await page.click('[data-habit-id="habit_b"] .habit-daily-link');
+    await page.waitForSelector('.ht-editor');
+    await page.click('.ht-mode:has([value="set"])');
+    await page.waitForFunction(() => document.querySelectorAll('.ht-chip').length === 4, { timeout: 5000 });
+    await page.click('.ht-chip-x');
+    await page.type('[name="own"]', 'Read on the bus');
+    await page.keyboard.press('Enter');
+    await page.screenshot({ path: join(SHOTS, 'editor-set.png') });
+    const previewRows = await page.evaluate(() => [...document.querySelectorAll('.ht-row .ht-task-text')].map(n => n.textContent));
+    await page.click('.ht-save');
+    await page.waitForSelector('#habitList .habit');
+    await expectAll('set saved', await page.evaluate(() => {
+      const c = Today.use('habit-tasks').read().configs.habit_b;
+      return { mode: c.mode === 'set', count: c.actions.length === 4, own: c.actions.at(-1).text === 'Read on the bus',
+        avoid: c.avoid.includes('Read a poem aloud'), refreshed: !!c.refreshedAt,
+        mark: document.querySelector('[data-habit-id="habit_b"] .habit-daily-mark')?.getAttribute('aria-label') === 'Daily task, varied set' };
+    }));
+    await expectAll('preview shows three different days', { three: previewRows.length === 3, varied: new Set(previewRows).size === 3 });
+    await page.close();
+    ok('a varied set is prepared, trimmed and extended; preview rotates; removed wording is avoided later');
   }
 
   // ── 12. Static wiring ─────────────────────────────────────────────────────

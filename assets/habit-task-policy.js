@@ -8,14 +8,17 @@
   const taskId = (habitId, day) => 'habit_task_' + key(habitId, day);
   function config(value) {
     if (!value || !stamp(value.updatedAt) || !Array.isArray(value.actions)) return null;
-    const actions = value.actions.slice(0, 8).map((a, i) => ({
+    const actions = value.actions.slice(0, 14).map((a, i) => ({
       id: text(a.id, 100) || 'action_' + i, text: text(a.text, 500),
       days: [...new Set((Array.isArray(a.days) ? a.days : []).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))].sort(),
       keywords: text(a.keywords, 200), minutes: Math.max(0, Math.min(240, Math.floor(Number(a.minutes) || 0))),
     })).filter(a => a.text);
     if (!actions.length || new Set(actions.map(a => a.id)).size !== actions.length) return null;
     const defaultId = actions.some(a => a.id === value.defaultId) ? value.defaultId : actions[0].id;
-    return { enabled: value.enabled === true, calendarTiming: value.calendarTiming === true,
+    // fresh: AI writes each day's task (actions are the offline fallback); set: rotate actions.
+    return { enabled: value.enabled === true, mode: value.mode === 'fresh' ? 'fresh' : 'set', note: text(value.note, 1000),
+      avoid: (Array.isArray(value.avoid) ? value.avoid : []).map(v => text(v, 500)).filter(Boolean).slice(-30),
+      refreshedAt: stamp(value.refreshedAt), calendarTiming: value.calendarTiming === true,
       calendarTitles: value.calendarTitles === true, actions, defaultId, updatedAt: value.updatedAt };
   }
   function clean(value) {
@@ -41,14 +44,17 @@
       const current = a.occurrences[id];
       if (!current) { result.occurrences[id] = incoming; continue; }
       // Automatic choices are first-write-wins; explicit changes are LWW.
+      // A task the AI wrote beats an offline fallback for the same day.
       const explicitA = current.edited || current.state !== 'active', explicitB = incoming.edited || incoming.state !== 'active';
+      const wroteA = current.actionId === 'ai', wroteB = incoming.actionId === 'ai';
       result.occurrences[id] = explicitA || explicitB
         ? explicitA && explicitB ? later(current, incoming) : explicitA ? current : incoming
-        : current.createdAt < incoming.createdAt ? current : incoming.createdAt < current.createdAt ? incoming : later(current, incoming);
+        : wroteA !== wroteB ? (wroteA ? current : incoming) : current.createdAt < incoming.createdAt ? current : incoming.createdAt < current.createdAt ? incoming : later(current, incoming);
     }
     return result;
   }
-  function choose(c, day, snapshot, now = Date.now()) {
+  // recent: action ids of earlier days, newest first; the set rotates through before repeating.
+  function choose(c, day, snapshot, now = Date.now(), recent = []) {
     const weekday = new Date(day + 'T12:00:00').getDay();
     const validSnapshot = snapshot?.day === day && snapshot.capturedAt <= now && now - snapshot.capturedAt <= 300000;
     const events = validSnapshot ? snapshot.events.filter(e => e.end > now) : [];
@@ -69,7 +75,9 @@
     const candidates = c.actions.map(a => ({ a, rank: matches(a) ? 3 : a.days.includes(weekday) ? 2 : !a.days.length && !a.keywords ? 1 : 0 }))
       .filter(({a, rank}) => rank > 0 && (rank === 3 || fits(a)));
     const rank = Math.max(0, ...candidates.map(x => x.rank));
-    const pool = candidates.filter(x => x.rank === rank).map(x => x.a);
+    const ranked = candidates.filter(x => x.rank === rank).map(x => x.a);
+    const used = new Set(recent.slice(0, ranked.length - 1)), unused = ranked.filter(a => !used.has(a.id));
+    const pool = unused.length ? unused : ranked;
     let hash = 0; for (const char of day) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
     return pool.length ? pool[hash % pool.length] : c.actions.find(a => a.id === c.defaultId) || c.actions[0];
   }

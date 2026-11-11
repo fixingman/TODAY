@@ -34,9 +34,12 @@ assert.equal(config({ ...rawConfig, updatedAt: 'bad' }), null, 'invalid updatedA
 assert.equal(config({ ...rawConfig, actions: [] }), null, 'empty actions → null');
 assert.equal(config({ ...rawConfig, actions: [baseAction, baseAction] }), null, 'duplicate action IDs → null');
 
-const longActions = Array.from({ length: 9 }, (_, i) => ({ id: 'x' + i, text: 'T' + i, days: [], keywords: '' }));
+const longActions = Array.from({ length: 15 }, (_, i) => ({ id: 'x' + i, text: 'T' + i, days: [], keywords: '' }));
 const c8 = config({ ...rawConfig, actions: longActions });
-assert.equal(c8?.actions.length, 8, 'caps at 8 actions');
+assert.equal(c8?.actions.length, 14, 'caps at 14 actions (a varied set)');
+assert.equal(c.mode, 'set', 'configs without a mode keep rotating their set');
+const cf = config({ ...rawConfig, mode: 'fresh', note: '  short walks  ', avoid: ['x', 7, ''] });
+assert.equal(cf.mode, 'fresh'); assert.equal(cf.note, 'short walks'); assert.deepEqual(cf.avoid, ['x']);
 console.log('  ✓ config() validates and sanitizes action arrays');
 
 const c2 = config({ ...rawConfig, defaultId: 'nonexistent' });
@@ -140,5 +143,24 @@ assert.equal(withKeyword.id, 'yoga', 'keyword match wins over non-keyword candid
 const noMatch = choose(cfgKeyword, '2026-11-10', null, now);
 assert.equal(noMatch.id, 'base', 'falls back to default without matching snapshot');
 console.log('  ✓ choose() prefers keyword-matched action when calendar title matches');
+
+// Rotation: with recent ids supplied, the set is used up before anything repeats
+const cfgSet = config({ ...rawConfig, actions: ['a', 'b', 'c', 'd'].map(id => ({ id, text: id })) });
+const seen = []; let day = new Date('2026-11-10T12:00:00');
+for (let i = 0; i < 4; i++) {
+  const iso = day.toISOString().slice(0, 10);
+  seen.unshift(choose(cfgSet, iso, null, Date.now(), seen).id); day.setDate(day.getDate() + 1);
+}
+assert.equal(new Set(seen).size, 4, 'four days use four different actions');
+console.log('  ✓ choose() rotates through the whole set before repeating');
+
+// A task the AI wrote wins over an offline fallback for the same day
+const occ = (actionId, createdAt) => ({ habitId: 'habit_x', day: '2026-11-10', actionId, text: actionId, createdAt, updatedAt: createdAt, state: 'active', edited: false });
+const k = key('habit_x', '2026-11-10');
+const early = { configs: {}, occurrences: { [k]: occ('a1', '2026-11-10T03:00:00.000Z') } };
+const wrote = { configs: {}, occurrences: { [k]: occ('ai', '2026-11-10T03:05:00.000Z') } };
+assert.equal(merge(early, wrote).occurrences[k].actionId, 'ai');
+assert.equal(merge(wrote, early).occurrences[k].actionId, 'ai');
+console.log('  ✓ merge() keeps the AI-written task over a fallback');
 
 console.log('\n✓ HABIT TASK POLICY UNIT TEST PASSED');
