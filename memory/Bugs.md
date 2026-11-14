@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
 | 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.9.2 |
 | 164 | ⏳ Verify | A splash poem fading in just after midnight is recorded as the new day's, so the next morning shows no poem. | v3.10.1 |
 | 163 | ⏳ Verify | About left open across midnight keeps showing yesterday's poem. | v3.10.1 |
@@ -63,6 +64,14 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ---
 
+## BUG-166 — No splash poem after an overnight resume
+
+**Status:** 🚫 Rejected by Can, 2026-11-14. The day's poem is in About and the empty-list echo, and the splash shows it on the day's first full restart; that is enough.
+
+**Report (November 14):** Found while investigating BUG-164. If the phone keeps TODAY in memory overnight, coming back after midnight runs the new-day rollover but not the splash, so the poem coda waits until the app is next started from scratch.
+
+---
+
 ## BUG-165 — Add-task input stays behind keyboard on iOS PWA
 
 **Report (November 14):** On iOS in standalone PWA mode, focusing the add-task input bar does not reposition it above the software keyboard. The bar remains at its default bottom position, hidden behind the keyboard.
@@ -90,8 +99,6 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Root cause:** `renderDailyPoem()` ran only in `_mountAbout`; the new-day path (`checkNewDay` in dropbox.js) refreshed tasks, date, stats and nudge but not the poem.
 
 **Fix:** `checkNewDay` calls `Today.use('about').renderDailyPoem()` (now exported). `about-test` case 21 covers it.
-
-**Not fixing (Can, November 14):** a PWA resumed from memory after midnight shows no splash, so the poem coda waits for the day's first cold start; About and the empty-list echo already show the new poem. Accepted as is.
 
 ---
 
