@@ -51,6 +51,7 @@ if ('serviceWorker' in navigator && canRegisterSW) {
   let tapAnchor = null;
   let scrollAnchor = null;
   let anchorTimer = null;
+  let pollRaf = null;
 
   function clearScrollAnchor() {
     if (anchorTimer) clearTimeout(anchorTimer);
@@ -95,7 +96,8 @@ if ('serviceWorker' in navigator && canRegisterSW) {
 
   function resetBar() {
     if (rafId) cancelAnimationFrame(rafId);
-    rafId = null;
+    if (pollRaf) cancelAnimationFrame(pollRaf);
+    rafId = null; pollRaf = null;
     bar.style.transform = '';
     bar.style.position = '';
     bar.style.top = '';
@@ -122,6 +124,20 @@ if ('serviceWorker' in navigator && canRegisterSW) {
     bar.classList.add('keyboard-open');
     // Position above the keyboard without scrolling the input into view.
     setTimeout(positionBar, 100);
+    // Fallback: iOS PWA standalone mode may suppress vv.resize when the
+    // keyboard opens. Poll vv.height via RAF so the bar tracks the keyboard
+    // even when the resize event is not dispatched.
+    if (vv) {
+      let lastPollHeight = vv.height;
+      const deadline = performance.now() + 1500;
+      const poll = () => {
+        if (!bar.classList.contains('keyboard-open')) return;
+        if (performance.now() > deadline) return;
+        if (vv.height !== lastPollHeight) { lastPollHeight = vv.height; positionBar(); }
+        pollRaf = requestAnimationFrame(poll);
+      };
+      pollRaf = requestAnimationFrame(poll);
+    }
   });
 
   input.addEventListener('blur', () => {

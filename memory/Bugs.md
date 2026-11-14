@@ -21,8 +21,10 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.9.2 |
 | 164 | ⏳ Verify | A splash poem fading in just after midnight is recorded as the new day's, so the next morning shows no poem. | v3.10.1 |
 | 163 | ⏳ Verify | About left open across midnight keeps showing yesterday's poem. | v3.10.1 |
+| 162 | ⏳ Verify | Sidebar bleeds surface color into the WCO titlebar area on desktop PWA. | v3.9.2 |
 | 161 | ⏳ Verify | CURRENT badge and i-button do not pulse after an update since sidebar migration. | v3.9.1 |
 | 160 | ⏳ Verify | Focus mode does not obscure sidebar date/section headers, allows clicks and scroll through blurred UI. | v3.9.1 |
 | 159 | ⏳ Verify | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | v3.8.1 |
@@ -61,6 +63,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ---
 
+## BUG-165 — Add-task input stays behind keyboard on iOS PWA
+
+**Report (November 14):** On iOS in standalone PWA mode, focusing the add-task input bar does not reposition it above the software keyboard. The bar remains at its default bottom position, hidden behind the keyboard.
+
+**Root cause:** `visualViewport.resize` is suppressed in iOS 18 standalone PWA mode when the software keyboard opens. The only fallback was `setTimeout(positionBar, 100)`, but at 100ms `vv.height` has not changed yet, so `positionBar()` runs against the pre-keyboard viewport height and places the bar at the bottom of the layout viewport rather than above the keyboard.
+
+**Fix (platform.js):** Added a RAF polling loop that starts on `input.focus` and detects when `vv.height` actually decreases (keyboard open). When the height changes, `positionBar()` is called immediately. The poll runs at ~60fps for up to 1500ms and self-cancels once `keyboard-open` is removed (blur). `resetBar()` also cancels the polling RAF.
+
+---
+
 ## BUG-164 — Splash poem recorded under the wrong day around midnight
 
 **Report (November 14):** Can sees a new poem on the splash after midnight, then around midday feels About shows a different one.
@@ -80,6 +92,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Fix:** `checkNewDay` calls `Today.use('about').renderDailyPoem()` (now exported). `about-test` case 21 covers it.
 
 **Not fixed:** a PWA resumed from memory after midnight still shows no splash, so no poem coda until a cold start (Can has not chosen a remedy).
+
+---
+
+## BUG-162 — Sidebar bleeds surface color into WCO titlebar
+
+**Report (November 14):** In desktop PWA with Window Controls Overlay active, the sidebar's `.ex-sheet` element starts at `top: 0`, causing it to bleed its surface background color up into the WCO-controlled titlebar area, creating a color mismatch with the native OS titlebar chrome.
+
+**Root cause:** `.ex-sheet` had no `top` override in the WCO media query. The WCO titlebar height is exposed via `--window-titlebar-height`, but `.ex-sheet` did not consume it, so its background started at the top of the screen rather than below the titlebar.
+
+**Fix (index.html):** Added `.ex-sheet { top: var(--window-titlebar-height); }` inside the existing `@media (display-mode: window-controls-overlay)` block so the sidebar pane is pinned below the native titlebar.
 
 ---
 

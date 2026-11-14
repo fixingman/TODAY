@@ -1333,6 +1333,7 @@
     border-color: var(--muted);
   }
   .zone-header:hover .section-label { color: var(--text); }
+  #explorationEntry { display: none; }
   .zone-chevron {
     margin-left: auto;
     color: var(--muted);
@@ -4475,9 +4476,11 @@ const INTERVAL_MS   = 7000;  // background sync every 7s
 const HISTORY_SHOWN = 2;     // streak days shown in info panel
 // Current entry first; mirror in memory/Changelog.md.
 const CHANGELOG = {
-  '3.10.1': 'The day’s poem stays the same everywhere: About updates at midnight, and a poem seen just before midnight no longer hides the next morning’s.',
-  '3.10.0': 'A habit’s daily task now changes: written fresh each morning, or drawn from a varied set that rotates. A small mark after the habit shows which.',
-  '3.9.1': 'The ℹ︎ button pulses again after an update, and Focus mode properly locks the sidebar.',
+  ‘3.10.1’: ‘The day’s poem stays the same everywhere: About updates at midnight, and a poem seen just before midnight no longer hides the next morning’s.’,
+  ‘3.10.0’: ‘A habit’s daily task now changes: written fresh each morning, or drawn from a varied set that rotates. A small mark after the habit shows which.’,
+  ‘3.9.2’: ‘The add-task input now follows above the keyboard on iOS. The Explore button is hidden from the task list.’,
+  ‘3.9.1’: ‘The ℹ︎ button pulses again after an update, and Focus mode properly locks the sidebar.’,
+  ‘3.9.0’: ‘Choose a habit to add a daily action to Today, renewed at 3am. Explore pairs your words in soft mono with lighter, clearer replies.’,
 };
 
 // Version follows CHANGELOG; smoke checks SW parity.

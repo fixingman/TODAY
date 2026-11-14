@@ -22,6 +22,18 @@ Can's audit of v3.9.0: the daily task repeated the same wording because AI only 
 
 **Tests:** policy unit (14-cap, mode defaults, rotation, AI-written merge preference); browser suite pins the page clock to its fixture day (it failed on dev once the real date passed 2026-11-10) and adds marks, fresh AI writing (request carries habit/note/earlier only) and set prepare/remove/add.
 
+---
+
+## iOS keyboard positioning and explore button hide (app v3.9.2)
+
+**BUG-165:** The add-task input bar stayed behind the iOS software keyboard in standalone PWA mode because `visualViewport.resize` is suppressed on iOS 18 when the keyboard opens. The 100ms `setTimeout` fallback ran before `vv.height` had changed. Fix: added a RAF polling loop on `input.focus` that detects the `vv.height` drop and calls `positionBar()` immediately when the keyboard opens.
+
+**BUG-162:** The sidebar's `.ex-sheet` element bled its surface color into the WCO titlebar area on desktop PWA because it had no `top` override in the WCO media query. Fix: added `.ex-sheet { top: var(--window-titlebar-height); }` inside `@media (display-mode: window-controls-overlay)`.
+
+**Explore button hidden:** `#explorationEntry` (the ✦ Explore button in the task list) is now hidden via `display: none` CSS. The exploration panel remains accessible from other entry points.
+
+---
+
 ## Update pulse and focus sidebar lock (app v3.9.1)
 
 **BUG-161:** The CURRENT badge breath and ℹ-button pulse on new-version install stopped working in v3.7.0 when About was migrated to a lazy sidebar mount. `breatheVersionBadge()` queried `#changelogPanel .version-badge` before `_renderChangelog()` had injected it, so the IntersectionObserver was never attached. Fix: capture the `btn-icon-version` flag before removing it, run `_renderChangelog()` first, then call `breatheVersionBadge()` after the badge is in the DOM.

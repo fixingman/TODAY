@@ -492,6 +492,10 @@ try {
       window.scrollTo(0, beforeFocusY + 90);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const resizedTransform = bar.style.transform;
+      // Verify bar sits just above the keyboard: its bottom edge should be at
+      // the keyboard top (vv.offsetTop + vv.height) within 2px.
+      const vvp = window.visualViewport;
+      const barAboveKeyboard = Math.abs(bar.getBoundingClientRect().bottom - (vvp.offsetTop + vvp.height)) <= 2;
       const firstCorrectionY = window.scrollY;
       // WebKit can make a second focus adjustment after the first viewport frame.
       window.scrollTo(0, beforeFocusY + 45);
@@ -519,6 +523,7 @@ try {
       return {
         opened: !!firstTransform && firstTransform !== 'none',
         resized: !!resizedTransform && resizedTransform !== firstTransform,
+        barAboveKeyboard,
         reset: !bar.classList.contains('keyboard-open') && !bar.style.transform && !bar.style.position,
         noForcedScroll: scrollIntoViewCalls === 0,
         firstCorrection: Math.abs(firstCorrectionY - beforeFocusY) <= 2,
@@ -532,6 +537,7 @@ try {
     if (!result.opened || !result.resized || !result.reset || !result.noForcedScroll
       || !result.firstCorrection || !result.keyboardOpenPositionPreserved
       || !result.listPositionPreserved || !result.intentionalScrollKept
+      || !result.barAboveKeyboard
       || result.wakes !== 1 || result.swPath !== '/sw.js') {
       await fail('keyboard, bfcache, or service-worker regression', result);
     }
