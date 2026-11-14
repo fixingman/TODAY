@@ -347,6 +347,27 @@ try {
       await page.close();
     }
 
+    // BUG-160: focusing a Today task with a sidebar open locks that sidebar too —
+    // inert (no clicks or scroll) and blurred — and releases it on exit.
+    {
+      const { page, errors } = await openPage();
+      await page.evaluate(() => Today.use('sidebar').open('habits'));
+      await page.waitForFunction(() => !document.getElementById('sidebarRoot').hidden);
+      await page.click('#manualList .task-text');
+      await page.waitForFunction(() => document.querySelector('.focus-timer.open') !== null, { timeout: 3000 });
+      const during = await page.evaluate(() => {
+        const root = document.getElementById('sidebarRoot');
+        return { sidebarInert: !!root.closest('[inert]'), sidebarBlurred: root.classList.contains('focusing') };
+      });
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => !document.body.classList.contains('focus-locked'), { timeout: 3000 });
+      await page.waitForFunction(() => !document.getElementById('sidebarRoot').closest('[inert]'), { timeout: 3000 });
+      const after = await page.evaluate(() => ({ sidebarReleased: !document.getElementById('sidebarRoot').classList.contains('focusing') }));
+      await expectAll('BUG-160 sidebar locked during Focus', { ...during, ...after, noErrors: !errors.length });
+      ok('BUG-160: an open sidebar is inert and blurred during Focus on a Today task, released on exit');
+      await page.close();
+    }
+
     // BUG-151 follow-up: the header must dim before blurring. SVG reference
     // filters snap on instead of interpolating, creating a bright hazy logo.
     {

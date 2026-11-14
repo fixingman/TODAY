@@ -916,6 +916,28 @@ try {
     } finally {await contextA.close();await contextB.close();}
   }
 
+  // 22. BUG-161: opening About after an update breathes the CURRENT badge.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      Today.use('sidebar').close();
+      await new Promise(r => setTimeout(r, 400));
+      document.getElementById('infoBtn').classList.add('btn-icon-version');
+      Today.use('sidebar').open('about');
+      const badge = await new Promise(resolve => { const t0 = performance.now(); (function poll() {
+        const b = document.querySelector('#changelogPanel .version-badge');
+        if (b || performance.now() - t0 > 3000) resolve(b); else requestAnimationFrame(poll); })(); });
+      badge?.scrollIntoView({ block: 'center' });
+      const t0 = performance.now();
+      while (performance.now() - t0 < 2000 && !badge?.getAnimations().length) await new Promise(r => setTimeout(r, 50));
+      return { badge: !!badge, breathing: !!badge?.getAnimations().length,
+        flagCleared: !document.getElementById('infoBtn').classList.contains('btn-icon-version') };
+    });
+    await expectAll('CURRENT badge breathes after an update', { ...result, noErrors: errors.length === 0 });
+    ok('BUG-161: About opened after an update breathes the CURRENT badge');
+    await page.close();
+  }
+
   // 21. An About panel left open across midnight refreshes its poem at the day change.
   {
     const { page, errors } = await openPage();
