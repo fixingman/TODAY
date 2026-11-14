@@ -892,6 +892,7 @@
       Today.define('about', {
         toggleInfo,
         _poemOfTheDay,
+        renderDailyPoem,
         _onPoemTap,
         _shareDailyPoem,
         _copyToClipboard,

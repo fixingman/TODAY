@@ -6,6 +6,10 @@
 
 Keep the newest20 distinct application versions across prose and release rows; move older material intact to the archive, preserving evidence and relative links. Refresh the canonical hosted receipt and point current-status notes at it. Keep deployed/installed startup follow-up and overdue product reviews open. DEV_HOURS uses Can’s confirmed estimate rather than an automatic per-release increment; the requested501h display remains a separate, unpublished app change.
 
+## Poem stays consistent across midnight (app v3.10.1)
+
+BUG-163: an open About panel refreshes its poem at the day change. BUG-164: the splash coda records the day its poem was chosen for, so a coda fading in after midnight no longer suppresses the next morning's poem. Tests: `about-test` #21, `splash-test` midnight-crossing coda.
+
 ## Habit daily tasks that change (app v3.10.0)
 
 Can's audit of v3.9.0: the daily task repeated the same wording because AI only drafted a fixed list at setup, the setup screen ignored tokens and hierarchy, and nothing in the list showed which habits had a task. Prototyped in `output/habit-daily/`; Can approved both modes per habit with mode-specific marks.

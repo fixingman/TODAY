@@ -2000,6 +2000,8 @@
         // The header date is written once at init; a tab open across midnight would keep
         // yesterday's until a reload (BUG-097). Crossfade it to the new day here.
         if (typeof window._dateTagRefresh === 'function') window._dateTagRefresh(true);
+        // An About panel left open across midnight keeps yesterday's poem otherwise.
+        Today.use('about').renderDailyPoem();
         const _renderDay = () => {
           Today.use('connections').renderManual();
           if (_snap && typeof window._newDaySettle === 'function') window._newDaySettle(_snap);

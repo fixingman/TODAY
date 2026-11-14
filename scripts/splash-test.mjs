@@ -101,6 +101,46 @@ try {
     } finally { await context.close(); }
   }
 
+  // Opened seconds before midnight: the coda fades in after midnight, but it must
+  // record the day it showed (Friday), so Saturday's first open still gets Saturday's poem.
+  {
+    const context = await browser.createBrowserContext();
+    const page = await context.newPage();
+    await page.emulateTimezone('Europe/Istanbul');
+    await page.setViewport({ width: 1200, height: 900 });
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.evaluateOnNewDocument(() => {
+      // 23:59:58 on Friday until the test jumps the clock past midnight mid-splash.
+      const NativeDate = Date, friday = new NativeDate(2026, 10, 13, 23, 59, 58).getTime();
+      const saturday = new NativeDate(2026, 10, 14, 0, 0, 5).getTime();
+      const now = () => window.__pastMidnight ? saturday : friday;
+      window.Date = class extends NativeDate {
+        constructor(...args) { super(...(args.length ? args : [now()])); }
+        static now() { return now(); }
+      };
+      localStorage.clear();
+      localStorage.setItem('poem_splash_date', '2026-11-12');
+    });
+    try {
+      await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      // The poem is chosen (and filled in) before the typewriter ends; cross midnight now.
+      await page.waitForFunction(() => !!document.querySelector('#splash-poem .splash-poem-text')?.innerHTML.trim(), { timeout: 10000 });
+      const early = await page.evaluate(() => { window.__pastMidnight = true; return !document.getElementById('splash-poem').classList.contains('visible') && localStorage.getItem('poem_splash_date') === '2026-11-12'; });
+      if (!early) await fail('fixture crossed midnight too late to test the coda');
+      await page.waitForFunction(() => document.getElementById('splash-poem')?.classList.contains('visible'), { timeout: CODA_CEILING_MS });
+      const result = await page.evaluate(() => ({
+        crossedMidnight: _localISO() === '2026-11-14',
+        recorded: localStorage.getItem('poem_splash_date'),
+        shownIsFriday: document.querySelector('#splash-poem .poem-author').textContent === _poemForDate('2026-11-13').author,
+      }));
+      if (!result.crossedMidnight || result.recorded !== '2026-11-13' || !result.shownIsFriday)
+        await fail('a coda that fades in after midnight recorded the wrong day', result);
+      if (errors.length) await fail('uncaught JS errors in the midnight-crossing coda', errors);
+      ok('coda that crosses midnight records the day of the poem it showed');
+    } finally { await context.close(); }
+  }
+
   // ── Pass 1: no-coda path ─────────────────────────────────────────────────
   // Force poem_splash_date to today so the app skips the poem coda
   {

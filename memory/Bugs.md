@@ -21,6 +21,8 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 164 | ⏳ Verify | A splash poem fading in just after midnight is recorded as the new day's, so the next morning shows no poem. | v3.10.1 |
+| 163 | ⏳ Verify | About left open across midnight keeps showing yesterday's poem. | v3.10.1 |
 | 161 | ⏳ Verify | CURRENT badge and i-button do not pulse after an update since sidebar migration. | v3.9.1 |
 | 160 | ⏳ Verify | Focus mode does not obscure sidebar date/section headers, allows clicks and scroll through blurred UI. | v3.9.1 |
 | 159 | ⏳ Verify | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | v3.8.1 |
@@ -56,6 +58,28 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136, 138 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-164 — Splash poem recorded under the wrong day around midnight
+
+**Report (November 14):** Can sees a new poem on the splash after midnight, then around midday feels About shows a different one.
+
+**Root cause:** `splash.js` chose the poem at load (`_poemOfTheDay()`) but wrote `poem_splash_date = _localISO()` seconds later, when the coda faded in. When midnight fell in between, yesterday's poem was shown and recorded as today's; the next first open skipped the coda, so the day's real poem was first seen in About.
+
+**Fix (splash.js):** Fix the poem and its day together at decision time (`_codaPoem`, `_codaDay`); the coda shows that poem and records that day. `splash-test` holds the clock at 23:59:58 until the poem is chosen, then jumps past midnight; it fails on v3.10.0.
+
+---
+
+## BUG-163 — About keeps yesterday's poem across midnight
+
+**Report (November 14):** Found while investigating BUG-164 with a fixture clock: About open at 23:40 still showed the previous day's poem at 00:20.
+
+**Root cause:** `renderDailyPoem()` ran only in `_mountAbout`; the new-day path (`checkNewDay` in dropbox.js) refreshed tasks, date, stats and nudge but not the poem.
+
+**Fix:** `checkNewDay` calls `Today.use('about').renderDailyPoem()` (now exported). `about-test` case 21 covers it.
+
+**Not fixed:** a PWA resumed from memory after midnight still shows no splash, so no poem coda until a cold start (Can has not chosen a remedy).
 
 ---
 

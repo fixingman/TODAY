@@ -916,6 +916,23 @@ try {
     } finally {await contextA.close();await contextB.close();}
   }
 
+  // 21. An About panel left open across midnight refreshes its poem at the day change.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(async () => {
+      const before = document.querySelector('#dailyPoem .poem-author')?.textContent;
+      window._poemForDate = () => ({ text: 'A new morning line', author: 'Next Day Poet' });
+      localStorage.setItem('stat_last_visit', '2000-01-01');
+      document.dispatchEvent(new Event('visibilitychange'));
+      await new Promise(r => setTimeout(r, 100));
+      return { hadPoem: !!before, refreshed: document.querySelector('#dailyPoem .poem-author')?.textContent === 'Next Day Poet',
+        stillOpen: Today.use('sidebar').isOpen('about') };
+    });
+    await expectAll('About poem refreshes at the day change', { ...result, noErrors: errors.length === 0 });
+    ok('open About panel shows the new day\'s poem after midnight');
+    await page.close();
+  }
+
   // 19. Static wiring checks.
   {
     const indexSrc = await readFile(join(ROOT, 'index.html'), 'utf8');
