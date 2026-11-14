@@ -6,6 +6,18 @@
 
 Keep the newest20 distinct application versions across prose and release rows; move older material intact to the archive, preserving evidence and relative links. Refresh the canonical hosted receipt and point current-status notes at it. Keep deployed/installed startup follow-up and overdue product reviews open. DEV_HOURS uses Can’s confirmed estimate rather than an automatic per-release increment; the requested501h display remains a separate, unpublished app change.
 
+## iOS keyboard positioning and explore button hide (app v3.10.2)
+
+**BUG-165:** The add-task input bar stayed behind the iOS software keyboard in standalone PWA mode because `visualViewport.resize` is suppressed on iOS 18 when the keyboard opens. The 100ms `setTimeout` fallback ran before `vv.height` had changed. Fix: added a RAF polling loop on `input.focus` that detects the `vv.height` drop and calls `positionBar()` immediately when the keyboard opens.
+
+**BUG-162:** The sidebar's `.ex-sheet` element bled its surface color into the WCO titlebar area on desktop PWA because it had no `top` override in the WCO media query. Fix: added `.ex-sheet { top: var(--window-titlebar-height); }` inside `@media (display-mode: window-controls-overlay)`.
+
+**Release number:** committed as v3.9.2 with curly quotes in `CHANGELOG`, which broke the app on dev; renumbered v3.10.2 (it followed v3.10.1) and quotes restored.
+
+**Explore button hidden:** `#explorationEntry` (the ✦ Explore button in the task list) is now hidden via `display: none` CSS. The exploration panel remains accessible from other entry points.
+
+---
+
 ## Poem stays consistent across midnight (app v3.10.1)
 
 BUG-163: an open About panel refreshes its poem at the day change. BUG-164: the splash coda records the day its poem was chosen for, so a coda fading in after midnight no longer suppresses the next morning's poem. Tests: `about-test` #21, `splash-test` midnight-crossing coda.
@@ -24,15 +36,6 @@ Can's audit of v3.9.0: the daily task repeated the same wording because AI only 
 
 ---
 
-## iOS keyboard positioning and explore button hide (app v3.9.2)
-
-**BUG-165:** The add-task input bar stayed behind the iOS software keyboard in standalone PWA mode because `visualViewport.resize` is suppressed on iOS 18 when the keyboard opens. The 100ms `setTimeout` fallback ran before `vv.height` had changed. Fix: added a RAF polling loop on `input.focus` that detects the `vv.height` drop and calls `positionBar()` immediately when the keyboard opens.
-
-**BUG-162:** The sidebar's `.ex-sheet` element bled its surface color into the WCO titlebar area on desktop PWA because it had no `top` override in the WCO media query. Fix: added `.ex-sheet { top: var(--window-titlebar-height); }` inside `@media (display-mode: window-controls-overlay)`.
-
-**Explore button hidden:** `#explorationEntry` (the ✦ Explore button in the task list) is now hidden via `display: none` CSS. The exploration panel remains accessible from other entry points.
-
----
 
 ## Update pulse and focus sidebar lock (app v3.9.1)
 

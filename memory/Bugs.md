@@ -22,10 +22,10 @@ Current publication/CI evidence is maintained once in the [release contract](../
 | # | Status | Description | Reference |
 |---|---|---|---|
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
-| 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.9.2 |
+| 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.10.2 |
 | 164 | ⏳ Verify | A splash poem fading in just after midnight is recorded as the new day's, so the next morning shows no poem. | v3.10.1 |
 | 163 | ⏳ Verify | About left open across midnight keeps showing yesterday's poem. | v3.10.1 |
-| 162 | ⏳ Verify | Sidebar bleeds surface color into the WCO titlebar area on desktop PWA. | v3.9.2 |
+| 162 | ⏳ Verify | Sidebar bleeds surface color into the WCO titlebar area on desktop PWA. | v3.10.0 |
 | 161 | ⏳ Verify | CURRENT badge and i-button do not pulse after an update since sidebar migration. | v3.9.1 |
 | 160 | ⏳ Verify | Focus mode does not obscure sidebar date/section headers, allows clicks and scroll through blurred UI. | v3.9.1 |
 | 159 | ⏳ Verify | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | v3.8.1 |
