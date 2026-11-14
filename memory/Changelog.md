@@ -22,6 +22,12 @@ Keep the newest20 distinct application versions across prose and release rows; m
 
 BUG-163: an open About panel refreshes its poem at the day change. BUG-164: the splash coda records the day its poem was chosen for, so a coda fading in after midnight no longer suppresses the next morning's poem. Tests: `about-test` #21, `splash-test` midnight-crossing coda.
 
+## Habit focus survives list re-render (app v3.10.3)
+
+**BUG-167:** `renderHabits()` did `list.innerHTML = ''` to rebuild the habit list, which destroyed the focused `.habit` row and the `timerEl`/`kbdHint` inserted after it. Triggered by Dropbox sync, completing another habit, completing the focused habit's daily task, or crossing 3am. Fix: rescue `timerEl` and `kbdHint` to `document.body` before the wipe; after the rebuild, `_focusReanchorHabit(newRow)` updates `uiTaskEl`, re-adds `.focused`, reinserts the timer elements, and re-applies `_setFocusInert` on the new siblings.
+
+---
+
 ## Habit daily tasks that change (app v3.10.0)
 
 Can's audit of v3.9.0: the daily task repeated the same wording because AI only drafted a fixed list at setup, the setup screen ignored tokens and hierarchy, and nothing in the list showed which habits had a task. Prototyped in `output/habit-daily/`; Can approved both modes per habit with mode-specific marks.

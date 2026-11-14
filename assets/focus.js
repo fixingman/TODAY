@@ -870,6 +870,17 @@ window._startFocus = (function() {
 
   }
 
+  // Called by habits.js renderHabits() after it rebuilds the list, so the
+  // timer survives a re-render that happens while a habit session is active.
+  window._focusReanchorHabit = function(newEl) {
+    if (!uiTaskEl || !newEl || !newEl.isConnected) return;
+    uiTaskEl = newEl;
+    newEl.classList.add('focused');
+    newEl.after(timerEl);
+    timerEl.after(kbdHint);
+    _setFocusInert(true, newEl);
+  };
+
   window._focusExpandTimer = function() {
     if (!timerEl || !timerEl.classList.contains('open')) return;
     timerEl.style.maxHeight = timerEl.scrollHeight + 'px';

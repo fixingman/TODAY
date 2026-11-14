@@ -113,6 +113,14 @@
         }
       }
 
+      // Rescue focus timer before wiping the list so an active habit session
+      // survives the re-render.
+      const _focusedHabitId = list.querySelector('.habit.focused')?.dataset.habitId;
+      const _fTimer = _focusedHabitId ? document.querySelector('.focus-timer') : null;
+      const _fHint  = _focusedHabitId ? document.querySelector('.focus-kbd-hint') : null;
+      if (_fTimer) document.body.appendChild(_fTimer);
+      if (_fHint)  document.body.appendChild(_fHint);
+
       list.innerHTML = '';
       const CHK = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none" aria-hidden="true" focusable="false"><path d="M1 4L3.5 6.5L9 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       activeHabits.forEach(h => {
@@ -141,6 +149,11 @@
           <span class="visually-hidden" id="habitSummary-${h.id}">${completedDays} of the last ${week.length} days complete. ${strength}% habit strength.</span>`;
         list.appendChild(el);
       });
+      // Re-anchor focus timer to the refreshed habit row.
+      if (_focusedHabitId && window._focusReanchorHabit) {
+        const _newRow = list.querySelector(`.habit[data-habit-id="${CSS.escape(_focusedHabitId)}"]`);
+        if (_newRow) window._focusReanchorHabit(_newRow);
+      }
       if (historyList !== list) {
         _stopHistoryFit();
         historyList = list;

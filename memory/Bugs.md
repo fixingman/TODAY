@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 167 | ⏳ Verify | Habit focus loses the timer and focused row after renderHabits() wipes the list (sync, completion, day change). | v3.10.3 |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
 | 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.10.2 |
 | 162 | ⏳ Verify | Sidebar bleeds surface color into the WCO titlebar area on desktop PWA. | v3.10.0 |
@@ -52,6 +53,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Status:** 🚫 Rejected by Can, 2026-11-14. The day's poem is in About and the empty-list echo, and the splash shows it on the day's first full restart; that is enough.
 
 **Report (November 14):** Found while investigating BUG-164. If the phone keeps TODAY in memory overnight, coming back after midnight runs the new-day rollover but not the splash, so the poem coda waits until the app is next started from scratch.
+
+---
+
+## BUG-167 — Habit focus loses timer and focused row on re-render
+
+**Report (November 14):** While a habit is focused, the focus timer and the habit row content can disappear. The focused task itself vanishes from the DOM.
+
+**Root cause:** `renderHabits()` in habits.js does `list.innerHTML = ''` to rebuild the habit list. This destroys all child elements including the focused `.habit` row and the `timerEl` / `kbdHint` that `openUI` inserted after it via `taskEl.after(timerEl)`. Triggered by: sync from Dropbox, completing another habit, completing the focused habit's linked task, or the day changing at 3am.
+
+**Fix (habits.js + focus.js):** Before `list.innerHTML = ''`, if a focused habit is in the list, `timerEl` and `kbdHint` are moved to `document.body`. After the list is rebuilt, `window._focusReanchorHabit(newRow)` updates `uiTaskEl`, adds `.focused` to the fresh row, reinserts the timer elements, and re-applies `_setFocusInert` on the new siblings.
 
 ---
 
