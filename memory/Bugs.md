@@ -91,7 +91,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 **Fix:** `checkNewDay` calls `Today.use('about').renderDailyPoem()` (now exported). `about-test` case 21 covers it.
 
-**Not fixed:** a PWA resumed from memory after midnight still shows no splash, so no poem coda until a cold start (Can has not chosen a remedy).
+**Not fixing (Can, November 14):** a PWA resumed from memory after midnight shows no splash, so the poem coda waits for the day's first cold start; About and the empty-list echo already show the new poem. Accepted as is.
 
 ---
 
