@@ -471,14 +471,16 @@ try {
         await page.$eval(target,node=>scrollBy(0,node.getBoundingClientRect().top-(innerHeight-180)));
         await page.click(target);
         await page.keyboard.press('Escape');
-        await page.evaluate(()=>{window.__closingHeaderPaint=Promise.all(document.getElementById('sticky-header').getAnimations().map(a=>a.finished.catch(()=>{})));});
+        // Where the exit restores the scroll decides whether the logo is off screen at re-entry
+        // (1280px: fully above) or partly visible (1024px docked: header 24px above the top). Off-screen
+        // chrome must stay unpainted; visible chrome must not move (BUG-151). Both are the real invariant.
+        const beforeLogo=await page.evaluate(()=>{window.__closingHeaderPaint=Promise.all(document.getElementById('sticky-header').getAnimations().map(a=>a.finished.catch(()=>{})));return document.getElementById('todayLogo').getBoundingClientRect().bottom;});
         await page.click(target);
         await page.evaluate(async()=>{await __closingHeaderPaint;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));});
-        await expectAll('An older exit cannot expose the new Focus header',await page.evaluate(()=>({
-          locked:document.body.classList.contains('focus-locked'),
-          outside:document.getElementById('todayLogo').getBoundingClientRect().bottom<=0,
-          unpainted:getComputedStyle(document.getElementById('todayLogo')).visibility==='hidden',
-        })));
+        const reentry=await page.evaluate(()=>{const logo=document.getElementById('todayLogo');return {locked:document.body.classList.contains('focus-locked'),bottom:logo.getBoundingClientRect().bottom,unpainted:getComputedStyle(logo).visibility==='hidden'};});
+        await expectAll('An older exit cannot expose the new Focus header',beforeLogo<=0
+          ?{locked:reentry.locked,offscreenStaysHidden:reentry.bottom<=0||reentry.unpainted}
+          :{locked:reentry.locked,visibleLogoHoldsStill:Math.abs(reentry.bottom-beforeLogo)<1});
         await page.keyboard.press('Escape');
         await page.waitForFunction(()=>!document.querySelector('[data-focus-outside]'));
       }
