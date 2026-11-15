@@ -232,7 +232,7 @@
   // One message system for the chat (Can, November 9): info and setup notes in the info
   // family, errors in the danger family with their fix beside them, "done" as a quiet line.
   const noteIcon='<svg class="ex-note-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="5.75" stroke="currentColor" stroke-width="1.5"/><path d="M7 4.5v3M7 9.5v.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-  const failure=/could not|couldn’t|couldn't|has not confirmed|cannot|unavailable|too large|exceed|too many|needs a newer|changed\. Reload|changed\. Reopen/i;
+  const failure=/could not|couldn’t|couldn't|didn’t respond|didn't respond|has not confirmed|cannot|unavailable|too large|exceed|too many|needs a newer|changed\. Reload|changed\. Reopen/i;
   function note(text,{kind='info',actions='',id='',status=false}={}) {
     if(kind==='done')return `<p class="ex-status ex-done" role="status"${id?` id="${id}"`:''}>${h(text)}</p>`;
     return `<div class="ex-note${kind==='error'?' ex-note-error':''}" role="${kind==='error'?'alert':'status'}"${id?` id="${id}"`:''}>${noteIcon}<p${status?' class="ex-status"':''}>${text}</p>${actions?`<span class="ex-note-actions">${actions}</span>`:''}</div>`;
@@ -307,7 +307,7 @@
     html+=incomingHTML(disabled);
     const retry=retryReading&&retryId&&!busy&&!pendingReading;
     html+=retry&&/could not reply/i.test(message)?'':notice();
-    if(retry)html+=note('TODAY couldn’t reply. Your message is kept.',{kind:'error',actions:action('retry-ai','try again',disabled)});
+    if(retry)html+=note(navigator.onLine?'TODAY couldn’t reply. Your message is kept.':'You’re offline. Your message is kept; try again when you’re back.',{kind:'error',actions:action('retry-ai','try again',disabled)});
     const step=core.activeStep(doc,liveSources);
     if(step)html+=`<div class="ex-links">${action('step',step.decision==='kept'?'the step you kept':'something to try')}</div>`;
     return html;
@@ -484,7 +484,7 @@
     else if(!doc){
       html+=title(loaded?'Start with an experience':'Open your exploration');
       if(pendingObservation)html+=turnsHTML([pendingObservation],null)+thinkingHTML();
-      else if(!grant())html+=action('connections','connect Dropbox');
+      else if(!grant()&&recovery!=='dropbox')html+=action('connections','connect Dropbox'); // the notice already offers it
       else if(!busy&&loaded)html+=`<p>You don’t need a finished question. Bring something that happened, or something you’re unsure about.</p><div class="ex-setup">${incomingHTML(disabled)}<details id="exSetupSources"><summary>Uses relevant tasks &amp; Memory</summary><p class="ex-muted">Your words and relevant TODAY records support this reply, kept in Dropbox. You can review or change sources before the next reply. Feelings and dreams stay separate.</p></details>${imported?`<div class="ex-send">${action('create','continue with this document',disabled)}</div>`:''}</div>`;
     }else html+=view==='conversation'?conversationHTML(reading,disabled):secondaryHTML(reading,disabled);
     root.innerHTML=`<div class="ex-sheet-head">${controls()}</div><div class="ex-sheet-scroll">${html}</div></div><div class="ex-sheet-foot">${composerHTML()}</div>`;
@@ -577,7 +577,7 @@
       else retryReading=recovery!=='reload'&&!!retryId;
     } catch (error) { if (validSession(token) && aiController===requestController) {
       if(wantExperiment){suggestionMessage=core.failureMessage(error);render();}
-      else {retryReading=true;status(navigator.onLine?'TODAY could not reply. Your words are kept.':'You’re offline. Your words are kept; ask again when you’re back.');}
+      else {retryReading=true;status('TODAY could not reply. Your words are kept.');}
     } }
     finally { clearTimeout(timeout); if (aiController === requestController) {pendingReading = false; aiController = null; if (validSession(token)) render();} }
   }
