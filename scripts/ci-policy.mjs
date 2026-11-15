@@ -10,6 +10,7 @@ export const SUITE = [
   "visual-test",
   "splash-test",
   "platform-test",
+  "netlify-security-test",
   "sidebar-test",
   "service-worker-test",
   "connections-test",
@@ -128,11 +129,12 @@ export const GROUPS = {
       "sw.js",
       "assets/feedback-policy.js",
       "assets/runtime.js",
+      "netlify/prepare-security-headers.mjs",
       "assets/sidebar.js",
       "assets/sidebar.css",
       "assets/util.js"
     ],
-    "suites": ["sidebar-test"],
+    "suites": ["sidebar-test", "netlify-security-test"],
     "full": true,
     "performance": true
   },

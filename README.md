@@ -87,10 +87,12 @@ TODAY is a PWA — it installs directly from the browser, no App Store or develo
 Fork this repo, then create a new Netlify site from it.
 
 ```
-Build command:   (leave empty)
+Build command:   use the command in netlify.toml
 Publish dir:     .
 Functions dir:   netlify/functions
 ```
+
+Netlify’s configured command prepares a deployment-specific script policy from its public `URL`, `DEPLOY_PRIME_URL` and `DEPLOY_URL` values. External page scripts are limited to those origins’ `/assets/` paths, blocking the current injected hosting badge script. Local static development remains unchanged; there is no application bundle step. Custom deployment aliases must be represented by those deployment URLs.
 
 ### 2. Set up a Dropbox app
 

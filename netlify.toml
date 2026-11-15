@@ -1,7 +1,7 @@
 [build]
   publish = "."
   # video/ is dev-only tooling (HyperFrames projects, capture script) — never serve it.
-  command = "rm -rf video"
+  command = "rm -rf video && node netlify/prepare-security-headers.mjs"
   functions = "netlify/functions"
   ignore = "git diff --quiet HEAD^ HEAD -- index.html sw.js netlify.toml netlify/ docs/media/"
 
@@ -20,6 +20,7 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "microphone=(self), camera=(), geolocation=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # The build adds a deployment-origin /assets/ script allowlist before Netlify reads headers.
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.dropboxapi.com https://content.dropboxapi.com https://api.trello.com https://gmail.googleapis.com https://accounts.google.com https://www.googleapis.com/calendar/v3/; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 [[headers]]
@@ -43,8 +44,8 @@
 
 # Production — master only
 [context.production]
-  command = "rm -rf video"
+  command = "rm -rf video && node netlify/prepare-security-headers.mjs"
 
 # dev branch — builds and deploys to https://dev--today-here.netlify.app/
 [context.dev]
-  command = "rm -rf video"
+  command = "rm -rf video && node netlify/prepare-security-headers.mjs"
