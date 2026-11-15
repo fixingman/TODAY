@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, symlinkSync, cpSync } from 'node:fs';
 import { freshSnapshot, dependenciesReady, childEnvironment, setupWorkspace, freshCheck } from './workspace-tools.mjs';
 import { PNG } from 'pngjs';
-import { shardPlan, mergeShards, MAX_SHARDS } from './ci-shards.mjs';
+import { shardPlan, mergeShards, shardFolders, MAX_SHARDS } from './ci-shards.mjs';
 import { SUITE } from './ci-policy.mjs';
 import { verifyFinal } from './ci-final.mjs';
 const DIR = dirname(fileURLToPath(import.meta.url));
@@ -271,18 +271,18 @@ try {
   }
 
   // Exercise the real plan -> worker -> downloaded-artifact layout -> merge commands.
-  {
-    const project=join(fixture,'shard-project');mkdirSync(join(project,'scripts'),{recursive:true});
+  for (const size of [36, 2]) {
+    const project=join(fixture,'shard-project-'+size);mkdirSync(join(project,'scripts'),{recursive:true});
     for(const name of ['ci-shards','ci-execution','ci-plan','ci-final','ci-policy','release-evidence','test-all'])
       writeFileSync(join(project,'scripts',name+'.mjs'),readFileSync(join(DIR,name+'.mjs')));
-    const names=['design-lint',...Array.from({length:35},(_,i)=>'fixture-'+i+'-test')];
+    const names=['design-lint',...Array.from({length:size-1},(_,i)=>'fixture-'+i+'-test')];
     writeFileSync(join(project,'scripts/ci-policy.mjs'),`export const SUITE=${JSON.stringify(names)};export const EXCLUDED={};export const NON_TEST_SUITE=new Set(['design-lint']);export const GROUPS={tooling:{files:[],suites:SUITE,full:true}};export const BASE=SUITE;export const DOC_BASE=SUITE;`);
     for(const name of names)writeFileSync(join(project,'scripts',name+'.mjs'),'');
     writeFileSync(join(project,'.gitignore'),'.context/\n');
     const git=args=>execFileSync('git',args,{cwd:project,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
     git(['init','--quiet']);git(['add','.']);git(['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','--quiet','-m','fixture']);
     const sha=git(['rev-parse','HEAD']),event=join(fixture,'shard-event.json');
-    writeFileSync(event,JSON.stringify({before:sha,head_commit:{id:sha,message:'fixture\n\nCI-Validation: full'}}));
+    writeFileSync(event,JSON.stringify({before:sha,head_commit:{id:sha,message:size>2?'fixture\n\nCI-Validation: full':'fixture'}}));
     const env={...process.env,CI_ROUTINE_SELECTION:'true',GITHUB_SHA:sha,GITHUB_EVENT_PATH:event,
       GITHUB_EVENT_NAME:'push',GITHUB_REF:'refs/heads/dev',GITHUB_RUN_ID:'99',GITHUB_RUN_ATTEMPT:'1',
       GITHUB_WORKFLOW_REF:'fixingman/TODAY/.github/workflows/test.yml@refs/heads/dev',CHROME_PATH:'/missing-fixture-browser'};
@@ -290,22 +290,45 @@ try {
     for(const [name,args]of [['ci-execution',[]],['ci-shards',['plan']]]) {
       const result=invoke(name,args);assert.equal(result.status,0,result.stdout+result.stderr);
     }
-    const plan=JSON.parse(readFileSync(join(project,'.context/ci-shard-plan.json')));assert.equal(plan.workers.length,3);
+    const plan=JSON.parse(readFileSync(join(project,'.context/ci-shard-plan.json')));assert.equal(plan.workers.length,size>2?3:1);
     for(const worker of plan.workers) {
       const result=invoke('ci-shards',['run',String(worker.id)]);assert.equal(result.status,0,result.stdout+result.stderr);
-      cpSync(join(project,'.context/ci-test-results'),join(project,'.context/ci-shards','artifact-'+worker.id),{recursive:true});
+      // The observed single-match download is flattened even with merge-multiple:false.
+      const target=size>2?join(project,'.context/ci-shards','artifact-'+worker.id):join(project,'.context/ci-shards');
+      cpSync(join(project,'.context/ci-test-results'),target,{recursive:true});
     }
-    // A final runner starts without another worker's local output.
-    rmSync(join(project,'.context/ci-test-results'),{recursive:true});
-    const result=invoke('ci-shards',['merge']);assert.equal(result.status,0,result.stdout+result.stderr);
+    // Each final runner starts without another worker's or prior merge's output.
+    const merge=()=>{rmSync(join(project,'.context/ci-test-results'),{recursive:true,force:true});return invoke('ci-shards',['merge']);};
+    const result=merge();assert.equal(result.status,0,result.stdout+result.stderr);
     const report=JSON.parse(readFileSync(join(project,'.context/ci-test-results/summary.json')));
-    assert.deepEqual(report.executedSuites,names);assert.equal(report.counts.passed,36);assert.equal(report.mode,'full');
-    assert.ok(existsSync(join(project,'.context/ci-test-results/shards/2/summary.json')));
-    assert.equal(readdirSync(join(project,'.context/ci-test-results')).filter(name=>name.endsWith('-first.log')).length,36);
-    const part=join(project,'.context/ci-shards/artifact-1/summary.json'),bad=JSON.parse(readFileSync(part));
-    bad.workflow.attempt='2';writeFileSync(part,JSON.stringify(bad));assert.notEqual(invoke('ci-shards',['merge']).status,0);
+    assert.deepEqual(report.executedSuites,names);assert.equal(report.counts.passed,size);assert.equal(report.mode,size>2?'full':'selected');
+    assert.ok(existsSync(join(project,`.context/ci-test-results/shards/${size>2?2:0}/summary.json`)));
+    assert.equal(readdirSync(join(project,'.context/ci-test-results')).filter(name=>name.endsWith('-first.log')).length,size);
+    if(size===2) {
+      const input=join(project,'.context/ci-shards'),nested=join(input,'unexpected-artifact');
+      assert.throws(()=>shardFolders(input,2),/exactly one planned shard/,'Flat evidence cannot stand in for multiple workers');
+      const marker=join(input,'shard.json'),savedMarker=readFileSync(marker);rmSync(marker);
+      assert.match(merge().stderr,/Incomplete flat shard evidence/);
+      writeFileSync(marker,savedMarker);
+      mkdirSync(nested);
+      for(const name of ['shard.json','summary.json'])writeFileSync(join(nested,name),readFileSync(join(input,name)));
+      assert.match(merge().stderr,/Mixed flat and nested/,'A flat download must not conceal extra shard evidence');
+      rmSync(nested,{recursive:true});
+      const log=join(input,names[0]+'-first.log'),original=readFileSync(log);rmSync(log);
+      assert.match(merge().stderr,/Missing original attempt log/,'Flattened transport must retain every first-attempt log');
+      writeFileSync(log,original);
+      const savedPlan=readFileSync(join(project,'.context/ci-shard-plan.json'),'utf8');
+      // The normal single-artifact nested layout remains supported too.
+      const stash=join(project,'.context/single-artifact-stash');cpSync(input,stash,{recursive:true});
+      rmSync(input,{recursive:true});cpSync(stash,join(input,'artifact-0'),{recursive:true});
+      const nestedResult=merge();assert.equal(nestedResult.status,0,nestedResult.stdout+nestedResult.stderr);
+      rmSync(input,{recursive:true});cpSync(stash,input,{recursive:true});
+      assert.equal(readFileSync(join(project,'.context/ci-shard-plan.json'),'utf8'),savedPlan,'Layout normalization cannot alter the plan');
+    }
+    const part=join(project,size>2?'.context/ci-shards/artifact-1/summary.json':'.context/ci-shards/summary.json'),bad=JSON.parse(readFileSync(part));
+    bad.workflow.attempt='2';writeFileSync(part,JSON.stringify(bad));assert.match(merge().stderr,/workflow\/run-attempt mismatch/);
     assert.notEqual(invoke('ci-shards',['run','999']).status,0);
-    console.log('  ✓ actual shard CLI and artifact transport reconstruct36 first-pass logs; a wrong-attempt shard or unknown worker fails');
+    console.log(`  ✓ actual shard CLI reconstructs ${size} first-pass logs from ${size>2?'nested':'flat single-artifact'} transport; wrong-attempt evidence or an unknown worker fails`);
   }
 
   writeFileSync(join(scripts, 'performance-test.mjs'), readFileSync(join(DIR, 'performance-test.mjs')));

@@ -140,6 +140,18 @@ export function mergeShards(plan, shards) {
   };
 }
 
+// A single matched artifact can be extracted directly into the download path.
+// Normalize transport layout only; mergeShards still verifies the complete proof.
+export function shardFolders(input, workerCount) {
+  const folders=readdirSync(input,{withFileTypes:true}).filter(e=>e.isDirectory()).map(e=>join(input,e.name));
+  const marker=folder=>existsSync(join(folder,'shard.json'))||existsSync(join(folder,'summary.json'));
+  if(!marker(input))return folders;
+  requireValue(workerCount===1,'Flat artifact requires exactly one planned shard');
+  requireValue(existsSync(join(input,'shard.json'))&&existsSync(join(input,'summary.json')),'Incomplete flat shard evidence');
+  requireValue(!folders.some(marker),'Mixed flat and nested shard evidence');
+  return [input];
+}
+
 const own=fileURLToPath(import.meta.url);
 if(process.argv[1]&&existsSync(process.argv[1])&&realpathSync(process.argv[1])===own) {
   const root=resolve(dirname(own),'..'),dir=join(root,'.context');mkdirSync(dir,{recursive:true});
@@ -169,7 +181,7 @@ if(process.argv[1]&&existsSync(process.argv[1])&&realpathSync(process.argv[1])==
       process.exit(result.status??1);
     } else if(mode==='merge') {
       requireValue(id===undefined,'Unexpected merge argument');
-      const input=join(dir,'ci-shards'),folders=readdirSync(input,{withFileTypes:true}).filter(e=>e.isDirectory()).map(e=>join(input,e.name));
+      const input=join(dir,'ci-shards'),folders=shardFolders(input,plan.workers.length);
       const shards=folders.map(folder=>({id:read(join(folder,'shard.json')).id,report:read(join(folder,'summary.json'))}));
       const report=mergeShards(plan,shards),output=join(dir,'ci-test-results');mkdirSync(output,{recursive:true});
       for(const folder of folders) {
