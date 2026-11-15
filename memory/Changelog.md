@@ -2,6 +2,12 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## The ✦ "fresh each day" mark matches the varied-set icon in size and alignment (app v3.10.9)
+
+Can: the ✦ next to a habit with "daily task · fresh each day" looked misaligned and faint. Measured at 3× in the real list: the ✦ was a text glyph at 12px (7.2×12 box, about half the visual weight of the 14×14 list-in SVG), sat on the text baseline 1.5px below the name's centre, and the set icon sat 1.5px above it.
+
+Both marks are now drawn 14px SVG icons in `currentColor` (`--muted`); the mark box is one line tall (`1lh`, `vertical-align: top`), so both centre on the name's first line (within 1px). The same drawn ✦ replaces the glyph in the edit-mode link and the setup cards. `habit-tasks-test` checks both marks for size and centring; it fails on v3.10.6. The phone-width edit-row check from v3.10.6 now waits until the panel has moved into its phone host before measuring (it flaked once locally).
+
 ## Explain Explore reply failures and the action needed before retry (BUG-170) (app v3.10.8)
 
 Normal chat failures previously discarded their specific reason, displaying a generic retry beside an unrelated earlier-reading context warning. Keep a fixed, page-held failure reason for the unanswered turn and show one actionable alert. The exploration-only proxy contract distinguishes explicit insufficient credit, billing, known spend/daily limits, credentials and ambiguous rate/usage limits; a token-capped response remains separate. Fixed copy keeps raw provider details out of UI/journal. Account problems offer AI connection and retry when ready; no immediate automatic retry or invented reset time. Explicit retry preserves the single original observation. Source withholding, saved history, data scope, providers/models/routing, request deadline and output budget are unchanged. Offline handler/browser coverage includes negative classification controls, explicit recovery, raw-data canaries, Connections navigation and existing late-response/withdrawal fences.
