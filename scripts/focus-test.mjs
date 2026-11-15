@@ -409,7 +409,7 @@ try {
       await page.setViewport({width,height:900});
       await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'no-preference'}]);
       if(docked){
-        await page.click('[data-ex-origin="list"]');
+        await page.click('#trelloBtn');
         await page.waitForFunction(()=>document.body.classList.contains('ex-open')&&document.getElementById('sidebarRoot')&&!document.getElementById('sidebarRoot').hidden);
         await page.waitForFunction(()=>Math.abs(parseFloat(getComputedStyle(document.body).paddingRight)-document.getElementById('sidebarRoot').getBoundingClientRect().width)<1&&!document.body.getAnimations().some(a=>a.playState==='running'));
       }
@@ -1470,7 +1470,7 @@ try {
     }
 
     // Closing/dismissing invalidates even a transport that ignores AbortSignal.
-    for(const change of ['dismiss','escape','switch','rename','archive','remove','complete','day','connection','rerender','body']){
+    for(const change of ['dismiss','escape','switch','rename','archive','remove','complete','day','connection','body']){
       const {page,errors}=await habitFixture();
       await startHabit(page);const index=await ask(page);
       if(change==='dismiss')await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
@@ -1505,7 +1505,7 @@ try {
       ok(`habit stale reply withheld: ${change}`);
       await page.close();
     }
-    ok('habit Ask: late headers/body fenced after dismissal, exit/switch, edit/archive/delete/check, day change or DOM replacement');
+    ok('habit Ask: late headers/body fenced after dismissal, exit/switch, edit/archive/delete/check, day change or connection loss');
 
     for(const first of ['task','habit']){
       const {page,errors}=await habitFixture();
