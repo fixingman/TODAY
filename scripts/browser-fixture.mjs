@@ -47,11 +47,29 @@ export async function browserState(page) {
   }));
 }
 
+// Startup/model readiness is not paint readiness: a hidden device tab can stop
+// animation-frame polling after the application has completed its MessageChannel yields.
+export async function waitForAppReady(page, {timeout=15000, label='App fixture', ready}={}) {
+  const deadline=performance.now()+timeout, errors=[];
+  const onError=error=>errors.push(error.message);page.on('pageerror',onError);
+  try {
+    await page.waitForFunction(()=>!!document.body&&!document.body.hasAttribute('data-booting')&&
+      performance.getEntriesByName('today:interactive').length>0,{timeout,polling:50});
+    if(ready)await page.waitForFunction(ready,{timeout:Math.max(1,deadline-performance.now()),polling:50});
+  } catch(error) {
+    let state;
+    try {state=await page.evaluate(()=>({visibility:document.visibilityState,readyState:document.readyState,
+      booting:document.body?.hasAttribute('data-booting'),interactive:performance.getEntriesByName('today:interactive').length>0}));}
+    catch {state={unavailable:true};}
+    throw new Error(label+' startup did not settle: '+JSON.stringify({...state,errors}),{cause:error});
+  } finally {page.off('pageerror',onError);}
+}
+
 export async function openSidebar(page,id) {
   const deadline=performance.now()+10000;
   // Changing Puppeteer's mobile/touch mode can reload the page. Owners register
   // before init caches DOM nodes; module presence alone cannot permit a mount.
-  await page.waitForFunction(()=>!document.body?.hasAttribute('data-booting')&&performance.getEntriesByName('today:interactive').length>0,{timeout:Math.max(1,deadline-performance.now())});
+  await waitForAppReady(page,{timeout:Math.max(1,deadline-performance.now()),label:'Sidebar fixture'});
   await page.evaluate(id=>{const sb=Today.use('sidebar');if(!sb.isOpen(id))sb.open(id);},id);
-  await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').hidden&&document.querySelector('#sidebarRoot .ex-sheet-scroll'),{timeout:Math.max(1,deadline-performance.now())},id);
+  await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').hidden&&document.querySelector('#sidebarRoot .ex-sheet-scroll'),{timeout:Math.max(1,deadline-performance.now()),polling:50},id);
 }

@@ -6,7 +6,7 @@ import {extname,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
-import {waitForFonts,installFixtureClock} from './browser-fixture.mjs';
+import {waitForFonts,installFixtureClock,waitForAppReady} from './browser-fixture.mjs';
 const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..');
 let core;vm.runInNewContext(await readFile(join(ROOT,'assets/exploration-core.js'),'utf8'),{Today:{define:(_name,api)=>core=api},TextEncoder});
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -188,7 +188,7 @@ try{
    return original(url,opts);
   };
  });
- await page.goto(base,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.Today&&document.body&&!document.body.hasAttribute('data-booting'),{timeout:20000});await waitForFonts(page);
+ await page.goto(base,{waitUntil:'domcontentloaded'});await waitForAppReady(page,{timeout:20000,label:'Explore fixture'});await waitForFonts(page);
  // Match the established focus-test JS/CSS input fixture. Only hardware
  // predicates change; selectors, declarations, viewport and motion stay native.
  const inputModel=await page.evaluate(()=>{

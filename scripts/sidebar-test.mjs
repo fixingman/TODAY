@@ -6,7 +6,7 @@ import {dirname,join,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import puppeteer from 'puppeteer-core';
 import {PNG} from 'pngjs';
-import {waitForFonts,openSidebar} from './browser-fixture.mjs';
+import {waitForFonts,openSidebar,waitForAppReady} from './browser-fixture.mjs';
 const root=join(dirname(fileURLToPath(import.meta.url)),'..');
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.woff2':'font/woff2'};
 const server=createServer(async(req,res)=>{try{let path=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname);if(path==='/')path='/index.html';res.setHeader('Content-Type',mime[extname(path)]||'application/octet-stream');res.end(await readFile(join(root,path)));}catch{res.writeHead(404);res.end();}});
@@ -20,7 +20,7 @@ try{
  await mkdir(join(root,'.context/ci-test-results/sidebar'),{recursive:true});
  // Installed report: screen874, exposed viewport812, top safe inset62.
  // Chromium checks our layout and document backing; physical iOS paint remains an installed check.
- await page.waitForFunction(()=>!document.body.hasAttribute('data-booting')&&performance.getEntriesByName('today:interactive').length>0);
+ await waitForAppReady(page,{timeout:30000,label:'Sidebar fixture'});
  await page.setViewport({width:402,height:812,isMobile:true,hasTouch:true});
  const mobileCDP=await page.createCDPSession();
  await mobileCDP.send('Emulation.setDeviceMetricsOverride',{width:402,height:812,deviceScaleFactor:1,mobile:true,screenWidth:402,screenHeight:874});

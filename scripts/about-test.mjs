@@ -1,4 +1,4 @@
-import { installFixtureClock } from './browser-fixture.mjs';
+import { installFixtureClock, waitForAppReady } from './browser-fixture.mjs';
 // TODAY — About/Info panel regression test
 //
 // Flow: toggleInfo opens panel, _poemOfTheDay, renderDailyPoem via toggleInfo,
@@ -94,12 +94,8 @@ async function openPage(context = browser) {
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   // init() populates $ before the yielded bootstrap registers platform. About
   // mounts platform-owned controls, so wait for the successful startup seal too.
-  await page.waitForFunction(
-    () => !document.body.hasAttribute('data-booting') &&
-      performance.getEntriesByName('today:interactive').length > 0 &&
-      typeof Today?.use('about').toggleInfo === 'function' && !!$.infoPanel,
-    { timeout: 15000 }
-  );
+  await waitForAppReady(page,{label:'About fixture',
+    ready:()=>typeof Today.use('about').toggleInfo==='function'&&!!$.infoPanel});
   await page.evaluate(() => {
     Today.use('sidebar').open('about');
     window.dropboxBackup   = () => {};

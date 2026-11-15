@@ -1,3 +1,4 @@
+import { waitForAppReady } from './browser-fixture.mjs';
 // TODAY — Dropbox module regression test
 //
 // Tests: state-helper round-trips, doneTodayCount, setLastLocalChange,
@@ -77,29 +78,9 @@ async function openPage(extraSeed, owner = browser, beforeReady) {
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
   if (beforeReady) await beforeReady(page);
-  try {
-    await page.waitForFunction(
-      // Model readiness is independent of paint; background device tabs may suspend rAF.
-      () => {
-        try {
-          return typeof dropboxBackup === 'function' && typeof mergeRemoteData === 'function'
-            && typeof _doneTodayCount === 'function' && Today.use('nudge').memoryReady();
-        } catch (error) {
-          if (error.message === 'TODAY component is not available: nudge') return false;
-          throw error;
-        }
-      },
-      { timeout: 15000, polling: 50 }
-    );
-  } catch (error) {
-    const state = await page.evaluate(() => ({
-      visibility: document.visibilityState, readyState: document.readyState,
-      booting: document.body?.hasAttribute('data-booting'),
-      interactive: performance.getEntriesByName('today:interactive').length > 0,
-      memoryReady: (() => { try { return Today.use('nudge').memoryReady(); } catch { return false; } })(),
-    }));
-    throw new Error('Dropbox fixture startup did not settle: ' + JSON.stringify({ ...state, errors }), { cause: error });
-  }
+  await waitForAppReady(page,{label:'Dropbox fixture',ready:()=>
+    typeof dropboxBackup==='function'&&typeof mergeRemoteData==='function'&&
+    typeof _doneTodayCount==='function'&&Today.use('nudge').memoryReady()});
   await page.evaluate(() => {
     window.loadTrelloBoards   = () => {};
     window._aiRenderConfig    = () => {};

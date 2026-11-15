@@ -5,7 +5,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { waitForFonts, installFixtureClock, browserState, openSidebar } from './browser-fixture.mjs';
+import { waitForFonts, installFixtureClock, browserState, openSidebar, waitForAppReady } from './browser-fixture.mjs';
 const root=join(dirname(fileURLToPath(import.meta.url)),'..');
 const index=await readFile(join(root,'index.html'),'utf8');
 const faces=[...index.matchAll(/@font-face\s*\{[^}]+\}/g)].map(match=>match[0]).join('\n');
@@ -55,6 +55,30 @@ try {
     await app.goto(`http://127.0.0.1:${server.address().port}/app-fixture`,{waitUntil:'domcontentloaded'});
     await app.waitForFunction(()=>typeof window.__releaseBoot==='function',{timeout:10000});return app;
   }
+  // Withhold real boot, then finish it with the driver's rAF observer disabled.
+  // The old observer misses completion; the timer-based helper must see the
+  // successful seal and the eager owning APIs, without permitting an incomplete boot.
+  const observing=await gatedApp();
+  try {
+    await assert.rejects(waitForAppReady(observing,{timeout:200,label:'Held fixture'}),/Held fixture startup did not settle:.*"booting":true.*"interactive":false/);
+    assert.equal(await observing.$eval('body',node=>node.inert),true,'A timed-out fixture cannot release application startup');
+    await observing.mainFrame().mainRealm().evaluate(()=>{window.requestAnimationFrame=()=>0;});
+    const oldObserver=observing.waitForFunction(()=>!document.body.hasAttribute('data-booting')&&performance.getEntriesByName('today:interactive').length>0,{timeout:300});
+    const missed=assert.rejects(oldObserver,/Waiting failed/);
+    await observing.evaluate(()=>{setTimeout(()=>__releaseBoot(),50);});
+    for(const [label,ready]of [
+      ['Assistant',()=>typeof Today.use('assistant')._aiAnalyzeTask==='function'],
+      ['About',()=>typeof Today.use('about').toggleInfo==='function'&&!!$.infoPanel],
+      ['Dropbox',()=>typeof dropboxBackup==='function'&&typeof mergeRemoteData==='function'&&Today.use('nudge').memoryReady()],
+      ['Explore',undefined],
+      ['Sidebar',()=>!!Today.use('sidebar')],
+    ])await waitForAppReady(observing,{timeout:10000,label,ready});
+    await missed;
+    await assert.rejects(waitForAppReady(observing,{timeout:200,label:'Missing owner fixture',ready:()=>false}),/Missing owner fixture startup did not settle:.*"booting":false.*"interactive":true/);
+    assert.equal(await observing.evaluate(()=>performance.getEntriesByName('today:interactive').length),1,'The helper cannot fabricate another startup seal');
+  } finally {await observing.close();}
+  console.log('  ✓ real boot with suspended frame polling: old observer times out, all five startup prerequisites become ready; held boot and missing owner still fail within their deadlines');
+
   const old=await gatedApp();
   await assert.rejects(old.evaluate(()=>Today.use('sidebar').open('habits')),/classList/,'The original module-only entry reaches an uncached DOM reference');
   await old.close();

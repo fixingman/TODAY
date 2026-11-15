@@ -1,3 +1,4 @@
+import { waitForAppReady } from './browser-fixture.mjs';
 // TODAY — post-add AI suggestion regression test
 //
 // Flow: analyze + viewport delivery, dismissal, re-anchor, breakdown apply,
@@ -90,15 +91,8 @@ async function openPage(extraSeed, viewport = { width:1200, height:900 }, shared
     { extra: extraSeed || null }
   );
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  try {
-    await page.waitForFunction(
-      () => !document.body.hasAttribute('data-booting') && performance.getEntriesByName('today:interactive').length===1 && typeof Today?.use('assistant')._aiAnalyzeTask === 'function',
-      { timeout: 15000 }
-    );
-  } catch(error) {
-    console.error('Assistant fixture startup',JSON.stringify(await page.evaluate(errors=>({errors,booting:document.body?.hasAttribute('data-booting'),interactive:performance.getEntriesByName('today:interactive').length}),errors)));
-    throw error;
-  }
+  await waitForAppReady(page,{label:'Assistant fixture',
+    ready:()=>typeof Today.use('assistant')._aiAnalyzeTask==='function'});
   await page.evaluate(() => {
     window.dropboxAutoSave    = () => {};
     window.dropboxBackup      = () => {};
