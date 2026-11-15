@@ -8,6 +8,17 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Fixed Explore error categories only; never expose provider payloads as UI copy.
+function explorationFailureCode(status, error) {
+  const message = typeof error?.message === 'string' ? error.message : '';
+  if (/credit balance (?:is )?too low|insufficient credits?|credit balance.*exhausted/i.test(message)) return 'ai-credits';
+  if (status === 402 || error?.type === 'billing_error') return 'ai-billing';
+  if (/spend(?:ing)? limit|monthly.*(?:cap|limit)|daily quota|quota.*per.?day/i.test(message)) return 'ai-quota';
+  if (status === 401 || status === 403) return 'ai-credentials';
+  if (status === 429) return 'ai-limit';
+  return 'reply-unavailable';
+}
+
 exports.handler = async function(event) {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -94,9 +105,10 @@ exports.handler = async function(event) {
       
       if (!res.ok) {
         // Try to parse as JSON error
-        let errorMsg = `Gemini API error (${res.status})`;
+        let errorMsg = `Gemini API error (${res.status})`, providerError = null;
         try {
           const errData = JSON.parse(rawText);
+          providerError = errData?.error;
           errorMsg = errData?.error?.message || errorMsg;
         } catch(e) {
           // If response is HTML, give a clear message
@@ -107,7 +119,7 @@ exports.handler = async function(event) {
         return { 
           statusCode: res.status, 
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ error: errorMsg })
+          body: JSON.stringify({ error: errorMsg, ...(surface === 'exploration' ? {code: explorationFailureCode(res.status, providerError)} : {}) })
         };
       }
 
@@ -179,9 +191,10 @@ exports.handler = async function(event) {
       const rawText = await res.text();
 
       if (!res.ok) {
-        let errorMsg = `Claude API error (${res.status})`;
+        let errorMsg = `Claude API error (${res.status})`, providerError = null;
         try {
           const errData = JSON.parse(rawText);
+          providerError = errData?.error;
           errorMsg = errData?.error?.message || errorMsg;
         } catch(e) {
           if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
@@ -191,7 +204,7 @@ exports.handler = async function(event) {
         return { 
           statusCode: res.status, 
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ error: errorMsg })
+          body: JSON.stringify({ error: errorMsg, ...(surface === 'exploration' ? {code: explorationFailureCode(res.status, providerError)} : {}) })
         };
       }
 

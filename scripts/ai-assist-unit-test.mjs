@@ -133,6 +133,23 @@ try {
     assert.equal(provider==='claude'?lastRequest.body.max_tokens:lastRequest.body.generationConfig.maxOutputTokens,512,'Only the exact Explore marker gets the larger allowance');
   }
   ok('Explore reserves a fixed 2048-token ceiling, passes complete six-bound results in one call, and still rejects capped results');
+  for(const provider of ['claude','gemini']){
+    for(const failure of [
+      {status:400,error:{type:'invalid_request_error',message:'Your credit balance is too low to access this API.'},code:'ai-credits'},
+      {status:402,error:{type:'billing_error',message:'Fictional payment problem'},code:'ai-billing'},
+      {status:400,error:{message:'Organization spend limit reached'},code:'ai-quota'},
+      {status:429,error:{message:'Daily quota exceeded'},code:'ai-quota'},
+      {status:429,error:{status:'RESOURCE_EXHAUSTED',message:'Resource has been exhausted'},code:'ai-limit'},
+      {status:401,error:{message:'Fictional rejected key'},code:'ai-credentials'},
+      {status:500,error:{message:'Unknown upstream error'},code:'reply-unavailable'},
+      {status:400,error:{message:'Invalid maximum token count'},code:'reply-unavailable'},
+    ]){
+      globalThis.fetch=async()=>({ok:false,status:failure.status,text:async()=>JSON.stringify({error:failure.error})});
+      const explore=await run(provider,'exploration');assert.equal(explore.status,failure.status);assert.equal(explore.body.code,failure.code);
+      const ordinary=await run(provider,'focus');assert.deepEqual(ordinary.body,{error:failure.error.message},'Other surfaces retain their error contract');
+    }
+  }
+  ok('Explore categorizes explicit credit/billing/quota failures without guessing a balance from 429 or token wording; other surfaces are unchanged');
 } finally {
   globalThis.fetch = realFetch;
 }

@@ -179,10 +179,13 @@
     const messages={
       'suggestion-empty':'No suggestion came back. You can ask again.',
       'exploration-incomplete':'The AI answer was cut short. You can ask again.',
-      'reply-expired':'The suggestion took too long. You can ask again.',
+      'reply-expired':'The AI took too long to reply. You can ask again.',
       'sources-changed':'The supporting information changed. Ask again using the current sources.',
       'ai-credentials':'Check your AI connection before asking again.',
-      'ai-limit':'Your AI is at its request limit. Try again shortly.',
+      'ai-credits':'Your AI provider reported insufficient credit. Add credit with your provider before retrying.',
+      'ai-billing':'Your AI provider reported a billing problem. Check billing with your provider before retrying.',
+      'ai-quota':'Your AI provider reported a usage limit. Check your allowance or wait for it to reset before retrying.',
+      'ai-limit':'Your AI provider reported a request limit or usage limit. Check usage with your provider or try again later.',
       'reply-unavailable':'Your AI could not answer. Try again shortly.',
       'reply-format':'The AI answer could not be checked. You can ask again.',
       'experiment-format':'The AI suggestion was missing details. You can ask again.'

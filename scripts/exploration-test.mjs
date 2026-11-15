@@ -892,6 +892,38 @@ try{
  assert.equal(await page.evaluate(()=>__explorationTest.remote),recordedBaseline.remote);
  assert.equal(await page.evaluate(()=>__explorationTest.ai.length),recordedBaseline.calls);
  assert.equal(await page.evaluate(()=>__explorationTest.uploads.length),recordedBaseline.uploads);
+ // Provider failures belong to the unanswered turn, with a recovery action that
+ // matches the actual reason. Raw provider details never become UI or journal text.
+ for(const failure of [
+  {status:400,body:{error:'PRIVATE_PROVIDER_DETAIL',code:'ai-credits'},notice:'insufficient credit',attention:true},
+  {status:402,body:{error:'PRIVATE_PROVIDER_DETAIL',code:'ai-billing'},notice:'billing problem',attention:true},
+  {status:429,body:{error:'PRIVATE_PROVIDER_DETAIL',code:'ai-quota'},notice:'usage limit',attention:true},
+  {status:429,body:{error:'PRIVATE_PROVIDER_DETAIL'},notice:'request limit or usage limit',attention:true},
+  {status:401,body:{error:'PRIVATE_PROVIDER_DETAIL'},notice:'Check your AI connection',attention:true},
+  {status:503,body:{error:'PRIVATE_PROVIDER_DETAIL'},notice:'could not answer',attention:false},
+  {status:502,body:{error:'PRIVATE_PROVIDER_DETAIL',code:'exploration-incomplete'},notice:'cut short',attention:false},
+  {status:200,body:{content:'malformed'},notice:'unreadable',attention:false},
+ ]){
+  await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);
+  await page.evaluate(()=>{const core=Today.use('exploration-core');__explorationTest.remote=core.stringify(core.create('A fictional recovery conversation','',crypto.randomUUID(),new Date().toISOString()));__explorationTest.rev++;localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','fictional-key');});
+  await click('[data-ex-origin="list"]');await wait(()=>document.getElementById('exThought'));
+  const before=await page.evaluate(failure=>{__explorationTest.replyFailure=failure;return {calls:__explorationTest.ai.length,entries:Today.use('exploration').document().entries.length};},failure);
+  await page.type('#exThought','Fictional saved observation about this week.');await send();
+  await page.waitForFunction(notice=>document.querySelector('#exReplyFailure')?.textContent.includes(notice)&&!document.querySelector('#exThought').readOnly,{},failure.notice);
+  const failed=await page.evaluate(()=>({calls:__explorationTest.ai.length,entries:Today.use('exploration').document().entries.length,text:document.getElementById('exReplyFailure').textContent,duplicate:!!document.getElementById('exReadingNotice'),actions:[...document.querySelectorAll('#exReplyFailure button')].map(node=>({action:node.dataset.exAction,label:node.textContent})),raw:Today.use('exploration-core').stringify(Today.use('exploration').document())}));
+  assert.equal(failed.calls,before.calls+1,'One deliberate attempt, no automatic retry');assert.equal(failed.entries,before.entries+1,'Only the original observation is committed on failure');assert.ok(failed.text.includes('Your message is saved.'));assert.ok(!failed.text.includes('PRIVATE_PROVIDER_DETAIL')&&!failed.raw.includes('PRIVATE_PROVIDER_DETAIL'));assert.equal(failed.duplicate,false);
+  assert.equal(await page.$$eval('#sbContent .ex-note-error',nodes=>nodes.length),1,'The failed turn has one alert, without duplicate status messages');
+  assert.equal(failed.actions.some(row=>row.action==='connections'),failure.attention);
+  assert.equal(failed.actions.find(row=>row.action==='retry-ai').label,failure.attention?'retry when ready':'try again');
+  if(failure.body.code==='ai-credits'){
+   await checkLayout('credit-failure');
+   await click('#exReplyFailure [data-ex-action="connections"]');await back();
+   assert.equal(await page.evaluate(()=>__explorationTest.ai.length),failed.calls,'Visiting Connections and returning never retries');
+   assert.ok((await page.$eval('#exReplyFailure',node=>node.textContent)).includes('insufficient credit'));
+  }
+  await page.evaluate(()=>{__explorationTest.replyFailure=null;});await click('#exReplyFailure [data-ex-action="retry-ai"]');await wait(()=>!document.querySelector('#exThought').readOnly&&!document.querySelector('#exReplyFailure'));
+  assert.equal(await page.evaluate(()=>Today.use('exploration').document().entries.length),before.entries+2,'Explicit retry adds one reply without duplicating the saved observation');
+ }
  assert.deepEqual(errors,[]);
  console.log('  ✓ Dense Sources overview, full-text keyboard disclosures, newest-first pagination, searchable picker, return focus and four-width accessibility');
  console.log('  ✓ Source withdrawal fences delayed AI, re-inclusion cannot revive, widths stay contained, conditional forget clears page and Dropbox; no journal in backup/storage');

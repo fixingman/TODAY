@@ -428,21 +428,41 @@ try {
     // actions; check, history and strength step aside until editing ends.
     // History is hidden while editing, so wait on layout frames rather than on dot fitting.
     const editSettled=async width=>{await page.setViewport({width,height:900});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));};
+    // Translated DOMRects can round 44px down to 43.999996px. Require the
+    // real 44px layout height and allow only 0.001px coordinate rounding.
+    const editFieldHeight=(rectHeight,layoutHeight)=>layoutHeight>=44&&rectHeight>=44-0.001;
     async function editGeometry(label) {
       const rows=await page.evaluate(()=>[...document.querySelectorAll('#habitList .habit')].map(row=>{
         const box=row.getBoundingClientRect(),input=row.querySelector('.habit-edit-input').getBoundingClientRect(),style=getComputedStyle(row);
         const link=row.querySelector('.habit-daily-link'),archive=row.querySelector('.habit-edit-delete'),a=archive.getBoundingClientRect(),l=link.getBoundingClientRect();
         const pad=parseFloat(style.paddingLeft)+row.clientLeft; // inside the 1px row border
-        return {editing:row.classList.contains('editing'),fieldHeight:input.height>=44,fullWidth:Math.abs(input.left-box.left-pad)<1&&Math.abs(box.right-pad-input.right)<1,
+        return {editing:row.classList.contains('editing'),fieldHeight:input.height,layoutHeight:row.querySelector('.habit-edit-input').offsetHeight,fullWidth:Math.abs(input.left-box.left-pad)<1&&Math.abs(box.right-pad-input.right)<1,
           phoneText:innerWidth>600||parseFloat(getComputedStyle(row.querySelector('.habit-edit-input')).fontSize)>=16,
           hidden:['.habit-check','.habit-history','.habit-streak'].every(sel=>!row.querySelector(sel)||getComputedStyle(row.querySelector(sel)).display==='none'),
           actionsBelow:l.top>=input.bottom&&Math.abs(a.top-l.top)<1,archiveEnd:a.right<=box.right&&a.left>l.right,
           targets:[a,l].every(r=>r.height>=24),named:archive.getAttribute('aria-label')?.startsWith('Archive ')&&!!row.querySelector('.habit-edit-input').getAttribute('aria-label')};
       }));
-      for(const row of rows)await expectAll('habit edit row '+label,{...row,noErrors:!errors.length});
+      for(const {fieldHeight,layoutHeight,...row} of rows)await expectAll('habit edit row '+label,{...row,fieldHeight:editFieldHeight(fieldHeight,layoutHeight),noErrors:!errors.length});
     }
     await settled(1200);
     await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
+    const heightControl=await page.evaluate(()=>{
+      const input=document.querySelector('.habit-edit-input').cloneNode();
+      Object.assign(input.style,{position:'fixed',top:'8px',left:'8px',width:'120px',height:'44px',minHeight:'44px'});document.body.append(input);
+      try{
+        let rounding=null;
+        for(let i=1;i<2000;i++){input.style.transform=`translateY(${i/97}px)`;const rectHeight=input.getBoundingClientRect().height;if(rectHeight<44){rounding={rectHeight,layoutHeight:input.offsetHeight};break;}}
+        Object.assign(input.style,{transform:'none',height:'43px',minHeight:'43px'});
+        return {rounding,undersized:{rectHeight:input.getBoundingClientRect().height,layoutHeight:input.offsetHeight}};
+      }finally{input.remove();}
+    });
+    await expectAll('edit height coordinate-rounding and undersized controls',{
+      reproduced:!!heightControl.rounding,
+      oldRejectsValid:!!heightControl.rounding&&heightControl.rounding.rectHeight<44,
+      repairedAcceptsValid:!!heightControl.rounding&&editFieldHeight(heightControl.rounding.rectHeight,heightControl.rounding.layoutHeight),
+      undersizedStillRejected:!editFieldHeight(heightControl.undersized.rectHeight,heightControl.undersized.layoutHeight)
+    });
+    ok('44px translated field reproduces strict-height failure; real 43px field still fails the repaired check');
     await editGeometry(1200);
     await page.screenshot({path:join(shots,'desktop-edit.png')});
     await page.$eval('.habit-edit-input[data-id="habit_short"]',n=>{n.value='Walk after breakfast';});

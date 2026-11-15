@@ -18,7 +18,7 @@
   let suggestionMessage = '', correctionTarget = null, correctionText = '', setupQuestion = '', historyWindow = 24, navigation = 0;
   let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [];
   let offlineWaiting = false; // the document could not open only because the device was offline
-  let recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
+  let replyFailure = '', recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
   const dataContext=()=>Today.use('exploration-context');
   let visitStart = 0, sourceWindow = 6, browseWindow = 12, usedWindow = 12, sourceQuery = '', shownPrompt = '', turnCount = 0;
   let pendingObservation = null, awaitingReply = false, thinkingMotion = [];
@@ -58,7 +58,7 @@
     epoch++; controller?.abort(); abortAI(); doc = null; revision = null; draft = ''; imported = ''; incoming = null;
     snapshot = null; retryId = null; taskPending = null; activeGrant = ''; busy = false; forgot = false; loaded = false;
     setupQuestion = ''; draftWorkspace = null; view = 'conversation'; trail = []; correctionTarget = null; correctionText = ''; confirmForget = false; retryReading = false;
-    recovery = '';suggestionMessage='';sourceWindow=6;browseWindow=12;usedWindow=12;sourceQuery='';
+    replyFailure='';recovery = '';suggestionMessage='';sourceWindow=6;browseWindow=12;usedWindow=12;sourceQuery='';
     if (root) root.replaceChildren(); decorate();
   }
   function hide() {
@@ -121,7 +121,7 @@
   async function load() {
     arrivalMotion?.cancel();
     const token = ++epoch; controller?.abort(); abortAI(); controller = new AbortController(); activeGrant = grant();
-    busy = true; loaded = false; recovery = ''; message = ''; doc=null; liveSources=[]; retryReading=false; offlineWaiting = false; render();
+    busy = true; loaded = false; replyFailure=''; recovery = ''; message = ''; doc=null; liveSources=[]; retryReading=false; offlineWaiting = false; render();
     const result = await files.read(controller.signal);
     if (!validSession(token)) return;
     busy = false; loaded = !!(result.ok || result.notFound);
@@ -302,12 +302,16 @@
     html+=earlier||(sessionEntries.length?`<p class="ex-day" role="separator">${h(dayLabel(sessionEntries[0].at))}</p>`:'');
     html+=turnsHTML(pendingObservation && !sessionEntries.some(entry=>entry.id===pendingObservation.id)?[...sessionEntries,pendingObservation]:sessionEntries,reading);
     if(pendingReading||awaitingReply)html+=thinkingHTML();
-    html+=readingNotice(reading);
+    const retry=retryReading&&retryId&&!busy&&!pendingReading;
+    if(!retry||!replyFailure)html+=readingNotice(reading);
     if(draftWorkspace&&draftWorkspace!==doc.workspace_id)html+=`<p>Your draft belongs to a different document. ${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</p>`;
     html+=incomingHTML(disabled);
-    const retry=retryReading&&retryId&&!busy&&!pendingReading;
-    html+=retry&&/could not reply/i.test(message)?'':notice();
-    if(retry)html+=note(navigator.onLine?'TODAY couldn’t reply. Your message is kept.':'You’re offline. Your message is kept; try again when you’re back.',{kind:'error',actions:action('retry-ai','try again',disabled)});
+    html+=retry&&replyFailure?'':notice();
+    if(retry){
+      const needsAttention=['ai-credits','ai-billing','ai-quota','ai-credentials','ai-limit'].includes(replyFailure);
+      const text=!navigator.onLine?'You’re offline. Your message is saved; try again when you’re back.':replyFailure?core.failureMessage(replyFailure==='reply-json'?new SyntaxError():new Error(replyFailure))+' Your message is saved.':'Your saved message has no reply yet.';
+      html+=note(h(text),{kind:'error',id:'exReplyFailure',actions:(needsAttention?action('connections','AI connection',disabled):'')+action('retry-ai',needsAttention?'retry when ready':'try again',disabled)});
+    }
     const step=core.activeStep(doc,liveSources);
     if(step)html+=`<div class="ex-links">${action('step',step.decision==='kept'?'the step you kept':'something to try')}</div>`;
     return html;
@@ -556,17 +560,20 @@
     // new generation, after their original fingerprints have been validated.
     pendingSources=[...new Map([...inputs.flatMap(input=>input.today_sources||[]).map(ref=>dataContext().reference(liveSources.find(source=>source.id===ref.id))),...selectedLive.map(source=>dataContext().reference(source))].map(ref=>[ref.id,ref])).values()];
     if(pendingSources.length>96){retryReading=!!retryId;status('This thread uses too many TODAY records. Use only your notes or narrow its sources before replying.');return;}
-    pendingReading = true; awaitingReply=false; message='';recovery='';suggestionMessage=wantExperiment?'Thinking…':'';const requestController = new AbortController(); aiController = requestController; render();
+    pendingReading = true; awaitingReply=false; replyFailure=''; message='';recovery='';suggestionMessage=wantExperiment?'Thinking…':'';const requestController = new AbortController(); aiController = requestController; render();
     const timeout = setTimeout(()=>requestController.abort(),25000);
     try {
       const result = await fetch('/.netlify/functions/ai-assist',{method:'POST',headers:{'Content-Type':'application/json'},signal:aiController.signal,
         body:JSON.stringify({provider,apiKey:key,surface:'exploration',systemPrompt:core.systemPrompt,messages:[{role:'user',content:JSON.stringify({context:selected,request:wantExperiment ? 'Suggest one small reversible experiment, with all six bounds.' : 'Continue the exploration from the latest observation. No experiment unless asked.'})}]})});
       const data = await result.json();
+      if (!validSession(token) || aiController !== requestController || doc.workspace_id !== workspace || revision !== baseRevision || provider !== connection()._aiGetProvider() || key !== connection()._aiGetKey()) return;
+      if(requestController.signal.aborted)throw new Error('reply-expired');
+      if (!result.ok || data.error) throw new Error(['exploration-incomplete','ai-credits','ai-billing','ai-quota','ai-credentials','ai-limit','reply-unavailable'].includes(data.code)?data.code:result.status===401||result.status===403?'ai-credentials':result.status===429?'ai-limit':'reply-unavailable');
       const freshSources=await host.sources(pendingSources.map(ref=>ref.id));
       if (!validSession(token) || aiController !== requestController || doc.workspace_id !== workspace || revision !== baseRevision || provider !== connection()._aiGetProvider() || key !== connection()._aiGetKey()) return;
       if(requestController.signal.aborted)throw new Error('reply-expired');
       if(!dataContext().supports(pendingSources,freshSources)){liveSources=freshSources;throw new Error('sources-changed');}
-      if (!result.ok || data.error) throw new Error(data.code==='exploration-incomplete'?'exploration-incomplete':result.status===401||result.status===403?'ai-credentials':result.status===429?'ai-limit':'reply-unavailable');
+
       const reply = core.response(typeof data.reply==='string'?data:data.content || data.message,selected.records.map(entry=>entry.id));
       if(wantExperiment&&!reply.experiment)throw new Error('suggestion-empty');
       pendingReading = false;
@@ -577,7 +584,7 @@
       else retryReading=recovery!=='reload'&&!!retryId;
     } catch (error) { if (validSession(token) && aiController===requestController) {
       if(wantExperiment){suggestionMessage=core.failureMessage(error);render();}
-      else {retryReading=true;status('TODAY could not reply. Your words are kept.');}
+      else {retryReading=true;replyFailure=error.name==='AbortError'?'reply-expired':error.name==='SyntaxError'?'reply-json':['suggestion-empty','exploration-incomplete','reply-expired','sources-changed','ai-credits','ai-billing','ai-quota','ai-credentials','ai-limit','reply-unavailable','reply-format','experiment-format'].includes(error.message)?error.message:'reply-unavailable';status('');}
     } }
     finally { clearTimeout(timeout); if (aiController === requestController) {pendingReading = false; aiController = null; if (validSession(token)) render();} }
   }
