@@ -133,7 +133,7 @@ assert('task-bounce.js in sw.js cache list',
 assert('sw.js CACHE_VERSION matches index.html CHANGELOG newest key',
   (() => {
     const swVer     = sw.match(/CACHE_VERSION\s*=\s*['"]today-v([\d.]+)['"]/)?.[1];
-    const changeVer = html.match(/[''"](\d+\.\d+\.\d+)[''"]:/)?.[1];
+    const changeVer = html.match(/(['"])(\d+\.\d+\.\d+)\1:/)?.[2];
     if (swVer && changeVer && swVer === changeVer) return true;
     console.error(`    sw=${swVer} html=${changeVer}`);
     return false;
