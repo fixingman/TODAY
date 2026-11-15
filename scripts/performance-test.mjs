@@ -88,7 +88,7 @@ async function payloadEvidence() {
   const fontFiles = (await walk(join(ROOT, 'fonts'))).filter(path => path.endsWith('.woff2'));
   const fontBytes = (await Promise.all(fontFiles.map(path => stat(path)))).reduce((sum, item) => sum + item.size, 0);
   const total = key => rows.reduce((sum, row) => sum + row[key], 0);
-  const appVersion = indexSource.match(/['‘](\d+\.\d+\.\d+)['’]:/)?.[1];
+  const appVersion = indexSource.match(/[‘’"](\d+\.\d+\.\d+)[‘’"]:/)?.[1];
   if (!appVersion) throw new Error('Could not derive APP_VERSION from index.html');
   return {
     appVersion,
