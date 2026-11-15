@@ -12,10 +12,14 @@
       const timeout = setTimeout(abort, 20000);
       const grant = localStorage.getItem('dropbox_refresh_token') || localStorage.getItem('dropbox_token');
       try {
+        // Name the cause: offline and not-connected read differently from a failed request.
+        if (!navigator.onLine) return {ok:false, reason:'offline'};
+        if (!grant) return {ok:false, reason:'not-connected'};
         await Today.use('dropbox-files').ensureToken();
         if (grant !== (localStorage.getItem('dropbox_refresh_token') || localStorage.getItem('dropbox_token'))) return {ok:false, reason:'connection-changed'};
         const token = localStorage.getItem('dropbox_token');
-        if (!token || !navigator.onLine || controller.signal.aborted) return {ok:false, reason:'unavailable'};
+        if (!navigator.onLine) return {ok:false, reason:'offline'};
+        if (!token || controller.signal.aborted) return {ok:false, reason:'unavailable'};
         if (operation === 'remove' && !revision) return {ok:false, reason:'revision-required'};
         let url, options;
         const headers = {Authorization:`Bearer ${token}`};
@@ -52,7 +56,7 @@
         }
         const metadata = await result.json();
         return {ok:true,rev:metadata.rev || metadata.metadata?.rev || null};
-      } catch (_) { return {ok:false,reason:'unavailable',uncertain:operation !== 'read'}; }
+      } catch (_) { return {ok:false,reason:navigator.onLine?'unavailable':'offline',uncertain:operation !== 'read'}; }
       finally { clearTimeout(timeout); signal?.removeEventListener('abort',abort); }
     }
 

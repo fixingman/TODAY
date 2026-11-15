@@ -230,10 +230,18 @@ try{
  await wait(()=>document.querySelector('#sidebarRoot [role=status]')?.textContent.includes('could not open'));
  assert.equal(await page.$eval('#sidebarRoot',node=>node.hasAttribute('aria-busy')),false,'A stylesheet failure ends loading and retains the hide control');
  await click('[data-sidebar-close]');await click('[data-ex-origin="list"]');
- await wait(()=>document.querySelector('.ex-status')?.textContent.includes('come back online'));
+ await wait(()=>document.querySelector('.ex-status')?.textContent.includes('Dropbox didn’t respond'));
  assert.equal(await page.evaluate(()=>__explorationTest.downloads),1,'Explore performs one canonical read without Memory preview');
  assert.equal(await page.$('#exQuestion'),null,'An unreachable document offers recovery without pretending the file is missing');
- await page.evaluate(()=>{__explorationTest.unavailable=false;});await click('[data-ex-action="reload"]');await wait(()=>document.getElementById('exQuestion'));
+ assert.ok(await page.$('[data-ex-action="reload"]'),'A failed Dropbox request offers a manual retry');
+ // Offline names itself, makes no request and offers no button; the document opens once the device is back online.
+ await page.evaluate(()=>{__explorationTest.unavailable=false;window.__offline=true;Object.defineProperty(Navigator.prototype,'onLine',{configurable:true,get:()=>!window.__offline});});
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);await click('[data-ex-origin="list"]');
+ await wait(()=>document.querySelector('.ex-status')?.textContent.includes('You’re offline'));
+ assert.equal(await page.evaluate(()=>__explorationTest.downloads),1,'Offline makes no Dropbox request');
+ assert.equal(await page.$('[data-ex-action="reload"],[data-ex-action="dropbox"]'),null,'Offline offers nothing to press; it resumes by itself');
+ await page.evaluate(()=>{window.__offline=false;window.dispatchEvent(new Event('online'));});await wait(()=>document.getElementById('exQuestion'));
+ assert.equal(await page.evaluate(()=>__explorationTest.downloads),2,'Coming back online reads the document once');
  await page.screenshot({path:join(ROOT,'.context/exploration-layout-restored/test-fixture-start.png'),fullPage:true});
  assert.equal(await page.$('input[type=file],#exUseToday'),null,'Starting accepts an experience without file import or record assembly');await checkLayout('start');
  assert.equal(await page.$eval('#explorationEntry button',node=>node.textContent.trim()),'✦︎ Explore','Task-list entry has no arrow or tiny saved-question counter');

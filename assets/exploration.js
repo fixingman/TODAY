@@ -17,6 +17,7 @@
   let snapshot = null, forgot = false, opened = false, loaded = false, confirmForget = false;
   let suggestionMessage = '', correctionTarget = null, correctionText = '', setupQuestion = '', historyWindow = 24, navigation = 0;
   let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [];
+  let offlineWaiting = false; // the document could not open only because the device was offline
   let recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
   const dataContext=()=>Today.use('exploration-context');
   let visitStart = 0, sourceWindow = 6, browseWindow = 12, usedWindow = 12, sourceQuery = '', shownPrompt = '', turnCount = 0;
@@ -120,7 +121,7 @@
   async function load() {
     arrivalMotion?.cancel();
     const token = ++epoch; controller?.abort(); abortAI(); controller = new AbortController(); activeGrant = grant();
-    busy = true; loaded = false; recovery = ''; message = ''; doc=null; liveSources=[]; retryReading=false; render();
+    busy = true; loaded = false; recovery = ''; message = ''; doc=null; liveSources=[]; retryReading=false; offlineWaiting = false; render();
     const result = await files.read(controller.signal);
     if (!validSession(token)) return;
     busy = false; loaded = !!(result.ok || result.notFound);
@@ -135,7 +136,9 @@
         else{imported=result.text;message='This Markdown needs importing before TODAY can update it. Its contents will be preserved.';}
       }
     } else if (result.notFound) { doc = null; revision = null; }
-    else { message = 'Connect Dropbox or come back online to open your exploration.'; recovery = 'reload'; }
+    else if (result.reason === 'offline') { message = 'You’re offline. Your exploration is safe in Dropbox and opens when you’re back.'; recovery = ''; offlineWaiting = true; }
+    else if (result.reason === 'not-connected' || result.reason === 'reconnect') { message = 'Connect Dropbox to open your exploration.'; recovery = 'dropbox'; }
+    else { message = 'Dropbox didn’t respond. Nothing was changed; try again.'; recovery = 'reload'; }
     await refreshSources(false);if(!validSession(token))return;
     render(); decorate(); root.removeAttribute('aria-busy');
     if(!_motionReduced()) arrivalMotion=root.querySelector('.ex-body')?.animate([{opacity:0},{opacity:1}],{duration:_motionDuration('--dur-base'),easing:_motionEasing('--ease-out')});
@@ -154,7 +157,9 @@
     if (!validSession(token) || account !== grant()) return false;
     busy = false;
     if (!result.ok || !result.rev) {
-      message = result.reason === 'conflict' ? 'The Dropbox document changed. Reload it before trying again. Your unsent text stays here.' : 'Dropbox has not confirmed this update. Your text stays here; retry or export it before leaving.';
+      message = result.reason === 'conflict' ? 'The Dropbox document changed. Reload it before trying again. Your unsent text stays here.'
+        : result.reason === 'offline' ? 'You’re offline. Your text stays here; send it when you’re back.'
+        : 'Dropbox has not confirmed this update. Your text stays here; retry or export it before leaving.';
       recovery = result.reason === 'conflict' ? 'reload' : '';
       render(); return false;
     }
@@ -237,7 +242,7 @@
     const text = message || (!doc && busy ? 'Opening your exploration…' : '');
     if(!text)return '<div class="ex-notice"><p class="ex-status" role="status"></p></div>';
     if(!doc&&busy&&!message)return `<div class="ex-notice"><p class="ex-status" role="status">${h(text)}</p></div>`;
-    const actions = !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : '';
+    const actions = !busy && !pendingReading ? (recovery ? action(recovery,recovery === 'connections' ? 'connect your AI' : recovery === 'dropbox' ? 'connect Dropbox' : 'reload latest') : '') + (draft||(!doc&&setupQuestion) ? action('draft-export','export unsent text') : '') : '';
     return `<div class="ex-notice">${note(h(text),{kind:failure.test(text)?'error':'info',actions,status:true})}</div>`;
   }
   function turnsHTML(entries,reading,saved=false) {
@@ -572,7 +577,7 @@
       else retryReading=recovery!=='reload'&&!!retryId;
     } catch (error) { if (validSession(token) && aiController===requestController) {
       if(wantExperiment){suggestionMessage=core.failureMessage(error);render();}
-      else {retryReading=true;status('TODAY could not reply. Your words are kept.');}
+      else {retryReading=true;status(navigator.onLine?'TODAY could not reply. Your words are kept.':'You’re offline. Your words are kept; ask again when you’re back.');}
     } }
     finally { clearTimeout(timeout); if (aiController === requestController) {pendingReading = false; aiController = null; if (validSession(token)) render();} }
   }
@@ -589,7 +594,7 @@
     back:leave, hide:close, dictate(button){return dictate(button);}, notes(){go('notes');byId('exNotesTitle')?.focus({preventScroll:true});}, changes(){go('notes');}, sources(){go('sources');}, step(){go('step');}, document(){go('document');}, import(){go('import');}, history(){go('history');}, 'original-history'(){go('original-history');}, 'more-history'(){const box=scroller(),from=box?box.scrollHeight-box.scrollTop:0;historyWindow+=24;render();const next=scroller();if(next)next.scrollTop=next.scrollHeight-from;next?.querySelector('.ex-earlier .ex-turn, .ex-earlier .ex-withheld')?.setAttribute('tabindex','-1');},
     'sources-next'(){go('sources-next');},'sources-notes'(){go('sources-notes');},'sources-last'(){go('sources-last');},'sources-browse'(){go('sources-browse');},
     'more-sources'(){sourceWindow+=6;render();},'more-records'(){browseWindow+=12;render();},'more-used-sources'(){usedWindow+=12;render();},
-    connections(){go('connections');}, reload:load, create:createDocument, send,
+    connections(){go('connections');}, dropbox(){go('connections');}, reload:load, create:createDocument, send,
     include(){includeIncoming=!includeIncoming;render();},
     'retry-ai'(){return ask(false);}, experiment(){return ask(true);},
     correct(){const reading=chosenReading();if(!reading)return;if(correctionTarget!==reading.id){correctionTarget=reading.id;correctionText=core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1)?.text||reading.summary;}go('correct');byId('exCorrection')?.focus({preventScroll:true});}, 'cancel-correction'(){correctionTarget=null;correctionText='';leave();},
@@ -654,6 +659,9 @@
   document.addEventListener('today:memory-ready',()=>refreshSources());
   window.addEventListener('storage',event=>{if(event.key==='today_memory')refreshSources();});
   document.addEventListener('today:dropbox-disconnected',()=>{wipe();if(opened)status('Connect Dropbox to reopen your exploration.');});
+  // Back online while Explore waits on an offline open: read the document again. A reply is
+  // never retried here — that is an AI call the person decides to make.
+  window.addEventListener('online',()=>{if(opened&&offlineWaiting&&!busy)load();});
   window.addEventListener('storage',event=>{if(['dropbox_refresh_token','dropbox_token'].includes(event.key)&&grant()!==activeGrant){wipe();if(opened)status('The Dropbox connection changed. Reopen the document.');}});
   Today.use('sidebar').register('explore', {
     mount: _mount,
