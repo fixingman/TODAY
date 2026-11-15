@@ -632,7 +632,12 @@ window._startTaskActions = (function() {
 
     function updateStats() {
       const all      = [...trelloTasks, ...manualTasks];
-      const pastDone = pastTasks.filter(t => doneIds.has(t.id)).length;
+      // PAST counts only tasks checked today (evening triage moves them there). Older done
+      // tasks also sit in PAST for 7 days, and a not-yet-rolled-over device can sync their
+      // ids back into doneIds; counting those inflated "x of y done" with earlier days' work.
+      const _today = _localISO();
+      const _checkedToday = new Set(_getCheckedIds().filter(c => c.at && _localISO(new Date(c.at)) === _today).map(c => c.id));
+      const pastDone = pastTasks.filter(t => doneIds.has(t.id) && _checkedToday.has(t.id)).length;
       const total    = all.length + pastDone;
       let   done     = all.filter(t => doneIds.has(t.id)).length + pastDone;
       // Guard: done can't exceed total (double-counted tasks inflate both; cap display)

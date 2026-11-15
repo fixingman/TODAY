@@ -351,6 +351,28 @@ try {
       await page.close();
     }
 
+    // 10b. PAST counts only today's work: a task done today and moved to PAST by evening triage
+    //      still counts; tasks finished on earlier days whose ids a not-yet-rolled-over device
+    //      synced back into doneIds do not.
+    {
+      const { page, errors } = await openPage();
+      const result = await page.evaluate(() => {
+        const now = new Date().toISOString(), day = 86400000;
+        toggleDone('task_1');
+        const triaged = manualTasks.find(t => t.id === 'task_1');
+        manualTasks = manualTasks.filter(t => t.id !== 'task_1');
+        pastTasks = [{ ...triaged, zone: 'past', status: 'done', zoneChangedAt: now },
+          ...Array.from({ length: 20 }, (_, i) => ({ id: 'manual_old_' + i, text: 'Earlier ' + i, zone: 'past', status: 'done',
+            zoneChangedAt: new Date(Date.now() - ((i % 6) + 1) * day).toISOString() }))];
+        pastTasks.slice(1).forEach(t => doneIds.add(t.id));
+        updateStats();
+        return { text: document.getElementById('statDone').textContent + ' of ' + document.getElementById('statTotal').textContent };
+      });
+      await expectAll('PAST counts only today', { todayOnly: result.text === '1 of 2', noErrors: errors.length === 0 });
+      ok('updateStats: a task triaged to PAST today counts; earlier days\' done tasks synced back do not');
+      await page.close();
+    }
+
     // 11. Static wiring: action controls and favicon are module-owned; public exports unchanged.
     {
       const indexSrc      = await readFile(join(ROOT, 'index.html'), 'utf8');
