@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Completed habits quietly recede for today (app v3.10.7)
+
+Apply the existing 25% completed-task opacity token only to completed-for-today habit names and checkboxes, on desktop and mobile. Keep the checked accent fill and checkmark. History dots, strength, row position and layout retain their existing treatment; no strikethrough. Edit inputs keep the recently shipped habit-edit styling. Uses the existing done-today class, so checking, unchecking, re-rendering and the existing 3am rollover share the same visual state without changing data or sync.
+
 ## Habit edit mode uses the app's field and link styles (BUG-169) (app v3.10.6)
 
 Can found edit mode "terrible" and off-token. Investigation (desktop 1200px and phone 390px, real component):
