@@ -59,12 +59,12 @@ Most task apps have the same bug: they remember everything, and opening them fee
 
 No framework, no build step, no bundler. Vanilla JS + CSS.
 
-- `index.html` — the 4.8K-line HTML/CSS shell and startup composition; 38 ordered classic-script modules in `/assets/` own component behavior
+- `index.html` — the HTML/CSS shell and startup composition; ordered classic-script modules in `/assets/` own component behavior
 - `sw.js` — service worker: offline support, background updates
 - `manifest.json` — PWA installation
 - Seven Netlify Functions cover Dropbox/Gmail OAuth, AI, meeting/voice extraction, and task enrichment; one Edge Function injects poem sharing metadata
 - Fonts self-hosted (Syne + DM Mono)
-- `scripts/` — 37 non-live test suites plus design lint (38 checks total), including six-scene visual regression; the same gate runs locally and in GitHub Actions
+- `scripts/` — development tools, non-live regression suites and design checks; [the CI policy](scripts/ci-policy.mjs) defines the test inventory used locally and in GitHub Actions
 
 ---
 
@@ -191,25 +191,32 @@ TODAY itself keeps only a small synced summary per dream (date, images, role, pe
 
 No build step. Open `index.html` in a browser — or better, deploy a preview branch to Netlify since absolute paths (`/fonts/`, `/.netlify/functions/`) don't resolve from `file:///`.
 
-Install the reproducible development dependencies and run the complete local gate:
+Start with [Rules](memory/Rules.md) and the task-specific file guide. Work in your own workspace or worktree; [Housekeeping](memory/Housekeeping.md) describes setup, verification and publication.
 
-Development tooling requires Node.js 22.12 or newer; Node 24 is the recommended local runtime.
+Development tooling requires Node.js 22.12 or newer. Use the Node version pinned in [the test workflow](.github/workflows/test.yml) for reproducible checks. The workspace launcher selects that already-installed version without changing global settings.
+
+Prepare dependencies and run a quick check:
 
 ```sh
-npm ci --prefix scripts
-npm test --prefix scripts
-bash memory/validate-files.sh
+bash scripts/dev.sh setup
+bash scripts/dev.sh fresh
 ```
 
-Browser suites use the installed Google Chrome on macOS. Set `CHROME_PATH` for another executable; CI uses `/usr/bin/google-chrome`.
+Fresh checks reuse the cached, lockfile-matched test browser. If it has not been installed, run `node scripts/install-ci-browser.mjs` with the pinned Node version once. CI installs the same browser; direct browser-suite runs default to the installed Google Chrome on macOS unless `CHROME_PATH` is set.
 
-Documentation lives in `/memory/`. Start with `Rules.md` — it has a file guide for what to read based on your task.
+Run an affected suite with its invariants in an isolated snapshot:
 
-When making changes:
-- Add the new version as the **top entry of the `CHANGELOG` object** in `index.html` — `APP_VERSION` is derived from it, never edited directly
-- Update the `CACHE_VERSION` in `sw.js` to match (the one hand-synced value; the smoke test fails on drift)
-- Mirror the entry into `memory/Changelog.md`
-- Run `npm test --prefix scripts`; it includes design lint and every non-live suite, enforces inventory, and fails on retries/flakes
+```sh
+bash scripts/dev.sh fresh --suites reflection-episode-test
+```
+
+Use `npm run test:plan --prefix scripts` to inspect wider affected coverage. `npm test --prefix scripts` runs the full non-live inventory and fails on retries/flakes; use the scope appropriate to the change. [The CI contract](docs/ci-release-evidence.md) owns hosted evidence and master-release requirements.
+
+For publication, add a [change note](memory/changes/README.md), commit the work when authorized, then use `release:cut` and `release:publish` as described in Housekeeping. The cut generates release metadata and changelog entries; application changes receive a version bump, while documentation and developer-tool changes keep the app version. Publish to `dev`; master publication requires explicit authorization.
+
+### Reflection experiment
+
+The [commitment-episode experiment](docs/reflection-episode-experiment.md) is a local developer tool for investigating whether returning to and resolving tasks supports useful feeling reflections. It reads an existing backup outside the repository and reports aggregate evidence and limitations. It makes no AI calls and changes no app state. The guide documents the command, screening rules and review requirements; passing its checks does not establish a useful insight. Keep personal backups and results outside source control.
 
 ---
 
