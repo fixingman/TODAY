@@ -175,6 +175,8 @@
 /* Header actions share the native close-control footprint; Hide stays rightmost. */
 .ex-content .ex-head-actions { display: flex; align-items: center; gap: var(--space-1); margin-inline-start: auto; }
 .ex-content .ex-head-actions .ex-hide { margin: 0; }
+/* Same nudge colour as the header buttons; the pulse runs on top (reduced motion keeps this). */
+.ex-content .ex-conn-btn.btn-icon-attention { color: var(--accent); }
 /* Keep the live settings panel inside the normal sidebar scrollport. */
 .ex-connections-view #configPanel { border: none; border-radius: 0; background: none; padding: 0; margin: 0; overflow: visible; animation: none; }
 .ex-connections-view #connectionsTitle { display: none; }

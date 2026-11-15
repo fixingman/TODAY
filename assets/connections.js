@@ -164,7 +164,7 @@
       window.scrollTo(0, scrollY); // Restore scroll position
       if (isOpening) {
         _beginConnectionsPrivacyVisit();
-        localStorage.setItem('connections_nudge_seen_' + _localISO(), '1');
+        _markConnectionsNudgeSeen();
         renderConnections();
         setTimeout(_aiRenderConfig, 0);
         Today.use('meeting').renderMeetingNames();
@@ -203,14 +203,28 @@
     // Button nudge (Components.md § Button Nudges): the ✧ Connections button breathes
     // while a connection needs the user — an expired Gmail or Dropbox sign-in — until the
     // panel is opened that day; it returns the next day if the sign-in is still expired.
-    function _syncConnectionsNudge() {
-      const btn = document.getElementById('trelloBtn');
-      if (!btn) return;
+    // Explore's plug button (Connections lives inside Explore) carries the same nudge, so
+    // the breathing ✧ leads somewhere that is also breathing.
+    function _connectionsNeedAttention() {
       const expired = localStorage.getItem('gmail_token_expired') === '1'
         || localStorage.getItem('dropbox_token_expired') === '1'
         || localStorage.getItem('calendar_token_expired') === '1';
-      const seen = !!localStorage.getItem('connections_nudge_seen_' + _localISO());
-      btn.classList.toggle('btn-icon-attention', expired && !seen);
+      return expired && !localStorage.getItem('connections_nudge_seen_' + _localISO());
+    }
+    function _syncConnectionsNudge() {
+      const on = _connectionsNeedAttention();
+      document.getElementById('trelloBtn')?.classList.toggle('btn-icon-attention', on);
+      const plug = document.getElementById('exConnections');
+      if (plug) {
+        plug.classList.toggle('btn-icon-attention', on);
+        plug.setAttribute('aria-label', on ? 'Connections, a sign-in needs you' : 'Connections');
+        plug.title = plug.getAttribute('aria-label');
+        _syncAttentionPulse(plug);
+      }
+    }
+    function _markConnectionsNudgeSeen() {
+      localStorage.setItem('connections_nudge_seen_' + _localISO(), '1');
+      _syncConnectionsNudge();
     }
 
     function renderConnections() {
@@ -829,6 +843,8 @@
       _syncConnectionsNudge(); // an expiry flagged in an earlier session still shows on start
       Today.define('connections', {
         toggleConfig,
+        _syncConnectionsNudge,
+        _markConnectionsNudgeSeen,
         _renderConnectionsPrivacy,
         dropboxDisconnect,
         _aiUpdateConnectBtn,

@@ -180,6 +180,37 @@ try {
     assert.equal(await page.evaluate(()=>__settingsAI),0,'Settings navigation never generates an AI reply');
     assert.deepEqual(errors,[]);await page.close();ok('Embedded Connections uses native header, tokens, contained controls and safe live-form navigation');
   }
+  // Expired sign-in: the ✧ that opens Explore and Explore's own plug button breathe together,
+  // and opening Connections from inside Explore counts as seeing it (both stop).
+  {
+    const { page, errors } = await openPage({ gmail_token_expired: '1' });
+    await page.setViewport({ width: 1024, height: 900 });
+    await page.waitForFunction(() => document.getElementById('trelloBtn').classList.contains('btn-icon-attention'));
+    await page.click('#trelloBtn');
+    await page.waitForSelector('#exConnections');
+    const before = await page.evaluate(() => {
+      const plug = document.getElementById('exConnections');
+      return { header: document.getElementById('trelloBtn').classList.contains('btn-icon-attention'),
+        plug: plug.classList.contains('btn-icon-attention'), pulsing: !!plug.getAnimations().length,
+        label: plug.getAttribute('aria-label') };
+    });
+    await page.click('#exConnections'); await page.waitForSelector('#exConnectionsMount #configPanel');
+    await page.click('#sidebarRoot [data-ex-action="hide"]');
+    await page.waitForFunction(() => document.getElementById('sidebarRoot').hidden);
+    await page.click('#trelloBtn'); await page.waitForSelector('#exConnections');
+    const after = await page.evaluate(() => {
+      const plug = document.getElementById('exConnections');
+      return { header: document.getElementById('trelloBtn').classList.contains('btn-icon-attention'),
+        plug: plug.classList.contains('btn-icon-attention'), pulsing: !!plug.getAnimations().length,
+        label: plug.getAttribute('aria-label') };
+    });
+    assert.deepEqual(before, { header: true, plug: true, pulsing: true, label: 'Connections, a sign-in needs you' }, 'the plug in Explore carries the nudge');
+    assert.deepEqual(after, { header: false, plug: false, pulsing: false, label: 'Connections' }, 'opening Connections in Explore marks the nudge seen');
+    assert.deepEqual(errors, []);
+    await page.close();
+    ok('expired sign-in: Explore\'s plug breathes with the ✧ and both stop once Connections is opened there');
+  }
+
   // 1. toggleConfig: opens configPanel.
   {
     const { page, errors } = await openPage();

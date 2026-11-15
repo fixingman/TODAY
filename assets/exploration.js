@@ -41,6 +41,7 @@
     configPanelAnchor = {parent: panel.parentNode, next: panel.nextSibling};
     mount.append(panel);
     panel.classList.add('open'); _a11ySetDisclosure(null,panel,true);
+    connection()._markConnectionsNudgeSeen(); // seen here as much as from the header
     connection().renderConnections(); connection()._aiRenderConfig?.();
   }
   function _unmountConfigPanel() {
@@ -482,6 +483,7 @@
       else if(!busy&&loaded)html+=`<p>You don’t need a finished question. Bring something that happened, or something you’re unsure about.</p><div class="ex-setup">${incomingHTML(disabled)}<details id="exSetupSources"><summary>Uses relevant tasks &amp; Memory</summary><p class="ex-muted">Your words and relevant TODAY records support this reply, kept in Dropbox. You can review or change sources before the next reply. Feelings and dreams stay separate.</p></details>${imported?`<div class="ex-send">${action('create','continue with this document',disabled)}</div>`:''}</div>`;
     }else html+=view==='conversation'?conversationHTML(reading,disabled):secondaryHTML(reading,disabled);
     root.innerHTML=`<div class="ex-sheet-head">${controls()}</div><div class="ex-sheet-scroll">${html}</div></div><div class="ex-sheet-foot">${composerHTML()}</div>`;
+    connection()._syncConnectionsNudge();
     if(view==='conversation'&&turns>visitStart&&!pendingReading)scroller()?.querySelector('.ex-turn:last-of-type')?.classList.add('ex-turn-in');
     modality();animateThinking();
     groupTurns();
