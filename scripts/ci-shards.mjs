@@ -40,6 +40,7 @@ const WEIGHTS = {
   "ci-plan-test": 0.808,
   "release-evidence-test": 0.152,
   "release-publish-test": 3.316,
+  "release-cut-test": 1.5,
   "browser-fixture-test": 2.162,
   "ci-tooling-test": 5.023,
   "performance-harness-test": 3.846,

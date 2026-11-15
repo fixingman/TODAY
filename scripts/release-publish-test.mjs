@@ -89,6 +89,11 @@ try {
     const f=fixture({master:true,resume:true,run:11,noTrailer:true,completed:true});await execute(f);
     assert.deepEqual(f.state.pushes,['master']);assert.deepEqual(f.state.watches,[]);
   }
+  {
+    // A session worktree publishes from a detached HEAD; another named branch is refused.
+    const f=fixture();f.git(['checkout','--quiet','--detach']);await execute(f);assert.deepEqual(f.state.pushes,['dev']);
+    const g=fixture();g.git(['checkout','--quiet','-b','feature']);await assert.rejects(()=>execute(g),/detached session worktree/);assert.deepEqual(g.state.pushes,[]);
+  }
   console.log('  ✓ dev-only cannot promote; authorised promotion verifies exact proof, uses ordinary fast-forwards and one quiet watcher per branch; completed candidates resume without duplicate pushes/runs');
 
   for(const options of [{localFailure:true},{handledTimeout:true},{master:true,noTrailer:true}]) {

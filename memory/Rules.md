@@ -28,6 +28,7 @@ Read Rules first and the current Backlog priority. Read relevant Bugs/Changelog 
 | `Backlog.md` | Current priorities and open follow-ups |
 | `Bugs.md` | Known bugs & verification status |
 | `Changelog.md` | Recent changes (last ~20 versions) |
+| `changes/README.md` | How a session writes its release note and new bugs (consumed by `release:cut`) |
 
 ### Design entry point
 | Task | Read first |
@@ -140,7 +141,7 @@ Status symbols used throughout:
 
 **Match the publishing request.** A dev-only push ends with its commit, CI link and current status. A request for dev and master includes the required verification and identical-commit promotion. A status question authorizes one check. Keep a single release status/receipt and report milestones; avoid repetitive waiting messages or unnecessary full reruns. Necessary communication still follows the active session instructions.
 
-**Version the application when the application changes.** Runtime/UI/copy/prompts, shipped assets, persistence or sync changes require the app/SW version and user-facing changelog update. Documentation, tests, CI and developer-hook-only commits keep the current app/SW version and record engineering changes in the technical changelog. Every commit still needs its own required checks; an unchanged version never makes an older SHA's proof reusable. Before master promotion, ensure any application changes since master have an appropriate version bump.
+**Version the application when the application changes.** Runtime/UI/copy/prompts, shipped assets, persistence or sync changes require the app/SW version and user-facing changelog update — through a `memory/changes/` note with the right `bump`; `release:cut` writes the version. Documentation, tests, CI and developer-hook-only commits keep the current app/SW version and record engineering changes in the technical changelog. Every commit still needs its own required checks; an unchanged version never makes an older SHA's proof reusable. Before master promotion, ensure any application changes since master have an appropriate version bump.
 
 **Derive, don't duplicate.** `APP_VERSION` is derived from the newest `CHANGELOG` key
 (`Object.keys(CHANGELOG)[0]`) — only edit the changelog. `sw.js` `CACHE_VERSION` is the one
@@ -161,11 +162,11 @@ Before wiring any new memory signal into `_memoryForAI`, run the memory-signal p
 
 ## Git Rules
 
-30. **Always work on `dev` branch** — never create feature branches unless explicitly asked
+30. **Ship to `dev`, from your own worktree.** Each session works in its own Conductor workspace or `git worktree` (detached at `origin/dev`), never in a checkout another session is using. Publish with `release:cut` + `release:publish`, which push your commit to `dev`; do not create remote feature branches unless explicitly asked.
 
 ## Changelog Rules
 
-31. **`index.html` CHANGELOG — keep exactly 3 entries (1 current + 2 history).** The About panel renders `slice(0, 1 + HISTORY_SHOWN)` where `HISTORY_SHOWN = 2` — anything beyond 3 is never shown. Plain language only: no function names, CSS properties, BUG-XXX codes, or root-cause archaeology. Say what changed for the user, not how. When adding a new entry, drop the oldest one (full history is in `memory/Changelog.md` / `memory/archive/Changelog-archive.md`). Dev detail belongs in `memory/Changelog.md`, not here.
+31. **`index.html` CHANGELOG — written by `release:cut`, never by hand.** Sessions put their user-facing line in a `memory/changes/` note; the cut writes it with double quotes (an editor or autocorrect can curl `'`, which made the whole app fail to start on 2026-11-14). It keeps exactly 3 entries (1 current + 2 history). The About panel renders `slice(0, 1 + HISTORY_SHOWN)` where `HISTORY_SHOWN = 2` — anything beyond 3 is never shown. Plain language only: no function names, CSS properties, BUG-XXX codes, or root-cause archaeology. Say what changed for the user, not how. When adding a new entry, drop the oldest one (full history is in `memory/Changelog.md` / `memory/archive/Changelog-archive.md`). Dev detail belongs in `memory/Changelog.md`, not here.
 
 ## Privacy Rules
 
@@ -202,7 +203,7 @@ Tokens `--z-base` 1 · `--z-header` 11 · `--z-modal` 100 · `--z-splash` 500 ·
 
 ## Parallel Sessions
 
-33. **Two sessions share this worktree; a clean-path check before editing is not enough.** Stage by explicit path, never `-A`. Before every commit, read `git diff --cached` for each shared file (`index.html`, `sw.js`, anything under `memory/`) and confirm every added line is yours — a foreign BUG number, a version you did not cut, a section you did not write means the other session edited the file between your check and your `git add`. If so, unstage and re-apply only your hunk. **An abort may only unstage.** Never `git checkout --` or `git restore` a working-tree file the other session may hold: that discards their uncommitted work, and the whole point of aborting was to leave it alone. If every version-carrying file is under the other session's active edit, do not bump — hand the changelog line to that session. *(Both failure modes happened on 2026-09-03; the second was recovered only because `git add` had already written the blob.)*
+33. **One worktree per session (2026-11-15, Can).** Never edit, stage, reset or rebase in a checkout another session is using; start your own (Housekeeping → Start a task). The version, About CHANGELOG, `sw.js`, the top of `memory/Changelog.md`, new `Bugs.md` rows and bug numbers are written only by `release:cut` from your `memory/changes/` note, so parallel sessions no longer collide on them. If you ever do find yourself in a shared checkout, the old discipline applies: Stage by explicit path, never `-A`. Before every commit, read `git diff --cached` for each shared file (`index.html`, `sw.js`, anything under `memory/`) and confirm every added line is yours — a foreign BUG number, a version you did not cut, a section you did not write means the other session edited the file between your check and your `git add`. If so, unstage and re-apply only your hunk. **An abort may only unstage.** Never `git checkout --` or `git restore` a working-tree file the other session may hold: that discards their uncommitted work, and the whole point of aborting was to leave it alone. If every version-carrying file is under the other session's active edit, do not bump — hand the changelog line to that session. *(Both failure modes happened on 2026-09-03; the second was recovered only because `git add` had already written the blob.)*
 
 ## Live Console Diagnostics
 

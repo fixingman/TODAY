@@ -47,6 +47,9 @@ const index=version=>`<style>body{color:white}</style>\n<script>\nconst DEV_HOUR
 const sw=version=>`const CACHE_VERSION  = 'today-v${version}';\nconst files = ['/'];\n`;
 const before=index('2.104.0'),after=index('2.104.2');
 assert.equal(metadata(after,'index.html')?.version,'2.104.2');
+// Double-quoted keys and values (written by release-cut) parse the same way.
+assert.equal(metadata(`<script>\nconst DEV_HOURS     = '377h';\nconst CHANGELOG = {\n  "2.104.3": "The day’s line.",\n  '2.104.2': 'Older.',\n};\n</script>\n`,'index.html')?.version,'2.104.3');
+assert.equal(metadata(`<script>\nconst DEV_HOURS     = '377h';\nconst CHANGELOG = {\n  "2.104.3': 'Mixed.',\n};\n</script>\n`,'index.html'),null,'a key must open and close with the same quote');
 const metadataChanges=[{path:'index.html',before,after},{path:'sw.js',before:sw('2.104.0'),after:sw('2.104.2')}];
 const sources={'index.html':after,'sw.js':sw('2.104.2')};
 let plan=planChanges(metadataChanges,{sources});

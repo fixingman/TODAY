@@ -197,18 +197,20 @@ try {
   const cancellation = workflow.match(/^  cancel-in-progress: \$\{\{ (.+) \}\}$/m)?.[1];
   assert.ok(group && cancellation, 'routine concurrency policy is configured');
   const evaluate = (expression, github) => new Function('github', 'return (' + expression + ')')(github);
-  const policy = (event, ref, pr = null) => {
-    const github = { workflow: 'test', event_name: event, ref, event: { pull_request: { number: pr } } };
+  const policy = (event, ref, pr = null, sha = 'a'.repeat(40)) => {
+    const github = { workflow: 'test', event_name: event, ref, sha, event: { pull_request: { number: pr } } };
     return { group: group.replace(/\$\{\{ (.+?) \}\}/g, (_, expression) => evaluate(expression, github)),
       cancel: evaluate(cancellation, github) };
   };
   const dev = policy('push', 'refs/heads/dev'), master = policy('push', 'refs/heads/master');
   const pr = policy('pull_request', 'refs/pull/7/merge', 7), otherPR = policy('pull_request', 'refs/pull/8/merge', 8);
   const release = policy('workflow_dispatch', 'refs/heads/dev');
-  assert.equal(dev.cancel, true); assert.equal(pr.cancel, true);
+  assert.equal(dev.cancel, false, 'a later dev push never cancels an earlier commit\'s run'); assert.equal(pr.cancel, true);
   assert.equal(master.cancel, false); assert.equal(release.cancel, false);
   assert.equal(policy('push', 'refs/heads/other').cancel, false);
   assert.equal(new Set([dev.group, master.group, pr.group, otherPR.group, release.group]).size, 5);
+  assert.notEqual(dev.group, policy('push', 'refs/heads/dev', null, 'b'.repeat(40)).group, 'two dev commits never share a queue slot');
+  assert.equal(pr.group, policy('pull_request', 'refs/pull/7/merge', 7, 'b'.repeat(40)).group, 'a PR\'s newer commit supersedes its older run');
   assert.match(workflow, /run: npm run test:policy --prefix scripts/);
   assert.match(workflow, /run: node scripts\/ci-shards\.mjs run/);
   assert.match(workflow, /if: needs\.plan\.outputs\.performance == 'true' && needs\.plan\.outputs\.reuse != 'true'/);
@@ -224,7 +226,7 @@ try {
   assert.match(workflow,/node-version: '24\.14\.0'/);
   assert.match(workflow,/run: node scripts\/install-ci-browser\.mjs/);
   assert.match(workflow, /run: npm run performance --prefix scripts -- --no-audit-check/);
-  console.log('  ✓ concurrency isolates branches/PRs/events; master and dispatched release runs are not cancelled');
+  console.log('  ✓ concurrency isolates branches/PRs/events; only superseded PR runs are cancelled');
   // Sharding may change scheduling, never inventory, provenance or release acceptance.
   {
     const sha='a'.repeat(40),shardWorkflow={GITHUB_SHA:sha,GITHUB_RUN_ID:'41',GITHUB_RUN_ATTEMPT:'1',

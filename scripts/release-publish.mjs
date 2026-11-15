@@ -9,7 +9,8 @@ import { REPOSITORY, WORKFLOW, WORKFLOW_ID, validSha, requireValue } from './rel
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 export const HELP=`Usage: npm run release:publish --prefix scripts -- SHA [--master] [--suites name,name] [--run ID]
 
-Starts from a clean, reviewed commit on dev. Runs a fresh local check, pushes dev,
+Starts from a clean, reviewed commit on dev or in a detached session worktree
+(normally the commit printed by release:cut). Runs a fresh local check, pushes dev,
 waits quietly for that commit's CI, then reports the result. --master additionally
 verifies full exact-commit proof, fast-forwards master and waits for its CI.
 Use --master only when master publication was authorised. New master candidates
@@ -52,7 +53,7 @@ export async function publishCandidate(options,io) {
   if(master&&before.dev!==sha)requireValue(/^CI-Validation:[ \t]*full[ \t]*$/m.test(await io.message(sha)),
     'Master publication needs CI-Validation: full in the reviewed commit; no commit was changed or pushed');
   io.note('Checking the reviewed candidate locally.');await io.validate(suites);io.save({phase:'validated',localSuites:suites});await io.assertClean(sha);await io.assertOrigin();
-  const current=await io.refs();requireValue(current.dev===before.dev,'Dev advanced during local validation; no push performed');
+  const current=await io.refs();requireValue(current.dev===before.dev,'Dev advanced during local validation; no push performed. Run release:cut again, then publish its new commit');
   if(current.dev!==sha) {await io.push('dev',sha);io.save({phase:'dev-pushed'});}
   const dev=await io.waitCI('dev',sha,runId);io.save({devRun:dev.id,devUrl:dev.html_url,phase:'dev-ci-passed'});
   if(!master) {
@@ -105,7 +106,8 @@ export function createPublisherIO(root,{run=runCommand,pause=ms=>new Promise(r=>
   };
   return {directory,receipt,save,note,
     async assertClean(sha) {
-      requireValue((await git(['branch','--show-current'])).trim()==='dev','Publishing starts on dev');
+      // dev itself, or a detached HEAD in a session's own worktree (only one worktree can hold dev).
+      requireValue(['dev',''].includes((await git(['branch','--show-current'])).trim()),'Publish from dev or a detached session worktree');
       requireValue((await git(['rev-parse','HEAD'])).trim()===sha,'HEAD changed or does not match the reviewed candidate');
       requireValue(!(await git(['diff','--name-only','HEAD','--'])).trim(),'Commit reviewed working/index changes before publishing; existing changes were preserved');
       const others=(await git(['ls-files','--others','--exclude-standard','-z'])).split('\0').filter(path=>path&&!path.startsWith('.context/'));

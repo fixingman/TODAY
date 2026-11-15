@@ -103,10 +103,11 @@ export function metadata(source, path) {
   const matches = [...source.matchAll(/^const CHANGELOG = \{([\s\S]*?)^\};$/gm)];
   const hours = [...source.matchAll(/^const DEV_HOURS\s*=\s*(['"])\d+(?:\.\d+)?h\1;$/gm)];
   if (matches.length !== 1 || hours.length !== 1) return null;
-  const row = new RegExp(String.raw`\s*['"](\d+\.\d+\.\d+)['"]:\s*${LITERAL}\s*,`, 'g');
+  // Keys may use either quote style; release-cut writes double quotes.
+  const row = new RegExp(String.raw`\s*(['"])(\d+\.\d+\.\d+)\1:\s*${LITERAL}\s*,`, 'g');
   const rows = [...matches[0][1].matchAll(row)];
-  if (!rows.length || rows.length > 3 || matches[0][1].replace(row, '').trim() || new Set(rows.map(row => row[1])).size !== rows.length) return null;
-  return { version: rows[0][1], normalized: source.replace(matches[0][0], 'const CHANGELOG = __CI_METADATA__;').replace(hours[0][0], 'const DEV_HOURS = __CI_METADATA__;') };
+  if (!rows.length || rows.length > 3 || matches[0][1].replace(row, '').trim() || new Set(rows.map(row => row[2])).size !== rows.length) return null;
+  return { version: rows[0][2], normalized: source.replace(matches[0][0], 'const CHANGELOG = __CI_METADATA__;').replace(hours[0][0], 'const DEV_HOURS = __CI_METADATA__;') };
 }
 
 export function planChanges(changes, { fallback = [], sources = {}, base = null, head = null, source = 'fixture' } = {}) {
