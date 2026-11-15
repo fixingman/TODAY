@@ -72,6 +72,7 @@ assert.throws(() => cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, not
 assert.throws(() => cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, notes: [bug], maxBug: 1 }), /change note/);
 assert.throws(() => cut({ index: index(), sw: sw('3.10.2'), changelog, bugs, notes: [fix, bug], maxBug: 1 }), /sw\.js/);
 assert.throws(() => cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, notes: [note('a.md', 'bump: patch\ntitle: BUG-{missing}\nabout: a')], maxBug: 1 }), /Unknown bug note/);
+assert.match(cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, notes: [note('a.md', 'bump: none\ntitle: Docs', 'Write `BUG-{slug}` for a new bug.')], maxBug: 1 }).changelog, /Write `BUG-\{slug\}` for a new bug\./, 'code spans are documentation');
 console.log('  ✓ cut writes three double-quoted entries, SW, changelog and bug rows/details; engineering notes leave the app version alone');
 
 // ── Real Git: two sessions cut in parallel; the second re-cuts after dev moves ──

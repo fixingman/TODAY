@@ -86,8 +86,10 @@ export function cut({ index, sw, changelog, bugs, notes, maxBug }) {
   const bump = changes.map(n => n.bump).reduce((a, b) => BUMPS.indexOf(b) > BUMPS.indexOf(a) ? b : a, 'none');
   const version = nextVersion(current, bump), appChanged = bump !== 'none';
   const assigned = Object.fromEntries(newBugs.map((n, i) => [n.slug, maxBug + 1 + i]));
-  const fill = text => text.replace(/BUG-\{([a-z0-9-]+)\}/g, (all, slug) =>
-    Object.hasOwn(assigned, slug) ? `BUG-${assigned[slug]}` : fail(`Unknown bug note in ${all}`));
+  // Placeholders inside `code spans` are left alone, so a note can document the syntax.
+  const fill = text => text.split(/(`[^`\n]*`)/).map(part => part.startsWith('`') ? part
+    : part.replace(/BUG-\{([a-z0-9-]+)\}/g, (all, slug) =>
+      Object.hasOwn(assigned, slug) ? `BUG-${assigned[slug]}` : fail(`Unknown bug note in ${all}`))).join('');
 
   if (appChanged) {
     const block = index.match(CHANGELOG_BLOCK);
