@@ -1083,7 +1083,7 @@ try {
     const reflIdx = indexSrc.indexOf("assets/reflections.js");
     const dropIdx = indexSrc.indexOf("assets/dropbox.js");
     const triaIdx = indexSrc.indexOf("assets/triage.js");
-    const appVerMatch = indexSrc.match(/const CHANGELOG\s*=\s*\{\s*'([^']+)'/);
+    const appVerMatch = indexSrc.match(/const CHANGELOG\s*=\s*\{\s*['"]([^'"]+)['"]/);
     const appVer = appVerMatch?.[1];
 
     await expectAll('static wiring', {
