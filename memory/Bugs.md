@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 168 | ⏳ Verify | An expired sign-in makes ✧ breathe, but Explore's Connections button stays still, and opening Connections there never stops the nudge. | v3.10.5 |
 | 167 | ⏳ Verify | Habit focus loses the timer and focused row after renderHabits() wipes the list (sync, completion, day change). | v3.10.3 |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
 | 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.10.2 |
@@ -45,6 +46,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-168 — Connections nudge does not reach Explore's plug button
+
+**Report (Can, November 15):** the ✧ button blinks for a connection problem, but the Connections (plug) icon inside Explore does not.
+
+**Root cause:** since Connections moved inside Explore (v3.8.5), `_syncConnectionsNudge` only toggled `#trelloBtn`, and the shared attention observer only watches the three header buttons. Separately, the seen flag was only written by the old header `toggleConfig` path, so opening Connections from Explore never marked the nudge seen and ✧ kept breathing for the rest of the day.
+
+**Fix:** see the v-release changelog entry. Verify on device with an expired Gmail, Dropbox or Calendar sign-in: ✧ and the plug both breathe; opening Connections in Explore stops both until the next day.
 
 ---
 

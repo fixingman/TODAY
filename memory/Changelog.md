@@ -2,6 +2,20 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Explore names why it cannot open, and opens by itself when you're back online (app v3.10.5)
+
+Before, every failure to read the exploration said "Connect Dropbox or come back online to open your exploration." with a reload button, and nothing happened when the connection returned.
+
+`exploration-files.js` now separates `offline` (the device reports offline; no request is made) and `not-connected` (no Dropbox grant) from `unavailable` (online, but Dropbox did not answer). Explore shows, in order: "You're offline. Your exploration is safe in Dropbox and opens when you're back." with no button; "Connect Dropbox to open your exploration." with **connect Dropbox** (opens Connections inside Explore; also used for an expired sign-in); "Dropbox didn't respond. Nothing was changed; try again." with **reload latest**. Sending and asking while offline say so too ("You're offline. Your text stays here; send it when you're back." / "…ask again when you're back.").
+
+An `online` listener re-reads the document only while Explore is open and its last open failed for being offline. A failed reply is never retried automatically: that is an AI call the person chooses to make.
+
+`exploration-test` covers the three openings, no request while offline, and a single read on reconnect; on v3.10.4 it times out waiting for the offline wording.
+
+## Explore's Connections button carries the sign-in nudge (BUG-168) (app v3.10.5)
+
+`_syncConnectionsNudge` now also sets `btn-icon-attention`, the WAAPI pulse and an explicit label ("Connections, a sign-in needs you") on Explore's `#exConnections`; Explore calls it after every header render. `_mountConfigPanel` marks `connections_nudge_seen_<day>` like the header path does. CSS keeps the accent colour under reduced motion. `connections-test` covers both; it fails on v3.10.4 at "the plug in Explore carries the nudge".
+
 ## Observe suite startup without depending on animation frames (engineering, app v3.10.4 unchanged)
 
 Assistant, About, Explore and Sidebar still used frame-polled startup waits; the earlier Dropbox repair already demonstrated that a ready background device tab can stop notifying that observer. The five suites now share a timer-polled successful-boot prerequisite, including the interactive seal before component access. Each caller keeps its original total deadline and owner predicate; Sidebar mounting shares its existing 10-second budget. Common failure diagnostics identify the fixture, visibility, boot/seal state and errors. A held real MessageChannel startup and suspended driver frame observer prove the old wait misses completion while the repaired waits see readiness. Held startup and a missing owner still fail. Existing mobile Enter, viewport, painting and two-device sync assertions remain. No application, sync, splash, performance policy or retry behavior changes.
