@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 169 | ⏳ Verify | The habit name field in edit mode stayed 13.5px on phones, so iOS zooms when it is focused. | v3.10.6 |
 | 168 | ⏳ Verify | An expired sign-in makes ✧ breathe, but Explore's Connections button stays still, and opening Connections there never stops the nudge. | v3.10.5 |
 | 167 | ⏳ Verify | Habit focus loses the timer and focused row after renderHabits() wipes the list (sync, completion, day change). | v3.10.3 |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
@@ -46,6 +47,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-169 — Renaming a habit on iPhone zooms the page
+
+**Found (November 15)** while investigating Can's report that habit edit mode looks off-token: computed font-size of `.habit-edit-input` at 390px was 13.5px.
+
+**Root cause:** the shared ≤600px rule sets `.habit-edit-input` to `--text-lg` (Rule 5c), but the component's own base rule, later in `index.html`, set `--text-task` with equal specificity and won. The exit path's viewport `maximum-scale` reset existed to undo that zoom.
+
+**Fix:** the component repeats the 16px rule in its own ≤600px query; `habits-test` asserts ≥16px at 390px. Verify on iPhone: tap a habit name in edit mode; the page should not zoom.
 
 ---
 
