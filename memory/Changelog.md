@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Sync no longer brings back earlier days' done marks (BUG-171, source fix) (app v3.10.11)
+
+Follow-up to v3.10.10's display fix. `mergeRemoteData` now removes from the merged done set any id whose task is in PAST (and not in TODAY) unless it was checked today, matching what `applyNewDayCleanup` does when it graduates tasks. Earlier days' ids had lost their check history at rollover, so the no-history union fallback let a device that had not rolled over restore them. Today's evening-triaged tasks keep their done state (checked today); Trello and other ids are untouched. `dropbox-test` 9b fails on v3.10.10 and passes now; sync-merge, day-lifecycle, triage, task-actions, Trello, habits, habit-tasks, zones and timezone suites pass. Sync.md's done-ID rule records the change.
+
 ## The "x of y done" count only includes today's tasks (BUG-171) (app v3.10.10)
 
 See BUG-171. `updateStats` counts PAST tasks only when they were checked today (`today_checked_ids`), which keeps evening-triaged work in the count and drops earlier days' done tasks. `task-actions-test` 10b fails on v3.10.9 (21 of 22) and passes now (1 of 2).
