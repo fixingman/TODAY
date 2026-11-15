@@ -163,7 +163,7 @@ Additive keys do not bump the version; `Rules.md` #12 records which keys arrived
 | Trello focus total | `today_trello_focus_total` — lifetime sessions per card; union by card, MAX wins, no date guard (the daily map handles activity) |
 | Day review | `day_review` fill-if-empty — local is the current-session record |
 | Trello config | Fill-if-empty: `remote.trello_config` applies when local is absent, so Connections entered on one device reaches the other |
-| Done IDs | True LWW per id: `Math.max(checkedAt, uncheckedAt)` across both maps decides the winning op (`mergedDoneIds`). The checked/unchecked maps themselves are persisted as a plain union, so a stale check can outlive an uncheck there — readers must apply the same most-recent-wins rule |
+| Done IDs | True LWW per id: `Math.max(checkedAt, uncheckedAt)` across both maps decides the winning op (`mergedDoneIds`). The checked/unchecked maps themselves are persisted as a plain union, so a stale check can outlive an uncheck there — readers must apply the same most-recent-wins rule **PAST ids (BUG-171, v3.10.11):** after the merge, an id whose task is in PAST (and not in TODAY) stays done only if it was checked today; earlier days' ids lose their check history at rollover and would otherwise come back through the no-history union from a device that has not rolled over yet. |
 | Deleted IDs | Union, excluded from every task list and zone; see Deletion Persistence |
 | SOON / PAST | Union by ID, newer `zoneChangedAt` wins (see Zone-Aware Sync). PAST purges by age only — done >7 days, let_go/aged >30 days, no count cap |
 | Reflections | Policy LWW by `updatedAt` (ties → remote); entries per-date LWW; entries ≤ `reflections_cleared_at` dropped; 30-calendar-day window; watermark max-wins |

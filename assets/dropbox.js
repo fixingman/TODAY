@@ -1438,6 +1438,16 @@
         }
       }
 
+      // A task in PAST is "done" for today only if it was checked today (evening triage).
+      // Earlier days' done ids have no check history left after a device rolls over, so the
+      // union fallback above would let a not-yet-rolled-over device restore them (BUG-171).
+      // This mirrors applyNewDayCleanup, which removes those ids when it graduates the tasks.
+      const _mergeDay = _localISO(), _todayTasks = new Set(mergedTasks.map(t => t.id));
+      for (const t of pastTasks) {
+        const at = mergedCheckedMap.get(t.id);
+        if (mergedDoneIds.has(t.id) && !_todayTasks.has(t.id) && !(at && _localISO(new Date(at)) === _mergeDay)) mergedDoneIds.delete(t.id);
+      }
+
       const prevDone = JSON.stringify([...doneIds].sort());
       const nextDone = JSON.stringify([...mergedDoneIds].sort());
       if (prevDone !== nextDone) _changed = true;

@@ -253,6 +253,28 @@ try {
     await page.close();
   }
 
+  // 9b. BUG-171: after this device rolls over, a device that has not yet rolled over still
+  //     lists earlier days' done ids with no check history. They stay out of doneIds; a task
+  //     checked today and moved to PAST by evening triage stays done; Trello ids are untouched.
+  {
+    const { page, errors } = await openPage();
+    const result = await page.evaluate(() => {
+      const now = Date.now(), day = 86400000, iso = t => new Date(t).toISOString();
+      const old = Array.from({ length: 5 }, (_, i) => ({ id: 'manual_old_' + i, text: 'Earlier ' + i, zone: 'past', status: 'done', zoneChangedAt: iso(now - (i + 1) * day) }));
+      const triaged = { id: 'manual_triaged', text: 'Done tonight', zone: 'past', status: 'done', zoneChangedAt: iso(now) };
+      pastTasks = [triaged, ...old]; localStorage.setItem('today_past', JSON.stringify(pastTasks));
+      doneIds = new Set(['manual_triaged']); localStorage.setItem('today_done', JSON.stringify([...doneIds]));
+      localStorage.setItem('today_checked_ids', JSON.stringify([{ id: 'manual_triaged', at: iso(now) }]));
+      mergeRemoteData({ manual_tasks: [], done_ids: [...old.map(t => t.id), 'manual_triaged', 'trello_card_1'], deleted_ids: [],
+        unchecked_ids: [], checked_ids: [], soon_tasks: [], past_tasks: [triaged, ...old], habits: [] });
+      return { oldStayOut: old.every(t => !doneIds.has(t.id)), triagedStays: doneIds.has('manual_triaged'),
+        trelloKept: doneIds.has('trello_card_1'), saved: !JSON.parse(localStorage.getItem('today_done')).includes('manual_old_0') };
+    });
+    await expectAll('stale done ids for earlier PAST tasks', { ...result, noErrors: errors.length === 0 });
+    ok('mergeRemoteData: earlier days\' done ids from a not-yet-rolled-over device stay out; today\'s triaged and Trello ids stay');
+    await page.close();
+  }
+
   // 10. mergeRemoteData: renders the merged task when tasks change.
   {
     const { page, errors } = await openPage();
