@@ -43,6 +43,7 @@ export const SUITE = [
   "ai-assist-unit-test",
   "writing-evaluator-test",
   "feedback-policy-unit-test",
+  "reflection-episode-test",
   "suggestion-policy-unit-test",
   "suggestion-outcomes-test",
   "nudge-test",
@@ -484,7 +485,8 @@ export const GROUPS = {
       "ci-tooling-test",
       "console-probe-test",
       "performance-harness-test",
-      "writing-evaluator-test"
+      "writing-evaluator-test",
+      "reflection-episode-test"
     ],
     "full": true
   }
