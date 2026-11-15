@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Update README development and reflection experiment guidance (engineering, app v3.10.11 unchanged)
+
+Linked the offline commitment-episode experiment from the Development section without presenting it as a shipped app capability. Replaced stale module/test counts with the canonical inventory, documented workspace setup and scoped fresh checks, corrected browser setup, and replaced manual release-metadata edits with the change-note/cut/publish workflow. No runtime or app version change.
+
 ## Implement an offline commitment-episode reflection experiment (engineering, app v3.10.11 unchanged)
 
 Implemented `scripts/reflection-episode-experiment.mjs`: a read-only local analysis of existing opt-in thirty-day reflections and task outcomes. It excludes ambiguous linkage/order and unknown endings, separates resolution types, deduplicates shared dates, compares start/resolution/baseline feeling frequencies and removes each contributing date to test sensitivity. Aggregate stdout omits private text, identifiers, reasons and per-episode dates; there are no network/model calls, state changes or report files. Screening remains exploratory with source/feedback/usefulness review required; it does not certify statistical significance or personal writing. Registered fictional linkage, sensitivity, source-boundary and CLI-privacy tests in CI and documented the command. The raw feeling-history UI proposal remains rejected. No shipping code, retention or permissions changed.
