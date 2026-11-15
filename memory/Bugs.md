@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 172 | ⏳ Verify | Small selected runs download flat evidence; the combiner previously searched only subdirectories. | — |
 | 171 | ⏳ Verify | The header showed "32 of 44 done" on a day with far fewer tasks; done tasks from the past week were counted. | v3.10.10 |
 | 170 | ⏳ Verify | Explore discards the reason a reply failed and offers a generic retry even when the AI account needs credit or billing attention. | v3.10.8 |
 | 169 | ⏳ Verify | The habit name field in edit mode stayed 13.5px on phones, so iOS zooms when it is focused. | v3.10.6 |
@@ -49,6 +50,14 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-172 — Single functional artifact download fails the CI result combiner
+
+Observed in [README dev run 43774360676](https://github.com/fixingman/TODAY/actions/runs/43774360676) at 90ae004e: planning and both functional checks passed, but final merge failed with `Missing or extra functional shard`. The download log confirms one matched artifact extracted directly into `.context/ci-shards` despite `merge-multiple: false`.
+
+The local real-command fixture reproduced that failure before the fix. The combiner now accepts a complete flat artifact only for one planned worker; multi-artifact layouts remain nested. It still rejects missing/extra/mixed shards, wrong SHA/run-attempt/input/environment, failed/retried suites and absent original logs. Two-suite flat and nested transport fixtures pass alongside the existing 36-suite multiworker fixture. Preserve the failed run; hosted verification of an actual single-worker selection remains open until observed.
 
 ---
 

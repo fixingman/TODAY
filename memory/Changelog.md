@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Handle single-artifact downloads in the CI result combiner (BUG-172) (engineering, app v3.10.11 unchanged)
+
+The documentation-only README publication reached dev at 90ae004e, but its final gate failed in run 43774360676 after both functional checks passed. The single matched functional artifact was downloaded directly into `.context/ci-shards`, even with `merge-multiple: false`; the combiner searched only subdirectories and reported a missing shard. Normalize the flat layout only for a canonical one-worker plan, retaining nested transport and every existing suite/provenance/input/environment/first-attempt-log check. Reject incomplete flat evidence, mixed flat/nested artifacts and flat evidence for multiple workers. The real plan/worker/transport/merge fixture now reproduces two-suite selected runs alongside the existing 36-suite multiworker case; it failed before the correction and passes afterward. No workflow permissions, validation requirements, runtime app code or app version changed.
+
 ## Update README development and reflection experiment guidance (engineering, app v3.10.11 unchanged)
 
 Linked the offline commitment-episode experiment from the Development section without presenting it as a shipped app capability. Replaced stale module/test counts with the canonical inventory, documented workspace setup and scoped fresh checks, corrected browser setup, and replaced manual release-metadata edits with the change-note/cut/publish workflow. No runtime or app version change.
