@@ -395,6 +395,19 @@ try {
       setMark: document.querySelector('[data-habit-id="habit_a"] .habit-daily-mark')?.getAttribute('aria-label') === 'Daily task, varied set',
       noMark: !document.querySelector('[data-habit-id="habit_b"] .habit-daily-mark'),
     })));
+    await expectAll('marks are matching 14px icons centred on the name line', await page.evaluate(() => {
+      // Fresh (✦) and set (list-in) marks: same drawn 14px icon, centred on the name's first line.
+      Today.use('habit-tasks').saveConfig('habit_b', { enabled: true, mode: 'fresh', actions: [{ id: 'habit_name', text: 'Walk' }], defaultId: 'habit_name' });
+      Today.use('habits').renderHabits();
+      const rows = ['habit_a', 'habit_b'].map(id => {
+        const mark = document.querySelector(`[data-habit-id="${id}"] .habit-daily-mark`), icon = mark.firstElementChild;
+        const name = mark.closest('.habit-name'), lh = parseFloat(getComputedStyle(name).lineHeight), r = icon.getBoundingClientRect();
+        return icon.tagName === 'svg' && r.width === 14 && r.height === 14 && Math.abs(r.top + r.height / 2 - (name.getBoundingClientRect().top + lh / 2)) < 1;
+      });
+      Today.use('habit-tasks').saveConfig('habit_b', { enabled: false, mode: 'set', actions: [{ id: 'habit_name', text: 'Walk' }], defaultId: 'habit_name' });
+      Today.use('habits').renderHabits();
+      return { setMark: rows[0], freshMark: rows[1] };
+    }));
     await page.evaluate(() => Today.use('habits').toggleHabitEditMode());
     await expectAll('edit link names the mode', await page.evaluate(() => ({
       a: document.querySelector('[data-habit-id="habit_a"] .habit-daily-link')?.textContent === 'daily task · varied set',

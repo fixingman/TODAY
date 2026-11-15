@@ -221,7 +221,8 @@
 
     // Daily-task mark after a habit's name: ✦ written fresh each day, list-in for a varied set.
     const DAILY_MARK = {
-      fresh: '<span class="habit-daily-star" aria-hidden="true">✦&#xFE0E;</span>',
+      // Drawn, not the ✦ glyph: a text glyph sits on the baseline and renders smaller than the 14px icon.
+      fresh: '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M10 3c.6 4.4 2.6 6.4 7 7-4.4.6-6.4 2.6-7 7-.6-4.4-2.6-6.4-7-7 4.4-.6 6.4-2.6 7-7z"/></svg>',
       set: '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h8M4 10h6M4 14h5M15 8v8M12.5 13.5L15 16l2.5-2.5"/></svg>',
     };
     const DAILY_LABEL = { fresh: 'fresh each day', set: 'varied set' };

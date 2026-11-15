@@ -427,7 +427,10 @@ try {
     // Edit rows: a full-width 44px name field (16px text on phones) and one row of quiet
     // actions; check, history and strength step aside until editing ends.
     // History is hidden while editing, so wait on layout frames rather than on dot fitting.
-    const editSettled=async width=>{await page.setViewport({width,height:900});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));};
+    // At ≤600px the panel moves into its phone host; measure only once it has arrived there.
+    const editSettled=async width=>{await page.setViewport({width,height:900});
+      await page.waitForFunction(phone=>innerWidth<=600===phone&&!!document.getElementById('habitsPanel')?.contains(document.getElementById('habitList'))===phone,{timeout:3000},width<=600);
+      await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));};
     // Translated DOMRects can round 44px down to 43.999996px. Require the
     // real 44px layout height and allow only 0.001px coordinate rounding.
     const editFieldHeight=(rectHeight,layoutHeight)=>layoutHeight>=44&&rectHeight>=44-0.001;

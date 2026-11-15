@@ -3,7 +3,7 @@
 (function() {
   'use strict';
   let view = null, request = null;
-  const STAR = '<span class="ht-star" aria-hidden="true">✦&#xFE0E;</span>';
+  const STAR = '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false"><path d="M10 3c.6 4.4 2.6 6.4 7 7-4.4.6-6.4 2.6-7 7-.6-4.4-2.6-6.4-7-7 4.4-.6 6.4-2.6 7-7z"/></svg>';
   const LIST_IN = '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h8M4 10h6M4 14h5M15 8v8M12.5 13.5L15 16l2.5-2.5"/></svg>';
   const node = (tag, cls, text) => { const el = document.createElement(tag); if (cls) el.className = cls; if (text) el.textContent = text; return el; };
   const $ = sel => view.root.querySelector(sel);
