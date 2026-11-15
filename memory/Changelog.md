@@ -2,6 +2,14 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Explain Explore reply failures and the action needed before retry (BUG-170) (app v3.10.8)
+
+Normal chat failures previously discarded their specific reason, displaying a generic retry beside an unrelated earlier-reading context warning. Keep a fixed, page-held failure reason for the unanswered turn and show one actionable alert. The exploration-only proxy contract distinguishes explicit insufficient credit, billing, known spend/daily limits, credentials and ambiguous rate/usage limits; a token-capped response remains separate. Fixed copy keeps raw provider details out of UI/journal. Account problems offer AI connection and retry when ready; no immediate automatic retry or invented reset time. Explicit retry preserves the single original observation. Source withholding, saved history, data scope, providers/models/routing, request deadline and output budget are unchanged. Offline handler/browser coverage includes negative classification controls, explicit recovery, raw-data canaries, Connections navigation and existing late-response/withdrawal fences.
+
+## Preserve the habit edit height requirement across fractional translations (app v3.10.8)
+
+Dev run43730735458 failed only the phone edit-field height assertion, then passed its diagnostic retry. A native 44px field translated by a fractional CSS pixel reproducibly reports a 43.999996px DOMRect. Require the actual layout height to remain at least 44px and permit only 0.001px coordinate rounding in the visual rectangle. Browser controls reproduce rejection by the original strict comparison and verify the repaired predicate still rejects a real 43px field. No input size, application logic, timeout, retry or performance limit changes.
+
 ## Completed habits quietly recede for today (app v3.10.7)
 
 Apply the existing 25% completed-task opacity token only to completed-for-today habit names and checkboxes, on desktop and mobile. Keep the checked accent fill and checkmark. History dots, strength, row position and layout retain their existing treatment; no strikethrough. Edit inputs keep the recently shipped habit-edit styling. Uses the existing done-today class, so checking, unchecking, re-rendering and the existing 3am rollover share the same visual state without changing data or sync.

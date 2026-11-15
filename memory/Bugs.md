@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 170 | ⏳ Verify | Explore discards the reason a reply failed and offers a generic retry even when the AI account needs credit or billing attention. | v3.10.8 |
 | 169 | ⏳ Verify | The habit name field in edit mode stayed 13.5px on phones, so iOS zooms when it is focused. | v3.10.6 |
 | 168 | ⏳ Verify | An expired sign-in makes ✧ breathe, but Explore's Connections button stays still, and opening Connections there never stops the nudge. | v3.10.5 |
 | 167 | ⏳ Verify | Habit focus loses the timer and focused row after renderHabits() wipes the list (sync, completion, day change). | v3.10.3 |
@@ -47,6 +48,12 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-170 — Explore hides provider credit failures behind generic retry
+
+Reported Chat showed an unavailable earlier-context notice and a kept-message retry that did not help when AI allowance was exhausted. Normal reply handling discarded the typed failure used by suggestions, and the proxy preserved only an upstream message. Add exploration-scoped fixed failure categories and one actionable failed-turn notice; keep earlier source provenance on its existing inspection surfaces. Verify with fictional provider and browser cases, retaining saved-observation, source-withdrawal and late-response fences. Actual account balance has not been inspected.
 
 ---
 
