@@ -258,27 +258,10 @@
 
     function toggleHabitEditMode() {
       if (habitEditMode) {
-        // Exiting edit — save values and swap inputs back to text
-        document.querySelectorAll('#habitList .habit[data-habit-id]').forEach(row => {
-          const id    = row.dataset.habitId;
-          const input = row.querySelector('.habit-edit-input');
-          const del   = row.querySelector('.habit-edit-delete');
-          if (!input || !del) return;
-          const h    = habitsList.find(h => h.id === id);
-          const name = input.value.trim();
+        // Exiting edit — save the names; renderHabits() below rebuilds the rows.
+        document.querySelectorAll('#habitList .habit-edit-input').forEach(input => {
+          const h = habitsList.find(h => h.id === input.dataset.id), name = input.value.trim();
           if (h && name) h.name = name;
-          const nameDiv = document.createElement('div');
-          nameDiv.className   = 'habit-name';
-          nameDiv.textContent = h ? h.name : name;
-          input.replaceWith(nameDiv);
-          const strength  = _getHabitStrength(id);
-          const streakDiv = document.createElement('div');
-          streakDiv.className = 'habit-streak';
-          streakDiv.title     = strength + '% habit strength';
-          streakDiv.innerHTML = `<span class="streak-label${strength >= 80 ? ' hot' : ''}">${strength > 0 ? strength + '%' : '—'}</span>`;
-          del.replaceWith(streakDiv);
-          row.querySelector('.habit-daily-config')?.remove();
-          row.classList.remove('editing');
         });
         _saveHabits();
         // iOS: reset any zoom triggered by the input gaining focus
@@ -302,9 +285,10 @@
         const id      = row.dataset.habitId;
         const h       = habitsList.find(h => h.id === id);
         if (!h) return;
-        const nameDiv   = row.querySelector('.habit-name');
-        const streakDiv = row.querySelector('.habit-streak');
-        if (!nameDiv || !streakDiv) return;
+        const nameDiv = row.querySelector('.habit-name');
+        if (!nameDiv) return;
+        // Edit row: name field, then one quiet row of actions. Check, history and strength
+        // are hidden by CSS while editing; they come back with renderHabits() on exit.
         row.classList.add('editing');
         const input       = document.createElement('input');
         input.className   = 'habit-edit-input';
@@ -312,6 +296,7 @@
         input.maxLength   = 100;
         input.dataset.id  = id;
         input.placeholder = 'Name the habit…';
+        input.setAttribute('aria-label', 'Habit name');
         input.addEventListener('keydown', handleHabitEditKey);
         nameDiv.replaceWith(input);
         const daily = document.createElement('div');
@@ -322,13 +307,14 @@
         if (mode) { link.classList.add('on'); link.insertAdjacentHTML('afterbegin', DAILY_MARK[mode]); }
         link.append('daily task' + (mode ? ' · ' + DAILY_LABEL[mode] : ''));
         daily.querySelector('button').dataset.habitId = id;
-        input.parentElement.append(daily);
         const del       = document.createElement('button');
+        del.type        = 'button';
         del.className   = 'habit-edit-delete';
-        del.textContent = '×';
-        del.title       = 'Archive';
+        del.textContent = 'archive';
+        del.setAttribute('aria-label', 'Archive ' + h.name);
         del.addEventListener('click', () => archiveHabit(id));
-        streakDiv.replaceWith(del);
+        daily.append(del);
+        input.parentElement.append(daily);
       });
       document.getElementById('habitAddRow').classList.remove('open');
       document.getElementById('habitNewBtn').classList.remove('active');

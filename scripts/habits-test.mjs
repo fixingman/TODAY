@@ -394,7 +394,7 @@ try {
           const rail=row.querySelector('.habit-history').getBoundingClientRect();
           const dots=[...row.querySelectorAll('.week-dot')];
           const first=dots[0].getBoundingClientRect(),last=dots.at(-1).getBoundingClientRect();
-          const end=row.querySelector('.habit-streak,.habit-edit-delete').getBoundingClientRect();
+          const end=row.querySelector('.habit-streak').getBoundingClientRect();
           const box=row.getBoundingClientRect(),input=row.querySelector('input');
           const short=row.dataset.habitId==='habit_short'||row.dataset.habitId==='habit_unknown';
           return {
@@ -424,20 +424,39 @@ try {
       await layoutGeometry(width);
       await page.screenshot({path:join(shots,'desktop-'+width+'.png')});
     }
+    // Edit rows: a full-width 44px name field (16px text on phones) and one row of quiet
+    // actions; check, history and strength step aside until editing ends.
+    // History is hidden while editing, so wait on layout frames rather than on dot fitting.
+    const editSettled=async width=>{await page.setViewport({width,height:900});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));};
+    async function editGeometry(label) {
+      const rows=await page.evaluate(()=>[...document.querySelectorAll('#habitList .habit')].map(row=>{
+        const box=row.getBoundingClientRect(),input=row.querySelector('.habit-edit-input').getBoundingClientRect(),style=getComputedStyle(row);
+        const link=row.querySelector('.habit-daily-link'),archive=row.querySelector('.habit-edit-delete'),a=archive.getBoundingClientRect(),l=link.getBoundingClientRect();
+        const pad=parseFloat(style.paddingLeft)+row.clientLeft; // inside the 1px row border
+        return {editing:row.classList.contains('editing'),fieldHeight:input.height>=44,fullWidth:Math.abs(input.left-box.left-pad)<1&&Math.abs(box.right-pad-input.right)<1,
+          phoneText:innerWidth>600||parseFloat(getComputedStyle(row.querySelector('.habit-edit-input')).fontSize)>=16,
+          hidden:['.habit-check','.habit-history','.habit-streak'].every(sel=>!row.querySelector(sel)||getComputedStyle(row.querySelector(sel)).display==='none'),
+          actionsBelow:l.top>=input.bottom&&Math.abs(a.top-l.top)<1,archiveEnd:a.right<=box.right&&a.left>l.right,
+          targets:[a,l].every(r=>r.height>=24),named:archive.getAttribute('aria-label')?.startsWith('Archive ')&&!!row.querySelector('.habit-edit-input').getAttribute('aria-label')};
+      }));
+      for(const row of rows)await expectAll('habit edit row '+label,{...row,noErrors:!errors.length});
+    }
     await settled(1200);
     await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
-    await layoutGeometry(1200,true);
+    await editGeometry(1200);
     await page.screenshot({path:join(shots,'desktop-edit.png')});
     await page.$eval('.habit-edit-input[data-id="habit_short"]',n=>{n.value='Walk after breakfast';});
     // Content width can change independently of the page; never rebuild the unsaved input.
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     await page.evaluate(()=>document.getElementById('sidebarRoot').style.width='360px');
-    await settled(1200);await layoutGeometry(1200,true);
+    await editSettled(1200);await editGeometry('360px sidebar');
     await expectAll('resize retains the edit draft',await page.$eval('.habit-edit-input[data-id="habit_short"]',n=>({draft:n.value==='Walk after breakfast'})));
+    await editSettled(390);await editGeometry(390);await page.screenshot({path:join(shots,'phone-edit.png')});
+    await expectAll('phone edit keeps the draft',await page.$eval('.habit-edit-input[data-id="habit_short"]',n=>({draft:n.value==='Walk after breakfast'})));
     await page.evaluate(()=>document.getElementById('sidebarRoot').style.removeProperty('width'));
-    await settled(1200);
+    await editSettled(1200);
     await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
-    await layoutGeometry(1200);
+    await settled(1200);await layoutGeometry(1200);
     await expectAll('layout preserves names, strength and order',await page.evaluate(()=>({
       name:habitsList[1].name==='Walk after breakfast',
       strength:JSON.stringify(habitsList.map(h=>Today.use('habits')._getHabitStrength(h.id)))===JSON.stringify(window.__layoutStrength),

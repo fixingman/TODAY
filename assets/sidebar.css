@@ -11,9 +11,12 @@
 /* Habit daily-task mark (list) and link (edit mode): monochrome, after the name. */
 .habit-daily-mark { display: inline-flex; align-items: center; height: 1em; vertical-align: -1px; margin-inline-start: var(--space-2); color: var(--muted); }
 .habit-daily-star, .ht-star { font-size: var(--text-sm2); line-height: 1; }
-.habit-daily-config { margin-top: var(--space-1); }
+/* Edit row actions: daily task at the start, archive at the end, both quiet text links. */
+.habit-daily-config { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
 .habit.editing .habit-body { min-width: 0; }
-.habit-daily-link, .ht-link { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 32px; padding: 2px var(--space-2); margin-inline-start: calc(-1 * var(--space-2)); background: none; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; cursor: pointer; transition: color var(--dur-fast) var(--ease-std), border-color var(--dur-fast) var(--ease-std); }
+.habit-daily-link, .habit-edit-delete, .ht-link { display: inline-flex; text-align: start; align-items: center; gap: var(--space-1); min-height: 32px; padding: 2px var(--space-2); margin-inline-start: calc(-1 * var(--space-2)); background: none; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; cursor: pointer; transition: color var(--dur-fast) var(--ease-std), border-color var(--dur-fast) var(--ease-std); }
+.habit-edit-delete { margin-inline: auto calc(-1 * var(--space-2)); }
+.habit-edit-delete:hover, .habit-edit-delete:focus-visible { color: var(--danger); border-color: var(--color-danger-border); }
 .habit-daily-link:hover, .habit-daily-link:focus-visible, .ht-link:hover, .ht-link:focus-visible { color: var(--text); border-color: var(--border); }
 .habit-daily-link.on { color: var(--accent); }
 .ht-link:disabled { opacity: 0.5; cursor: default; }

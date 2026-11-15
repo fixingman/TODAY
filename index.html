@@ -3697,7 +3697,9 @@
   @media (hover: hover) {
     .habit.editing:hover { background: var(--surface2); border-color: var(--border); }
   }
-  .habit.editing .habit-check { visibility: hidden; }
+  /* Edit rows hold only the name field and its actions, across the full row width. */
+  .habit.habit.editing { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'name'; }
+  .habit.editing .habit-check, .habit.editing .habit-history, .habit.editing .habit-streak { display: none; }
 
   .habit-check {
     width: 18px; height: 18px; flex-shrink: 0;
@@ -3724,8 +3726,7 @@
   .habit-history { grid-area: history; display: flex; align-items: center; min-width: 0; padding-inline-end: var(--space-1); }
   .habit-week { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; justify-content: space-between; }
   .habit-week.short-history { flex: 0 1 auto; margin-inline-start: auto; justify-content: flex-start; }
-  .habit-streak, .habit-edit-delete { grid-area: strength; justify-self: end; }
-  .habit.editing .habit-edit-input { box-sizing: border-box; }
+  .habit-streak { grid-area: strength; justify-self: end; }
   .habit-head { flex-wrap: nowrap; }
   .habit-head-actions { margin-inline-start: auto; display: flex; gap: var(--space-1); }
   .habit-head-actions .ex-hide { margin: 0; }
@@ -3818,28 +3819,18 @@
   .streak-label { font-size: var(--text-xs); color: var(--muted); letter-spacing: 0.04em; white-space: nowrap; }
   .streak-label.hot { color: var(--accent); }
 
+  /* Same field as the add-habit input: 44px, surface, control border, large radius. */
   .habit-edit-input {
-    display: block; flex: 1; min-width: 0; width: 100%;
-    background: transparent;
-    border: 1px solid var(--control-border); border-radius: var(--radius-md);
+    display: block; width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; margin: 0;
+    padding: 0 var(--space-3); background: var(--surface);
+    border: 1px solid var(--control-border); border-radius: var(--radius-lg);
     color: var(--text); font-family: var(--font-mono); font-size: var(--text-task);
-    outline: none; padding: 0 var(--space-1); margin: 0; line-height: 1.4;
-    height: calc(1em * 1.4);
-    box-sizing: content-box;
-    transition: border-color var(--dur-fast);
+    outline: none; transition: border-color var(--dur-fast);
   }
   .habit-edit-input:focus { border-color: var(--accent); }
   .habit-edit-input::placeholder { color: var(--muted); }
-  .habit-edit-delete {
-    background: none; border: none; color: var(--muted);
-    font-size: var(--text-lg); cursor: pointer; padding: 0;
-    width: var(--space-8);
-    border-radius: var(--radius-md);
-    transition: color var(--dur-fast);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .habit-edit-delete:hover { color: var(--danger); }
+  /* Rule 5c: 16px on phones, or iOS zooms on focus (this rule follows the shared one, so repeat it). */
+  @media (max-width: 600px) { .habit-edit-input { font-size: var(--text-lg); } }
 
   .habit-empty { padding: var(--space-3) var(--space-4); color: var(--muted); font-size: var(--text-sm2); letter-spacing: 0.04em; display: none; }
   .habit-empty.show { display: block; }
