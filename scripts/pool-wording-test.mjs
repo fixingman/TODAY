@@ -60,7 +60,7 @@ async function sunday(page,{hold=null}={}){
  await page.evaluate(hold=>{
   const date=_localISO();localStorage.removeItem('week_reflection_'+date);localStorage.setItem('week_policy_'+date,_weekReflectionPolicy);
   appMemory.taskOutcomes=Array.from({length:3},(_,i)=>({id:'pull-'+i,date,outcome:'soon_pull',obligation:null,focusSessions:0}));if(hold)__queue.push({hold});
-  if(!document.getElementById('infoPanel').classList.contains('open'))Today.use('about').toggleInfo();else Today.use('about').renderInfoStats();
+  if(!Today.use('sidebar').isOpen('about'))Today.use('sidebar').open('about');else Today.use('about').renderInfoStats();
  },hold);
  await page.waitForFunction(()=>__requests.some(r=>r.writer==='sunday'));
  if(hold)await page.waitForFunction(()=>!!__held);else await page.waitForFunction(()=>!!localStorage.getItem('week_reflection_'+_localISO()));
@@ -186,7 +186,10 @@ try{
   await f.page.keyboard.press('Escape');assert.equal(await f.page.$eval(block+' .pool-wording-panel',e=>e.hidden),true);assert.equal(await f.page.evaluate(()=>document.activeElement?.dataset.todayClick),'pool-wording.open');
   await click(f.page,block+' [data-today-click="pool-wording.open"]');await f.page.setViewport({width:320,height:900});await f.page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   const geometry=await f.page.$eval(block,e=>({fit:[...e.querySelectorAll('.pool-wording-btn')].filter(b=>!b.closest('[hidden]')).every(b=>{const r=b.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth+1&&r.height>=24;}),overflow:document.documentElement.scrollWidth>innerWidth}));assert.deepEqual(geometry,{fit:true,overflow:false});
-  await f.page.waitForFunction(()=>document.getElementById('infoPanel').getAnimations({subtree:true}).every(a=>!Number.isFinite(a.effect?.getComputedTiming().endTime)||(!a.pending&&a.playState!=='running')));
+  // About renders in the shared sidebar (#infoPanel is an empty legacy placeholder since v3.7.0).
+  // Contrast is only meaningful once the sheet and the Sunday block have finished fading in.
+  await f.page.waitForFunction(()=>{const root=document.getElementById('sidebarRoot');return !root.classList.contains('entering')&&!root.querySelector('._nudge-entering')
+    &&root.getAnimations({subtree:true}).every(a=>!Number.isFinite(a.effect?.getComputedTiming().endTime)||(!a.pending&&a.playState!=='running'));});
   await f.page.addScriptTag({path:join(ROOT,'scripts/node_modules/axe-core/axe.min.js')});assert.deepEqual(await f.page.evaluate(async()=> (await axe.run(document.querySelector('#sundayBlock'))).violations),[]);
   const clip=await f.page.$eval(block,e=>{const r=e.getBoundingClientRect();return{x:Math.max(0,r.x-10),y:r.y-10,width:Math.min(innerWidth,r.width+20),height:r.height+20};});await f.page.screenshot({path:join(EVIDENCE,'pool-wording-320.png'),clip});await f.page.setViewport({width:1280,height:900});const desktopClip=await f.page.$eval(block,e=>{const r=e.getBoundingClientRect();return{x:r.x-10,y:r.y-10,width:r.width+20,height:r.height+20};});await f.page.screenshot({path:join(EVIDENCE,'pool-wording-desktop.png'),clip:desktopClip});
   assert.deepEqual(f.errors,[]);ok('unchanged About redraw retains disclosure/focus; native keyboard, Escape, 24px targets,320px reflow and axe pass');await f.context.close();
