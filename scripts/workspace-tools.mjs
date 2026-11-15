@@ -51,7 +51,10 @@ export function freshSnapshot(root) {
 
 async function pinnedBrowser(root) {
   const [{computeExecutablePath,Browser},{PUPPETEER_REVISIONS}]=await Promise.all([import('@puppeteer/browsers'),import('puppeteer-core')]);
-  const browser=process.env.CHROME_PATH||computeExecutablePath({browser:Browser.CHROME,buildId:PUPPETEER_REVISIONS.chrome,cacheDir:join(root,'.context/ci-browser')});
+  const cached=dir=>computeExecutablePath({browser:Browser.CHROME,buildId:PUPPETEER_REVISIONS.chrome,cacheDir:join(dir,'.context/ci-browser')});
+  // A session worktree reuses the pinned browser already cached in another worktree of this repository.
+  let worktrees=[];try{worktrees=execFileSync('git',['worktree','list','--porcelain'],{cwd:root,encoding:'utf8'}).split('\n').filter(l=>l.startsWith('worktree ')).map(l=>l.slice(9));}catch{}
+  const browser=process.env.CHROME_PATH||[root,...worktrees].map(cached).find(path=>existsSync(path))||cached(root);
   if(!existsSync(browser))throw Error('Cached test browser missing. Run node scripts/install-ci-browser.mjs once; fresh checks never download it.');
   const version=execFileSync(browser,['--version'],{encoding:'utf8'}).trim();
   if(!version.endsWith(' '+PUPPETEER_REVISIONS.chrome))throw Error('Test browser must match the lockfile: '+PUPPETEER_REVISIONS.chrome);
