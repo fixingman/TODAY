@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## release:cut --full marks a master candidate for full CI (engineering, app v3.10.11 unchanged)
+
+Can asked to push v3.10.11 to master. Its dev run was a selected run, so `release:preflight` found no full proof, and `release:dispatch` returns 403 for agent credentials (as recorded in the CI contract). The documented route is a dev commit carrying `CI-Validation: full`; `release:cut --full` now adds that trailer to the cut commit, so the normal dev push runs every suite plus the five-run performance gate and `release:publish --master` can promote the same SHA. Housekeeping's publish step names it; `release-cut-test` covers the trailer and unknown-option refusal.
+
 ## Sync no longer brings back earlier days' done marks (BUG-171, source fix) (app v3.10.11)
 
 Follow-up to v3.10.10's display fix. `mergeRemoteData` now removes from the merged done set any id whose task is in PAST (and not in TODAY) unless it was checked today, matching what `applyNewDayCleanup` does when it graduates tasks. Earlier days' ids had lost their check history at rollover, so the no-history union fallback let a device that had not rolled over restore them. Today's evening-triaged tasks keep their done state (checked today); Trello and other ids are untouched. `dropbox-test` 9b fails on v3.10.10 and passes now; sync-merge, day-lifecycle, triage, task-actions, Trello, habits, habit-tasks, zones and timezone suites pass. Sync.md's done-ID rule records the change.
