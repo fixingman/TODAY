@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## The "x of y done" count only includes today's tasks (BUG-171) (app v3.10.10)
+
+See BUG-171. `updateStats` counts PAST tasks only when they were checked today (`today_checked_ids`), which keeps evening-triaged work in the count and drops earlier days' done tasks. `task-actions-test` 10b fails on v3.10.9 (21 of 22) and passes now (1 of 2).
+
 ## The ✦ "fresh each day" mark matches the varied-set icon in size and alignment (app v3.10.9)
 
 Can: the ✦ next to a habit with "daily task · fresh each day" looked misaligned and faint. Measured at 3× in the real list: the ✦ was a text glyph at 12px (7.2×12 box, about half the visual weight of the 14×14 list-in SVG), sat on the text baseline 1.5px below the name's centre, and the set icon sat 1.5px above it.

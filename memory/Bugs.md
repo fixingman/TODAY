@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 171 | ⏳ Verify | The header showed "32 of 44 done" on a day with far fewer tasks; done tasks from the past week were counted. | v3.10.10 |
 | 170 | ⏳ Verify | Explore discards the reason a reply failed and offers a generic retry even when the AI account needs credit or billing attention. | v3.10.8 |
 | 169 | ⏳ Verify | The habit name field in edit mode stayed 13.5px on phones, so iOS zooms when it is focused. | v3.10.6 |
 | 168 | ⏳ Verify | An expired sign-in makes ✧ breathe, but Explore's Connections button stays still, and opening Connections there never stops the nudge. | v3.10.5 |
@@ -48,6 +49,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-171 — Done count includes tasks finished on earlier days
+
+**Report (Can, November 15):** the top bar said 32 of 44 done; there were not 44 tasks that day.
+
+**Root cause:** `updateStats` adds every PAST task whose id is in `doneIds`, meant for tasks done today that evening triage moved to PAST. Done tasks stay in PAST for 7 days. At the new day the first device removes graduated ids from `doneIds` and clears yesterday's check history; a device that has not rolled over yet still lists those ids as done, and `mergeRemoteData` keeps an id with no check/uncheck history by union. The ids return, and up to a week of finished tasks inflates both numbers. Reproduced in the real app: 1 of 4 done becomes 21 of 24 after one such sync.
+
+**Fix:** count PAST tasks only when checked today. The merge still restores those ids into `doneIds`; nothing else reads them for PAST rows today, so the sync rule (a non-delegation zone) is left unchanged. Verify: the header count matches the tasks you see plus today's triaged ones, across midnight on two devices.
 
 ---
 
