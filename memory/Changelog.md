@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Implement an offline commitment-episode reflection experiment (engineering, app v3.10.11 unchanged)
+
+Implemented `scripts/reflection-episode-experiment.mjs`: a read-only local analysis of existing opt-in thirty-day reflections and task outcomes. It excludes ambiguous linkage/order and unknown endings, separates resolution types, deduplicates shared dates, compares start/resolution/baseline feeling frequencies and removes each contributing date to test sensitivity. Aggregate stdout omits private text, identifiers, reasons and per-episode dates; there are no network/model calls, state changes or report files. Screening remains exploratory with source/feedback/usefulness review required; it does not certify statistical significance or personal writing. Registered fictional linkage, sensitivity, source-boundary and CLI-privacy tests in CI and documented the command. The raw feeling-history UI proposal remains rejected. No shipping code, retention or permissions changed.
+
 ## release:cut --full marks a master candidate for full CI (engineering, app v3.10.11 unchanged)
 
 Can asked to push v3.10.11 to master. Its dev run was a selected run, so `release:preflight` found no full proof, and `release:dispatch` returns 403 for agent credentials (as recorded in the CI contract). The documented route is a dev commit carrying `CI-Validation: full`; `release:cut --full` now adds that trailer to the cut commit, so the normal dev push runs every suite plus the five-run performance gate and `release:publish --master` can promote the same SHA. Housekeeping's publish step names it; `release-cut-test` covers the trailer and unknown-option refusal.
