@@ -63,6 +63,8 @@ Same interaction family as task rows. At desktop widths (≥601px), the checkbox
 
 The newest 7 days stay at full opacity; older days fade using the existing opacity curve extended to the visible span. Phones retain their inline row and 21-day strip; at ≤480px only the last 7 dots are visible. Filled dots use accent; today's dot has an outline. Strength is the forgiving percentage indicator, not a `done/7` counter. Completion resets at the 3am habit-day boundary; history is preserved. Rows have transparent borders at rest and reveal the surface/border on hover-capable pointers, not permanent separators.
 
+Completed-for-today names and checkboxes use `--opacity-dim` (25%), matching the completed-task fade while retaining the checked accent fill and checkmark. History dots and strength keep their normal opacity; the row stays in place without strikethrough. Edit fields keep their normal treatment.
+
 Completion is a named `aria-pressed` button. The row uses the same Enter, Space, and Option+Arrow contract as task rows, and the history strip has a screen-reader summary.
 
 ---

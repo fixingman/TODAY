@@ -28,9 +28,9 @@ The implementation follows the [Astryx `VisuallyHidden` guide](https://astryx.at
 
 ## Accepted exceptions
 
-### WCAG 2.2 criteria 1.4.3 and 1.4.11 — completed tasks
+### WCAG 2.2 criteria 1.4.3 and 1.4.11 — completed tasks and habits
 
-Completed task rows use 25% opacity to reduce visual noise once work is finished. Their text and completion control therefore do not retain the contrast required by criteria 1.4.3 and 1.4.11. This is an explicit product exception; accessible names, pressed state, keyboard operation, and the underlying task content remain available to assistive technology.
+Completed task rows use 25% opacity to reduce visual noise once work is finished. Can also requested the same 25% opacity for completed habit names and checkboxes on November 15; habit history dots and percentages retain their normal contrast. Their text and completion control therefore do not retain the contrast required by criteria 1.4.3 and 1.4.11. This is an explicit product exception; accessible names, pressed state, keyboard operation, and the underlying task content remain available to assistive technology.
 
 ### WCAG 2.2 criterion 2.5.7 — dragging movements
 

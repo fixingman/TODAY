@@ -224,7 +224,7 @@ Scale is numeric, 4px base:
 
 | Token | Value | Usage |
 |---|---|---|
-| `--opacity-dim` | `0.25` | Done-task row treatment and secondary badges; done-task contrast is an accepted exception |
+| `--opacity-dim` | `0.25` | Completed-task rows, completed-habit names/checks and secondary badges; completed-state contrast is an accepted exception |
 | `--opacity-label` | `0.40` | Subtle hints, kbd hint |
 | `--opacity-copy` | `0.45` | Copy button at rest in focus |
 | `--opacity-mid` | `0.50` | Focused session count |
