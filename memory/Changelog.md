@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Observe suite startup without depending on animation frames (engineering, app v3.10.4 unchanged)
+
+Assistant, About, Explore and Sidebar still used frame-polled startup waits; the earlier Dropbox repair already demonstrated that a ready background device tab can stop notifying that observer. The five suites now share a timer-polled successful-boot prerequisite, including the interactive seal before component access. Each caller keeps its original total deadline and owner predicate; Sidebar mounting shares its existing 10-second budget. Common failure diagnostics identify the fixture, visibility, boot/seal state and errors. A held real MessageChannel startup and suspended driver frame observer prove the old wait misses completion while the repaired waits see readiness. Held startup and a missing owner still fail. Existing mobile Enter, viewport, painting and two-device sync assertions remain. No application, sync, splash, performance policy or retry behavior changes.
+
 ## Block the injected Netlify badge script with a deployment-scoped policy (app v3.10.4)
 
 Add a script-element allowlist to the existing security header during Netlify's configuration preparation. Only this deployment's canonical, branch and immutable origins may load external scripts from /assets/; existing inline startup, service-worker, connection and other policy directives remain unchanged. Netlify documents that headers are read after the build command. Missing or invalid deployment URLs fail the deploy instead of broadening script access. The existing poem Edge Function preserves the returned headers. No new browser script, DOM-hiding loop, data collection or proxy is introduced. This blocks the current external HUD script, not arbitrary future inline injection by the host.
