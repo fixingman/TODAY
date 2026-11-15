@@ -5,6 +5,8 @@
 
 # Node
 node_modules/
+# A session worktree may symlink scripts/node_modules from the main checkout (Housekeeping).
+node_modules
 npm-debug.log*
 
 # Logs
