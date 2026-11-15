@@ -126,6 +126,12 @@ try {
   assert.deepEqual(execFileSync('ls', [join(final, NOTES)], { encoding: 'utf8' }).trim().split('\n'), ['README.md'], 'notes are consumed');
   assert.match(run(final, 'log', '-1', '--format=%B'), /^release: v3\.10\.5 — Keyboard fix\n\nBugs: BUG-168 \(keyboard-bug\)\n\nRelease-Cut: v3\.10\.5$/);
 
+  // --full marks the cut for full CI (the master proof); unknown options are refused.
+  const c = session('c'); work(c, 'docs', 'bump: none\ntitle: Docs only');
+  assert.throws(() => main(['--fast'], c, quiet), /Unknown option/);
+  assert.equal(main(['--full'], c, quiet), 0);
+  assert.match(run(c, 'log', '-1', '--format=%B'), /\nRelease-Cut: v3\.10\.5\nCI-Validation: full$/);
+
   // Refusals: dirty worktree, nothing to release.
   writeFileSync(join(final, 'index.html'), 'dirty'); run(final, 'checkout', '-q', '--detach');
   assert.throws(() => main([], final, quiet), /clean worktree/);

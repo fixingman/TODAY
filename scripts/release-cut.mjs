@@ -11,12 +11,14 @@ export const NOTES = 'memory/changes';
 const BUMPS = ['none', 'patch', 'minor', 'major'];
 const STATUSES = ['⏳ Verify', '🔧 Local', '🚫 Rejected', '🔍 Open'];
 const FIELDS = { change: ['bump', 'title', 'about'], bug: ['bug', 'status', 'summary'] };
-export const HELP = `Usage: npm run release:cut --prefix scripts [-- --dry-run]
+export const HELP = `Usage: npm run release:cut --prefix scripts [-- --dry-run] [--full]
 
 Run in your own clean worktree after committing your work and its note in ${NOTES}/.
 Fetches dev, drops an earlier unpublished cut of yours, rebases onto dev, then turns
 every note into one release commit: version, About CHANGELOG, sw.js, memory/Changelog.md
 and new Bugs.md entries. Prints the commit to publish with release:publish.
+--full adds CI-Validation: full, so the dev push runs every suite and the
+performance gate: the proof release:publish --master needs.
 `;
 
 const fail = message => { throw Error(message); };
@@ -127,8 +129,9 @@ export function cut({ index, sw, changelog, bugs, notes, maxBug }) {
 const TRAILER = /^Release-Cut: v\d+\.\d+\.\d+$/m;
 export function main(args, root = ROOT, { log = console.log } = {}) {
   if (args[0] === '--help') { log(HELP); return 0; }
-  const dry = args[0] === '--dry-run';
-  if (args.length > (dry ? 1 : 0)) fail('Unknown option: ' + args.join(' '));
+  const dry = args.includes('--dry-run'), full = args.includes('--full');
+  const unknown = args.filter(a => a !== '--dry-run' && a !== '--full');
+  if (unknown.length || new Set(args).size !== args.length) fail('Unknown option: ' + args.join(' '));
   const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   if (git('status', '--porcelain', '--untracked-files=no')) fail('Commit your work first; release:cut needs a clean worktree');
   for (const marker of ['MERGE_HEAD', 'rebase-merge', 'rebase-apply'])
@@ -162,7 +165,7 @@ export function main(args, root = ROOT, { log = console.log } = {}) {
   git('add', '--', 'index.html', 'sw.js', 'memory/Changelog.md', 'memory/Bugs.md');
   git('rm', '-q', '--', ...files.map(f => `${NOTES}/${f}`));
   const message = [`release: ${tag} — ${out.titles.join('; ')}`, '',
-    ...(bugsLine ? [`Bugs: ${bugsLine}`, ''] : []), `Release-Cut: v${out.version}`].join('\n');
+    ...(bugsLine ? [`Bugs: ${bugsLine}`, ''] : []), `Release-Cut: v${out.version}`, ...(full ? ['CI-Validation: full'] : [])].join('\n');
   execFileSync('git', ['commit', '-q', '-F', '-'], { cwd: root, input: message });
   const sha = git('rev-parse', 'HEAD');
   log(`Cut ${tag} as ${sha}\nPublish: npm run release:publish --prefix scripts -- ${sha}`);
