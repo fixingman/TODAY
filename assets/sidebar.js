@@ -74,8 +74,8 @@ let lockedScroll=null;
 function lockPage(open){
   const lock=open&&phone.matches&&!inline();
   if(lock&&lockedScroll===null){
-    lockedScroll=window.scrollY;
-    Object.assign(document.body.style,{position:'fixed',top:-lockedScroll+'px',left:'0',right:'0'});
+    lockedScroll=0;
+    Object.assign(document.body.style,{position:'fixed',top:'0',left:'0',right:'0'});
     window.scrollTo(0,0);
   }else if(!lock&&lockedScroll!==null){
     const y=lockedScroll;lockedScroll=null;
