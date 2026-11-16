@@ -2,6 +2,12 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Test that the top bar and the tick log agree on "done today" (engineering, app v3.10.11 unchanged)
+
+BUG-171 slipped through partly because the app has two definitions of "done today": the top bar (`updateStats`) and the tick-log count About, the weekly graph and triage use (`_doneTodayCount`), each tested alone. `task-actions-test` 10c now requires the two to match after checking, unchecking, evening triage to PAST and a sync from a device that has not rolled over. On its own it fails on v3.10.9 (before the BUG-171 fixes).
+
+Known remaining difference, not asserted: Shift+D (`_clearAllDone`) deletes done tasks, so the top bar drops them while the tick log still counts them (probe: top bar 1, tick log 2). Raised with Can as a product question.
+
 ## Handle single-artifact downloads in the CI result combiner (BUG-172) (engineering, app v3.10.11 unchanged)
 
 The documentation-only README publication reached dev at 90ae004e, but its final gate failed in run 43774360676 after both functional checks passed. The single matched functional artifact was downloaded directly into `.context/ci-shards`, even with `merge-multiple: false`; the combiner searched only subdirectories and reported a missing shard. Normalize the flat layout only for a canonical one-worker plan, retaining nested transport and every existing suite/provenance/input/environment/first-attempt-log check. Reject incomplete flat evidence, mixed flat/nested artifacts and flat evidence for multiple workers. The real plan/worker/transport/merge fixture now reproduces two-suite selected runs alongside the existing 36-suite multiworker case; it failed before the correction and passes afterward. No workflow permissions, validation requirements, runtime app code or app version changed.
