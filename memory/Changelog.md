@@ -2,6 +2,12 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Shift+D tidies finished tasks into Past (app v3.10.13)
+
+Follow-up to v3.10.12, at Can's request: Shift+D returns on desktop, but moves finished tasks to Past exactly as evening triage does (zone `past`, status `done`, `zoneChangedAt` now) instead of deleting them. Their ids stay done and checked today, so the top bar and the tick log agree; nothing is tombstoned, so Past can revive them. It is ignored during Focus (the list never moves under a focused task), announces the result to screen readers, and backs up like other zone moves (`dropboxBackup(true)`).
+
+`zones.moveDoneToPast()` owns the move; `accessibility.js` binds the key outside text fields. `task-actions-test` 10c presses the real key and requires agreement plus Past, not deleted. Test-matrix 1.12 restored with the new behaviour.
+
 ## Remove the Shift+D "clear done" shortcut (app v3.10.12)
 
 Shift+D (`_clearAllDone`, since v1.6.39) deleted done tasks from TODAY. That made the top bar drop work the tick log still counted as done today (probe: top bar 1, tick log 2), unlike evening triage and midnight rollover, which move done tasks to PAST. Can chose removal over changing it to move to PAST. Nothing in the UI offered it.
