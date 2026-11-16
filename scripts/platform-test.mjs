@@ -179,10 +179,19 @@ try {
       await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
       const state=await page.evaluate(()=>({top:document.getElementById('sticky-header').getBoundingClientRect().top,bottom:document.getElementById('sticky-header').getBoundingClientRect().bottom,scroll:scrollY}));
       if(state.scroll<900||(standalone&&width>600?Math.abs(state.top)>1:state.bottom>0))await fail('installed desktop sticky header',{standalone,width,...state});
+      if(width>600){
+        const glass=await page.evaluate(()=>{
+          const header=getComputedStyle(document.getElementById('sticky-header'));
+          const probe=document.createElement('span');probe.style.background='var(--bg-glass)';document.body.append(probe);
+          const expected=getComputedStyle(probe).backgroundColor;probe.remove();
+          return {background:header.backgroundColor,expected,filter:header.backdropFilter||header.webkitBackdropFilter};
+        });
+        if(glass.background!==glass.expected||!glass.filter.includes('blur(16px)'))await fail('desktop browser and non-WCO standalone retain header glass',{standalone,width,...glass});
+      }
     }
     if(errors.length)await fail('sticky fixture errors',errors);await page.close();
   }
-  ok('long-list desktop standalone header stays pinned; ordinary tabs and phones retain their scroll behavior');
+  ok('desktop standalone header stays pinned and keeps glass; ordinary browser glass and phone scrolling remain intact');
 
   // Chromium can re-show its origin label after a theme-color change. Real
   // sidebar actions must cause zero metadata mutations, including transient ones.
