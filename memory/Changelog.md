@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Share local and deployed performance version parsing (engineering, app v3.10.11 unchanged)
+
+The November 16 deployed-performance run [43869978255](https://github.com/fixingman/TODAY/actions/runs/43869978255) stopped before measurement: its deployed parser accepted only single/curly quotes, while release:cut now writes double-quoted CHANGELOG keys. The live dev response is HTTP 200 and has the expected v3.10.11 key. Both local payload evidence and deployed preflight now use one parser accepting matching straight single/double quotes. Missing/mismatched versions, curly/mismatched quotes and non-OK HTTP responses remain failures. The performance harness covers both accepted formats and these negative controls. Budgets, profile and iteration count are unchanged; this repair does not establish a deployed performance pass or close BUG-135.
+
 ## Test that the top bar and the tick log agree on "done today" (engineering, app v3.10.11 unchanged)
 
 BUG-171 slipped through partly because the app has two definitions of "done today": the top bar (`updateStats`) and the tick-log count About, the weekly graph and triage use (`_doneTodayCount`), each tested alone. `task-actions-test` 10c now requires the two to match after checking, unchecking, evening triage to PAST and a sync from a device that has not rolled over. On its own it fails on v3.10.9 (before the BUG-171 fixes).
