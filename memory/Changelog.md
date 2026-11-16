@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Bound fresh habit suggestions to gentle practice and occasional depth (app v3.11.0)
+
+Can approved gradual depth without earning more work. A pure same-habit14-day policy selects baseline, consolidation, occasional small depth or familiar return, with no lifetime streak/level. Source-bound AI-written occurrences and effective habit checks support the policy; unknown/legacy/current/future days do not. Additive occurrence basis preserves exact setup/name support through normal backup/merge, without invented historical action completion. The fresh writer permits useful repetition, anchors effort to the saved routine and treats maintenance as steady; no varied-set progression. Source/config/history/AI/day/explicit-choice guards reject stale replies, with a12-second deadline and fallback on failure/overlong prose. Unit/browser checks cover evidence, spacing, misses, undo, rename, setup, key, detach and habit-day races, plus malformed/nontext/overlong replies and the actual timeout abort callback. Research, Claude critique and all six fictional paired outputs are retained with limitations; the weak learning pair is not an efficacy claim. No new UI, telemetry, provider/routing change or extra daily review call. Real-use relevance and effort acceptance remain open.
+
 ## Shift+D tidies finished tasks into Past (app v3.10.13)
 
 Follow-up to v3.10.12, at Can's request: Shift+D returns on desktop, but moves finished tasks to Past exactly as evening triage does (zone `past`, status `done`, `zoneChangedAt` now) instead of deleting them. Their ids stay done and checked today, so the top bar and the tick log agree; nothing is tombstoned, so Past can revive them. It is ignored during Focus (the list never moves under a focused task), announces the result to screen readers, and backs up like other zone moves (`dropboxBackup(true)`).
