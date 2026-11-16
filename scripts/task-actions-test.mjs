@@ -373,6 +373,33 @@ try {
       await page.close();
     }
 
+    // 10c. One meaning of "done today": the top bar's done number always equals the tick-log
+    //      count About and the weekly graph use (_doneTodayCount), through checking, unchecking,
+    //      evening triage to PAST and a sync from a device that has not rolled over (BUG-171).
+    {
+      const { page, errors } = await openPage();
+      const steps = await page.evaluate(() => {
+        const read = label => { updateStats(); return { label, top: Number(document.getElementById('statDone').textContent), log: _doneTodayCount() }; };
+        const out = [];
+        toggleDone('task_1'); toggleDone('task_2'); out.push(read('two checked'));
+        toggleDone('task_2'); out.push(read('one unchecked'));
+        toggleDone('task_2');
+        const t = manualTasks.find(x => x.id === 'task_1');
+        manualTasks = manualTasks.filter(x => x.id !== 'task_1');
+        pastTasks.unshift({ ...t, zone: 'past', status: 'done', zoneChangedAt: new Date().toISOString() });
+        out.push(read('triaged to PAST'));
+        const day = 86400000, old = Array.from({ length: 5 }, (_, i) => ({ id: 'manual_old_' + i, text: 'Earlier ' + i, zone: 'past', status: 'done', zoneChangedAt: new Date(Date.now() - (i + 1) * day).toISOString() }));
+        mergeRemoteData({ manual_tasks: manualTasks, done_ids: [...doneIds, ...old.map(x => x.id)], deleted_ids: [], unchecked_ids: [], checked_ids: [], soon_tasks: [], past_tasks: [...pastTasks, ...old], habits: [] });
+        out.push(read('stale-device sync'));
+        return out;
+      });
+      const disagree = steps.filter(s => s.top !== s.log);
+      await expectAll('top bar and tick log agree', { agree: disagree.length === 0, nonZero: steps[0].top === 2, noErrors: errors.length === 0 });
+      if (disagree.length) console.error(JSON.stringify(disagree));
+      ok('updateStats: top bar done matches the tick-log count through check, uncheck, triage and a stale-device sync');
+      await page.close();
+    }
+
     // 11. Static wiring: action controls and favicon are module-owned; public exports unchanged.
     {
       const indexSrc      = await readFile(join(ROOT, 'index.html'), 'utf8');
