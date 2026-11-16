@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Restore glass on the standalone desktop header (app v3.11.1)
+
+Adopt the other session's one-line removal of the desktop standalone sticky-header opacity/backdrop override. Preserve document growth and pinned long-list geometry, the WCO opaque header/title underlay and its pixel-leak contract, and ordinary browser/mobile behavior. Extend the existing platform fixture to assert computed glass/blur for desktop browser and non-WCO standalone; the original CSS fails that assertion before the change. Platform, focus and invariant checks validate the scoped fix. Native installed appearance remains separate from emulated checks.
+
 ## Bound fresh habit suggestions to gentle practice and occasional depth (app v3.11.0)
 
 Can approved gradual depth without earning more work. A pure same-habit14-day policy selects baseline, consolidation, occasional small depth or familiar return, with no lifetime streak/level. Source-bound AI-written occurrences and effective habit checks support the policy; unknown/legacy/current/future days do not. Additive occurrence basis preserves exact setup/name support through normal backup/merge, without invented historical action completion. The fresh writer permits useful repetition, anchors effort to the saved routine and treats maintenance as steady; no varied-set progression. Source/config/history/AI/day/explicit-choice guards reject stale replies, with a12-second deadline and fallback on failure/overlong prose. Unit/browser checks cover evidence, spacing, misses, undo, rename, setup, key, detach and habit-day races, plus malformed/nontext/overlong replies and the actual timeout abort callback. Research, Claude critique and all six fictional paired outputs are retained with limitations; the weak learning pair is not an efficacy claim. No new UI, telemetry, provider/routing change or extra daily review call. Real-use relevance and effort acceptance remain open.
