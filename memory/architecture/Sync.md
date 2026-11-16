@@ -172,7 +172,7 @@ Additive keys do not bump the version; `Rules.md` #12 records which keys arrived
 | Triage dismissed | If remote = today, apply locally (see Triage) |
 | Per-day dismissal flags (`_DISMISS_SYNC`: `day_nudge_dismissed`, legacy aliases, `sunday_nudge_seen`) | Adopted only when `per_day_dismiss_date` equals the receiving device's local day; stale or undated snapshots ignored; local same-day flags never cleared by stale data (BUG-103). Legacy `trello_nudge_dismissed` / `morning_nudge_dismissed` map to the unified day-nudge key |
 | Memory | `_mergeAppMemory()` — see Memory Merge |
-| `habit_tasks_v1` | `policy.merge(local, remote)` in `habit-task-policy.js`. Configs: LWW by `updatedAt`. Occurrences: automatic choices (not `edited`, state `active`) are first-write-wins by `createdAt`; explicit edits (`edited: true`) or non-active states are LWW by `updatedAt`; explicit beats automatic regardless of timestamps. Commutativity and idempotency guaranteed by policy. Absent field is treated as `{configs:{}, occurrences:{}}`. |
+| `habit_tasks_v1` | `policy.merge(local, remote)` in `habit-task-policy.js`. Configs: LWW by `updatedAt`. Occurrences: automatic choices (not `edited`, state `active`) are first-write-wins by `createdAt`; explicit edits (`edited: true`) or non-active states are LWW by `updatedAt`; explicit beats automatic regardless of timestamps. The additive occurrence `basis` travels with the winning whole record, without its own merge rule. Legacy/older-client records without it remain usable but cannot establish current-setup progression support. Commutativity and idempotency guaranteed by policy. Absent field is treated as `{configs:{}, occurrences:{}}`. |
 
 ### Deletion Persistence
 

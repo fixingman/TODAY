@@ -11,7 +11,7 @@ context.window.Today = {
 vm.runInNewContext(readFileSync(new URL('../assets/habit-task-policy.js', import.meta.url), 'utf8'), context);
 
 assert.equal(context.apiName, 'habit-task-policy');
-const { key, taskId, config, clean, merge, choose } = context.api;
+const { key, taskId, config, clean, merge, choose, basis, progression } = context.api;
 
 // ── key / taskId ────────────────────────────────────────────────────────────
 assert.equal(key('habit_abc', '2026-11-10'), 'habit_abc::2026-11-10');
@@ -163,4 +163,80 @@ assert.equal(merge(early, wrote).occurrences[k].actionId, 'ai');
 assert.equal(merge(wrote, early).occurrences[k].actionId, 'ai');
 console.log('  ✓ merge() keeps the AI-written task over a fallback');
 
+// ── bounded progression: evidence belongs to the current setup and closed habit days ──
+{
+const learner = { id: 'habit_learning', name: 'French practice' };
+const learning = config({ ...rawConfig, mode: 'fresh', note: 'Learn French, ten minutes after breakfast', updatedAt: '2026-09-01T10:00:00.000Z' });
+const local = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function practiceFixture(day, count = 14) {
+  const state = { configs: { [learner.id]: learning }, occurrences: {} }, completions = [];
+  for (let offset = 1; offset <= count; offset++) {
+    const date = new Date(day + 'T12:00:00'); date.setDate(date.getDate() - offset);
+    const previous = local(date); completions.push(previous);
+    state.occurrences[key(learner.id, previous)] = { ...occurrence, habitId: learner.id, day: previous,
+      text: 'Recall one familiar phrase', actionId: 'ai', basis: basis(learner, learning), state: 'expired' };
+  }
+  return { state, completions };
+}
+const day = '2026-11-17', evidence = practiceFixture(day);
+const run = (value = evidence, h = learner, when = day, events = {}) => progression(value.state, h, when, value.completions, events);
+assert.equal(run().recentPractice.length, 3, 'only three checked-associated wordings leave the policy');
+assert.deepEqual(Object.keys(run()).sort(), ['direction', 'recentPractice', 'reference'], 'no raw dates, counts, identifiers or other habits are projected');
+const slots = ['2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'].map(d => run(practiceFixture(d), learner, d).direction);
+assert.equal(slots.filter(d => d === 'deepen').length, 1, 'one bounded stretch slot in four calendar days');
+assert.equal(slots.filter(d => d === 'practice').length, 3, 'practice days separate stretches');
+const stretchDate = ['2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'][slots.indexOf('deepen')];
+const lastMiss = practiceFixture(stretchDate); lastMiss.completions.shift();
+assert.equal(run(lastMiss, learner, stretchDate).direction, 'practice', 'a stretch immediately after an unchecked known day consolidates instead');
+const swappedStretch = practiceFixture(stretchDate);
+const lastSlot = new Date(stretchDate + 'T12:00:00'); lastSlot.setDate(lastSlot.getDate() - 4);
+swappedStretch.state.occurrences[key(learner.id,local(lastSlot))].edited = true;
+assert.equal(run(swappedStretch, learner, stretchDate).direction, 'practice', 'changing a stretch-slot task pauses the next stretch without calling it a habit miss');
+assert.ok(!run().recentPractice.some(t => t.includes('STRETCH_ONLY')));
+const stretchWords = practiceFixture(stretchDate);
+for (let offset=4; offset<=14; offset+=4) {
+  const d=new Date(stretchDate+'T12:00:00'); d.setDate(d.getDate()-offset);
+  stretchWords.state.occurrences[key(learner.id,local(d))].text='STRETCH_ONLY';
+}
+assert.ok(!run(stretchWords,learner,stretchDate).recentPractice.includes('STRETCH_ONLY'), 'stretch wording cannot silently become the next effort baseline');
+
+const isolatedMiss = structuredClone(evidence); isolatedMiss.completions.pop();
+assert.equal(run(isolatedMiss).direction, run().direction, 'one miss does not reset progress');
+const low = structuredClone(evidence); low.completions = low.completions.slice(0,2);
+assert.equal(run(low).direction, 'return', 'sustained known lower completion prefers a familiar return');
+assert.equal(run(practiceFixture(day, 2)).direction, 'baseline', 'sparse history is not failure or readiness');
+const recentGap = structuredClone(evidence); recentGap.completions = recentGap.completions.slice(4);
+assert.notEqual(run(recentGap).direction, 'deepen', 'older completions cannot hide a recent gap');
+const none = practiceFixture(day, 0); none.completions = [...evidence.completions, day, '2099-12-31'];
+assert.equal(run(none).direction, 'baseline', 'habit streak alone/current/future completions do not prove suggestion practice');
+for (const field of ['basis', 'edited', 'state', 'actionId']) {
+  const unsupported = structuredClone(evidence);
+  for (const o of Object.values(unsupported.state.occurrences)) {
+    if (field === 'basis') delete o.basis;
+    if (field === 'edited') o.edited = true;
+    if (field === 'state') o.state = 'detached';
+    if (field === 'actionId') o.actionId = 'offline';
+  }
+  assert.equal(run(unsupported).direction, 'baseline', field + ' cannot establish support');
+}
+const revised = structuredClone(evidence); revised.state.configs[learner.id].updatedAt = '2026-11-17T10:00:00.000Z';
+assert.equal(run(revised).direction, 'baseline', 'changed setup withdraws support');
+assert.equal(run(evidence, { ...learner, name: 'Different habit' }).direction, 'baseline', 'rename cannot inherit old-name practice');
+const eventCorrections = Object.fromEntries(evidence.completions.map(d => [key(learner.id,d), { type:'uncheck', at:'2026-11-17T10:00:00.000Z' }]));
+assert.equal(run(evidence, learner, day, eventCorrections).direction, 'return', 'effective unchecks override stale completion dates');
+const disabled = structuredClone(evidence); disabled.state.configs[learner.id].enabled = false;
+assert.equal(run(disabled).direction, 'baseline');
+assert.equal(run(evidence, { ...learner, archived:true }).direction, 'baseline', 'archived habits cannot gain progression support');
+assert.equal(run(evidence, learner, '2026-02-30').direction, 'baseline', 'invalid dates fail closed');
+for (const d of ['2026-03-30', '2026-10-26']) {
+  const rows = practiceFixture(d);
+  assert.equal(new Set(rows.completions).size, 14, 'local calendar iteration retains every DST habit day');
+  assert.equal(run(rows, learner, d).recentPractice.length, 3);
+}
+const boundOccurrence = { ...occurrence, basis: basis(learner,learning) };
+assert.equal(clean({ configs:{}, occurrences: { [key('habit_x',occurrence.day)]: boundOccurrence } }).occurrences[key('habit_x',occurrence.day)].basis, boundOccurrence.basis);
+assert.equal(merge({ configs:{}, occurrences: { [key('habit_x',occurrence.day)]: boundOccurrence } }, {}).occurrences[key('habit_x',occurrence.day)].basis, boundOccurrence.basis, 'merge preserves source binding');
+console.log('  ✓ bounded same-source practice, consolidation/stretch spacing, misses, unknowns, undo, renames, config edits, DST and source metadata');
+
+}
 console.log('\n✓ HABIT TASK POLICY UNIT TEST PASSED');

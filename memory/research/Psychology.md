@@ -288,3 +288,12 @@ Any feature that compares the user to their past self (week-over-week, month-ove
 - Gate on real data (≥3 known prior days) and clear deltas (~1.4×) so noise never triggers a comparison.
 
 **Why `#weekCompare` was removed (v2.17.66):** even with kind framing, rule-based phrases become wallpaper after the first few readings. The principle above applies to all future comparative/predictive surfaces (incl. the WEEK companion) — but the presentation should be AI-generated and fresh, not a fixed phrase from a lookup table. Now formalized as **the Wallpaper Test** in `design/Philosophy.md`.
+
+
+---
+
+## Adaptive challenge in daily habit suggestions — November 17, 2026
+
+Can agreed with gentle progression and requested a research pass. The [source review and candidate behavior](../../docs/habit-suggestion-progression.md) distinguish consistency, automaticity and skill. Adaptive goals have relevant but domain-specific evidence; streak length does not measure ease or mastery. Preserve the chosen cue and setup limits, allow consolidation, and treat isolated misses without a reset. Skill development and maintaining a routine need different suggestions; increasing workload is not the default meaning of progress. These are product hypotheses, not validated effects of TODAY.
+
+Implementation detail affects interpretation: checking a habit and its linked daily task share the same completion record. Current history cannot independently establish that the generated suggestion was performed. Earlier suggestion texts include uncompleted actions. A local bounded-selection implementation and fictional paired wording check now follow the agreed direction; the linked report preserves weak evidence and distinguishes local correctness from genuine-use acceptance. Thresholds remain product hypotheses. Existing Habit Moments decisions and 3am grace remain intact.

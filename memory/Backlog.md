@@ -169,6 +169,8 @@ BUG-117 and other mail/account checks stay with `Bugs.md`. Opening/editing/copyi
 
 ### 14: Habit contextual companionship
 
+**Daily-suggestion progression (Can, November 17):** gentle progression direction agreed; [research and candidate behavior](../docs/habit-suggestion-progression.md) recorded after reviewing primary sources and existing psychology/selection/temporal contracts. Local bounded-progression implementation and a fixed fictional comparison are now recorded there, including consolidation, maintenance goals, misses and incomplete evidence. No streak-to-mastery rule. Habit/task checks share a completion record, so exact suggested-action performance is unknown. This extends the existing fresh daily task, separately from Ask and the morning-reading follow-up; dev publication requested November 17. Next: normal-use relevance/effort acceptance after deployment; do not claim the weak fictional learning pair proves improved progression.
+
 **Implemented:** desktop habit-specific Ask in v2.97.0, name-only input after an explicit tap. It is committed, not merely a local prototype. [Rejected UI, revised prototype, wording checks and release decisions](archive/Backlog-archive.md#habit-desktop-slice-and-completed-design-studies) are historical. **Verdict (Can, 2026-10-25):** seldom used but kept — habits now act like tasks, which is consistent and worth having. Not crucial, but not a candidate for removal. The latest Read refinement was not live-sampled; this verdict is based on real use, not syntactic validity.
 
 **Scope split:** improvements to the existing desktop habit Ask belong to [#15D](#15-sub-items); that does not reopen its keep verdict.
@@ -212,6 +214,7 @@ Before building, review the current Connections lifecycle and extract/adapt shar
 
 | Item | Current status / revisit trigger |
 |---|---|
+| Fresh daily habit progression — November 17 dev release | W1: meaningful depth without extra workload; W2: existing daily suggestion/setup, consolidation and steady maintenance. W3 checkpoint December 1 if exposed from November 17; otherwise actual exposure +14 days. Shipped version and exact commit belong to the matching Changelog entry and release receipt. Six local checks pass with no flakes; fictional learning-pair evidence is weak and does not close usefulness acceptance. [Policy, evidence and limits](../docs/habit-suggestion-progression.md#local-implementation--november-17-2026). |
 | Deployed startup | BUG-135 remains separate from completed CI efficiency. Startup/readiness changes and the pinned Linux gate do not close deployed/installed performance. BUG-138 is [verified closed](archive/Bugs-archive.md#bug-138--hosting-appends-real-user-monitoring); RUM removal does not establish performance recovery. Preserve original failures and limits; use the existing deployed workflow/explicit checks, not passing rerolls. |
 | Memory AI hypotheses | Inspect existing confirmation/usefulness before adding generation or data; keep separate from the KNOWN record verdict. |
 | Suggestion outcome loop | Owned by #15F; preserve existing bounded policy rather than creating another build queue. |

@@ -32,7 +32,7 @@
       if (!['active', 'dismissed', 'detached', 'expired'].includes(raw.state)) continue;
       result.occurrences[id] = { habitId: raw.habitId, day: raw.day, actionId: text(raw.actionId, 100),
         text: text(raw.text, 500), createdAt: raw.createdAt, updatedAt: stamp(raw.updatedAt) || raw.createdAt,
-        state: raw.state, edited: raw.edited === true };
+        state: raw.state, edited: raw.edited === true, basis: text(raw.basis, 1200) };
     }
     return result;
   }
@@ -51,6 +51,51 @@
         ? explicitA && explicitB ? later(current, incoming) : explicitA ? current : incoming
         : wroteA !== wroteB ? (wroteA ? current : incoming) : current.createdAt < incoming.createdAt ? current : incoming.createdAt < current.createdAt ? incoming : later(current, incoming);
     }
+    return result;
+  }
+  // Source binding is additive: legacy occurrences remain usable, but cannot prove
+  // practice under a renamed habit or a changed setup. No inferred backfill.
+  function basis(habit, c) {
+    const value = JSON.stringify([habit.name, c.updatedAt]);
+    return value.length <= 1200 ? value : '';
+  }
+  function stretchDay(habitId, date) {
+    let phase = 0; for (const char of habitId) phase = (phase + char.charCodeAt(0)) % 4;
+    const ordinal = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+    return ordinal % 4 === phase;
+  }
+  function progression(state, habit, day, completions = [], events = {}) {
+    const c = state.configs[habit.id];
+    const reference = text(c?.actions.find(a => a.id === c.defaultId)?.text, 120);
+    const result = { direction: 'baseline', reference, recentPractice: [] };
+    if (habit.archived || !c?.enabled || c.mode !== 'fresh' || !c.note || !dayPattern.test(day)) return result;
+    const date = new Date(day + 'T12:00:00');
+    const localDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!Number.isFinite(date.getTime()) || localDay(date) !== day) return result;
+    const source = basis(habit, c), completed = new Set(completions);
+    if (!source) return result;
+    let known = 0, checked = 0, recentChecked = 0, lastKnownDone = null, lastStretchDone = null;
+    for (let offset = 1; offset <= 14; offset++) {
+      const d = new Date(date); d.setDate(d.getDate() - offset);
+      const previousDay = localDay(d), id = key(habit.id, previousDay), o = state.occurrences[id];
+      if (!o || o.basis !== source) continue;
+      const slot = stretchDay(habit.id, d), event = events[id];
+      const done = event && stamp(event.at) && ['check', 'uncheck'].includes(event.type)
+        ? event.type === 'check' : completed.has(previousDay);
+      if (slot && lastStretchDone === null) lastStretchDone = done && !o.edited && ['active', 'expired'].includes(o.state);
+      if (o.actionId !== 'ai' || o.edited || !['active', 'expired'].includes(o.state)) continue;
+      if (lastKnownDone === null) lastKnownDone = done;
+      known++;
+      if (!done) continue;
+      checked++; if (offset <= 7) recentChecked++;
+      if (!slot && result.recentPractice.length < 3 && o.text) result.recentPractice.push(text(o.text, 120));
+    }
+    // Conservative product parameters, not formation/mastery claims. Unknown days
+    // never become misses. A single miss cannot erase a stored level: none exists.
+    if (known >= 5 && checked <= 2) result.direction = 'return';
+    else if (known >= 10 && checked >= 10 && recentChecked >= 4) {
+      result.direction = stretchDay(habit.id, date) && lastKnownDone !== false && lastStretchDone !== false ? 'deepen' : 'practice';
+    } else if (checked >= 3) result.direction = 'practice';
     return result;
   }
   // recent: action ids of earlier days, newest first; the set rotates through before repeating.
@@ -81,5 +126,5 @@
     let hash = 0; for (const char of day) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
     return pool.length ? pool[hash % pool.length] : c.actions.find(a => a.id === c.defaultId) || c.actions[0];
   }
-  global.Today.define('habit-task-policy', { key, taskId, config, clean, merge, choose });
+  global.Today.define('habit-task-policy', { key, taskId, config, clean, merge, choose, basis, progression });
 })(window);

@@ -75,15 +75,15 @@ browser = await puppeteer.launch({
 });
 
 /** Open a fresh page, seed localStorage, wait for boot and lazy modules. */
-async function openPage({ htSeed = HT_SEED, extraSeed = {}, ai = null } = {}) {
+async function openPage({ htSeed = HT_SEED, extraSeed = {}, ai = null, captureFreshDeadline = false } = {}) {
   const page = await browser.newPage();
   // ai: a reply object for /.netlify/functions/ai-assist; requests are recorded in window.__aiBodies.
   if (ai) {
     await page.setRequestInterception(true);
-    page.on('request', req => {
+    page.on('request', async req => {
       if (!req.url().includes('/.netlify/functions/ai-assist')) return req.continue();
       const body = JSON.parse(req.postData() || '{}');
-      const reply = typeof ai === 'function' ? ai(body) : ai;
+      const reply = typeof ai === 'function' ? await ai(body) : ai;
       req.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(reply) });
     });
   }
@@ -94,11 +94,18 @@ async function openPage({ htSeed = HT_SEED, extraSeed = {}, ai = null } = {}) {
   await page.evaluateOnNewDocument(fixture => {
     const Real = Date, offset = fixture - Real.now();
     class FixtureDate extends Real {
-      constructor(...args) { super(...(args.length ? args : [Real.now() + offset])); }
-      static now() { return Real.now() + offset; }
+      constructor(...args) { super(...(args.length ? args : [Real.now() + offset + (window.__fixtureTimeShift || 0)])); }
+      static now() { return Real.now() + offset + (window.__fixtureTimeShift || 0); }
     }
     window.Date = FixtureDate;
   }, FIXTURE_NOW);
+  if (captureFreshDeadline) await page.evaluateOnNewDocument(() => {
+    const original = window.setTimeout;
+    window.setTimeout = (callback, delay, ...args) => {
+      if (delay === 12000) window.__expireFreshRequest = () => callback(...args);
+      return original(callback, delay, ...args);
+    };
+  });
   await page.evaluateOnNewDocument(
     (habits, htRaw, extra) => {
       localStorage.clear();
@@ -429,7 +436,7 @@ try {
     ok('list mark follows the mode (✦ fresh · list-in set); edit link names it; saving updates it');
   }
 
-  // ── 14. Fresh each day: the AI writes today's task once, from habit/note/earlier wording only ──
+  // ── 14. Fresh each day: the AI writes today's task once, with bounded same-habit progression ──
   {
     const seed = structuredClone(HT_SEED);
     Object.assign(seed.configs.habit_a, { mode: 'fresh', note: 'Evenings only' });
@@ -441,13 +448,108 @@ try {
       occurrence: Today.use('habit-tasks').read().occurrences[key]?.actionId === 'ai',
       notEdited: Today.use('habit-tasks').read().occurrences[key]?.edited === false,
     }), TASK_ID, TASK_ID.replace('habit_task_', '')));
-    await expectAll('fresh request carries only habit, note, earlier', {
-      keys: JSON.stringify(Object.keys(sent).sort()) === '["earlier","habit","note"]',
+    await expectAll('fresh request carries bounded guidance without raw history', {
+      keys: JSON.stringify(Object.keys(sent).sort()) === '["earlier","habit","note","progression"]',
       habit: sent.habit === 'Morning read', note: sent.note === 'Evenings only',
+      sparseBaseline: sent.progression.direction === 'baseline' && sent.progression.recentPractice.length === 0,
     });
     await page.close();
-    ok('fresh mode replaces the fallback with an AI-written task; request holds habit, note and earlier wording only');
+    ok('fresh mode replaces the fallback with an AI-written task; request adds only bounded same-habit guidance; sparse history stays baseline');
   }
+
+  // Current-source evidence and delayed replies use the real writer, not a mock policy.
+  function progressionSeed() {
+    const seed = structuredClone(HT_SEED);
+    Object.assign(seed.configs.habit_a, { mode: 'fresh', note: 'Learn from reading, twenty minutes at most', updatedAt: '2026-09-01T10:00:00.000Z' });
+    const completions = [];
+    for (let offset = 1; offset <= 14; offset++) {
+      const d = new Date(TODAY + 'T12:00:00'); d.setDate(d.getDate() - offset);
+      const day = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      completions.push(day);
+      seed.occurrences['habit_a::' + day] = { habitId: 'habit_a', day, actionId:'ai', text:'Recall one idea from the chapter',
+        createdAt:'2026-09-02T10:00:00.000Z', updatedAt:'2026-09-02T10:00:00.000Z', state:'expired', edited:false,
+        basis:JSON.stringify(['Morning read',seed.configs.habit_a.updatedAt]) };
+    }
+    return { seed, completions };
+  }
+  {
+    const { seed, completions } = progressionSeed(); let request;
+    const { page } = await openPage({ htSeed:seed,
+      extraSeed:{ today_ai_provider:'claude', today_ai_key_claude:'test-key', today_habit_completions:{habit_a:completions,habit_b:['PRIVATE_DATE']} },
+      ai:body => (request=body,{text:'Recall an idea before opening the chapter'}) });
+    await page.waitForFunction(id=>manualTasks.find(t=>t.id===id)?.text==='Recall an idea before opening the chapter',{timeout:8000},TASK_ID);
+    const payload=JSON.parse(request.messages[0].content);
+    const expected=await page.evaluate(day=>{const api=Today.use('habit-tasks');return Today.use('habit-task-policy').progression(api.read(),habitsList[0],day,habitCompletions.habit_a,habitEvents);},TODAY);
+    await expectAll('same-habit bounded evidence',{
+      projected:JSON.stringify(payload.progression)===JSON.stringify(expected),
+      familiar:payload.progression.recentPractice.length===3,
+      noRawHistory:!JSON.stringify(payload).includes('PRIVATE_DATE')&&!JSON.stringify(payload).includes('habit_a')&&!JSON.stringify(payload).includes(completions[0]),
+      sourceStored:await page.evaluate(id=>!!Today.use('habit-tasks').read().occurrences[id].basis,'habit_a::'+TODAY),
+      repetition:request.systemPrompt.includes('Useful repetition and consolidation are allowed')&&!request.systemPrompt.includes('Differ in substance'),
+    });
+    await page.close(); ok('fresh writer uses bounded same-habit evidence and permits consolidation; source binding survives persistence');
+  }
+  for (const change of ['setup','rename','archive','disabled','completed','uncheck-history','provider-key','detach','habit-day']) {
+    const { seed, completions }=progressionSeed();
+    let release, started, calls=0;
+    const ready=new Promise(resolve=>started=resolve), delayed=new Promise(resolve=>release=resolve);
+    const { page }=await openPage({htSeed:seed,extraSeed:{today_ai_provider:'claude',today_ai_key_claude:'test-key',today_habit_completions:{habit_a:completions}},
+      ai:async()=>{calls++;started();await delayed;return {text:'A stale suggestion must never replace this'};}});
+    await ready;
+    await page.evaluate((change,id,day,previous)=>{
+      const api=Today.use('habit-tasks');
+      if(change==='setup'){const state=api.read();state.configs.habit_a.note='Maintain only';localStorage.setItem('today_habit_tasks_v1',JSON.stringify(state));}
+      if(change==='rename')habitsList[0].name='Renamed habit';
+      if(change==='archive')habitsList[0].archived=true;
+      if(change==='disabled'){const state=api.read();state.configs.habit_a.enabled=false;localStorage.setItem('today_habit_tasks_v1',JSON.stringify(state));}
+      if(change==='habit-day')window.__fixtureTimeShift=24*60*60*1000;
+      if(change==='completed')api.fromHabit('habit_a',day,true);
+      if(change==='uncheck-history')habitEvents['habit_a::'+previous]={type:'uncheck',at:new Date().toISOString()};
+      if(change==='provider-key')localStorage.setItem('today_ai_key_claude','different-test-key');
+      if(change==='detach')api.detach(manualTasks.find(t=>t.id===id));
+    },change,TASK_ID,TODAY,completions[0]);
+    release();
+    await page.waitForNetworkIdle({idleTime:100,timeout:5000});
+    await expectAll('late '+change+' reply is discarded',await page.evaluate(id=>({
+      unchanged:manualTasks.find(t=>t.id===id)?.text==='Read for 20 minutes',
+      noAI:Today.use('habit-tasks').read().occurrences[id.replace('habit_task_','')]?.actionId!=='ai',
+    }),TASK_ID));
+    if(calls!==1)await fail('stale request is not automatically retried',{change,calls});
+    await page.close();
+  }
+  ok('setup/owner/archive/disable/day changes, completion, historical uncheck, AI-key changes and detachment discard late responses without retries');
+
+  // Invalid/overlong prose and an expired request must keep the approved fallback.
+  for (const reply of [{text:'x'.repeat(71)}, {text:42}, {content:'not JSON'}, null]) {
+    const { seed }=progressionSeed(); let calls=0;
+    const { page }=await openPage({htSeed:seed,extraSeed:{today_ai_provider:'claude',today_ai_key_claude:'test-key'},
+      ai:()=>{calls++;return reply;}});
+    await page.waitForNetworkIdle({idleTime:100,timeout:5000});
+    await expectAll('invalid AI result keeps fallback',await page.evaluate(id=>({
+      fallback:manualTasks.find(t=>t.id===id)?.text==='Read for 20 minutes',
+      noAI:Today.use('habit-tasks').read().occurrences[id.replace('habit_task_','')]?.actionId!=='ai',
+    }),TASK_ID));
+    await page.evaluate(()=>Today.use('habit-tasks').reconcile());
+    if(calls!==1)await fail('invalid result must not trigger automatic retries',{reply,calls});
+    await page.close();
+  }
+  {
+    const { seed }=progressionSeed(); let release, started;
+    const ready=new Promise(resolve=>started=resolve), delayed=new Promise(resolve=>release=resolve);
+    const { page }=await openPage({htSeed:seed,captureFreshDeadline:true,extraSeed:{today_ai_provider:'claude',today_ai_key_claude:'test-key'},
+      ai:async()=>{started();await delayed;return {text:'This response arrived after the deadline'};}});
+    await ready;
+    await page.waitForFunction(()=>typeof window.__expireFreshRequest==='function');
+    await page.evaluate(()=>window.__expireFreshRequest());
+    release();
+    await page.waitForNetworkIdle({idleTime:100,timeout:5000});
+    await expectAll('deadline abort keeps fallback',await page.evaluate(id=>({
+      fallback:manualTasks.find(t=>t.id===id)?.text==='Read for 20 minutes',
+      noAI:Today.use('habit-tasks').read().occurrences[id.replace('habit_task_','')]?.actionId!=='ai',
+    }),TASK_ID));
+    await page.close();
+  }
+  ok('nontext, malformed and overlong replies, plus the actual 12-second abort callback, retain the fallback without retries');
 
   // ── 15. A varied set: prepare, remove, add your own; save keeps the set and the avoid list ──
   {
