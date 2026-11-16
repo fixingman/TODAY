@@ -178,6 +178,11 @@
       const input = document.getElementById('newTask');
       if (input) input.focus();
     }
+    // Tidy the list: finished tasks move to Past and keep counting for today.
+    if (e.shiftKey && e.key === 'D') {
+      e.preventDefault();
+      Today.use('zones').moveDoneToPast();
+    }
   }
 
   window._startAccessibility = function() {

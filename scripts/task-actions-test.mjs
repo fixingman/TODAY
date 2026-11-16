@@ -361,7 +361,7 @@ try {
     //      evening triage to PAST and a sync from a device that has not rolled over (BUG-171).
     {
       const { page, errors } = await openPage();
-      const steps = await page.evaluate(() => {
+      const result10c = await page.evaluate(() => {
         const read = label => { updateStats(); return { label, top: Number(document.getElementById('statDone').textContent), log: _doneTodayCount() }; };
         const out = [];
         toggleDone('task_1'); toggleDone('task_2'); out.push(read('two checked'));
@@ -374,12 +374,19 @@ try {
         const day = 86400000, old = Array.from({ length: 5 }, (_, i) => ({ id: 'manual_old_' + i, text: 'Earlier ' + i, zone: 'past', status: 'done', zoneChangedAt: new Date(Date.now() - (i + 1) * day).toISOString() }));
         mergeRemoteData({ manual_tasks: manualTasks, done_ids: [...doneIds, ...old.map(x => x.id)], deleted_ids: [], unchecked_ids: [], checked_ids: [], soon_tasks: [], past_tasks: [...pastTasks, ...old], habits: [] });
         out.push(read('stale-device sync'));
-        return out;
+        toggleDone('task_2'); toggleDone('task_2'); // ensure today's check is the winning op
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', shiftKey: true, bubbles: true }));
+        out.push(read('Shift+D tidy'));
+        const tidy = { inPast: pastTasks.some(t => t.id === 'task_2' && t.status === 'done'), offList: !manualTasks.some(t => t.id === 'task_2'),
+          notDeleted: !_getDeletedIds().some(d => d.id === 'task_2') };
+        return { out, tidy };
       });
+      const { out: steps, tidy } = result10c;
       const disagree = steps.filter(s => s.top !== s.log);
       await expectAll('top bar and tick log agree', { agree: disagree.length === 0, nonZero: steps[0].top === 2, noErrors: errors.length === 0 });
+      await expectAll('Shift+D moves finished tasks to Past', tidy);
       if (disagree.length) console.error(JSON.stringify(disagree));
-      ok('updateStats: top bar done matches the tick-log count through check, uncheck, triage and a stale-device sync');
+      ok('updateStats: top bar done matches the tick-log count through check, uncheck, triage, a stale-device sync and Shift+D; Shift+D moves to Past, never deletes');
       await page.close();
     }
 

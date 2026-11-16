@@ -251,6 +251,28 @@
       if (token) dropboxBackup(true);
     }
 
+    // Shift+D: move today's finished tasks to PAST, exactly as evening triage does. Their ids
+    // stay done and checked today, so they keep counting for today; PAST lets them be revived.
+    function moveDoneToPast() {
+      if (document.body.classList.contains('focus-locked')) return 0; // never pull the list from under Focus
+      const done = manualTasks.filter(t => doneIds.has(t.id));
+      if (!done.length) { window._a11yAnnounce?.('No finished tasks to move.'); return 0; }
+      const at = new Date().toISOString();
+      done.forEach(t => {
+        _rowExit(document.querySelector('#manualList .task[data-taskid="' + CSS.escape(t.id) + '"]'));
+        t.zone = 'past'; t.status = 'done'; t.zoneChangedAt = at;
+        pastTasks.unshift(t);
+      });
+      manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
+      _saveManual(); _savePast(); _setLastLocalChange();
+      $.manualCount.textContent = manualTasks.length;
+      renderPast(); updateManualEmptyState(true); updateStats();
+      window._a11yAnnounce?.(done.length === 1 ? 'Moved 1 finished task to Past.' : `Moved ${done.length} finished tasks to Past.`);
+      const token = localStorage.getItem('dropbox_token');
+      if (token) dropboxBackup(true);
+      return done.length;
+    }
+
     // Revive an aged/let-go item from PAST back to SOON — same task ID, so age basis,
     // session counts, and insight history survive (Roadmap #8: replaces Can's manual
     // copy-text → new task → move-to-soon ritual, which reset all of that).
@@ -330,6 +352,7 @@
         pullFromSoon,
         reviveFromPastShowReason,
         reviveFromPast,
+        moveDoneToPast,
       });
       Today.ui.register('click', 'zones.toggle', (_event, button) => toggleZone(button.dataset.zone));
       Today.ui.register('click', 'zones.pull', (_event, button) => pullFromSoon(button.dataset.taskId));
