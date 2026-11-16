@@ -178,10 +178,6 @@
       const input = document.getElementById('newTask');
       if (input) input.focus();
     }
-    if (e.shiftKey && e.key === 'D') {
-      e.preventDefault();
-      if (typeof window._clearAllDone === 'function') window._clearAllDone();
-    }
   }
 
   window._startAccessibility = function() {

@@ -247,7 +247,6 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 | 1.9 | Long text (500+) | Wraps |
 | 1.10 | Delete last task → empty list | Day's poem appears (not static "A clean slate" — v2.26.0) |
 | 1.11 | Check all tasks done | ✦ star above day's poem (not static "✦ All done" text — v2.26.0) |
-| 1.12 | Shift+D | Clears done tasks |
 | 1.13 | Rapid check/uncheck | No glitch |
 | 1.14 | 100 tasks | All render |
 | 1.15 | Add `work: task` while pointer is over the arriving row | Full two-pass arrival shimmer completes; hover does not replace it or flash midway |
@@ -400,11 +399,10 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 | 8.6 | **localStorage quota exceeded** | Red dot shown with clear message (fixed v2.17.70) |
 | 8.7 | **localStorage disabled** | App loads, no persist |
 
-### 9. Destructive Operations (4 tests)
+### 9. Destructive Operations (3 tests)
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 9.1 | Shift+D clear done | Done tasks removed |
 | 9.2 | Disconnect Dropbox | B keeps last sync |
 | 9.3 | Clear localStorage | B maintains data |
 | 9.4 | AI delete_task | Tracked in deleted_ids |

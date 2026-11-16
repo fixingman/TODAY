@@ -2,7 +2,7 @@
 //
 // Tests: addManual, toggleDone check/uncheck, delegated copy/check/delete controls,
 // focus interception, deleteManual (undo toast), _undoDelete restore,
-// _clearAllDone, updateStats/favicon, static wiring.
+// updateStats/favicon, static wiring.
 //
 // Run from repo root:
 //   node scripts/task-actions-test.mjs --pre-extraction   # pre-extraction baseline
@@ -315,23 +315,6 @@ try {
       await page.close();
     }
 
-    // 9. _clearAllDone removes done tasks from manualTasks.
-    {
-      const { page, errors } = await openPage();
-      const result = await page.evaluate(() => {
-        toggleDone('task_1'); // mark done
-        _clearAllDone();
-        return {
-          taskRemoved:  !manualTasks.find(t => t.id === 'task_1'),
-          notInDoneIds: !doneIds.has('task_1'),
-          task2Intact:  !!manualTasks.find(t => t.id === 'task_2'),
-        };
-      });
-      await expectAll('_clearAllDone removes done tasks', { ...result, noErrors: errors.length === 0 });
-      ok('_clearAllDone: task_1 (done) removed; task_2 (pending) intact');
-      await page.close();
-    }
-
     // 10. updateStats reflects correct counts in the DOM and refreshes the favicon.
     {
       const { page, errors } = await openPage();
@@ -407,7 +390,7 @@ try {
       const taskActionsSrc = await readFile(join(ROOT, 'assets/task-actions.js'), 'utf8');
       const requiredExports = [
         'addManual', 'toggleDone', 'toggleClearBtn', 'clearTaskInput',
-        '_clearAllDone', 'updateStats',
+        'updateStats',
         'updateManualEmptyState', '_archiveHabitUndo', '_applyDoneStyles',
       ];
       const startupIdx     = indexSrc.indexOf('window._startTaskActions();');

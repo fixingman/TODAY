@@ -333,25 +333,6 @@ window._startTaskActions = (function() {
       }
     }
 
-    function _clearAllDone() {
-      const done = manualTasks.filter(t => doneIds.has(t.id));
-      if (done.length === 0) return;
-      done.forEach(t => {
-        _addDeletedId(t.id);
-        const el = document.querySelector('.task[data-taskid="' + CSS.escape(t.id) + '"]');
-        if (el) _rowExit(el);
-      });
-      manualTasks = manualTasks.filter(t => !doneIds.has(t.id));
-      done.forEach(t => doneIds.delete(t.id));
-      _saveManual();
-      _saveDone();
-      _setLastLocalChange();
-      dropboxAutoSave();
-      $.manualCount.textContent = manualTasks.length;
-      updateManualEmptyState(true);
-      updateStats();
-    }
-
     function toggleClearBtn() {
       const input = document.getElementById('newTask');
       const btn   = document.getElementById('clearTaskBtn');
@@ -703,7 +684,6 @@ window._startTaskActions = (function() {
     window.toggleDone = toggleDone;
     window.toggleClearBtn = toggleClearBtn;
     window.clearTaskInput = clearTaskInput;
-    window._clearAllDone = _clearAllDone;
     window.updateStats = updateStats;
     window._applyDoneStyles = _applyDoneStyles;
   };

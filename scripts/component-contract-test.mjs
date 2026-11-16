@@ -62,7 +62,6 @@ const globalOwners = new Map();
 // component has started. Keep the list finite; remove entries as APIs move to Today.
 const duplicateOwnerShims = new Set([
   '_dateTagRefresh',
-  '_clearAllDone',
   '_focusReanchor',
   '_nudgeOnNewDay',
   '_getTrelloFocusTotal',
@@ -82,7 +81,7 @@ const duplicateOwners = [...globalOwners]
 
 assert.deepEqual(duplicateOwners, [], 'a global compatibility export may have only one owning module');
 assert.ok(
-  globalAssignments.length <= 122,
+  globalAssignments.length <= 121,
   `global compatibility surface grew to ${globalAssignments.length}; migrate through Today.define/use instead`,
 );
 
