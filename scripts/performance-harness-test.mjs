@@ -6,12 +6,16 @@ import vm from 'node:vm';
 import puppeteer from 'puppeteer-core';
 
 const source = await readFile(new URL('./performance-test.mjs', import.meta.url), 'utf8');
-const helper = name => {
+const helper = (name, context = {}) => {
   const start = source.indexOf('async function ' + name + '(');
   const end = source.indexOf('\nasync function ', start + 1);
   assert.ok(start >= 0 && end > start, name);
-  return vm.runInNewContext('(' + source.slice(start, end).trim() + ')');
+  return vm.runInNewContext('(' + source.slice(start, end).trim() + ')', context);
 };
+const versionSource = source.match(/function appVersionFromSource\(source\) \{[\s\S]*?\n\}/)?.[0];
+assert.ok(versionSource);
+const appVersionFromSource = vm.runInNewContext('(' + versionSource + ')');
+const requireTargetVersion = helper('requireTargetVersion', { fetch, appVersionFromSource });
 const installObservers = helper('installObservers');
 const readPageMetrics = helper('readPageMetrics');
 const prepareWarm = helper('prepareWarm');
@@ -47,6 +51,11 @@ const html = `<!doctype html><html><body>
     });
   </script></body></html>`;
 const server = createServer(async (req, res) => {
+  if (req.url.startsWith('/version')) {
+    const fixture = new URL(req.url, 'http://127.0.0.1').searchParams;
+    res.writeHead(Number(fixture.get('status') || 200), { 'Content-Type': 'text/html' });
+    res.end(fixture.get('source') || '<h1>No app version</h1>'); return;
+  }
   if(req.url==='/fixture-worker.js'){
     res.writeHead(200,{'Content-Type':'text/javascript'});
     res.end("addEventListener('activate',event=>event.waitUntil(clients.claim()));");return;
@@ -63,6 +72,19 @@ const server = createServer(async (req, res) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 let browser;
 try {
+  const versionURL = (source, status = 200) => `http://127.0.0.1:${server.address().port}/version?` + new URLSearchParams({ source, status });
+  for (const quote of ['"', "'"]) {
+    const fixture = `const CHANGELOG = {${quote}3.10.11${quote}: ['fixture']};`;
+    assert.equal(appVersionFromSource(fixture), '3.10.11');
+    await requireTargetVersion(versionURL(fixture), '3.10.11');
+    await assert.rejects(requireTargetVersion(versionURL(fixture), '3.10.12'), /Target is v3\.10\.11, but checked-out payload is v3\.10\.12/);
+  }
+  for (const fixture of ['<h1>No app version</h1>', 'const CHANGELOG = {‘3.10.11’: []};', `const CHANGELOG = {'3.10.11": []};`]) {
+    assert.equal(appVersionFromSource(fixture), undefined);
+    await assert.rejects(requireTargetVersion(versionURL(fixture), '3.10.11'), /Target is vunknown/);
+  }
+  await assert.rejects(requireTargetVersion(versionURL('unavailable', 503), '3.10.11'), /Target returned HTTP 503/);
+  console.log('  ✓ deployed version preflight accepts straight quotes and rejects mismatched, malformed and unavailable builds');
   browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     headless: 'new', args: ['--no-first-run', '--disable-extensions', '--no-sandbox'] });
   for (const unsupported of [false, true]) {

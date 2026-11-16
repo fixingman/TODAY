@@ -57,6 +57,20 @@ const summarize = values => ({ median: round(median(values)), worst: round(Math.
 const kb = bytes => `${(bytes / 1024).toFixed(1)} KB`;
 const ms = value => `${Math.round(value)} ms`;
 
+function appVersionFromSource(source) {
+  // Curly or mismatched quotes are invalid JavaScript, not a deployed version.
+  return source.match(/(['"])(\d+\.\d+\.\d+)\1:/)?.[2];
+}
+
+async function requireTargetVersion(url, expectedVersion) {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Target returned HTTP ${response.status}: ${url}`);
+  const deployedVersion = appVersionFromSource(await response.text());
+  if (deployedVersion !== expectedVersion) {
+    throw new Error(`Target is v${deployedVersion || 'unknown'}, but checked-out payload is v${expectedVersion}. Wait for deploy or check out the deployed branch.`);
+  }
+}
+
 async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = [];
@@ -88,8 +102,7 @@ async function payloadEvidence() {
   const fontFiles = (await walk(join(ROOT, 'fonts'))).filter(path => path.endsWith('.woff2'));
   const fontBytes = (await Promise.all(fontFiles.map(path => stat(path)))).reduce((sum, item) => sum + item.size, 0);
   const total = key => rows.reduce((sum, row) => sum + row[key], 0);
-  // Straight quotes only: a curly-quoted key is a syntax error, not a version.
-  const appVersion = indexSource.match(/(['"])(\d+\.\d+\.\d+)\1:/)?.[2];
+  const appVersion = appVersionFromSource(indexSource);
   if (!appVersion) throw new Error('Could not derive APP_VERSION from index.html');
   return {
     appVersion,
@@ -491,12 +504,7 @@ try {
   }
   if (REQUIRE_VERSION_MATCH) {
     if (!TARGET) throw new Error('--require-version-match needs --target');
-    const response = await fetch(url, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`Target returned HTTP ${response.status}: ${url}`);
-    const deployedVersion = (await response.text()).match(/['‘](\d+\.\d+\.\d+)['’]:/)?.[1];
-    if (deployedVersion !== payload.appVersion) {
-      throw new Error(`Target is v${deployedVersion || 'unknown'}, but checked-out payload is v${payload.appVersion}. Wait for deploy or check out the deployed branch.`);
-    }
+    await requireTargetVersion(url, payload.appVersion);
   }
   const puppeteer = (await import('puppeteer-core')).default;
   browser = await launchBenchmarkBrowser(puppeteer);
