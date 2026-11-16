@@ -4,6 +4,7 @@
 // service-worker registration, and bfcache wake handling.
 // Run from repo root: node scripts/platform-test.mjs
 
+import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { PNG } from 'pngjs';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
@@ -145,6 +146,115 @@ const IOS_SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Apple
 const IOS_CHROME = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/128.0.0.0 Mobile/15E148 Safari/604.1';
 const MAC_SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
 const FIREFOX    = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0';
+
+// Exercise Chromium's real standalone renderer mode in an isolated app window.
+// --app creates no installation/OS shortcut and Puppeteer owns the disposable profile.
+// This complements the synthetic WCO/native-title geometry tests below.
+async function checkDesktopAppHeader() {
+  const url=URL_BASE+'/?desktop-header-fixture';
+  const appBrowser=await puppeteer.launch({executablePath:CHROME,headless:'new',ignoreDefaultArgs:['about:blank'],
+    args:['--no-first-run','--disable-extensions','--app='+url,
+      '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4']});
+  const evidence=join(ROOT,'.context/ci-test-results/desktop-pwa-header');
+  try {
+    await mkdir(evidence,{recursive:true});
+    const target=await appBrowser.waitForTarget(t=>t.url()===url,{timeout:15000});
+    const page=await target.page(),errors=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    await page.setViewport({width:1280,height:800});
+    await page.evaluate(()=>{localStorage.clear();localStorage.setItem('splash_shown_at',String(Date.now()));});
+    await page.reload({waitUntil:'load',timeout:15000});
+    await page.waitForFunction(()=>!document.body.hasAttribute('data-booting')&&performance.getEntriesByName('today:interactive').length>0,{timeout:15000});
+    const modes=await page.evaluate(()=>({standalone:matchMedia('(display-mode: standalone)').matches,
+      wco:matchMedia('(display-mode: window-controls-overlay)').matches,browser:matchMedia('(display-mode: browser)').matches,
+      hover:matchMedia('(hover: hover)').matches,fine:matchMedia('(pointer: fine)').matches}));
+    assert.deepEqual(modes,{standalone:true,wco:false,browser:false,hover:true,fine:true},'fixture must use real non-WCO desktop standalone predicates');
+    await page.evaluate(()=>{
+      manualTasks=Array.from({length:120},(_,i)=>({id:'manual_app_header_'+i,text:'Fictional app-window task '+i}));
+      Today.use('connections').renderManual();
+    });
+    await page.click('.task[data-taskid="manual_app_header_0"] .task-text');
+    await page.waitForSelector('.focus-timer.open',{visible:true,timeout:3000});
+    assert.equal(await page.evaluate(()=>document.body.classList.contains('focus-locked')),true,'real desktop Focus must lock the page');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>!document.body.classList.contains('focus-locked')&&!document.querySelector('.focus-timer.open'),{timeout:3000});
+    await page.evaluate(()=>{
+      const spacer=document.createElement('div');spacer.id='appHeaderSpacer';spacer.style.height='1200px';
+      const marker=document.createElement('div');marker.id='appHeaderBackdrop';marker.setAttribute('aria-hidden','true');
+      marker.style.cssText='height:1800px;width:100vw;margin-left:calc(50% - 50vw);pointer-events:none';
+      document.getElementById('main-app').prepend(spacer,marker);
+    });
+    const settle=()=>page.evaluate(async()=>{
+      const nodes=[document.getElementById('sticky-header'),document.getElementById('main-app'),document.getElementById('sidebarRoot')];
+      await Promise.all(nodes.flatMap(n=>n.getAnimations()).filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));
+      const marker=document.getElementById('appHeaderBackdrop');scrollTo(0,scrollY+marker.getBoundingClientRect().top-4);
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    });
+    async function paintedPair(name,expectGlass) {
+      const samples=[];
+      for(const [label,color] of [['red','rgb(255, 0, 0)'],['blue','rgb(0, 0, 255)']]){
+        await page.evaluate(color=>document.getElementById('appHeaderBackdrop').style.background=color,color);
+        await settle();
+        const state=await page.evaluate(()=>{
+          const header=document.getElementById('sticky-header'),r=header.getBoundingClientRect(),style=getComputedStyle(header);
+          const under=document.getElementById('appHeaderBackdrop').getBoundingClientRect();
+          const probe=document.createElement('span');probe.style.background='var(--bg-glass)';document.body.append(probe);
+          const expected=getComputedStyle(probe).backgroundColor;probe.remove();
+          return {top:r.top,height:r.height,scroll:scrollY,width:innerWidth,background:style.backgroundColor,expected,
+            filter:style.backdropFilter||style.webkitBackdropFilter,opacity:Number(style.opacity),visibility:style.visibility,
+            under:{x:under.x,y:under.y,right:under.right,bottom:under.bottom},sampleY:Math.floor(r.height/2)};
+        });
+        assert.ok(state.scroll>900&&Math.abs(state.top)<1,'long-list standalone header must remain pinned: '+JSON.stringify(state));
+        assert.ok(state.under.x<=16&&state.under.right>=24&&state.under.y<=5&&state.under.bottom>state.sampleY+8,'backdrop must cover the sampled header patch');
+        if(expectGlass){
+          assert.equal(state.visibility,'visible','the sampled header must actually be visible');
+          assert.equal(state.background,state.expected,'standalone must retain its glass background after resize, sidebar and Focus');
+          assert.ok(state.filter.includes('blur(16px)'),'standalone must retain backdrop blur');
+        }
+        // Sample the current viewport: a document-coordinate clip at y=0 would
+        // capture empty space above the sticky header after scrolling.
+        const bytes=await page.screenshot({fullPage:false});
+        await writeFile(join(evidence,name+'-'+label+'.png'),bytes);
+        const png=PNG.sync.read(bytes),rgb=[0,0,0];
+        for(let y=state.sampleY;y<state.sampleY+8;y++)for(let x=16;x<24;x++){
+          const offset=(y*png.width+x)*4;for(let c=0;c<3;c++)rgb[c]+=png.data[offset+c]/64;
+        }
+        samples.push({...state,rgb});
+      }
+      const contrast=Math.max(...samples[0].rgb.map((value,i)=>Math.abs(value-samples[1].rgb[i])));
+      await writeFile(join(evidence,name+'.json'),JSON.stringify({modes,samples,contrast},null,2));
+      if(expectGlass)assert.ok(contrast>2,'standalone header must visibly transmit the changing backdrop, not paint a solid band: '+JSON.stringify({name,contrast,samples}));
+      return {contrast,samples};
+    }
+    for(const width of [1280,736]){
+      await page.setViewport({width,height:800});
+      for(const open of [false,true]){
+        await page.evaluate(open=>{if(open)Today.use('sidebar').open('about');else Today.use('sidebar').close(true);},open);
+        await paintedPair(width+'-'+(open?'sidebar-open':'sidebar-closed'),true);
+      }
+    }
+    await page.setViewport({width:1280,height:800});
+    await page.evaluate(()=>Today.use('sidebar').close(true));
+    // Causal control: the exact removed rule must erase rendered transmission.
+    const oldRule=await page.addStyleTag({content:'@media (min-width:601px) and (display-mode:standalone){.sticky-header{background:var(--bg);backdrop-filter:none;-webkit-backdrop-filter:none;}}'});
+    const opaque=await paintedPair('old-opaque-rule-control',false);
+    assert.equal(opaque.samples[0].opacity,1,'opaque control requires an undimmed header');
+    assert.ok(opaque.contrast<=1,'the old override must eliminate backdrop transmission');
+    assert.equal(opaque.samples[0].filter,'none');
+    await oldRule.evaluate(node=>node.remove());
+    // A wrong-mode title underlay can black out the header while its own
+    // computed background/filter still look correct. Pixels must catch that too.
+    const blocker=await page.addStyleTag({content:'@media(display-mode:standalone){body::before{content:"";position:fixed;top:0;left:0;right:0;height:200px;background:var(--bg);z-index:calc(var(--z-header) - 1);pointer-events:none;}}'});
+    const blocked=await paintedPair('opaque-underlay-control',false);
+    assert.equal(blocked.samples[0].background,blocked.samples[0].expected,'underlay control preserves computed header glass');
+    assert.ok(blocked.samples[0].filter.includes('blur(16px)'),'underlay control preserves computed backdrop blur');
+    assert.ok(blocked.contrast<=1,'a wrong-mode opaque underlay must defeat the pixel guard despite correct computed styles');
+    await blocker.evaluate(node=>node.remove());
+    await paintedPair('glass-restored-after-control',true);
+    assert.deepEqual(errors,[],'desktop app-window lifecycle must not throw');
+    ok('real desktop standalone mode: pinned glass survives Focus, resize and sidebar; rendered pixels reject the old opaque rule and an opaque underlay');
+  } finally {await appBrowser.close();}
+}
 
 try {
   // Extracted-module wiring and ownership boundary.
@@ -554,6 +664,8 @@ try {
     ok('keyboard viewport, persisted pageshow, and /sw.js registration');
     await page.close();
   }
+
+  await checkDesktopAppHeader();
 
   console.log('✓ PLATFORM TEST PASSED');
 } finally {
