@@ -79,9 +79,14 @@ try{
  await page.evaluate(()=>{document.getElementById('main-app').style.minHeight='2000px';scrollTo(0,280);});
  const entryScroll=await page.evaluate(()=>scrollY);assert.ok(entryScroll>0);
  await openSidebar(page,'habits');await settleShell();
- assert.equal(await page.evaluate(()=>scrollY),entryScroll,'Inline Habits does not lock or reset page scroll');
+ await page.waitForFunction(()=>scrollY===0);
+ assert.equal(await page.evaluate(()=>scrollY),0,'Opening inline mobile Habits starts at the top');
+ assert.equal(await page.evaluate(()=>document.body.style.position),'','Inline Habits keeps ordinary page scrolling unlocked');
+ await page.evaluate(()=>scrollTo(0,180));
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ assert.equal(await page.evaluate(()=>scrollY),180,'Opening reset does not pin subsequent reading to the top');
  await page.evaluate(()=>Today.use('sidebar').close(true));
- assert.equal(await page.evaluate(()=>scrollY),entryScroll,'Phone close restores the original task-list scroll');
+ assert.equal(await page.evaluate(()=>scrollY),180,'Closing inline Habits preserves the current reading position');
  await page.evaluate(()=>{document.getElementById('main-app').style.minHeight='';scrollTo(0,0);delete visualViewport.height;delete visualViewport.offsetTop;});
  await mobileCDP.send('Emulation.setSafeAreaInsetsOverride',{insets:{top:0,bottom:0,left:0,right:0}});
  await mobileCDP.send('Emulation.clearDeviceMetricsOverride');
