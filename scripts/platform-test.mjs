@@ -746,13 +746,18 @@ try {
     await page.evaluate(()=>{Today.use('sidebar').close(true);Today.use('sidebar').open('scroll-fixture');Today.use('sidebar').close(true);scrollTo(0,480);});
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     assert.ok(await page.evaluate(()=>scrollY>400),'a closed opening cannot run a stale viewport reset');
-    if(width===390)for(let pass=0;pass<2;pass++){
-      await page.click('#infoBtn');
-      await page.waitForSelector('#aboutTitle',{visible:true});
-      assert.equal(await page.evaluate(()=>scrollY),0,'real mobile About opening returns the viewport to the top');
-      assert.equal(await page.$eval('#infoContent',node=>node.scrollTop),0,'real mobile About content starts at the top');
-      await page.$eval('#infoContent',node=>node.scrollTop=200);
-      await page.click('#sidebarRoot [data-sidebar-close]');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
+    if(width===390)for(let pass=0;pass<2;pass++)for(const [id,button]of [['about','infoBtn'],['habits','habitsBtn'],['memory','todayLogo']]){
+      // Dispatch the real button action without Puppeteer's scroll-into-view
+      // preparation masking a missing application viewport reset.
+      const origin=await page.evaluate(button=>{scrollTo(0,480);const before=scrollY;document.getElementById(button).click();return before;},button);
+      assert.ok(origin>400,id+' must open from a genuinely scrolled viewport');
+      await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!!document.querySelector('#sidebarRoot .ex-sheet-head')&&!document.getElementById('sidebarRoot').hasAttribute('aria-busy'),{timeout:5000},id);
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      assert.equal(await page.evaluate(()=>scrollY),0,id+' opening returns the mobile viewport to the top');
+      assert.equal(await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollTop),0,id+' content starts at the top');
+      if(id==='habits')assert.ok(await page.$eval('#sidebarRoot',node=>node.classList.contains('sb-inline')),'Habits test must exercise its real inline mobile host');
+      await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollTop=200);
+      await page.evaluate(()=>Today.use('sidebar').close(true));
     }
     if(errors.length)await fail('panel opening scroll fixture errors',errors);await page.close();
   }

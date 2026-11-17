@@ -108,13 +108,13 @@ function motion(cls){
   return Promise.all(root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeIn)/.test(a.animationName||'')).map(a=>a.finished.catch(()=>{}))).then(()=>{if(token===generation)root.classList.remove(cls);});
 }
 function sync(){Today.use('connections').syncActiveButtons();}
-// Opening a full-screen phone panel is a new reading position. Reset both the
+// Opening a phone panel is a new reading position. Reset both the
 // page and panel after mounting, then once after layout; never pin later reading.
 function startAtTop(){
-  if(!phone.matches||inline())return;
+  if(!phone.matches)return;
   const token=generation;
   const reset=()=>{
-    if(!phone.matches||token!==generation||!active||inline())return;
+    if(!phone.matches||token!==generation||!active)return;
     window.scrollTo({top:0,left:0,behavior:'instant'});root.scrollTop=0;
     root.querySelector('.ex-sheet-scroll')?.scrollTo({top:0,left:0,behavior:'instant'});
   };
@@ -137,8 +137,7 @@ function open(id,ctx){
   root.removeAttribute('aria-labelledby');root.setAttribute('aria-label',panel.label);
   const content=getContent();content.className='';content.replaceChildren();
   if(phone.matches&&!inline()&&!history.state?.sidebar)history.pushState({sidebar:true},'');
-  const scroll=inline()?window.scrollY:null;
-  surface(true);panel.mount(content,ctx);startAtTop();if(scroll!==null)window.scrollTo(0,scroll);root.removeAttribute('aria-busy');followPointer();
+  surface(true);panel.mount(content,ctx);startAtTop();root.removeAttribute('aria-busy');followPointer();
   if(!wasOpen)motion('entering');else content.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');
   sync();
 }
