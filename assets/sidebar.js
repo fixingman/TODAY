@@ -108,13 +108,13 @@ function motion(cls){
   return Promise.all(root.getAnimations({subtree:true}).filter(a=>/^(ex|fadeIn)/.test(a.animationName||'')).map(a=>a.finished.catch(()=>{}))).then(()=>{if(token===generation)root.classList.remove(cls);});
 }
 function sync(){Today.use('connections').syncActiveButtons();}
-// Opening a phone panel is a new reading position. Reset both the
-// page and panel after mounting, then once after layout; never pin later reading.
-function startAtTop(){
-  if(!phone.matches)return;
+// Only the inline phone Habits sheet needs the page brought back to its top.
+// Full-screen panels keep their existing viewport and reading behavior.
+function startHabitsAtTop(){
+  if(!phone.matches||active!=='habits')return;
   const token=generation;
   const reset=()=>{
-    if(!phone.matches||token!==generation||!active)return;
+    if(!phone.matches||token!==generation||active!=='habits')return;
     window.scrollTo({top:0,left:0,behavior:'instant'});root.scrollTop=0;
     root.querySelector('.ex-sheet-scroll')?.scrollTo({top:0,left:0,behavior:'instant'});
   };
@@ -125,7 +125,7 @@ const pointerPane=x=>x>=innerWidth-root.offsetWidth?'sidebar':'tasks';
 function prepare(id,label,cancel){
   const wasOpen=!!active&&!closing;
   generation++;closing=false;getRoot();if(active&&!pending){document.dispatchEvent(new CustomEvent('today:sidebar-unmount',{detail:getContent()}));registry.get(active)?.unmount?.();}returnFocus ||= document.activeElement;active=id;pending=cancel;pane='sidebar';root.hidden=false;root.setAttribute('aria-label',label);root.setAttribute('aria-busy','true');
-  const content=getContent();content.className='';content.replaceChildren();surface(true);startAtTop();followPointer();if(wasOpen)root.classList.remove('entering','leaving');else motion('entering');return content;
+  const content=getContent();content.className='';content.replaceChildren();surface(true);followPointer();if(wasOpen)root.classList.remove('entering','leaving');else motion('entering');return content;
 }
 function open(id,ctx){
   const panel=registry.get(id);if(!panel)return;
@@ -137,7 +137,7 @@ function open(id,ctx){
   root.removeAttribute('aria-labelledby');root.setAttribute('aria-label',panel.label);
   const content=getContent();content.className='';content.replaceChildren();
   if(phone.matches&&!inline()&&!history.state?.sidebar)history.pushState({sidebar:true},'');
-  surface(true);panel.mount(content,ctx);startAtTop();root.removeAttribute('aria-busy');followPointer();
+  surface(true);panel.mount(content,ctx);startHabitsAtTop();root.removeAttribute('aria-busy');followPointer();
   if(!wasOpen)motion('entering');else content.querySelector('.ex-sheet-scroll')?.classList.add('ex-view-in');
   sync();
 }

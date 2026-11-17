@@ -718,8 +718,8 @@ try {
     await page.close();
   }
 
-  // A newly mounted phone sheet starts at the top, without pinning subsequent
-  // reading or letting an obsolete opening frame scroll a closed/replaced view.
+  // Full-screen sheets retain their own reading position; only mobile Habits
+  // resets the page. An obsolete Habits frame must not scroll a closed view.
   for(const width of [390,1024]){
     const {page,errors}=await openPage({coarse:width===390,viewport:{width,height:812}});
     await page.evaluate(()=>{
@@ -737,13 +737,13 @@ try {
     await page.evaluate(()=>Today.use('sidebar').open('scroll-fixture'));
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     const opened=await page.evaluate(()=>({viewport:scrollY,panel:document.querySelector('#sidebarRoot .ex-sheet-scroll').scrollTop}));
-    assert.equal(opened.panel,width===390?0:200,'only a phone opening resets the mounted panel position');
-    if(width===390)assert.equal(opened.viewport,0,'phone opening resets the page viewport');
+    assert.equal(opened.panel,200,'full-screen panels retain their mounted reading position on phone and desktop');
+    if(width===390)assert.equal(opened.viewport,0,'full-screen phone panels retain existing page-lock behavior');
     else assert.ok(opened.viewport>400,'desktop opening keeps the task-list viewport position');
     await page.evaluate(()=>document.querySelector('#sidebarRoot .ex-sheet-scroll').scrollTop=160);
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     assert.equal(await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollTop),160,'later reading is never pinned to the top');
-    await page.evaluate(()=>{Today.use('sidebar').close(true);Today.use('sidebar').open('scroll-fixture');Today.use('sidebar').close(true);scrollTo(0,480);});
+    await page.evaluate(()=>{Today.use('sidebar').close(true);Today.use('sidebar').open('habits');Today.use('sidebar').close(true);scrollTo(0,480);});
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     assert.ok(await page.evaluate(()=>scrollY>400),'a closed opening cannot run a stale viewport reset');
     if(width===390)for(let pass=0;pass<2;pass++)for(const [id,button]of [['about','infoBtn'],['habits','habitsBtn'],['memory','todayLogo']]){
@@ -753,15 +753,17 @@ try {
       assert.ok(origin>400,id+' must open from a genuinely scrolled viewport');
       await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!!document.querySelector('#sidebarRoot .ex-sheet-head')&&!document.getElementById('sidebarRoot').hasAttribute('aria-busy'),{timeout:5000},id);
       await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-      assert.equal(await page.evaluate(()=>scrollY),0,id+' opening returns the mobile viewport to the top');
-      assert.equal(await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollTop),0,id+' content starts at the top');
-      if(id==='habits')assert.ok(await page.$eval('#sidebarRoot',node=>node.classList.contains('sb-inline')),'Habits test must exercise its real inline mobile host');
+      if(id==='habits'){
+        assert.equal(await page.evaluate(()=>scrollY),0,'only the inline Habits opening requires the mobile viewport at the top');
+        assert.equal(await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollTop),0,'Habits content starts at the top');
+        assert.ok(await page.$eval('#sidebarRoot',node=>node.classList.contains('sb-inline')),'Habits test must exercise its real inline mobile host');
+      }else assert.equal(await page.evaluate(()=>document.body.style.position),'fixed',id+' retains full-screen phone modality');
       await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollTop=200);
       await page.evaluate(()=>Today.use('sidebar').close(true));
     }
     if(errors.length)await fail('panel opening scroll fixture errors',errors);await page.close();
   }
-  ok('phone panel and viewport start at top; later reading, stale-close fencing and desktop isolation remain intact');
+  ok('only inline mobile Habits resets scroll; full-screen panel reading, stale-close fencing and desktop isolation remain intact');
 
   // visualViewport keyboard positioning + bfcache wake dispatch + SW registration.
   {
