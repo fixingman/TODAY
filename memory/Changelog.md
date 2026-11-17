@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Align the inline Habits regression with mobile opening scroll behavior (engineering, app v3.11.3 unchanged)
+
+Verification publication 82d4f942 incorporated the newer v3.11.3 mobile-panel opening behavior during release rebase. Hosted run 44180733130 retained the stale sidebar assertion that inline phone Habits should preserve the pre-open page scroll; it failed twice with 0 instead of 280, while the other functional checks passed. Update that fixture to require opening at the top, unlocked page scrolling, free subsequent reading and preservation of the current position on close. The earlier sidebar controller is rejected by the new opening check (retained negative receipt `.context/fresh-ks5pZ3/receipt.json`); the exact current runtime is restored afterward and passes Sidebar, Connections and invariants first try in27.8s with zero failures/flakes (`.context/fresh-A4p8cl/receipt.json`). No runtime, timeout, tolerance, app version or installed-device acceptance change.
+
 ## Verify BUG-168 and BUG-170–172 without device interaction (engineering, app v3.11.3 unchanged)
 
 Verified the reported defects using existing actual-component/provider-contract checks and hosted evidence. Archived the full BUG-168/170/171/172 records with dated, scoped verification and retained historical failures. BUG-172 is confirmed by successful hosted single-worker run 43975777473; BUG-171 by stale-device merge/count/tick-log regressions; BUG-170 by both-provider error categories and browser recovery behavior. Expanded BUG-168's expired-sign-in regression from Gmail alone to Gmail, Dropbox and Calendar. The first six-suite fresh pass and the expanded Connections pass have zero failures/flakes. Physical iOS keyboard/zoom, native titlebar paint, live Gmail relevance and writing/usefulness verdicts remain open. No app runtime, account, permissions or app version change.
