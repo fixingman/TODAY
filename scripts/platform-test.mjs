@@ -64,6 +64,13 @@ async function openPage(options = {}) {
     overlay.media = '(display-mode: window-controls-overlay)';
     window.__setOverlay = visible => { overlay.matches = visible; overlay.dispatchEvent(new Event('change')); };
     window.matchMedia = query => {
+      // The synthetic desktop WCO fixture needs desktop input as well as window
+      // geometry. Linux headless Chromium otherwise reports hover:none, which
+      // correctly prevents the app from registering desktop Focus handlers.
+      if (opts.desktop && (query === '(hover: hover)' || query === '(pointer: fine)')) {
+        return { matches:true, media:query, onchange:null,
+          addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; } };
+      }
       if (query === '(pointer: coarse)') {
         return { matches: !!opts.coarse, media: query, onchange: null,
           addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; } };
@@ -132,6 +139,7 @@ async function openPage(options = {}) {
     coarse: !!options.coarse,
     standalone: !!options.standalone,
     windowControlsOverlay: !!options.windowControlsOverlay,
+    desktop: !!options.desktop,
     suppressInstallPrompt: !!options.userAgent || !!options.standalone || !!options.windowControlsOverlay,
     viewportHeight: options.viewport?.height || 600,
   });
@@ -335,7 +343,7 @@ try {
     const manifest = JSON.parse(await readFile(join(ROOT, 'manifest.json'), 'utf8'));
     if (manifest.display !== 'standalone' || !manifest.display_override?.includes('window-controls-overlay'))
       await fail('desktop overlay manifest or standalone fallback missing');
-    const { page, errors } = await openPage({ windowControlsOverlay: true });
+    const { page, errors } = await openPage({ windowControlsOverlay: true, desktop:true });
     const fallback = await page.$eval('#windowDragRegion', node => getComputedStyle(node).display === 'none' && node.getAttribute('aria-hidden') === 'true' && node.tabIndex < 0);
     if (!fallback) await fail('ordinary browser tab exposed the overlay drag region');
     const installed = await page.evaluate(() => getComputedStyle(document.getElementById('installBtn')).display === 'none'
@@ -478,6 +486,7 @@ try {
       manualTasks=Array.from({length:120},(_,i)=>({id:'manual_overlay_'+i,text:'Fictional overlay task '+i}));
       Today.use('connections').renderManual();scrollTo(0,0);
     });
+    assert.ok(await page.evaluate(()=>matchMedia('(hover: hover)').matches&&matchMedia('(pointer: fine)').matches),'WCO Focus fixture requires desktop input capabilities');
     await page.click('.task[data-taskid="manual_overlay_0"] .task-text');
     await page.waitForSelector('.focus-timer.open',{visible:true,timeout:3000});
     const focused=await page.evaluate(()=>({locked:document.body.classList.contains('focus-locked'),
