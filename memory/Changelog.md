@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Verify BUG-168 and BUG-170–172 without device interaction (engineering, app v3.11.3 unchanged)
+
+Verified the reported defects using existing actual-component/provider-contract checks and hosted evidence. Archived the full BUG-168/170/171/172 records with dated, scoped verification and retained historical failures. BUG-172 is confirmed by successful hosted single-worker run 43975777473; BUG-171 by stale-device merge/count/tick-log regressions; BUG-170 by both-provider error categories and browser recovery behavior. Expanded BUG-168's expired-sign-in regression from Gmail alone to Gmail, Dropbox and Calendar. The first six-suite fresh pass and the expanded Connections pass have zero failures/flakes. Physical iOS keyboard/zoom, native titlebar paint, live Gmail relevance and writing/usefulness verdicts remain open. No app runtime, account, permissions or app version change.
+
 ## Start mobile panels at the top when they open (app v3.11.3)
 
 Can clarifies this is mobile-only: opening a panel should return both viewport and panel content to the beginning. Reset phone panel scroll, including inline Habits, after mounting and once after layout, fenced against close/replacement/desktop transitions; preserve later reading and close behavior. Start mobile Explore's first loaded conversation at the beginning rather than following existing content to its end; preserve subsequent reply-follow and navigation-return behavior. Add long-list/mounted-scroll, real repeated About/Habits/Memory opening and asynchronous real-conversation regressions, with shipped-runtime negative controls. Native iOS acceptance remains open.
