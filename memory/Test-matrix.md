@@ -822,6 +822,10 @@ The Sources privacy return opens its labelled ancestor disclosure and restores t
 - Fictional Claude review and three fixed paired prompt samples are retained under `.context/habit-progression-evidence-20261117/`. The configured CLI transport is not the deployed provider handler; samples test signal pickup and restraint, not production latency or efficacy. Preserve all samples. W1: useful depth without extra workload; W2: existing suggestion flow and setup; W3: after14 days of actual deployment/exposure. No automatic telemetry or new required rating.
 
 
+## Mobile panel opening position — November 17
+
+**Mobile panel-opening scroll regression:** `platform-test` starts from a long fictional task list and a mounted adapter with a nonzero content position. Phone opening must reset viewport and panel to zero; desktop must retain the adapter's position. Reading after entrance remains scrollable, and close-before-layout must fence the pending reset. Repeat native About button open/close checks. `exploration-test` reopens a real loaded conversation at phone width and requires both viewport and panel to start at zero after async loading, before exercising existing mobile reply/keyboard behavior. Deliberate shipped-runtime controls must reject the repaired expectations. Physical iOS visual-viewport acceptance remains separate.
+
 ## Desktop standalone header rendering — November 17
 
 `platform-test` now also launches a separate Chromium `--app` window in a disposable Puppeteer profile. It asserts the actual renderer predicates: standalone true, WCO/browser false, desktop hover/fine true. Neither JavaScript matchMedia nor the app stylesheet is rewritten for this fixture. No PWA installation, user profile access or OS shortcut is needed.

@@ -648,6 +648,46 @@ try {
     await page.close();
   }
 
+  // A newly mounted phone sheet starts at the top, without pinning subsequent
+  // reading or letting an obsolete opening frame scroll a closed/replaced view.
+  for(const width of [390,1024]){
+    const {page,errors}=await openPage({coarse:width===390,viewport:{width,height:812}});
+    await page.evaluate(()=>{
+      Today.use('sidebar').close(true);
+      manualTasks=Array.from({length:120},(_,i)=>({id:'manual_panel_scroll_'+i,text:'Fictional panel scroll task '+i}));Today.use('connections').renderManual();
+      Today.use('sidebar').register('scroll-fixture',{label:'Fictional scrolling panel',mount(content){
+        content.innerHTML='<div class="ex-sheet-head">Fictional panel</div><div class="ex-sheet-scroll"><div style="height:1800px">Fictional long content</div></div>';
+        content.querySelector('.ex-sheet-scroll').scrollTop=200;
+      }});
+      scrollTo(0,480);
+    });
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const before=await page.evaluate(()=>scrollY);
+    assert.ok(before>400,'fixture must begin down a real long task list');
+    await page.evaluate(()=>Today.use('sidebar').open('scroll-fixture'));
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    const opened=await page.evaluate(()=>({viewport:scrollY,panel:document.querySelector('#sidebarRoot .ex-sheet-scroll').scrollTop}));
+    assert.equal(opened.panel,width===390?0:200,'only a phone opening resets the mounted panel position');
+    if(width===390)assert.equal(opened.viewport,0,'phone opening resets the page viewport');
+    else assert.ok(opened.viewport>400,'desktop opening keeps the task-list viewport position');
+    await page.evaluate(()=>document.querySelector('#sidebarRoot .ex-sheet-scroll').scrollTop=160);
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollTop),160,'later reading is never pinned to the top');
+    await page.evaluate(()=>{Today.use('sidebar').close(true);Today.use('sidebar').open('scroll-fixture');Today.use('sidebar').close(true);scrollTo(0,480);});
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.ok(await page.evaluate(()=>scrollY>400),'a closed opening cannot run a stale viewport reset');
+    if(width===390)for(let pass=0;pass<2;pass++){
+      await page.click('#infoBtn');
+      await page.waitForSelector('#aboutTitle',{visible:true});
+      assert.equal(await page.evaluate(()=>scrollY),0,'real mobile About opening returns the viewport to the top');
+      assert.equal(await page.$eval('#infoContent',node=>node.scrollTop),0,'real mobile About content starts at the top');
+      await page.$eval('#infoContent',node=>node.scrollTop=200);
+      await page.click('#sidebarRoot [data-sidebar-close]');await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden);
+    }
+    if(errors.length)await fail('panel opening scroll fixture errors',errors);await page.close();
+  }
+  ok('phone panel and viewport start at top; later reading, stale-close fencing and desktop isolation remain intact');
+
   // visualViewport keyboard positioning + bfcache wake dispatch + SW registration.
   {
     const { page, errors } = await openPage({

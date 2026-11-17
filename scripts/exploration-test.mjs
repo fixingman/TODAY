@@ -340,6 +340,15 @@ try{
  assert.equal(await desktopComposer.evaluate(node=>node.isConnected),false,'The phone media callbacks replace the desktop composer before typing');
  await desktopComposer.dispose();
  await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly);
+ // Reopening a loaded mobile conversation starts at its beginning, even when
+ // document loading finishes after the shared sidebar's opening layout frame.
+ const mobileScrollFixture=await page.addStyleTag({content:'@media(max-width:600px){#sidebarRoot .ex-sheet-scroll{max-height:120px}}'});
+ await click('[data-ex-action="hide"]');await wait(()=>document.getElementById('sidebarRoot').hidden);
+ await click('#trelloBtn');await wait(()=>document.getElementById('exThought')&&!document.getElementById('exThought').readOnly&&document.querySelector('[data-ex-reading]'));
+ await waitForFonts(page);
+ assert.ok(await page.$eval('#sidebarRoot .ex-sheet-scroll',node=>node.scrollHeight>node.clientHeight+100),'Mobile conversation fixture must actually overflow');
+ assert.deepEqual(await page.evaluate(()=>({viewport:scrollY,panel:document.querySelector('#sidebarRoot .ex-sheet-scroll').scrollTop})),{viewport:0,panel:0},'Mobile Explore opens at the top after loading its real conversation');
+ await mobileScrollFixture.evaluate(node=>node.remove());
  await page.evaluate(()=>{
   __explorationTest.hold=true;__explorationTest.release=null;__explorationTest.mobileFocus=[];
   __explorationTest.mobileKeys=[];

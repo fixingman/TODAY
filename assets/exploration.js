@@ -18,7 +18,7 @@
   let suggestionMessage = '', correctionTarget = null, correctionText = '', setupQuestion = '', historyWindow = 24, navigation = 0;
   let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [];
   let offlineWaiting = false; // the document could not open only because the device was offline
-  let replyFailure = '', recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
+  let replyFailure = '', recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null, startOfVisit = false;
   const dataContext=()=>Today.use('exploration-context');
   let visitStart = 0, sourceWindow = 6, browseWindow = 12, usedWindow = 12, sourceQuery = '', shownPrompt = '', turnCount = 0;
   let pendingObservation = null, awaitingReply = false, thinkingMotion = [];
@@ -115,7 +115,7 @@
     root = container;root.classList.add('ex-content');
     const token=++epoch; host = hooks; origin = place; opened = true; view = 'conversation'; trail = []; forgot = false; message = '';
     incoming = context || null; includeIncoming = false; correctionTarget = null; correctionText = '';suggestionMessage='';
-    shownPrompt = ''; turnCount = 0;
+    shownPrompt = ''; turnCount = 0;startOfVisit=true;
     load();
   }
   async function load() {
@@ -498,7 +498,11 @@
     groupTurns();
     // A reply that lands while you're reading further up waits behind "new reply".
     const nextBox=scroller(), follow=view==='conversation'&&newer&&(atEnd||!!pendingObservation||!replied);
-    if(nextBox){nextBox.scrollTop=follow?nextBox.scrollHeight:keep;if(view==='conversation'&&replied&&!follow)showJump(nextBox);}
+    if(nextBox){
+      nextBox.scrollTop=phone.matches&&startOfVisit&&!busy?0:follow?nextBox.scrollHeight:keep;
+      if(!busy)startOfVisit=false;
+      if(view==='conversation'&&replied&&!follow)showJump(nextBox);
+    }
     if(replied)window._a11yAnnounce?.('TODAY replied.');
     fitInput(byId('exThought')||byId('exQuestion'));
     root.querySelectorAll('details[id]').forEach(node=>{const saved=detailState.find(state=>state.key===node.id);if(saved)node.open=saved.open;});
