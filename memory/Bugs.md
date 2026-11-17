@@ -127,6 +127,8 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 
 ## BUG-162 — Sidebar bleeds surface color into WCO titlebar
 
+**November 17 correction (awaiting installed verification):** Can reports the separate dark title strip remains after the non-WCO header repair and asks to restore the earlier integrated PWA appearance. The below-titlebar repair here traded the native-control mismatch for a full-width strip; its test explicitly required that gap. Restore the pane to the top edge and place clearance inside its header. Blend the occupied native-control regions locally through the transparent drag region, using the reported titlebar geometry and existing base/pane colours; keep global theme metadata stable to avoid the earlier gray patch and origin-label retrigger. Restore desktop WCO content-header glass while retaining the opaque Today title underlay against scrolling text. The corrected geometry and pixel guards reject the shipped gap, missing control blend and opaque desktop header; Focus/input/native fallback remain covered. Installed native-frame acceptance is separate from synthetic renderer paint.
+
 **Report (November 14):** In desktop PWA with Window Controls Overlay active, the sidebar's `.ex-sheet` element starts at `top: 0`, causing it to bleed its surface background color up into the WCO-controlled titlebar area, creating a color mismatch with the native OS titlebar chrome.
 
 **Root cause:** `.ex-sheet` had no `top` override in the WCO media query. The WCO titlebar height is exposed via `--window-titlebar-height`, but `.ex-sheet` did not consume it, so its background started at the top of the screen rather than below the titlebar.

@@ -123,7 +123,9 @@ async function openPage(options = {}) {
       };
     }
 
-    try { localStorage.setItem('splash_shown_at', Date.now().toString()); } catch {}
+    // Each fictional page owns its storage; Focus/sidebar actions must not seed
+    // another profile's startup or keyboard behavior.
+    try { localStorage.clear();localStorage.setItem('splash_shown_at', Date.now().toString()); } catch {}
   }, {
     platform: options.platform,
     maxTouchPoints: options.maxTouchPoints,
@@ -354,6 +356,7 @@ try {
     });
     for (const profile of [
       {name:'left controls', width:1280, x:80, free:1200, height:32},
+      {name:'Mac controls at both ends', width:1280, x:80, free:1060, height:38},
       {name:'right controls', width:1280, x:0, free:1140, height:32},
       {name:'compact window', width:736, x:0, free:596, height:40},
       {name:'narrow desktop window', width:390, x:80, free:310, height:32},
@@ -368,23 +371,26 @@ try {
           for (const saved of item.rules) saved.rule.style.cssText = saved.original.replace(/env\((titlebar-area-[a-z]+), 0px\)/g, (_,name) => values[name]+'px');
         }
         window.__setOverlay(profile.height > 0);
-        await Promise.resolve();
+        await Promise.all([document.body,document.getElementById('sidebarRoot')].flatMap(node=>node.getAnimations())
+          .filter(animation=>animation.effect.getComputedTiming().iterations!==Infinity).map(animation=>animation.finished.catch(()=>{})));
         const drag=document.getElementById('windowDragRegion'), pane=document.getElementById('sidebarRoot');
         const rect=drag.getBoundingClientRect(),close=pane.querySelector('button').getBoundingClientRect();
         const header=document.querySelector('.sticky-header').getBoundingClientRect();
         const probe=document.createElement('span');probe.style.color=document.querySelector('meta[name=theme-color]').content;document.body.append(probe);
-        const theme=getComputedStyle(probe).color;probe.remove();
+        const theme=getComputedStyle(probe).color;probe.style.background='var(--bg-glass)';
+        const glass=getComputedStyle(probe).backgroundColor;probe.remove();
         const panelStyle=getComputedStyle(pane).backgroundColor;
         const panelColor=panelStyle==='rgba(0, 0, 0, 0)'?getComputedStyle(pane.querySelector('.ex-sheet-scroll')).backgroundColor:panelStyle;
         const common={drag:rect.x===profile.x&&rect.width===profile.free&&rect.height===profile.height,
           draggable:getComputedStyle(drag).getPropertyValue('-webkit-app-region')==='drag',
-          opaqueHeader:getComputedStyle(document.querySelector('.sticky-header')).backgroundColor===getComputedStyle(document.body).backgroundColor,
+          headerBackground:getComputedStyle(document.querySelector('.sticky-header')).backgroundColor===(profile.width>600?glass:getComputedStyle(document.body).backgroundColor),
+          headerBlur:profile.width>600?getComputedStyle(document.querySelector('.sticky-header')).backdropFilter.includes('blur(16px)'):getComputedStyle(document.querySelector('.sticky-header')).backdropFilter==='none',
           header:header.top>=profile.height,close:close.top>=profile.height,
-          // BUG-162: the pane starts below the native title area so its surface does not bleed behind the controls.
-          paneBelowTitlebar:pane.getBoundingClientRect().top===profile.height,
+          paneToWindowEdge:pane.getBoundingClientRect().top===0,
           paneFits:pane.getBoundingClientRect().bottom===innerHeight,
           controlsMatchToday:getComputedStyle(document.body).backgroundColor===theme,
           transparentDrag:getComputedStyle(drag).backgroundColor==='rgba(0, 0, 0, 0)',
+          zeroHeightFallback:profile.height>0||getComputedStyle(drag,'::before').height==='0px',
           softerPane:panelColor!==getComputedStyle(document.body).backgroundColor,
           continuous:panelColor===getComputedStyle(pane.querySelector('.ex-sheet-foot')).backgroundColor,
           separator:getComputedStyle(pane.querySelector('.ex-sheet-foot')).borderTopWidth==='0px'};
@@ -397,6 +403,42 @@ try {
       await writeFile(join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'.json'),JSON.stringify(result,null,2));
       await page.screenshot({path:join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'.png'),clip:{x:0,y:0,width:profile.width,height:180}});
       if (Object.values(result).some(value=>!value)) await fail('window overlay geometry: '+profile.name,result);
+      if(profile.height>0){
+        const paintState=await page.evaluate(profile=>{
+          const pane=document.getElementById('sidebarRoot').getBoundingClientRect();
+          const rgb=token=>{const probe=document.createElement('span');probe.style.color='var('+token+')';document.body.append(probe);const value=getComputedStyle(probe).color.match(/\d+/g).slice(0,3).map(Number);probe.remove();return value;};
+          const freeEnd=profile.x+profile.free,points=[];
+          // The soft pane must reach the title area inside the browser's free region.
+          const freeX=Math.ceil(Math.max(pane.left+32,profile.x+32));
+          if(freeX<freeEnd-24)points.push({name:'continuous pane',x:freeX,y:4,expected:rgb('--surface')});
+          // The fixed native colour must blend locally, at either occupied end.
+          if(profile.x>pane.left+4)points.push({name:'left controls',x:Math.floor((pane.left+profile.x)/2),y:4,expected:rgb('--bg')});
+          if(freeEnd<profile.width-4)points.push({name:'right controls',x:Math.floor(Math.max(freeEnd,pane.left)+(profile.width-Math.max(freeEnd,pane.left))/2),y:4,expected:rgb('--bg')});
+          return points;
+        },profile);
+        const painted=async()=>{
+          const bytes=await page.screenshot({fullPage:false}),png=PNG.sync.read(bytes);
+          return {bytes,points:paintState.map(point=>{const offset=(point.y*png.width+point.x)*4;return {...point,actual:[...png.data.slice(offset,offset+3)]};})};
+        };
+        const matches=points=>points.every(point=>point.expected.every((channel,i)=>Math.abs(channel-point.actual[i])<=1));
+        const paint=await painted();
+        await writeFile(join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+'-paint.json'),JSON.stringify(paint.points,null,2));
+        if(!matches(paint.points))await fail('integrated title area or local native-control blend: '+profile.name,paint.points);
+        // A transparent drag box alone cannot catch either the strip or native patches.
+        if(profile.name==='Mac controls at both ends'){
+          const oldGap=await page.addStyleTag({content:'.ex-sheet{top:'+profile.height+'px!important}'});
+          const gapPaint=await painted();
+          await writeFile(join(ROOT,'.context/ci-test-results/window-strip/old-gap-control.png'),gapPaint.bytes);
+          assert.ok(!matches(gapPaint.points),'the old sidebar gap must fail the title-area pixel check');
+          await oldGap.evaluate(node=>node.remove());
+          const missingBlend=await page.addStyleTag({content:'#windowDragRegion::before{display:none!important}'});
+          const patchPaint=await painted();
+          await writeFile(join(ROOT,'.context/ci-test-results/window-strip/missing-native-blend-control.png'),patchPaint.bytes);
+          assert.ok(!matches(patchPaint.points),'a native-control colour patch must fail the title-area pixel check');
+          await missingBlend.evaluate(node=>node.remove());
+          assert.ok(matches((await painted()).points),'title-area paint must recover after the controls');
+        }
+      }
       if(profile.height>0&&profile.width>600){
         // Put a contrasting, scrolling document underneath the native title area.
         // Computed drag transparency alone cannot establish what users actually see.
@@ -414,12 +456,40 @@ try {
           if(underlay.y>4.5||underlay.bottom<32||underlay.x>profile.x+16||underlay.x+underlay.width<profile.x+24||underlay.opacity!=='1')await fail('title underlay did not reach the sampled area',underlay);
           const bytes=await page.screenshot({fullPage:false}),image=PNG.sync.read(bytes);
           await writeFile(join(ROOT,'.context/ci-test-results/window-strip',profile.name.replaceAll(' ','-')+(open?'-scroll-open.png':'-scroll-closed.png')),bytes);
-          for(const top of [4,profile.height+4])for(let y=top;y<top+8;y++)for(let x=profile.x+16;x<profile.x+24;x++){const i=(y*image.width+x)*4;if(bg.some((channel,n)=>Math.abs(image.data[i+n]-channel)>1)||image.data[i+3]!==255)await fail('scrolling content leaks through title area: '+profile.name,{open,top,pixel:[...image.data.slice(i,i+4)],bg});}
+          const glassAlpha=await page.evaluate(()=>{
+            const sample=document.createElement('span');sample.style.background='var(--bg-glass)';document.body.append(sample);
+            const alpha=Number(getComputedStyle(sample).backgroundColor.match(/[\d.]+/g)[3]);sample.remove();return alpha;
+          });
+          // The native title remains opaque. The header transmits only the token's
+          // low-opacity, blurred backdrop, rather than raw readable task paint.
+          for(const top of [4,profile.height+4])for(let y=top;y<top+8;y++)for(let x=profile.x+16;x<profile.x+24;x++){
+            const i=(y*image.width+x)*4,limit=top===4?1:Math.ceil(255*(1-glassAlpha))+1;
+            if(bg.some((channel,n)=>Math.abs(image.data[i+n]-channel)>limit)||image.data[i+3]!==255)await fail('unprotected scrolling paint: '+profile.name,{open,top,limit,pixel:[...image.data.slice(i,i+4)],bg});
+          }
         }
         await page.evaluate(()=>{document.getElementById('titlebarScrollFixture').remove();scrollTo(0,0);document.body.classList.add('ex-open');document.getElementById('sidebarRoot').hidden=false;});
       }
 
     }
+    // Exercise the actual Focus lifecycle and sidebar close control with the WCO
+    // geometry still applied. The native blend must not steal app input below it.
+    await page.evaluate(()=>{
+      Today.use('sidebar').close(true);Today.use('sidebar').open('about');
+      manualTasks=Array.from({length:120},(_,i)=>({id:'manual_overlay_'+i,text:'Fictional overlay task '+i}));
+      Today.use('connections').renderManual();scrollTo(0,0);
+    });
+    await page.click('.task[data-taskid="manual_overlay_0"] .task-text');
+    await page.waitForSelector('.focus-timer.open',{visible:true,timeout:3000});
+    const focused=await page.evaluate(()=>({locked:document.body.classList.contains('focus-locked'),
+      pane:document.getElementById('sidebarRoot').getBoundingClientRect().top,
+      header:document.getElementById('sticky-header').getBoundingClientRect().top,
+      nativeHeight:parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--window-titlebar-height'))}));
+    assert.ok(focused.locked&&focused.pane===0&&focused.header>=focused.nativeHeight,'WCO Focus must preserve title-area geometry: '+JSON.stringify(focused));
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(()=>!document.body.classList.contains('focus-locked'),{timeout:3000});
+    await page.click('#sidebarRoot [data-sidebar-close],#sidebarRoot [data-ex-action="hide"]');
+    await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden,{timeout:3000});
+    await page.evaluate(()=>Today.use('sidebar').open('about'));
     const closedTheme = await page.evaluate(async () => {
       document.body.classList.remove('ex-open');
       document.body.classList.add('ex-closing');
@@ -440,7 +510,7 @@ try {
     if (!await page.$eval('#windowDragRegion',node=>getComputedStyle(node).display==='none')) await fail('overlay fallback did not restore');
     if (!await page.$eval('#sidebarRoot',node=>node.getBoundingClientRect().top===0)) await fail('ordinary-tab Explore gained a title-bar gap');
     if(errors.length)await fail('uncaught overlay fixture errors',errors);
-    ok('overlay install detection, native fallback and left/right/compact CSS control clearance');
+    ok('overlay title-area continuity, local control blending, scroll protection, Focus, input and native fallback; old gap/missing blend controls rejected');
     await page.close();
   }
 

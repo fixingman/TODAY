@@ -3029,17 +3029,21 @@
     body, .add-task-row, .ex-sheet-foot, .ex-sheet::after, .ex-scrim { transition: none !important; }
   }
 
-  /* Opaque Today title area; the soft sidebar paints above it. */
+  /* Keep scrolling text out of the title area; the sidebar reaches the window edge. */
   #windowDragRegion { display: none; }
   @media (display-mode: window-controls-overlay) {
     :root { --window-titlebar-height: env(titlebar-area-height, 0px); }
     body { padding-top: var(--window-titlebar-height); height:auto; min-height:100%; }
     body::before { content:''; position:fixed; top:env(titlebar-area-y, 0px); left:0; right:0; height:var(--window-titlebar-height); background:var(--bg); z-index:var(--z-header); pointer-events:none; }
-    .sticky-header { background:var(--bg); backdrop-filter:none; -webkit-backdrop-filter:none; }
     #windowDragRegion { display:block; position:fixed; top:env(titlebar-area-y, 0px); left:env(titlebar-area-x, 0px); width:env(titlebar-area-width, 0px); height:var(--window-titlebar-height); z-index:var(--z-overlay); -webkit-app-region:drag; app-region:drag; }
+    /* Blend only the native control islands into the pane, not a full-width strip.
+       Chrome keeps their base theme; changing it on panel actions reopens its origin label. */
+    #windowDragRegion::before { content:''; position:fixed; top:env(titlebar-area-y, 0px); left:0; width:100vw; height:calc(var(--window-titlebar-height) + min(var(--space-6), var(--window-titlebar-height))); pointer-events:none;
+      background:linear-gradient(to bottom, var(--bg) var(--window-titlebar-height), transparent);
+      mask-image:linear-gradient(to right, var(--bg) env(titlebar-area-x, 0px), transparent calc(env(titlebar-area-x, 0px) + var(--space-6)), transparent calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 0px) - var(--space-6)), var(--bg) calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 0px))); }
     .sticky-header, body.focus-locked .sticky-header { top:var(--window-titlebar-height); }
     .section-header { top:calc(var(--sec-sticky-top) + var(--window-titlebar-height)); }
-    .ex-sheet { top: var(--window-titlebar-height); }
+    .ex-sheet-head { padding-top:calc(max(env(safe-area-inset-top, 0px), var(--window-titlebar-height)) + var(--space-3)); }
     #errorIndicator { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 8px); }
     #errorPanel { top:calc(env(safe-area-inset-top, 0px) + var(--window-titlebar-height) + 24px); }
   }
