@@ -18,6 +18,10 @@
 
 | # | Description | Status |
 |---|---|---|
+| 172 | Single functional artifact download fails the CI result combiner. | ✅ Hosted single-worker gate 43975777473; 2026-11-17 |
+| 171 | Earlier days' finished tasks inflate the done count after sync. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
+| 170 | Explore hides credit failures behind generic retry. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
+| 168 | Explore's Connections plug misses the expired-sign-in attention state. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
 | 164 | A splash poem fading in just after midnight is recorded as the new day's, so the next morning shows no poem. | ✅ Midnight-crossing splash regression fails on v3.10.0, passes on v3.10.1; 2026-11-14 |
 | 163 | About left open across midnight keeps showing yesterday's poem. | ✅ About-open midnight regression fails before, passes after; 2026-11-14 |
 | 161 | CURRENT badge and i-button do not pulse after an update since sidebar migration. | ✅ New About regression fails with the fix reverted, passes on dev; 2026-11-14 |
@@ -181,6 +185,48 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 ## Verification batch — 2026-09-07
 
 Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. All five are now ✅. Remaining open from the 2026-09-04 batch: BUG-091 (real Gmail), BUG-089 (native Mail handoff), and BUG-061 (stale, Sunday/habit badge).
+
+## BUG-172 — Single functional artifact download fails the CI result combiner
+
+Observed in [README dev run 43774360676](https://github.com/fixingman/TODAY/actions/runs/43774360676) at 90ae004e: planning and both functional checks passed, but final merge failed with `Missing or extra functional shard`. The download log confirms one matched artifact extracted directly into `.context/ci-shards` despite `merge-multiple: false`.
+
+The local real-command fixture reproduced that failure before the fix. The combiner now accepts a complete flat artifact only for one planned worker; multi-artifact layouts remain nested. It still rejects missing/extra/mixed shards, wrong SHA/run-attempt/input/environment, failed/retried suites and absent original logs. Two-suite flat and nested transport fixtures pass alongside the existing 36-suite multiworker fixture. Preserve the failed run; hosted verification of an actual single-worker selection remains open until observed.
+
+**Verified November 17, 2026 — actual hosted single-worker recovery:** [dev run 43975777473](https://github.com/fixingman/TODAY/actions/runs/43975777473), commit `e39c2414a4fe7dc226e35d8838066509b778402e`, downloads one functional artifact directly into `.context/ci-shards` and successfully combines both planned suites across one runner. The run concludes successfully. The fixing commit is an ancestor and `scripts/ci-shards.mjs` is unchanged between it and the reviewed dev head. This observes the previously missing hosted path; preserve the original failed run as causal evidence. No device or account check remains for this CI defect.
+
+---
+
+## BUG-171 — Done count includes tasks finished on earlier days
+
+**Report (Can, November 15):** the top bar said 32 of 44 done; there were not 44 tasks that day.
+
+**Root cause:** `updateStats` adds every PAST task whose id is in `doneIds`, meant for tasks done today that evening triage moved to PAST. Done tasks stay in PAST for 7 days. At the new day the first device removes graduated ids from `doneIds` and clears yesterday's check history; a device that has not rolled over yet still lists those ids as done, and `mergeRemoteData` keeps an id with no check/uncheck history by union. The ids return, and up to a week of finished tasks inflates both numbers. Reproduced in the real app: 1 of 4 done becomes 21 of 24 after one such sync.
+
+**Fix:** count PAST tasks only when checked today. The merge still restores those ids into `doneIds`; nothing else reads them for PAST rows today, so the sync rule (a non-delegation zone) is left unchanged. Verify: the header count matches the tasks you see plus today's triaged ones, across midnight on two devices.
+
+**Verified November 17, 2026 — reproduction-equivalent actual-component checks:** on dev `42a9d4b3dd13499814cc6c9129a1589805517dd1`, `task-actions-test` passes the twenty-earlier-PAST-task control and checks top-bar/tick-log agreement through checking, unchecking, triage, stale-device merge and Shift+D. `dropbox-test` feeds the real merge function a not-yet-rolled-over remote snapshot: earlier days' done ids stay out, today's triaged completion survives, Trello ids remain and storage agrees. Fresh receipt `.context/fresh-bS2jKL/receipt.json`: six first-attempt passes, zero failures/flakes. This verifies the reported count/sync defect using fictional tasks; it reads no personal state and does not require two physical devices. The original “merge left unchanged” description records the first repair; the later v3.10.11 merge repair is present in this verified source.
+
+---
+
+## BUG-170 — Explore hides provider credit failures behind generic retry
+
+Reported Chat showed an unavailable earlier-context notice and a kept-message retry that did not help when AI allowance was exhausted. Normal reply handling discarded the typed failure used by suggestions, and the proxy preserved only an upstream message. Add exploration-scoped fixed failure categories and one actionable failed-turn notice; keep earlier source provenance on its existing inspection surfaces. Verify with fictional provider and browser cases, retaining saved-observation, source-withdrawal and late-response fences. Actual account balance has not been inspected.
+
+**Verified November 17, 2026 — provider-contract and actual-browser checks:** on dev `42a9d4b3dd13499814cc6c9129a1589805517dd1`, `ai-assist-unit-test` covers explicit credit/billing/quota failures for both providers, credential and ambiguous-limit cases, and unchanged non-Explore error behavior. `exploration-test` injects those typed responses into the real Explore component and verifies the matching actionable notice, one saved observation/one failed request, no raw-provider-detail leakage or automatic retry, retained notice across Connections navigation and an explicit successful retry without duplicating the observation. Source-withdrawal and late-response fences also pass. Fresh receipt `.context/fresh-bS2jKL/receipt.json`: six first-attempt passes, zero failures/flakes. The defect's failure classification and recovery UI are verified; no actual account balance, provider availability or writing usefulness is claimed.
+
+---
+
+## BUG-168 — Connections nudge does not reach Explore's plug button
+
+**Report (Can, November 15):** the ✧ button blinks for a connection problem, but the Connections (plug) icon inside Explore does not.
+
+**Root cause:** since Connections moved inside Explore (v3.8.5), `_syncConnectionsNudge` only toggled `#trelloBtn`, and the shared attention observer only watches the three header buttons. Separately, the seen flag was only written by the old header `toggleConfig` path, so opening Connections from Explore never marked the nudge seen and ✧ kept breathing for the rest of the day.
+
+**Fix:** see the v-release changelog entry. Verify on device with an expired Gmail, Dropbox or Calendar sign-in: ✧ and the plug both breathe; opening Connections in Explore stops both until the next day.
+
+**Verified November 17, 2026 — actual-component expired-sign-in checks for all three services:** expanded `connections-test` to seed Gmail, Dropbox and Calendar expired-sign-in states separately. At desktop width the main entrance and Explore plug both carry attention; the plug has an active animation and the accessible sign-in label. Opening Connections inside Explore, closing and reopening Explore leaves both attention indicators and the plug animation off with the ordinary label restored. All three cases pass with no page errors. Fresh receipt `.context/fresh-RMjGlE/receipt.json`: invariants and Connections pass first attempt with zero failures/flakes. This verifies the warning/seen behavior with fictional local states, not account reconnection or a real expired credential. No personal account or device interaction is required for the reported defect.
+
+---
 
 ## BUG-164 — Splash poem recorded under the wrong day around midnight
 

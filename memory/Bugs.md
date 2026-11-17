@@ -21,11 +21,11 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
-| 172 | ⏳ Verify | Small selected runs download flat evidence; the combiner previously searched only subdirectories. | — |
-| 171 | ⏳ Verify | The header showed "32 of 44 done" on a day with far fewer tasks; done tasks from the past week were counted. | v3.10.10 |
-| 170 | ⏳ Verify | Explore discards the reason a reply failed and offers a generic retry even when the AI account needs credit or billing attention. | v3.10.8 |
+| 172 | ✅ Verified | Small selected runs download flat evidence; the combiner previously searched only subdirectories. | — |
+| 171 | ✅ Verified | The header showed "32 of 44 done" on a day with far fewer tasks; done tasks from the past week were counted. | v3.10.10 |
+| 170 | ✅ Verified | Explore discards the reason a reply failed and offers a generic retry even when the AI account needs credit or billing attention. | v3.10.8 |
 | 169 | ⏳ Verify | The habit name field in edit mode stayed 13.5px on phones, so iOS zooms when it is focused. | v3.10.6 |
-| 168 | ⏳ Verify | An expired sign-in makes ✧ breathe, but Explore's Connections button stays still, and opening Connections there never stops the nudge. | v3.10.5 |
+| 168 | ✅ Verified | An expired sign-in makes ✧ breathe, but Explore's Connections button stays still, and opening Connections there never stops the nudge. | v3.10.5 |
 | 167 | ✅ Verified | Habit focus loses the timer and focused row after renderHabits() wipes the list (sync, completion, day change). | v3.10.3 |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
 | 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.10.2 |
@@ -49,31 +49,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ---
 
-*BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
-
----
-
-## BUG-172 — Single functional artifact download fails the CI result combiner
-
-Observed in [README dev run 43774360676](https://github.com/fixingman/TODAY/actions/runs/43774360676) at 90ae004e: planning and both functional checks passed, but final merge failed with `Missing or extra functional shard`. The download log confirms one matched artifact extracted directly into `.context/ci-shards` despite `merge-multiple: false`.
-
-The local real-command fixture reproduced that failure before the fix. The combiner now accepts a complete flat artifact only for one planned worker; multi-artifact layouts remain nested. It still rejects missing/extra/mixed shards, wrong SHA/run-attempt/input/environment, failed/retried suites and absent original logs. Two-suite flat and nested transport fixtures pass alongside the existing 36-suite multiworker fixture. Preserve the failed run; hosted verification of an actual single-worker selection remains open until observed.
-
----
-
-## BUG-171 — Done count includes tasks finished on earlier days
-
-**Report (Can, November 15):** the top bar said 32 of 44 done; there were not 44 tasks that day.
-
-**Root cause:** `updateStats` adds every PAST task whose id is in `doneIds`, meant for tasks done today that evening triage moved to PAST. Done tasks stay in PAST for 7 days. At the new day the first device removes graduated ids from `doneIds` and clears yesterday's check history; a device that has not rolled over yet still lists those ids as done, and `mergeRemoteData` keeps an id with no check/uncheck history by union. The ids return, and up to a week of finished tasks inflates both numbers. Reproduced in the real app: 1 of 4 done becomes 21 of 24 after one such sync.
-
-**Fix:** count PAST tasks only when checked today. The merge still restores those ids into `doneIds`; nothing else reads them for PAST rows today, so the sync rule (a non-delegation zone) is left unchanged. Verify: the header count matches the tasks you see plus today's triaged ones, across midnight on two devices.
-
----
-
-## BUG-170 — Explore hides provider credit failures behind generic retry
-
-Reported Chat showed an unavailable earlier-context notice and a kept-message retry that did not help when AI allowance was exhausted. Normal reply handling discarded the typed failure used by suggestions, and the proxy preserved only an upstream message. Add exploration-scoped fixed failure categories and one actionable failed-turn notice; keep earlier source provenance on its existing inspection surfaces. Verify with fictional provider and browser cases, retaining saved-observation, source-withdrawal and late-response fences. Actual account balance has not been inspected.
+*BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164, 168, 170–172 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
 
 ---
 
@@ -84,16 +60,6 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 **Root cause:** the shared ≤600px rule sets `.habit-edit-input` to `--text-lg` (Rule 5c), but the component's own base rule, later in `index.html`, set `--text-task` with equal specificity and won. The exit path's viewport `maximum-scale` reset existed to undo that zoom.
 
 **Fix:** the component repeats the 16px rule in its own ≤600px query; `habits-test` asserts ≥16px at 390px. Verify on iPhone: tap a habit name in edit mode; the page should not zoom.
-
----
-
-## BUG-168 — Connections nudge does not reach Explore's plug button
-
-**Report (Can, November 15):** the ✧ button blinks for a connection problem, but the Connections (plug) icon inside Explore does not.
-
-**Root cause:** since Connections moved inside Explore (v3.8.5), `_syncConnectionsNudge` only toggled `#trelloBtn`, and the shared attention observer only watches the three header buttons. Separately, the seen flag was only written by the old header `toggleConfig` path, so opening Connections from Explore never marked the nudge seen and ✧ kept breathing for the rest of the day.
-
-**Fix:** see the v-release changelog entry. Verify on device with an expired Gmail, Dropbox or Calendar sign-in: ✧ and the plug both breathe; opening Connections in Explore stops both until the next day.
 
 ---
 

@@ -182,8 +182,8 @@ try {
   }
   // Expired sign-in: the ✧ that opens Explore and Explore's own plug button breathe together,
   // and opening Connections from inside Explore counts as seeing it (both stop).
-  {
-    const { page, errors } = await openPage({ gmail_token_expired: '1' });
+  for (const service of ['gmail', 'dropbox', 'calendar']) {
+    const { page, errors } = await openPage({ [service + '_token_expired']: '1' });
     await page.setViewport({ width: 1024, height: 900 });
     await page.waitForFunction(() => document.getElementById('trelloBtn').classList.contains('btn-icon-attention'));
     await page.click('#trelloBtn');
@@ -208,7 +208,7 @@ try {
     assert.deepEqual(after, { header: false, plug: false, pulsing: false, label: 'Connections' }, 'opening Connections in Explore marks the nudge seen');
     assert.deepEqual(errors, []);
     await page.close();
-    ok('expired sign-in: Explore\'s plug breathes with the ✧ and both stop once Connections is opened there');
+    ok(service + ' expired sign-in: Explore\'s plug breathes with the ✧ and both stop once Connections is opened there');
   }
 
   // 1. toggleConfig: opens configPanel.
