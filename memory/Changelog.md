@@ -2,6 +2,14 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Start mobile panels at the top when they open (app v3.11.3)
+
+Can clarifies this is mobile-only: opening a panel should return both viewport and panel content to the beginning. Reset phone panel scroll, including inline Habits, after mounting and once after layout, fenced against close/replacement/desktop transitions; preserve later reading and close behavior. Start mobile Explore's first loaded conversation at the beginning rather than following existing content to its end; preserve subsequent reply-follow and navigation-return behavior. Add long-list/mounted-scroll, real repeated About/Habits/Memory opening and asynchronous real-conversation regressions, with shipped-runtime negative controls. Native iOS acceptance remains open.
+
+## Guard title-area blend edges and actual sidebar panels; require installed visual acceptance (app v3.11.3)
+
+Extend platform-test with horizontal/vertical rendered blend scans that reject sharp side/bottom boundaries even when top-area samples pass. Preserve deliberately broken hard-edge screenshots and recovery assertions. Mount actual About, Habits, Memory and Explore panels on first/repeated opens at both-ended Mac overlay geometry, checking continuity, clearance, soft edges and real close controls. Add the installed candidate/version/origin checklist covering cold/warm native frame, resizing, long-list scrolling, Focus and overlay fallback, explicitly separate from CI. The available production PWA has an active paused Focus session; installed dev-candidate acceptance remains pending and the live session was untouched. No application/runtime change.
+
 ## Give the synthetic desktop WCO fixture explicit desktop input capabilities (engineering, app v3.11.2 unchanged)
 
 Full Linux run 44021829209 rejected the new Focus step: headless Chromium reports hover:none, so the application correctly skips desktop Focus registration. Give only the synthetic WCO geometry fixture hover/fine-pointer predicates and assert them before clicking; keep real standalone renderer predicates, mobile fixtures, production behavior and all existing assertions/deadlines unchanged. Preserve the failed hosted evidence separately from installed native-frame acceptance.
