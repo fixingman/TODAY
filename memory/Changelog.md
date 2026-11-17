@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Give the synthetic desktop WCO fixture explicit desktop input capabilities (engineering, app v3.11.2 unchanged)
+
+Full Linux run 44021829209 rejected the new Focus step: headless Chromium reports hover:none, so the application correctly skips desktop Focus registration. Give only the synthetic WCO geometry fixture hover/fine-pointer predicates and assert them before clicking; keep real standalone renderer predicates, mobile fixtures, production behavior and all existing assertions/deadlines unchanged. Preserve the failed hosted evidence separately from installed native-frame acceptance.
+
 ## Restore the integrated desktop PWA title area (BUG-162) (app v3.11.2)
 
 Restore the WCO sidebar to the top edge with internal native clearance, and retain the existing desktop glass header. Blend only the occupied native-control regions into the pane using titlebar environment geometry and the existing base colour, without mutating theme metadata or reintroducing its origin-label trigger. Preserve the opaque title underlay against scrolling text, dragging, narrow-layout header treatment, Focus and sidebar input. Correct the platform fixture's obsolete below-titlebar/opaque-header assertions; add both-ended Mac control geometry, pane/control paint checks, old-gap/missing-blend controls, bounded glass transmission and actual WCO-layout Focus/close actions. Installed native-control composition remains separate acceptance.
