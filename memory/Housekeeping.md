@@ -59,6 +59,8 @@ Use `npm run release:publish --prefix scripts -- FULL_SHA [--master] [--suites n
 
 CI does not establish installed-device feel, live account access or useful AI writing. Retain the relevant manual/account checks in Bugs/Backlog. Recurring surfaces still require W1/W2 review in Test-matrix and a dated Backlog Watching row with the surface, shipped version and W3 due date (ship date + 14 days); do not infer that exposure or a positive unrelated reading unlocks deferred features.
 
+For desktop PWA titlebar/header/overlay changes, complete the [installed title-area checklist](Test-matrix.md#installed-desktop-pwa-title-area-check) before marking the visual defect verified. Record the loaded candidate and installation origin separately from CI. A browser tab, another deployed branch or a synthetic overlay capture cannot satisfy this check. If the installed candidate is unavailable, keep that acceptance pending; do not interrupt a live Focus session to manufacture a pass.
+
 Keep hosting privacy settings and the no-in-app-analytics rule. When those external settings change, verify fresh dev/production responses for unwanted injected scripts. Poem curation, rights checks, design judgments and existing privacy/sync boundaries retain their owning contracts.
 
 ### Research and session conventions

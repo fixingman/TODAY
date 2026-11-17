@@ -157,6 +157,36 @@ const IOS_CHROME = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Apple
 const MAC_SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
 const FIREFOX    = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0';
 
+// Judge rendered continuity, not the gradient's CSS spelling. An abrupt edge or
+// a flat dark patch must fail even when the endpoint colours are correct.
+function softTitleBlend(line, from, to) {
+  const near=(a,b)=>a.every((channel,i)=>Math.abs(channel-b[i])<=1);
+  return near(line[0],from)&&near(line.at(-1),to)
+    &&new Set(line.map(rgb=>rgb.join(','))).size>=5
+    &&line.slice(1).every((rgb,i)=>rgb.every((channel,c)=>Math.abs(channel-line[i][c])<=2
+      &&(to[c]>=from[c]?channel>=line[i][c]-1:channel<=line[i][c]+1)));
+}
+
+async function titleBlendPaint(page, profile) {
+  const geometry=await page.evaluate(profile=>{
+    const pane=document.getElementById('sidebarRoot'),r=pane.getBoundingClientRect();
+    const rgb=value=>value.match(/\d+/g).slice(0,3).map(Number);
+    const feather=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-6'));
+    return {pane:r.left,bg:rgb(getComputedStyle(document.body).backgroundColor),surface:rgb(getComputedStyle(pane).backgroundColor),
+      edge:profile.x+profile.free,feather};
+  },profile);
+  assert.ok(geometry.edge-geometry.feather-2>geometry.pane+2,'blend sample must lie inside the sidebar');
+  const bytes=await page.screenshot({fullPage:false}),png=PNG.sync.read(bytes);
+  const pixel=(x,y)=>{const offset=(y*png.width+x)*4;return [...png.data.slice(offset,offset+3)];};
+  const horizontal=[],vertical=[];
+  for(let x=geometry.edge-geometry.feather-2;x<=geometry.edge+2;x++)horizontal.push(pixel(x,4));
+  for(let y=profile.height-2;y<=profile.height+geometry.feather+2;y++)vertical.push(pixel(profile.width-4,y));
+  return {...geometry,horizontal,vertical,bytes};
+}
+
+const blendedTitle=paint=>softTitleBlend(paint.horizontal,paint.surface,paint.bg)
+  &&softTitleBlend(paint.vertical,paint.bg,paint.surface);
+
 // Exercise Chromium's real standalone renderer mode in an isolated app window.
 // --app creates no installation/OS shortcut and Puppeteer owns the disposable profile.
 // This complements the synthetic WCO/native-title geometry tests below.
@@ -434,6 +464,19 @@ try {
         if(!matches(paint.points))await fail('integrated title area or local native-control blend: '+profile.name,paint.points);
         // A transparent drag box alone cannot catch either the strip or native patches.
         if(profile.name==='Mac controls at both ends'){
+          const blend=await titleBlendPaint(page,profile);
+          await writeFile(join(ROOT,'.context/ci-test-results/window-strip/blend-edges.json'),JSON.stringify({...blend,bytes:undefined},null,2));
+          assert.ok(blendedTitle(blend),'native control edges must feather into the pane in both directions');
+          for(const [name,content] of [
+            ['hard-bottom-edge','#windowDragRegion::before{height:var(--window-titlebar-height)!important}'],
+            ['hard-side-edge','#windowDragRegion::before{mask-image:linear-gradient(to right,var(--bg) '+profile.x+'px,transparent '+profile.x+'px,transparent '+(profile.x+profile.free)+'px,var(--bg) '+(profile.x+profile.free)+'px)!important}'],
+          ]){
+            const broken=await page.addStyleTag({content}),paint=await titleBlendPaint(page,profile);
+            await writeFile(join(ROOT,'.context/ci-test-results/window-strip',name+'.png'),paint.bytes);
+            assert.ok(!blendedTitle(paint),name+' must fail the blend-edge guard');
+            await broken.evaluate(node=>node.remove());
+          }
+          assert.ok(blendedTitle(await titleBlendPaint(page,profile)),'soft edges recover after both broken controls');
           const oldGap=await page.addStyleTag({content:'.ex-sheet{top:'+profile.height+'px!important}'});
           const gapPaint=await painted();
           await writeFile(join(ROOT,'.context/ci-test-results/window-strip/old-gap-control.png'),gapPaint.bytes);
@@ -479,6 +522,33 @@ try {
       }
 
     }
+    // Paint the real mounted panels, not just the simplified geometry shell.
+    const realProfile={width:1280,x:80,free:1060,height:38};
+    await page.setViewport({width:realProfile.width,height:800});
+    await page.evaluate(profile=>{
+      const values={'titlebar-area-x':profile.x,'titlebar-area-y':0,'titlebar-area-width':profile.free,'titlebar-area-height':profile.height};
+      for(const item of __overlayFixtureRules)for(const saved of item.rules)saved.rule.style.cssText=saved.original.replace(/env\((titlebar-area-[a-z]+), 0px\)/g,(_,name)=>values[name]+'px');
+      Today.use('sidebar').close(true);scrollTo(0,0);
+    },realProfile);
+    for(let pass=0;pass<2;pass++)for(const id of ['about','habits','memory','explore']){
+      await page.evaluate(id=>Today.use('sidebar').open(id),id);
+      await page.waitForFunction(id=>Today.use('sidebar').isOpen(id)&&!document.getElementById('sidebarRoot').hasAttribute('aria-busy')
+        &&!!document.querySelector('#sidebarRoot .ex-sheet-head')&&!document.getElementById('sidebarRoot').classList.contains('entering'),{timeout:5000},id);
+      await page.mouse.move(realProfile.width-80,130);
+      await page.evaluate(async()=>{
+        await Promise.all(document.body.getAnimations({subtree:true}).filter(a=>a.effect.getComputedTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      });
+      const state=await page.evaluate(()=>({top:document.getElementById('sidebarRoot').getBoundingClientRect().top,
+        close:document.querySelector('#sidebarRoot [data-sidebar-close],#sidebarRoot [data-ex-action="hide"]').getBoundingClientRect().top}));
+      assert.ok(state.top===0&&state.close>=realProfile.height,id+' must reach the window edge with safe control clearance');
+      const paint=await titleBlendPaint(page,realProfile);
+      await writeFile(join(ROOT,'.context/ci-test-results/window-strip',id+'-'+pass+'.png'),paint.bytes);
+      assert.ok(blendedTitle(paint),id+' must preserve both soft native-control edges');
+      await page.click('#sidebarRoot [data-sidebar-close],#sidebarRoot [data-ex-action="hide"]');
+      await page.waitForFunction(()=>document.getElementById('sidebarRoot').hidden,{timeout:3000});
+    }
+    ok('soft title edges reject hard-edge controls; real About/Habits/Memory/Explore retain integrated paint on cold/warm opens');
     // Exercise the actual Focus lifecycle and sidebar close control with the WCO
     // geometry still applied. The native blend must not steal app input below it.
     await page.evaluate(()=>{
