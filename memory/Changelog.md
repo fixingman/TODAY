@@ -2,6 +2,14 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Morning line prefers one sentence and adds to a named task instead of restating it (app v3.11.5)
+
+Prompted by Can's reading of HUMAN.md ("the sentence that ends one beat earlier") and checked against Can's actual votes (production backup, counts only; no line or task text read out): of 28 voted morning lines Oct 19–Nov 18, one-sentence lines landed 20 / missed 2 and two-sentence lines 2 / 4. Task mentions were not the problem in themselves (no mention 16 / 3, mention 6 / 3); all three task-mention misses were two-sentence restatements marked `already_knew`.
+
+Both morning writers' system frames change "One or two sentences" to "One sentence, under 30 words; a second only when it adds something the first could not". The task-reading frame adds "If you name a task, say what reading it would not tell them; do not restate it." Principles only, no examples; the 30-word guard, grounding, length recovery and landed/missed steering are unchanged. #15A's open feedback checkpoint is closed with the numbers above; a new Watching row (due 2026-12-02) compares the next two weeks.
+
+The memory-file validator now skips pending `memory/changes/` notes (they are consumed by `release:cut`) while still requiring the README in the File Guide.
+
 ## Retry transient release-proof artifact downloads before full-validation fallback (engineering, app v3.11.4 unchanged)
 
 Master run44183475116 repeated full validation after GitHub returned HTTP503 downloading otherwise eligible dev proof. Retry only the selected artifact ZIP acquisition for selected transient server/transport errors, with at most two extra attempts and1/2-second backoff inside the existing30-second total budget. Keep artifact identity fixed, discard failed partial output and log only classification/attempt/delay. Leave source-run eligibility, digest/archive/provenance/SHA/policy/full-inventory/zero-flake/five-performance verification outside recovery; permanent or invalid evidence still refuses reuse. Offline virtual-clock and real-verifier controls cover fast success, both recovery opportunities, exhausted attempts/time, permanent errors, corrupt bytes and failed-test proof. No application/runtime or permissions change.
