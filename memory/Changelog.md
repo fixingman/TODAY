@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Retry transient release-proof artifact downloads before full-validation fallback (engineering, app v3.11.4 unchanged)
+
+Master run44183475116 repeated full validation after GitHub returned HTTP503 downloading otherwise eligible dev proof. Retry only the selected artifact ZIP acquisition for selected transient server/transport errors, with at most two extra attempts and1/2-second backoff inside the existing30-second total budget. Keep artifact identity fixed, discard failed partial output and log only classification/attempt/delay. Leave source-run eligibility, digest/archive/provenance/SHA/policy/full-inventory/zero-flake/five-performance verification outside recovery; permanent or invalid evidence still refuses reuse. Offline virtual-clock and real-verifier controls cover fast success, both recovery opportunities, exhausted attempts/time, permanent errors, corrupt bytes and failed-test proof. No application/runtime or permissions change.
+
 ## Use the shared boot-readiness observer in the meeting fixture (engineering, app v3.11.4 unchanged)
 
 Full dev run 44186586652 passed the scroll suites and performance gate but rejected meeting-test's startup timeout followed by a diagnostic retry pass. Replace its older animation-frame owner-only observer with the existing timer-polled waitForAppReady helper, requiring completed boot and the meeting API/button within the unchanged15-second deadline. Gate the first real startup yield and suspend animation-frame callbacks until readiness succeeds, then restore normal frames before exercising unchanged capability/media assertions. Preserve the original failure: its log lacks boot/visibility diagnostics, so the exact hosted cause cannot be established retroactively. The shared helper adds those diagnostics for future failures. No application/runtime change.
