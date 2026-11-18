@@ -11,6 +11,7 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { waitForAppReady } from './browser-fixture.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -80,6 +81,16 @@ async function openPage(options = {}) {
       aiResponses: [], aiRequests: [],
       errors: [], pipRequests: 0, pipWindows: [], nextBlobSize: 16,
     };
+    if(opts.holdStartupObserver){
+      const Native=MessageChannel;
+      window.MessageChannel=function(){
+        const channel=new Native(),post=channel.port2.postMessage.bind(channel.port2);
+        channel.port2.postMessage=(...args)=>{
+          if(!state.releaseBoot)state.releaseBoot=()=>post(...args);else post(...args);
+        };
+        return channel;
+      };
+    }
     state.until = async predicate => {
       const deadline = performance.now() + 5000;
       while (!predicate()) {
@@ -222,8 +233,16 @@ async function openPage(options = {}) {
   }, options);
 
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded', timeout: 15000 });
-  await page.waitForFunction(() => typeof Today?.use('meeting').toggleMeeting === 'function'
-    && document.getElementById('meetingBtn'), { timeout: 15000 });
+  if(options.holdStartupObserver){
+    await page.waitForFunction(()=>typeof __meetingTest.releaseBoot==='function',{timeout:15000,polling:50});
+    await page.mainFrame().mainRealm().evaluate(()=>{window.__meetingFramePoll=requestAnimationFrame;window.requestAnimationFrame=()=>0;});
+    await page.evaluate(()=>setTimeout(()=>__meetingTest.releaseBoot(),0));
+  }
+  await waitForAppReady(page,{timeout:15000,label:'Meeting fixture',ready:()=>typeof Today?.use('meeting').toggleMeeting==='function'&&!!document.getElementById('meetingBtn')});
+  if(options.holdStartupObserver){
+    await page.mainFrame().mainRealm().evaluate(()=>{window.requestAnimationFrame=window.__meetingFramePoll;delete window.__meetingFramePoll;});
+    ok('meeting fixture observes real completed boot while frame polling is suspended');
+  }
   await page.evaluate(() => {
     window.__meetingTest.autosaves = 0;
     window.__meetingTest.attribution = null;
@@ -244,7 +263,7 @@ try {
   for (const testCase of [
     { label: 'Gemini absent', options: { gemini: false }, meeting: false, voice: false },
     { label: 'unsupported media', options: { supported: [], touch: false }, meeting: false, voice: false },
-    { label: 'WebM meeting', options: { supported: ['audio/webm;codecs=opus'] }, meeting: true, voice: false },
+    { label: 'WebM meeting', options: { supported: ['audio/webm;codecs=opus'], holdStartupObserver:true }, meeting: true, voice: false },
     { label: 'iOS MP4 meeting', options: { supported: ['audio/mp4'], touch: true }, meeting: true, voice: false },
     { label: 'mobile voice fallback', options: { supported: [], touch: true }, meeting: false, voice: true },
   ]) {

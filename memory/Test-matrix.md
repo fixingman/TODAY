@@ -410,6 +410,8 @@ OAuth headers, card filtering, render/cache state, errors, reconciliation, and d
 
 ### 10. Meeting Mode (8 tests)
 
+`meeting-test` uses the shared `waitForAppReady` observer: completed boot and the owning meeting API/button must settle within the existing15-second deadline without relying on animation frames. The WebM capability case holds a real startup yield and suspends animation-frame callbacks, then restores frame polling after readiness. Existing capability/media assertions remain intact. Preserve run44186586652's startup timeout/retry evidence; the original log has no boot/visibility state, so its exact hosted cause is not retrospectively established. Future readiness failures include the shared helper's startup diagnostics.
+
 | # | Scenario | Expected |
 |---|----------|----------|
 | 10.1 | First mic tap — no name set | `#meetingNamePrompt` appears above add bar; meeting does not start yet |
