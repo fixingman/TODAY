@@ -9,7 +9,8 @@ echo "=== Memory File Validation ==="
 echo ""
 
 # Get all .md files in memory (excluding Rules.md itself)
-FILES=$(find "$MEMORY_DIR" -name "*.md" -type f | grep -v "Rules.md" | sort)
+# Pending release notes (memory/changes/*.md) are consumed by release:cut; only their README is a guide entry.
+FILES=$(find "$MEMORY_DIR" -name "*.md" -type f | grep -v "Rules.md" | awk '!/^memory\/changes\// || /\/README\.md$/' | sort)
 
 MISSING=()
 for f in $FILES; do

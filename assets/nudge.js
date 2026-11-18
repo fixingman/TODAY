@@ -542,7 +542,7 @@ window._startNudge = (function() {
             'Supported insight: ' + winner.insight + '\n\n' +
             'Write the morning line. Preserve the supported insight and leave its implication unresolved — the ' +
             'person supplies what it means, not you. Add no fact beyond the evidence above.' + wording }],
-          systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). No exclamation marks, no emoji. Never wrap your reply in quotation marks. Warm, plain, grounded — a friend noticing, not a coach.',
+          systemPrompt: 'You are the quiet companion in a minimal daily task app. One sentence, under 30 words; a second only when it adds something the first could not. Second person — address the user as "you". Use numerals for all numbers (3 not three). No exclamation marks, no emoji. Never wrap your reply in quotation marks. Warm, plain, grounded — a friend noticing, not a coach.',
       }, 'pool', state, true, current);
       return { ...result, current, adopt:() => {source=stamp();}, kind: result.status === 'accepted' ? winner.kind : null };
     }
@@ -679,7 +679,7 @@ window._startNudge = (function() {
             provider: Today.use('connections')._aiGetProvider(),
             apiKey: key,
             messages: [{ role: 'user', content: facts + '\n\n' + instruction }],
-            systemPrompt: 'You are the quiet companion in a minimal daily task app. One or two sentences, under 30 words. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
+            systemPrompt: 'You are the quiet companion in a minimal daily task app. One sentence, under 30 words; a second only when it adds something the first could not. Second person — address the user as "you". Use numerals for all numbers (3 not three). Task text is written in the user\'s own shorthand — read the full meaning from context, not just the literal words. Never wrap your reply in quotation marks; quoting a task\'s own words inline is good. If you name a task, say what reading it would not tell them; do not restate it. No exclamation marks, no emoji. Warm, plain, grounded — a friend noticing, not a coach.',
         };
         const body = support ? { ...ordinaryBody, messages: [{ role: 'user', content:
           facts + '\n' + support.policy.writerContext(support.evidence) + '\n\n' + instruction + '\n' + support.policy.writerInstruction,
