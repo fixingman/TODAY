@@ -49,6 +49,12 @@ Without `--run`, preflight inspects the current successful dev runs for that SHA
 
 Promotion remains an explicitly authorized action outside the helper. Immediately before an authorized identical-SHA fast-forward push, run preflight again. Dev must still point to the candidate, master must remain unchanged during verification, and master must be an ancestor. A merge, squash, rebase, metadata follow-up or other new SHA needs its own evidence. Never force master to fit an old proof.
 
+### Bounded artifact-download recovery
+
+Only the selected release-proof ZIP download may retry: at most two extra attempts, with1-second and2-second backoffs inside the existing30-second total command budget. Each attempt targets the same artifact ID in the fixed trusted repository; unsuccessful partial output is discarded. Retry only HTTP500/502/503/504 and specifically recognized temporary transport errors. Authentication/permission failures, missing artifacts, rate limits and unknown errors stop immediately. Exhausting the attempts or budget retains the existing full-validation fallback/refusal.
+
+Digest, archive, run/attempt provenance, exact SHA, policy, complete zero-flake functional results and all five performance checks remain outside the retry boundary and unchanged. Invalid proof is never fetched repeatedly until accepted, and no failed test is rerun by this recovery. Retry logs contain only the artifact ID, failure classification, attempt and delay; normal successful retrieval has no retry delay. Offline controls in `release-evidence-test` cover recovery, both caps, unchanged request identity, partial-output discard and permanent/invalid-proof refusals.
+
 ## Parallel execution (November 8)
 
 The existing change planner and full-release policy still choose the checks. The `plan` job checks payload before dependency/browser setup and assigns the selected inventory to at most five balanced functional jobs, each on its own pinned Ubuntu runner. Small selections use fewer jobs. Weights affect scheduling only; unknown/shared changes retain the full fallback. The five-run performance gate has its own runner, with the original profile/budgets, and can overlap functional work without CPU contention on either runner.

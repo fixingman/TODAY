@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SUITE } from './ci-policy.mjs';
 import { createEvidence, verifyEvidence, describeCandidate, digest, sha256, REPOSITORY, WORKFLOW, WORKFLOW_ID, artifactName } from './release-evidence.mjs';
-import { promotionPreflight, validateDispatch, verifyArchive, decodeArchive } from './release-status.mjs';
+import { promotionPreflight, validateDispatch, verifyArchive, decodeArchive, downloadProofArchive } from './release-status.mjs';
 import { verifyFinal } from './ci-final.mjs';
 import { shardPlan, mergeShards } from './ci-shards.mjs';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -80,6 +80,77 @@ for (const patch of [{ expired: true }, { expires_at: '2020-01-01T00:00:00Z' }, 
 assert.throws(() => verify(proof, run, artifact, { ...expected, suites: [...SUITE, 'new-test'] }));
 assert.throws(() => createEvidence({ ...summary, inputsAtEnd: {} }, performance, expected, context));
 console.log('  ✓ wrong SHA/policy/workflow/fork/attempt, partial reports, hidden retries/flakes, expiry and five-run budget violations all refuse reuse');
+
+// Offline acquisition controls: fake time and gh output, followed by the real
+// archive/proof verifier. No real delays, API calls or branches are involved.
+{
+  const failure = (stderr, code = 1) => Object.assign(new Error('Fictional download failure'), {
+    stderr: Buffer.from(stderr), code, stdout: Buffer.from('incomplete archive'),
+  });
+  function fixture(outcomes, durations = []) {
+    let clock = 0;
+    const calls = [], delays = [], messages = [];
+    return { calls, delays, messages, elapsed: () => clock, download: () => downloadProofArchive(123, {
+      now: () => clock, pause: ms => { delays.push(ms); clock += ms; }, log: line => messages.push(line),
+      run(binary, args, options) {
+        calls.push({ binary, args, options }); clock += durations[calls.length - 1] || 0;
+        const next = outcomes[calls.length - 1];
+        if (next instanceof Error) throw next;
+        assert.ok(Buffer.isBuffer(next), 'fixture must supply each command outcome');
+        return next;
+      },
+    }) };
+  }
+  const successful = fixture([archive]);
+  assert.deepEqual(successful.download(), archive);
+  assert.equal(successful.calls.length, 1); assert.deepEqual(successful.delays, []); assert.deepEqual(successful.messages, []);
+  for (const error of [failure('gh: HTTP 500'), failure('gh: HTTP 502'), failure('gh: HTTP 503'), failure('gh: HTTP 504'),
+    failure('gh: HTTP 503\nPRIVATE_SIGNED_DOWNLOAD_URL'), failure('read: connection reset by peer'), failure('net/http: TLS handshake timeout'), failure('read: unexpected EOF'),
+    failure('', 'ECONNRESET'), failure('', 'EAI_AGAIN')]) {
+    const recovered = fixture([error, archive]);
+    assert.deepEqual(decodeArchive(recovered.download(), { digest: `sha256:${sha256(archive)}` }), { schema: 1 });
+    assert.equal(recovered.calls.length, 2); assert.deepEqual(recovered.delays, [1000]);
+    assert.equal(recovered.messages.length, 1);
+    assert.ok(!recovered.messages[0].includes('incomplete archive')&&!recovered.messages[0].includes('PRIVATE_SIGNED_DOWNLOAD_URL'));
+    for (const call of recovered.calls) {
+      assert.equal(call.binary, 'gh');
+      assert.deepEqual(call.args, ['api', '--hostname', 'github.com', `repos/${REPOSITORY}/actions/artifacts/123/zip`]);
+      assert.equal(call.options.encoding, null);
+    }
+  }
+  const unavailable = failure('gh: HTTP 503'), exhausted = fixture([unavailable, unavailable, unavailable]);
+  assert.throws(exhausted.download, error => error === unavailable);
+  assert.equal(exhausted.calls.length, 3); assert.deepEqual(exhausted.delays, [1000, 2000]);
+  assert.equal(exhausted.messages.length, 2);
+  const lastRecovery = fixture([unavailable, unavailable, archive]);
+  assert.deepEqual(lastRecovery.download(), archive); assert.equal(lastRecovery.calls.length, 3);
+  for (const error of [failure('gh: HTTP 401'), failure('gh: HTTP 403\nconnection reset by peer'), failure('gh: HTTP 404'),
+    failure('gh: HTTP 429'), failure('gh: HTTP 501'), failure('authentication required'), failure('', 'ENOENT')]) {
+    const refused = fixture([error]);
+    assert.throws(refused.download, thrown => thrown === error);
+    assert.equal(refused.calls.length, 1); assert.deepEqual(refused.delays, []);
+  }
+  const timedOut = failure('', 'ETIMEDOUT');
+  const budget = fixture([unavailable, timedOut], [24000, 5000]);
+  assert.throws(budget.download, error => error === timedOut);
+  assert.deepEqual(budget.calls.map(call => call.options.timeout), [30000, 5000]);
+  assert.deepEqual(budget.delays, [1000]); assert.equal(budget.elapsed(), 30000);
+  const noTime = fixture([unavailable], [29000]);
+  assert.throws(noTime.download, error => error === unavailable);
+  assert.equal(noTime.calls.length, 1); assert.deepEqual(noTime.delays, []);
+  const tampered = fixture([Buffer.from('wrong archive')]);
+  assert.throws(() => decodeArchive(tampered.download(), { digest: `sha256:${sha256(archive)}` }), /digest mismatch/);
+  assert.equal(tampered.calls.length, 1); assert.deepEqual(tampered.delays, []);
+  const corruptRecovery = fixture([unavailable, Buffer.from('wrong archive')]);
+  assert.throws(() => decodeArchive(corruptRecovery.download(), { digest: `sha256:${sha256(archive)}` }), /digest mismatch/);
+  assert.equal(corruptRecovery.calls.length, 2); assert.deepEqual(corruptRecovery.delays, [1000]);
+  // A successful retrieval cannot turn rejected functional results into proof.
+  const failedTests = fixture([Buffer.from(JSON.stringify(proof))]);
+  const received = JSON.parse(failedTests.download().toString()); received.functional.counts.failed = 1;
+  assert.throws(() => verify(received)); assert.equal(failedTests.calls.length, 1);
+  assert.throws(() => downloadProofArchive('123'), /Invalid.*artifact ID/);
+  console.log('  ✓ artifact retrieval: transient recovery, exact-ID retries, three-attempt/30-second caps, permanent errors and invalid proof refusal');
+}
 
 const refs = { dev: sha, master: oldMaster };
 assert.equal(promotionPreflight(sha, refs, refs, true, verified).ready, true);

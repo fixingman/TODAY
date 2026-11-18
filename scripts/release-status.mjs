@@ -14,6 +14,43 @@ const api = (path, args = [], binary = false) => {
   return binary ? result : result ? JSON.parse(result) : null;
 };
 
+function transientDownloadFailure(error) {
+  const stderr = String(error?.stderr || '');
+  const status = stderr.match(/\bHTTP\s+(\d{3})\b/);
+  // A permanent HTTP response must not qualify through incidental error text.
+  if (status) return ['500', '502', '503', '504'].includes(status[1]) ? `HTTP ${status[1]}` : null;
+  if (['ECONNRESET', 'EAI_AGAIN', 'ETIMEDOUT'].includes(error?.code)) return error.code;
+  return /\b(connection reset by peer|TLS handshake timeout|i\/o timeout|unexpected EOF)\b/i.exec(stderr)?.[1] || null;
+}
+
+// Retry only acquisition of this exact artifact. Digest/provenance/test checks
+// stay outside the retry boundary; partial command output is never reused.
+export function downloadProofArchive(id, {
+  run = command, now = () => performance.now(),
+  pause = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms),
+  log = message => console.warn(message),
+} = {}) {
+  requireValue(Number.isSafeInteger(id) && id > 0, 'Invalid release proof artifact ID');
+  const deadline = now() + 30000, delays = [1000, 2000];
+  let previous;
+  for (let attempt = 0; ; attempt++) {
+    const timeout = Math.floor(deadline - now());
+    if (timeout <= 0) throw previous || new Error('Release proof download time budget exhausted');
+    try {
+      return run('gh', ['api', '--hostname', 'github.com', `repos/${REPOSITORY}/actions/artifacts/${id}/zip`],
+        { encoding: null, stdio: ['ignore', 'pipe', 'pipe'], timeout });
+    } catch (error) {
+      previous = error;
+      const reason = transientDownloadFailure(error), delay = delays[attempt];
+      if (!reason || delay === undefined || deadline - now() <= delay) throw error;
+      // Log the classification, never credentials, response bodies or signed URLs.
+      log(`Release proof artifact ${id}: ${reason}; retry ${attempt + 1}/2 after ${delay}ms.`);
+      pause(delay);
+      if (now() >= deadline) throw error;
+    }
+  }
+}
+
 export function verifyArchive(bytes, artifact) {
   requireValue(artifact.digest === `sha256:${sha256(bytes)}`, 'Artifact archive digest mismatch');
 }
@@ -62,7 +99,7 @@ function readProof(run, expected) {
   const artifact = matches[0];
   requireValue(artifact.expired === false && Date.parse(artifact.expires_at) > Date.now()
     && artifact.size_in_bytes > 0 && artifact.size_in_bytes <= 32 * 1024 * 1024, 'Artifact missing, expired or too large');
-  const zip = api(`actions/artifacts/${artifact.id}/zip`, [], true);
+  const zip = downloadProofArchive(artifact.id);
   return verifyEvidence(decodeArchive(zip, artifact), expected, run, artifact);
 }
 
