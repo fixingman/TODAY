@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Focus offers help only when a suggestion is ready (app v3.12.0)
+
+Can approved one automatic task-only/name-only preparation per deliberate desktop Focus entry. Ask is hidden during preparation, abstention, malformed output and failure; one closed-format question/action can earn the existing button's quiet ready breath. Reveal is cached, not another request, and only then records a shown line/enables feedback. Dismissal consumes the visit; pause/resume, restoration, re-anchor and feedback never generate. Current-source/config/day/wording fences cover pending, ready and revealed states; no retry or second judge call. Whole votes remain transient, optional fixed same-owner wording retains its approved caps, and no prepared prose enters persistence/sync/backup. Owning Focus and wording tests cover availability, abstention, timers, source withdrawal, delayed bodies, deadline, keyboard/reduced motion and exact-answer feedback. Real-model usefulness and installed feel remain acceptance work.
+
 ## Post-add suggestions appear where you can see them (BUG-173) (app v3.11.6)
 
 See BUG-173. `assistant.js` gains one visible-band check (below the sticky header, above `#addTaskBar` and a shown `#triageBar`) used for delivery and exposure; geometry is rechecked on scroll, resize and visual-viewport resize as well as intersection changes. A just-added task sitting just below the band is scrolled into view with room for its row; a row that still lands under the bar is lifted by the minimum scroll. New outcome records carry `exposure: 2`; `suggestion-policy` counts an ignore only with it, so the 29 earlier timeouts stop throttling. Explicit dismissals, applies and reversals still count (the split reason keeps its 10 September dismissals).
