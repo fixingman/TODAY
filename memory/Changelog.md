@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## platform-test waits for the app document before touching storage (engineering, app v3.11.5 unchanged)
+
+The desktop app-window fixture wrote `localStorage` as soon as the `--app` target appeared; on CI the document could still be committing, so Chrome denied storage ("Access is denied for this document", dev CI 44317846300, passed on retry). It now waits for the real URL and a non-loading document first. Three consecutive local runs pass. App code unchanged.
+
 ## Morning line prefers one sentence and adds to a named task instead of restating it (app v3.11.5)
 
 Prompted by Can's reading of HUMAN.md ("the sentence that ends one beat earlier") and checked against Can's actual votes (production backup, counts only; no line or task text read out): of 28 voted morning lines Oct 19–Nov 18, one-sentence lines landed 20 / missed 2 and two-sentence lines 2 / 4. Task mentions were not the problem in themselves (no mention 16 / 3, mention 6 / 3); all three task-mention misses were two-sentence restatements marked `already_knew`.
