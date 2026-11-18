@@ -202,6 +202,8 @@ async function checkDesktopAppHeader() {
     const page=await target.page(),errors=[];
     page.on('pageerror',error=>errors.push(error.message));
     await page.setViewport({width:1280,height:800});
+    // The app target exists before its document commits; storage is denied until the real origin loads.
+    await page.waitForFunction(u=>location.href===u&&document.readyState!=='loading',{timeout:15000},url);
     await page.evaluate(()=>{localStorage.clear();localStorage.setItem('splash_shown_at',String(Date.now()));});
     await page.reload({waitUntil:'load',timeout:15000});
     await page.waitForFunction(()=>!document.body.hasAttribute('data-booting')&&performance.getEntriesByName('today:interactive').length>0,{timeout:15000});
