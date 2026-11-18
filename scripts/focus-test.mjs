@@ -885,694 +885,248 @@ try {
       await page.close();
     }
 
-    // 18. Recorded history cannot earn an attention cue or enter task help.
-    {
-      const D = 86400000, now = Date.now();
-      const seedFor = task => ({today_manual:JSON.stringify([task]),today_ai_key_claude:'test-key'});
-      const signalFor = async task => {
-        const {page,errors}=await openPage({extraSeed:seedFor(task)});
-        await page.click('.task-text');
-        await page.waitForFunction(()=>document.querySelector('.focus-timer.open'),{timeout:3000});
-        const lit=await page.$eval('.focus-ai-timer-btn',button=>button.classList.contains('high-signal'));
-        return {page,errors,lit};
-      };
-      const routine=await signalFor({id:'manual_'+(now-9*D),text:'Draft the quarterly letter',focusSessions:4,lastActive:now-3*D});
-      await routine.page.close();
-      const returned=await signalFor({id:'manual_'+(now-9*D),text:'Await Maya "signed" contract; follow up Oct 30',focusSessions:0,revived:1,returnedFrom:'soon'});
-      await returned.page.evaluate(()=>{
-        manualTasks.push({id:'manual_other',text:'Unrelated private task marker'});
-        appMemory.preferences={...appMemory.preferences,peakHour:new Date().getHours(),dragKeywords:['Maya','Maya']};
-        appMemory.patterns.letgoReasons={no_energy:10};
-        appMemory.memory={semantic:[{id:'private',text:'Private confirmed inference marker',status:'confirmed'}],procedural:[],episodic:[]};
-        window.__taskScopeBody=null;const original=window.fetch;
-        window.fetch=async(url,options)=>{
+    // Contextual Ask: one preparation per deliberate visit, then a cached reveal.
+    const focusFixture = async ({configured=true,hoverHover=true,reduced=false}={}) => {
+      const f=await openPage({hoverHover,extraSeed:{
+        today_manual:JSON.stringify([{id:'manual_one',text:'Choose the export format',focusSessions:8,revived:1},{id:'manual_two',text:'Wait for Maya to send the signed contract Friday'}]),
+        today_habits:JSON.stringify([{id:'habit_read',name:'Read fiction'},{id:'habit_walk',name:'Walk'}]),
+        ...(configured?{today_ai_key_claude:'test-key',today_ai_key_gemini:'test-key'}:{}),
+      }});
+      if(reduced)await f.page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
+      await f.page.evaluate(()=>{
+        window.__asks=[];window.__spoken=[];
+        window._memoryRecordSpokenLine=(...args)=>__spoken.push(args);
+        const original=window.fetch;
+        window.fetch=(url,options)=>{
           if(!String(url).includes('ai-assist'))return original(url,options);
           const body=JSON.parse(options.body);
-          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
-          window.__taskScopeBody=body;return {ok:true,json:async()=>({content:'The agreed follow-up date is enough for this task.'})};
-        };
-        document.querySelector('.focus-ai-timer-btn').click();
-      });
-      await returned.page.waitForFunction(()=>window.__taskScopeBody,{timeout:3000});
-      const sent=await returned.page.evaluate(()=>window.__taskScopeBody);
-      const message=sent?.messages?.[0]?.content||'';
-      await expectAll('task Ask scope and neutral availability',{
-        routineQuiet:!routine.lit,returnedQuiet:!returned.lit,
-        taskQuoted:message==='Task: '+JSON.stringify('Await Maya "signed" contract; follow up Oct 30'),
-        noHistory:!message.includes('recorded')&&!message.includes('Soon')&&!message.includes('days')&&!message.includes('never focused'),
-        noOtherTask:!JSON.stringify(sent).includes('Unrelated private task marker'),
-        noMemory:!JSON.stringify(sent).includes('Private confirmed inference marker')&&!message.includes('no energy')&&!message.includes('local time')&&!message.includes('usually put off'),
-        noReasoningOverride:!Object.hasOwn(sent,'surface')&&!Object.hasOwn(sent,'model'),
-        noErrors:!routine.errors.length&&!returned.errors.length,
-      });
-      ok('task Ask: neutral despite age/sessions/returns; JSON-quoted task only');
-      await returned.page.close();
-    }
-
-    // Habit requests use the real UI on an isolated origin, with deliberately held replies.
-    const habitFixture = async ({ configured = true, hoverHover = true, nativeTouch = false } = {}) => {
-      const fixture = await openPage({ hoverHover, nativeTouch, extraSeed: {
-        today_habits: JSON.stringify([{id:'habit_read',name:'Read',focusSessions:7},{id:'habit_walk',name:'Walk'}]),
-        ...(configured ? {today_ai_key_claude:'test-key',today_ai_key_gemini:'test-key'} : {}),
-      }});
-      await fixture.page.evaluate(() => {
-        window.__asks = []; window.__spoken = [];
-        window._memoryRecordSpokenLine = (...args) => window.__spoken.push(args);
-        const original = window.fetch;
-        window.fetch = (url, options) => {
-          if (!String(url).includes('ai-assist')) return original(url, options);
-          const body=JSON.parse(options.body);
-          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
-          return new Promise((resolve,reject) => {
-            const request = {body,signal:options.signal,reject};
-            request.reply = (data,mode) => resolve({ok:mode!=='http',status:mode==='http'?503:200,json:() => {
-              if(mode==='json')return Promise.reject(new SyntaxError('Synthetic malformed JSON'));
-              if(mode==='body')return new Promise(resolve => {request.finishBody=resolve});
+          if(!body.systemPrompt?.startsWith('Prepare at most one optional focus suggestion'))return original(url,options);
+          return new Promise((resolve,reject)=>{
+            const request={body,signal:options.signal,reject};
+            request.reply=(data,mode)=>resolve({ok:mode!=='http',status:mode==='http'?503:200,json:()=>{
+              if(mode==='json')return Promise.reject(new SyntaxError('Synthetic malformed response'));
+              if(mode==='body')return new Promise(resolve=>request.finishBody=resolve);
               return Promise.resolve(data);
             }});
-            window.__asks.push(request);
+            __asks.push(request);
           });
         };
       });
-      await fixture.page.click('#habitsBtn');
-      await fixture.page.waitForSelector('.habit[data-habit-id="habit_read"]',{visible:true});
-      return fixture;
+      return f;
     };
-    const startHabit = async (page,id='habit_read') => {
-      await page.click(`.habit[data-habit-id="${id}"] .habit-name`);
-      await page.waitForFunction(id => document.querySelector('.habit.focused')?.dataset.habitId===id&&document.querySelector('.focus-timer.open'),{timeout:3000},id);
-    };
-    const ask = async page => {
-      const count = await page.evaluate(()=>window.__asks.length);
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      try { await page.waitForFunction(count=>window.__asks.length===count+1,{timeout:3000},count); }
-      catch(error){
-        console.error('Focus request ledger state:',JSON.stringify(await page.evaluate(count=>({before:count,after:__asks.length,
-          focused:document.querySelector('.habit.focused,.task.focused')?.dataset.habitId||document.querySelector('.task.focused')?.dataset.taskid,
-          open:!!document.querySelector('.focus-timer.open'),active:!!document.querySelector('.focus-timer.ai-active'),
-          configured:Today.use('connections')._aiIsConfigured(),aborted:__asks.filter(r=>r.signal.aborted).length}),count)));
-        throw error;
-      }
+    const enter=async(page,id='manual_one')=>{
+      const count=await page.evaluate(()=>__asks.length);
+      await page.evaluate(id=>{
+        if(id.startsWith('habit_')&&!Today.use('sidebar').isOpen('habits'))Today.use('habits').toggleHabits();
+        const row=document.querySelector(id.startsWith('habit_')?'[data-habit-id="'+id+'"]':'[data-taskid="'+id+'"]');
+        row.querySelector(id.startsWith('habit_')?'.habit-name':'.task-text').click();
+      },id);
+      try {await page.waitForFunction(count=>__asks.length===count+1&&document.querySelector('.focus-timer.open'),{timeout:5000},count);}
+      catch(error){console.error('Suggestion entry state',await page.evaluate(({id,count})=>({id,count,asks:__asks.length,focused:[...document.querySelectorAll('.focused')].map(e=>e.dataset),timer:document.querySelector('.focus-timer')?.className,hidden:document.querySelector('.focus-timer')?.hidden,source:habitsList.map(h=>({id:h.id,name:h.name})),sidebar:document.getElementById('habitsPanel')?.className}),{id,count}));throw error;}
       return count;
     };
-    const reply = (page,index,data,mode) => page.evaluate(async ({index,data,mode})=>{
-      if(mode==='network')window.__asks[index].reject(new Error('Synthetic offline'));
-      else window.__asks[index].reply(data,mode);
-      await new Promise(requestAnimationFrame);
-    },{index,data,mode});
-    // Background writers must not enter the held Focus request ledger.
-    {
-      const {page,errors}=await habitFixture();await startHabit(page);
-      await page.evaluate(()=>{
-        const original=window.fetch;
-        window.fetch=(url,options)=>{
-          const result=original(url,options);
-          if(!String(url).includes('ai-assist'))return result;
-          const body=JSON.parse(options.body||'{}');
-          if(/^The person (?:has )?explicitly asked/.test(body.systemPrompt||'')&&!window.__backgroundInjected){
-            window.__backgroundInjected=true;
-            window.__unrelatedFocusControl=original(url,{...options,body:JSON.stringify({systemPrompt:'Fictional unrelated background writer',messages:[]})}).then(response=>response.status);
-          }
-          return result;
-        };
-      });
-      const index=await ask(page);
-      await expectAll('Focus request ledger excludes unrelated writers',{
-        oneFocus:await page.evaluate(()=>__asks.length===1),
-        nativeResponse:(await page.evaluate(()=>__unrelatedFocusControl))===404,noErrors:!errors.length,
-      });
-      await reply(page,index,{content:'What would make reading more inviting?'});
-      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').textContent==='What would make reading more inviting?');
-      ok('habit Focus mock isolates an overlapping unrelated writer without suppressing its request');
-      await page.close();
-    }
-    // Task help may be a question, action or acknowledgement; habits remain questions.
-    {
-      const {page,errors}=await openPage({extraSeed:{today_ai_key_claude:'test-key'}});
-      await page.evaluate(()=>{
-        window.__asks=[];window.__spoken=[];
-        window._memoryRecordSpokenLine=(...args)=>window.__spoken.push(args);
-        const original=window.fetch;
-        window.fetch=(url,options)=>{
-          if(!String(url).includes('ai-assist'))return original(url,options);
-          const body=JSON.parse(options.body);
-          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
-          return new Promise((resolve,reject)=>window.__asks.push({body,signal:options.signal,reject,
-            reply:(data,mode)=>resolve({ok:mode!=='http',status:mode==='http'?503:200,json:()=>mode==='json'?Promise.reject(new SyntaxError('Malformed fixture')):Promise.resolve(data)})}));
-        };
-      });
-      await page.click('.task-text');
-      await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));
-      const automaticCalls=await page.evaluate(()=>window.__asks.length);
-      const firstFailure=await ask(page);await reply(page,firstFailure,{},'http');
-      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').textContent==='No reply to show. Try again.');
-      await expectAll('running task retry status is visible',{
-        visibleAndFits:await page.$eval('.focus-ai-timer-btn',button=>{
-          const style=getComputedStyle(button),rect=button.getBoundingClientRect();
-          const clock=document.getElementById('focusTime').getBoundingClientRect();
-          return style.display!=='none'&&style.visibility==='visible'&&Number(style.opacity)>0&&rect.right<clock.left;
-        }),
-        noAutoRetry:await page.evaluate(()=>window.__asks.length===1&&window.__spoken.length===0),
-      });
-      await page.focus('#focusTime');await page.keyboard.press('Space');
-      await page.waitForFunction(()=>JSON.parse(localStorage.getItem('today_focus_session')).paused);
-      const before=await page.evaluate(()=>({requests:window.__asks.length,session:localStorage.getItem('today_focus_session')}));
-      const valid=['Which input reproduces the export crash?', 'Restore a small folder and check the photos before the full restore.', 'The named follow-up date is enough for this task.'];
-      for(const text of valid){
-        const index=await ask(page);await reply(page,index,{content:text});
-        await page.waitForFunction(text=>document.querySelector('.focus-ai-timer-btn').textContent===text,{},text);
-        await expectAll('task help accepted',{accessible:await page.$eval('.focus-ai-timer-btn',(button)=>button.textContent===button.getAttribute('aria-label'))});
-        await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      }
-      const invalid=[[{content:''}],[{content:'Which file? Why that one?'}],[{content:'Which file? Then restore it.'}],[{content:'Try it!'}],
-        [{content:'Check one file.\nThen restore.'}],[{content:Array(20).fill('word').join(' ')}],[{content:42}],[{error:'synthetic'}],
-        [{},'http'],[{},'json'],[{},'network']];
-      for(const [data,mode]of invalid){const index=await ask(page);await reply(page,index,data,mode);await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));await expectAll('task request failure is retryable',{statusVisible:await page.$eval('.focus-ai-timer-btn',button=>button.textContent==='No reply to show. Try again.'&&button.getAttribute('aria-label')===button.textContent)});}
-      await page.evaluate(()=>{const original=window.setTimeout;window.__restoreTimeout=()=>{window.setTimeout=original};window.setTimeout=(callback,ms,...args)=>{if(ms===25000)window.__expireTaskAsk=callback;return original(callback,ms,...args)};});
-      const timedOut=await ask(page);
-      await page.evaluate(()=>{window.__expireTaskAsk();window.__restoreTimeout();});
-      await reply(page,timedOut,{content:valid[0]});
-      await expectAll('task timeout preserves retry status',{
-        aborted:await page.evaluate(index=>window.__asks[index].signal.aborted,timedOut),
-        lateNotRecorded:await page.evaluate(()=>window.__spoken.length===3),
-        retryVisible:await page.$eval('.focus-ai-timer-btn',button=>button.textContent==='No reply to show. Try again.'),
-      });
-      const old=await ask(page);
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      const fresh=await ask(page);await reply(page,fresh,{content:valid[0]});
-      await page.waitForFunction(text=>document.querySelector('.focus-ai-timer-btn').textContent===text,{},valid[0]);
-      await reply(page,old,{},'network');
-      await expectAll('old task failure cannot paint on new help',{freshKept:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)===valid[0]});
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      const stale=await ask(page);
-      await page.evaluate(()=>{const row=document.querySelector('.task.focused');row.querySelector('.task-text').textContent='Changed task';manualTasks[0].text='Changed task';});
-      await reply(page,stale,{content:valid[0]});
-      await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));
-      const retry=await ask(page);await reply(page,retry,{message:valid[1]});
-      await page.waitForFunction(text=>document.querySelector('.focus-ai-timer-btn').textContent===text,{},valid[1]);
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      const afterHelp=await page.evaluate(()=>JSON.parse(localStorage.getItem('today_focus_session')));
-      const pending=await ask(page);await page.keyboard.press('Escape');await reply(page,pending,{content:valid[0]});
-      await expectAll('task help lifecycle',{
-        explicitOnly:automaticCalls===0,
-        acceptedOnly:await page.evaluate(()=>window.__spoken.length===5&&window.__spoken.every(([type])=>type==='focus question')),
-        abortOnExit:await page.evaluate(index=>window.__asks[index].signal.aborted,pending),
-        resetAccessible:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))==='Ask for focus help',
-        noErrors:!errors.length,
-      });
-      // The accepted help/failures did not advance or reset a paused timer.
-      const sessionBeforeExit=JSON.parse(before.session);
-      await expectAll('task help preserves session',{
-        owner:afterHelp.taskId===sessionBeforeExit.taskId,
-        paused:afterHelp.paused===true&&sessionBeforeExit.paused===true,
-        remainingUnchanged:afterHelp.rem===sessionBeforeExit.rem,
-      });
-      ok('task Ask: question/action/restraint, format rejection, rename/exit fencing and retry; no automatic request');
-      await page.close();
-    }
-
-    // 15D: same-session repetition context
-    {
-      const {page,errors}=await openPage({extraSeed:{today_ai_key_claude:'test-key'}});
-      await page.evaluate(()=>{
-        window.__asks=[];
-        const original=window.fetch;
-        window.fetch=(url,options)=>{
-          if(!String(url).includes('ai-assist'))return original(url,options);
-          const body=JSON.parse(options.body);
-          if(!/^The person (?:has )?explicitly asked/.test(body.systemPrompt||''))return original(url,options);
-          return new Promise((resolve,reject)=>window.__asks.push({body,signal:options.signal,reject,
-            reply:(data,mode)=>resolve({ok:mode!=='http',status:mode==='http'?503:200,json:()=>Promise.resolve(data)})}));
-        };
-      });
-      await page.click('.task-text');
-      await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));
-      const taskMsg='Task: "Write the tests"';
-
-      const i0=await ask(page);
-      const body0=await page.evaluate(i=>window.__asks[i].body,i0);
-      await expectAll('15D first Ask has no prior suffix',{noPrior:body0.messages[0].content===taskMsg});
-
-      const offer0='Which test case should you start with?';
-      await reply(page,i0,{content:offer0});
-      await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},offer0);
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-
-      const i1=await ask(page);
-      const body1=await page.evaluate(i=>window.__asks[i].body,i1);
-      await expectAll('15D second Ask carries first offer as prior',{
-        startsWithTask:body1.messages[0].content.startsWith(taskMsg),
-        hasPriorLabel:body1.messages[0].content.includes('Already offered this session:'),
-        hasOffer0:body1.messages[0].content.includes(JSON.stringify(offer0)),
-      });
-
-      const offer1='What environment do you need set up first?';
-      await reply(page,i1,{content:offer1});
-      await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},offer1);
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-
-      const i2=await ask(page);
-      const body2=await page.evaluate(i=>window.__asks[i].body,i2);
-      await expectAll('15D third Ask carries both priors',{
-        hasBoth:body2.messages[0].content.includes(JSON.stringify(offer0))&&body2.messages[0].content.includes(JSON.stringify(offer1)),
-      });
-
-      // Invalid reply (two question marks — fails format check) must not be stored
-      await reply(page,i2,{content:'Which file? And which branch?'});
-      await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));
-
-      const i3=await ask(page);
-      const body3=await page.evaluate(i=>window.__asks[i].body,i3);
-      await expectAll('15D invalid reply not added to priors',{
-        stillBoth:body3.messages[0].content.includes(JSON.stringify(offer0))&&body3.messages[0].content.includes(JSON.stringify(offer1)),
-        noInvalid:!body3.messages[0].content.includes('which branch'),
-      });
-      await page.keyboard.press('Escape');await reply(page,i3,{content:offer0});
-      await expectAll('15D no errors throughout',{noErrors:!errors.length});
-      ok('15D: same-session repetition context — prior suffix absent on first Ask, present on subsequent Asks, invalid reply not stored');
-      await page.close();
-    }
-
-    // Exact-answer feedback: real controls, next explicit request, no persistent votes.
-    const feedbackFixture = async (owner = 'task', options = {}) => {
-      const fixture = await habitFixture(options);
-      if (owner === 'habit') await startHabit(fixture.page);
-      else {
-        await fixture.page.evaluate(()=>Today.use('sidebar').close(true));
-        await fixture.page.evaluate(() => { manualTasks[0].id = 'manual_1700000000000'; manualTasks[0].text = 'Fix the export crash'; Today.use('connections').renderManual(); document.querySelector('.task-text').click(); });
-        await fixture.page.waitForSelector('.focus-timer.open');
-      }
-      await fixture.page.waitForFunction(()=>document.body.style.transition===''&&document.querySelector('.focus-timer.open'));
-      await fixture.page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(resolve))));
-      await fixture.page.waitForFunction(()=>{const timer=document.querySelector('.focus-timer.open');return timer&&Math.abs(timer.getBoundingClientRect().height-parseFloat(timer.style.maxHeight))<0.1;});
-      return fixture;
+    const leave=async page=>{
+      await page.keyboard.press('Escape');
+      if(await page.$eval('.focus-timer',e=>e.classList.contains('open')))await page.keyboard.press('Escape');
+      await page.waitForFunction(()=>!document.querySelector('.focus-timer.open')&&!window._focusJustExited);
     };
-    const deliver = async (page,text) => {
-      const index = await ask(page); await reply(page,index,{content:text});
-      await page.waitForFunction(text => document.querySelector('.focus-ai-timer-btn').textContent === text && !document.querySelector('.focus-ask-feedback').hidden,{},text);
-      return index;
+    const payload=(text='Which export format does the recipient need?',kind='question')=>({content:JSON.stringify({kind,text})});
+    const reply=async(page,index,data=payload(),mode)=>{
+      await page.evaluate(({index,data,mode})=>{
+        if(mode==='network')__asks[index].reject(new Error('Synthetic offline'));
+        else __asks[index].reply(data,mode);
+      },{index,data,mode});
     };
-    const clickFeedbackControl = async (page,selector) => {
-      // Wait for clipping/expansion to expose the actual pointer target, not just its layout box.
-      await page.waitForFunction(selector=>{const button=document.querySelector(selector);if(!button||button.hidden)return false;const r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===button;},{},selector);
+    const ready=page=>page.waitForSelector('.focus-timer.ai-ready');
+    const quiet=page=>page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-preparing')&&document.querySelector('.focus-ai-timer-btn').hidden);
+    const clickControl=async(page,selector)=>{
+      await page.waitForFunction(selector=>{const e=document.querySelector(selector);if(!e||e.closest('[hidden]'))return false;const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));},{timeout:5000},selector);
       await page.click(selector);
     };
-    const dismiss = async page => {
-      await clickFeedbackControl(page,'.focus-ai-timer-btn');
-      await page.waitForFunction(() => !document.querySelector('.focus-timer').classList.contains('ai-active'));
+    const reveal=async(page,index=0,data=payload())=>{
+      await reply(page,index,data);await ready(page);await clickControl(page,'.focus-ai-timer-btn');
+      await page.waitForSelector('.focus-timer.has-focus-answer');
     };
-    const openFeedback = async page => {
-      await clickFeedbackControl(page,'.focus-ask-feedback');
-      await page.waitForFunction(() => !document.querySelector('#focusAskFeedback').hidden);
-    };
-    const rate = async (page,value) => clickFeedbackControl(page,`#focusAskFeedback [data-choice="${value}"]`);
-    const waitForAnswerScroll = async page => {
-      try { await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll')); }
-      catch (error) {
-        console.error('Focus overflow state:',JSON.stringify(await page.evaluate(()=>{
-          const answer=document.querySelector('.focus-ai-timer-btn'),range=document.createRange();range.selectNodeContents(answer);
-          return {viewport:innerWidth,client:answer.clientWidth,scroll:answer.scrollWidth,textWidth:range.getBoundingClientRect().width,font:getComputedStyle(answer).font,
-            reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,classes:answer.className,timer:document.querySelector('.focus-timer').className};
-        })));
-        throw error;
-      }
-    };
-    const geometry = page => page.evaluate(() => {
-      const answer = document.querySelector('.focus-ai-timer-btn'), line = document.querySelector('.focus-timer-inner');
-      const r = answer.getBoundingClientRect();
-      return {text:answer.textContent,x:r.x,y:r.y,width:r.width,height:r.height,lineHeight:line.getBoundingClientRect().height};
-    });
     {
-      const {page,errors} = await feedbackFixture('task',{nativeTouch:true});
-      // A valid answer that fits on desktop and overflows the 320px answer row.
-      const first = 'Which original input and export settings reproduce the crash before the file is written?';
-      await deliver(page,first);
-      await page.waitForFunction(()=>document.body.style.transition==='');
-      await page.evaluate(()=>document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))));
-      const closed = await geometry(page);
-      await expectAll('resize fixture starts with readable stationary text',{
-        nativeNoHover:await page.evaluate(()=>!window.__focusNativeHover),
-        fits:await page.$eval('.focus-ai-timer-btn',answer=>{
-          const text=document.createRange();text.selectNodeContents(answer);
-          return text.getBoundingClientRect().width<=answer.clientWidth;
-        }),
-        stationary:await page.$eval('.focus-ai-timer-btn',answer=>!answer.classList.contains('question-scroll')),
+      const {page,errors}=await focusFixture();
+      await page.evaluate(()=>{
+        appMemory.preferences={...appMemory.preferences,dragKeywords:['export','export']};
+        appMemory.patterns.letgoReasons={no_energy:10};
+        appMemory.memory={semantic:[{id:'private',text:'Private confirmed inference marker',status:'confirmed'}],procedural:[],episodic:[]};
       });
-      const stored = await page.evaluate(() => JSON.stringify(Object.entries(localStorage).filter(([key]) => key !== 'today_focus_session').sort()));
-      await expectAll('feedback starts genuinely hidden',{
-        collapsed:await page.$eval('#focusAskFeedback',e=>e.hidden),
-        counterInert:await page.$eval('#focusTime',e=>e.inert&&e.getAttribute('aria-hidden')==='true'),
+      const index=await enter(page);
+      await mkdir(join(ROOT,'.context/focus-offer-test'),{recursive:true});
+      await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+      await page.screenshot({path:join(ROOT,'.context/focus-offer-test/preparing.png'),fullPage:true});
+      const before=await page.evaluate(()=>({session:JSON.parse(localStorage.getItem('today_focus_session')),body:__asks[0].body}));
+      await expectAll('pending suggestion earns no attention or timer change',{
+        hidden:await page.$eval('.focus-ai-timer-btn',e=>e.hidden&&!e.checkVisibility()),
+        accessibleTimer:await page.$eval('#focusTime',e=>!e.inert&&!e.hasAttribute('aria-hidden')),
+        notAnswer:await page.$eval('.focus-timer',e=>!e.classList.contains('ai-active')),
+        taskOnly:before.body.messages[0].content==='Task: "Choose the export format"',
+        noPrivateContext:!JSON.stringify(before.body).includes('Private confirmed')&&!JSON.stringify(before.body).includes('Maya'),
+        noRoutingOverride:!Object.hasOwn(before.body,'surface')&&!Object.hasOwn(before.body,'model'),
+        abstention:before.body.systemPrompt.includes('otherwise abstain')&&before.body.systemPrompt.includes('already sufficient'),
       });
-      // Keyboard activation is native and cannot invoke the background Space timer shortcut.
-      await page.focus('.focus-ask-feedback'); await page.keyboard.press('Space');
-      await page.waitForFunction(()=>!document.querySelector('#focusAskFeedback').hidden);
-      const opened = await geometry(page);
-      await page.focus('#focusAskFeedback [data-choice="landed"]'); await page.keyboard.press('Space');
-      const selected = await geometry(page);
-      if(JSON.stringify(closed)!==JSON.stringify(opened)||JSON.stringify(opened)!==JSON.stringify(selected)) await fail('feedback moved the answer',{closed,opened,selected});
-      await expectAll('landed does not disturb the answer or add a row',{
-        sameAnswer:JSON.stringify(closed)===JSON.stringify(opened)&&JSON.stringify(opened)===JSON.stringify(selected),
-        selected:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
-        oneActionRow:await page.$eval('#focusAskFeedback',e=>[...e.children].filter(child=>!child.hidden).length===2&&e.querySelectorAll('.focus-ask-feedback-actions').length===1),
-        noGeneration:await page.evaluate(()=>window.__asks.length===1),
-        notPaused:await page.evaluate(()=>!JSON.parse(localStorage.getItem('today_focus_session')).paused),
-        notPersisted:stored===await page.evaluate(()=>JSON.stringify(Object.entries(localStorage).filter(([key])=>key!=='today_focus_session').sort())),
+      await reply(page,index);await ready(page);
+      await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+      await page.screenshot({path:join(ROOT,'.context/focus-offer-test/ready.png'),fullPage:true});
+      await expectAll('prepared help is private until revealed',{
+        cue:await page.$eval('.focus-ai-timer-btn',e=>!e.hidden&&e.getAttribute('aria-label')==='Show focus suggestion'&&e.getAnimations().some(a=>a.effect.getTiming().iterations===Infinity)),
+        noSpokenLine:await page.evaluate(()=>__spoken.length===0),
+        noFeedback:await page.$eval('.focus-ask-feedback',e=>e.hidden),
+        timerAvailable:await page.$eval('#focusTime',e=>!e.inert),
+        noSavedCandidate:await page.evaluate(()=>!JSON.stringify(Object.entries(localStorage)).includes('Which export format does the recipient need?')),
       });
-      const voteLayout=await page.evaluate(()=>{
-        const group=document.querySelector('.focus-ask-feedback-actions'),landed=group.querySelector('[data-choice="landed"]'),missed=group.querySelector('[data-choice="missed"]'),clear=group.querySelector('[data-today-click="focus-ask.clear"]');
-        const rgb=el=>getComputedStyle(el).color.match(/\d+/g).slice(0,3).map(Number);
-        const probe=document.createElement('span');probe.style.color='var(--accent)';document.body.append(probe);const accent=rgb(probe).join();probe.remove();
-        // v2.106.16: selected votes use the accent token everywhere.
-        return {selectedAccent:rgb(landed).join()===accent,otherGray:Math.max(...rgb(missed))<180&&Math.max(...rgb(missed))-Math.min(...rgb(missed))<30,
-          clearAtRight:Math.abs(clear.getBoundingClientRect().right-group.getBoundingClientRect().right)<2,
-          oneClearAction:!group.querySelector('[data-today-click="focus-ask.undo"]')&&clear.textContent==='clear vote'};
+      await page.keyboard.press('Space');
+      await expectAll('paused cue is absent from keyboard and accessibility navigation',{hidden:await page.$eval('.focus-ai-timer-btn',e=>e.hidden&&!e.checkVisibility())});
+      await page.keyboard.press('Space');
+      await page.waitForSelector('.focus-ai-timer-btn:not([hidden])');
+      await page.focus('.focus-ai-timer-btn');await page.keyboard.press('Enter');
+      await page.waitForSelector('.focus-timer.has-focus-answer');
+      await page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+      await page.screenshot({path:join(ROOT,'.context/focus-offer-test/revealed.png'),fullPage:true});
+      await expectAll('keyboard reveals cached help without another request',{
+        singleCall:await page.evaluate(()=>__asks.length===1),
+        spokenOnce:await page.evaluate(()=>__spoken.length===1),
+        answer:await page.$eval('.focus-ai-timer-btn',e=>e.textContent==='Which export format does the recipient need?'&&e.textContent===e.getAttribute('aria-label')&&!e.getAnimations().some(a=>a.effect.getTiming().iterations===Infinity)),
+        timerState:await page.evaluate(before=>{const now=JSON.parse(localStorage.getItem('today_focus_session'));return now.taskId===before.taskId&&now.paused===before.paused;},before.session),
+        counterInert:await page.$eval('#focusTime',e=>e.inert),
       });
-      await expectAll('vote colors and one right-aligned clear action',voteLayout);
-      await page.evaluate(()=>{window.__answerNode=document.querySelector('.focus-ai-timer-btn');window.__ratingNode=document.querySelector('#focusAskFeedback [data-choice="landed"]');Today.use('connections').renderManual();});
-      await page.evaluate(()=>new Promise(requestAnimationFrame));
-      await expectAll('unchanged list refresh preserves the exact answer and reaction controls',{
-        answer:await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn')===window.__answerNode),
-        controls:await page.evaluate(()=>document.querySelector('#focusAskFeedback [data-choice="landed"]')===window.__ratingNode&&document.activeElement===window.__ratingNode&&window.__ratingNode.getAttribute('aria-pressed')==='true'),
+      await clickControl(page,'.focus-ask-feedback');await page.waitForSelector('#focusAskFeedback:not([hidden])');
+      const stored=await page.evaluate(()=>JSON.stringify(Object.entries(localStorage).filter(([k])=>k!=='today_focus_session').sort()));
+      await clickControl(page,'#focusAskFeedback [data-choice="landed"]');
+      await expectAll('exact-answer rating neither generates nor persists',{
+        pressed:await page.$eval('[data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
+        oneCall:await page.evaluate(()=>__asks.length===1),
+        localOnly:stored===await page.evaluate(()=>JSON.stringify(Object.entries(localStorage).filter(([k])=>k!=='today_focus_session').sort())),
       });
-      await mkdir(join(ROOT,'.context/15d-focus-feedback'),{recursive:true});
-      const clip = await page.$eval('.task.focused',e=>{const r=e.getBoundingClientRect();return {x:r.x-12,y:r.y-12,width:r.width+24,height:190};});
-      await page.screenshot({path:join(ROOT,'.context/15d-focus-feedback/implemented-desktop.png'),clip});
-      // A reply that fitted before resize must become scrollable after narrowing, without another Ask.
-      await page.setViewport({...page.viewport(),width:320,height:800});
-      await page.waitForFunction(width=>innerWidth===320&&document.querySelector('.focus-ai-timer-btn').clientWidth<width,{},closed.width);
-      await waitForAnswerScroll(page);
-      await expectAll('existing answer adapts to a narrower viewport',{
-        scrolls:await page.$eval('.focus-ai-timer-btn',e=>e.classList.contains('question-scroll')),
-        sameReply:await page.$eval('.focus-ai-timer-btn',e=>e.textContent===e.getAttribute('aria-label')),
-        ratingKept:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
+      await clickControl(page,'#focusAskFeedback [data-choice="missed"]');
+      await clickControl(page,'#focusAskFeedback [data-today-click="focus-ask.clear"]');
+      await expectAll('revision and clear affect only the exact rating',{cleared:await page.$eval('[data-choice="missed"]',e=>e.getAttribute('aria-pressed')==='false')});
+      await page.focus('.focus-ai-timer-btn');await page.keyboard.press('Enter');await quiet(page);
+      await expectAll('dismissal consumes this visit and restores keyboard focus',{
+        hiddenFeedback:await page.$eval('.focus-ask-feedback',e=>e.hidden),
+        counter:await page.$eval('#focusTime',e=>!e.inert&&document.activeElement===e),
       });
-      await page.setViewport({...page.viewport(),width:1280,height:900});
-      await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').clientWidth>400);
-      await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
-      await expectAll('widening stops unnecessary answer motion',{fits:await page.$eval('.focus-ai-timer-btn',e=>!e.classList.contains('question-scroll'))});
-
-      // Native button overflow reporting must not decide whether its clipped text is readable.
-      await page.$eval('.focus-ai-timer-btn',e=>Object.defineProperty(e,'scrollWidth',{configurable:true,get(){return this.clientWidth;}}));
-      await page.setViewport({...page.viewport(),width:320,height:800});await waitForAnswerScroll(page);
-      await expectAll('text measurement survives incomplete button overflow reporting',{
-        reportedClipped:await page.$eval('.focus-ai-timer-btn',e=>e.scrollWidth===e.clientWidth),
-        sameReply:await page.$eval('.focus-ai-timer-btn',e=>e.textContent===e.getAttribute('aria-label')),
-        ratingKept:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='true'),
-      });
-      await page.setViewport({...page.viewport(),width:1280,height:900});
-      await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
-      await page.$eval('.focus-ai-timer-btn',e=>{delete e.scrollWidth;});
-
-      await dismiss(page);
-      await expectAll('clicking the answer restores the whole timer',{
-        feedbackHidden:await page.$eval('.focus-ask-feedback',e=>e.hidden),
-        rowsHidden:await page.$eval('#focusAskFeedback',e=>e.hidden),
-        counterRestored:await page.$eval('#focusTime',e=>!e.inert&&!e.hasAttribute('aria-hidden')&&getComputedStyle(e).pointerEvents==='auto'),
-        askRestored:await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')==='Ask for focus help'),
-      });
-      const next=await ask(page), nextBody=await page.evaluate(i=>window.__asks[i].body,next);
-      await expectAll('positive feedback reaches only the next explicit Ask',{
-        positive:nextBody.messages[0].content.includes(JSON.stringify({reply:first,rating:'landed'})),
-        factsOnly:nextBody.messages[0].content.startsWith('Task: "Fix the export crash"'),
-        wholeReply:nextBody.messages[0].content.includes('Do not infer a reason, writing preference'),
-        noHabit:!nextBody.messages[0].content.includes('Habit:'),
-      });
-      const second='Which export format triggers it?';await reply(page,next,{content:second});
-      await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},second);
-      await openFeedback(page);await rate(page,'missed');
-      await rate(page,'landed');await rate(page,'missed');
-      await page.click('#focusAskFeedback [data-today-click="focus-ask.clear"]');
-      await expectAll('clear vote removes only this answer rating',{
-        neutral:await page.$$eval('#focusAskFeedback [data-choice]',buttons=>buttons.every(button=>button.getAttribute('aria-pressed')==='false')),
-        clearHidden:await page.$eval('#focusAskFeedback [data-today-click="focus-ask.clear"]',button=>button.hidden),
-        focusKept:await page.evaluate(()=>document.activeElement.dataset.choice==='landed'),
-        noGeneration:await page.evaluate(()=>window.__asks.length===2),
-      });
-      await rate(page,'missed');
-      await page.evaluate(()=>{window.__oldVote=document.querySelector('#focusAskFeedback [data-choice="landed"]');});
-      await dismiss(page);const third=await ask(page);
-      const message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,third);
-      await expectAll('direct revision and clear stay tied to exact wording',{
-        positiveKept:message.includes(JSON.stringify({reply:first,rating:'landed'})),
-        revisedMiss:message.includes(JSON.stringify({reply:second,rating:'not landed'})),
-      });
-      await page.setViewport({...page.viewport(),width:320,height:800});
-      const long='Which input and export format reproduce the crash, and does it happen before or after the file appears?';
-      await reply(page,third,{content:long});await page.waitForFunction(q=>document.querySelector('.focus-ai-timer-btn').textContent===q,{},long);
-      await openFeedback(page);
-      await page.evaluate(()=>{document.querySelector('.focus-ask-feedback-actions').append(window.__oldVote);window.__oldVote.click();window.__oldVote.remove();});
-      await expectAll('detached old-result votes cannot rate the current answer',{
-        neutral:await page.$eval('#focusAskFeedback [data-choice="landed"]',e=>e.getAttribute('aria-pressed')==='false'),
-      });
-      await rate(page,'landed');
-      await waitForAnswerScroll(page);
-      const narrow=await page.evaluate(()=>{
-        const text=document.querySelector('.focus-ai-timer-btn').getBoundingClientRect(),toggle=document.querySelector('.focus-ask-feedback').getBoundingClientRect();
-        const buttons=[...document.querySelectorAll('#focusAskFeedback button:not([hidden])')].filter(e=>!e.closest('[hidden]')).map(e=>e.getBoundingClientRect());
-        const clear=document.querySelector('#focusAskFeedback [data-today-click="focus-ask.clear"]').getBoundingClientRect(),group=document.querySelector('.focus-ask-feedback-actions').getBoundingClientRect();
-        return {separate:text.right<=toggle.left,fit:buttons.every(r=>r.left>=0&&r.right<=innerWidth&&r.height>=24),noOverflow:document.body.scrollWidth<=innerWidth,clearAtRight:Math.abs(clear.right-group.right)<2};
-      });
-      await expectAll('320px feedback and long-answer marquee',{...narrow});
-      const narrowClip=await page.$eval('.task.focused',e=>{const r=e.getBoundingClientRect();return {x:0,y:r.y-12,width:320,height:220};});
-      await page.screenshot({path:join(ROOT,'.context/15d-focus-feedback/implemented-320.png'),clip:narrowClip});
-      await page.addScriptTag({path:join(ROOT,'scripts/node_modules/axe-core/axe.min.js')});
-      const {violations}=await page.evaluate(async()=>axe.run(document.querySelector('.focus-timer')));
-      await expectAll('feedback accessibility',{noViolations:!violations.length,noErrors:!errors.length});
-      await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.task.focused'));
-      await page.evaluate(()=>document.querySelector('.task-text').click());
-      const restarted=await ask(page);
-      await expectAll('leaving focus erases session influence',{fresh:await page.evaluate(i=>window.__asks[i].body.messages[0].content==='Task: "Fix the export crash"',restarted)});
-      await page.close();ok('15D exact-answer feedback: keyboard, next-use, clear vote, neutral dismissal, isolated layout, 320px and exit reset');
+      await page.evaluate(()=>{document.querySelector('.focus-ai-timer-btn').click();_focusReanchor();document.querySelector('.task.focused .task-text').click();});
+      await page.keyboard.press('Space');await page.keyboard.press('Space');
+      await expectAll('dismiss/re-anchor/pause/resume do not regenerate',{oneCall:await page.evaluate(()=>__asks.length===1)});
+      await leave(page);const next=await enter(page);
+      await expectAll('a new deliberate visit can prepare once again',{fresh:await page.evaluate(i=>__asks[i].body.messages[0].content==='Task: "Choose the export format"',next),noErrors:!errors.length});
+      await page.close();ok('one quiet preparation, ready-only cue, cached keyboard reveal, feedback and consumed dismissal');
     }
-    for (const change of ['edit','delete','sync-delete','day','key']) {
-      console.log('  · Focus feedback source case: '+change);
-      const {page,errors}=await feedbackFixture();
-      await deliver(page,'Which input reproduces the export crash?');await openFeedback(page);await rate(page,'landed');
+    // Only structured, format-valid suggestions can earn a cue. Acknowledgements abstain.
+    const invalid=[payload('','none'),payload('The named wait is sufficient.','acknowledgement'),{content:'Which format do you need?'},{content:'```json\n{"kind":"question","text":"Which format?"}\n```'},payload('Which format?\nWhy?'),payload('Which format? Why?'),payload('Which format!'),payload('one '.repeat(20),'action'),{content:'null'},{content:'{"kind":"action","text":"Send the form.","useful":true}'},{content:''}];
+    for(const data of invalid){
+      const {page,errors}=await focusFixture();const index=await enter(page);await reply(page,index,data);await quiet(page);
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      await expectAll('abstention or invalid output stays hidden without retry',{oneCall:await page.evaluate(()=>__asks.length===1&&__spoken.length===0),timer:await page.$eval('#focusTime',e=>!e.inert),noErrors:!errors.length});await page.close();
+    }
+    for(const mode of ['network','http','json']){
+      const {page,errors}=await focusFixture();const index=await enter(page);await reply(page,index,payload(),mode);await quiet(page);
+      await expectAll('transient failure earns no cue or retry',{oneCall:await page.evaluate(()=>__asks.length===1&&__spoken.length===0),noErrors:!errors.length});await page.close();
+    }
+    ok('abstention, malformed output and network/HTTP/JSON failures stay silent; no automatic retries');
+    for(const phase of ['headers','body','ready'])for(const change of ['edit','delete','done','exit','switch','config','day']){
+      const {page,errors}=await focusFixture();const index=await enter(page);
+      if(phase==='body'){await reply(page,index,payload(),'body');await page.waitForFunction(()=>!!__asks[0].finishBody);}
+      if(phase==='ready'){await reply(page,index);await ready(page);}
       await page.evaluate(change=>{
-        if(change==='edit'){manualTasks[0].text='Check the photo export';document.querySelector('.task.focused .task-text').textContent=manualTasks[0].text;}
-        if(change==='delete'){manualTasks=[];document.querySelector('.task.focused').remove();}
-        if(change==='sync-delete')mergeRemoteData({deleted_ids:[{id:'manual_1700000000000',at:new Date().toISOString()}],manual_tasks:[],done_ids:[],checked_ids:[],unchecked_ids:[],soon_tasks:[],past_tasks:[],habits:[]});
-        if(change==='day'){window.__oldLocalISO=window._localISO;window._localISO=()=> '2099-01-02';}
-        if(change==='key'){localStorage.setItem('today_ai_key_claude','replacement-fictional-key');window.dispatchEvent(new StorageEvent('storage',{key:'today_ai_key_claude'}));}
+        if(change==='edit'){manualTasks[0].text='Choose the delivery date';document.querySelector('[data-taskid="manual_one"] .task-text').textContent=manualTasks[0].text;}
+        if(change==='delete')document.querySelector('[data-taskid="manual_one"]').remove();
+        if(change==='done'){doneIds.add('manual_one');document.querySelector('[data-taskid="manual_one"]').classList.add('done');}
+        if(change==='switch')document.querySelector('[data-taskid="manual_two"] .task-text').click();
+        if(change==='config')localStorage.setItem('today_ai_key_claude','changed-key');
+        if(change==='day'){const Native=Date,shift=86400000;window.Date=class extends Native{constructor(...args){super(...(args.length?args:[Native.now()+shift]));}static now(){return Native.now()+shift;}};}
       },change);
-      await page.waitForFunction(()=>{const button=document.querySelector('.focus-ask-feedback'),timer=document.querySelector('.focus-timer');return (!button||button.hidden)&&!timer?.classList.contains('ai-active');});
-      if(change==='delete'||change==='sync-delete')await page.waitForFunction(()=>!window._focusUIActive&&!localStorage.getItem('today_focus_session')&&document.querySelector('.focus-timer')?.hidden);
-      if(change!=='delete'&&change!=='sync-delete'){
-        await page.evaluate(()=>{if(!window._focusUIActive)document.querySelector('.task-text').click();});
-        const fresh=await ask(page),message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,fresh);
-        await expectAll('invalidated feedback stays absent',{noPrior:!message.includes('Already offered'),noRating:!message.includes('rating')});
-      }
-      await expectAll('source/config/date withdrawal',{noErrors:!errors.length});await page.close();
+      if(change==='exit')await leave(page);
+      if(phase==='headers')await reply(page,index);
+      if(phase==='body')await page.evaluate(data=>__asks[0].finishBody(data),payload());
+      if(change==='switch')await page.waitForFunction(()=>__asks.length===2);
+      else await quiet(page);
+      // A synthetic click also checks the synchronous source fence before the observer's next poll.
+      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
+      await expectAll('late '+phase+' cannot survive '+change,{
+        noOldAnswer:await page.$eval('.focus-ai-timer-btn',e=>e.hidden&&!e.textContent.includes('recipient')),
+        unrecorded:await page.evaluate(()=>__spoken.length===0),noErrors:!errors.length,
+      });await page.close();
     }
+    ok('headers, delayed bodies and ready candidates are fenced after edit/delete/completion/exit/switch/config/day changes');
+    for(const phase of ['headers','body']){
+      const {page,errors}=await focusFixture();
+      await page.evaluate(()=>{const native=setTimeout;window.setTimeout=(fn,ms,...args)=>{if(ms===25000)window.__expireAsk=fn;return native(fn,ms,...args);};});
+      const index=await enter(page);
+      if(phase==='body'){await reply(page,index,payload(),'body');await page.waitForFunction(()=>!!__asks[0].finishBody);}
+      await page.evaluate(()=>__expireAsk());await quiet(page);
+      if(phase==='body')await page.evaluate(data=>__asks[0].finishBody(data),payload());else await reply(page,index);
+      await expectAll('deadline covers '+phase,{aborted:await page.evaluate(()=>__asks[0].signal.aborted),silent:await page.evaluate(()=>__asks.length===1&&__spoken.length===0),noErrors:!errors.length});await page.close();
+    }
+    ok('one 25-second deadline covers headers and body; expired responses never gain a cue');
     {
-      const {page,errors}=await feedbackFixture('habit');
-      const text='Which book would you like to read?';await deliver(page,text);await openFeedback(page);await rate(page,'landed');await dismiss(page);
-      const next=await ask(page),message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,next);
-      await expectAll('habit feedback retains the name-only factual boundary',{
-        sameHabit:message.startsWith('Habit: "Read"'),positive:message.includes(JSON.stringify({reply:text,rating:'landed'})),
-        noTask:!message.includes('Fix the export crash'),
-      });
-      await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.habit.focused')&&!window._focusUIActive);await startHabit(page,'habit_walk');
-      const switched=await ask(page);
-      await expectAll('habit owners never share feedback',{fresh:await page.evaluate(i=>window.__asks[i].body.messages[0].content==='Habit: "Walk"',switched),noErrors:!errors.length});
-      await page.close();ok('15D source withdrawal, rollover, key rotation and task/habit feedback separation');
+      const {page,errors}=await focusFixture({reduced:true});const index=await enter(page,'habit_read');
+      await reply(page,index,payload('Which story would you like to spend time with?'));await ready(page);
+      await expectAll('habit context and reduced-motion cue',{nameOnly:await page.evaluate(()=>__asks[0].body.messages[0].content==='Habit: "Read fiction"'),noLoop:await page.$eval('.focus-ai-timer-btn',e=>e.getAnimations().length===0),stillAvailable:await page.$eval('.focus-ai-timer-btn',e=>!e.hidden)});
+      await clickControl(page,'.focus-ai-timer-btn');await page.waitForSelector('.focus-timer.has-focus-answer');
+      await leave(page);const other=await enter(page,'habit_walk');await reply(page,other,payload('Put on shoes.','action'));await quiet(page);
+      await expectAll('habit action output is withheld',{noAction:await page.evaluate(()=>__spoken.length===1),otherNameOnly:await page.evaluate(i=>__asks[i].body.messages[0].content==='Habit: "Walk"',other),noErrors:!errors.length});await page.close();
     }
-
-    {
-      const {page,errors}=await feedbackFixture();
-      const offers=['Which file reproduces it?', 'Which format triggers it?', 'Which input differs?', 'Which export succeeds?'];
-      for(const [i,text] of offers.entries()){await deliver(page,text);await openFeedback(page);await rate(page,'landed');if(i%2)await rate(page,'landed');else await clickFeedbackControl(page,'#focusAskFeedback [data-today-click="focus-ask.clear"]');await dismiss(page);}
-      const next=await ask(page),message=await page.evaluate(i=>window.__asks[i].body.messages[0].content,next);
-      await expectAll('bounded neutral history after clears',{
-        cap:!message.includes(JSON.stringify(offers[0]))&&offers.slice(1).every(text=>message.includes(JSON.stringify(text))),
-        noVotes:!message.includes('Feedback on those exact replies:'),
-      });
-      await page.evaluate(()=>mergeRemoteData({deleted_ids:[{id:'manual_1700000000000',at:new Date().toISOString()}],manual_tasks:[],done_ids:[],checked_ids:[],unchecked_ids:[],soon_tasks:[],past_tasks:[],habits:[]}));
-      await reply(page,next,{content:'Which stale input should never appear?'});
-      await page.waitForFunction(()=>!window._focusUIActive&&document.querySelector('.focus-timer')?.hidden);
-      await expectAll('late answer after sync deletion cannot restore feedback',{
-        hidden:await page.$eval('.focus-ask-feedback',e=>e.hidden),
-        noStale:await page.$eval('.focus-ai-timer-btn',e=>!e.textContent.includes('stale input')),
-        notRecorded:await page.evaluate(()=>window.__spoken.length===4),
-        noErrors:!errors.length,
-      });
-      await page.close();ok('15D cap, cleared reactions, real sync deletion and late response fencing');
-    }
-
-    {
-      const {page,errors}=await feedbackFixture();
-      await deliver(page,'Which input reproduces the export crash?');await openFeedback(page);await rate(page,'landed');
-      await page.evaluate(()=>{const now=Date.now;Date.now=()=>now()+26*60*1000;document.dispatchEvent(new Event('visibilitychange'));Date.now=now;});
-      await page.waitForFunction(()=>document.querySelector('.focus-timer').classList.contains('complete'));
-      await expectAll('completed focus session erases the answer and feedback',{
-        hidden:await page.$eval('.focus-ask-feedback',e=>e.hidden),rowsHidden:await page.$eval('#focusAskFeedback',e=>e.hidden),
-        timer:await page.$eval('#focusTime',e=>e.textContent==='again?'&&!e.inert),
-      });
-      await page.evaluate(()=>document.querySelector('.focus-timer-inner').click());const next=await ask(page);
-      const restartedMessage=await page.evaluate(i=>window.__asks[i].body.messages[0].content,next);
-      if(restartedMessage!=='Task: "Fix the export crash"') await fail('restarted session has no old vote',{message:restartedMessage,state:await page.evaluate(()=>({timer:document.querySelector('.focus-timer').className,asks:window.__asks.length}))});
-      await expectAll('restarted session errors',{noErrors:!errors.length});
-      await page.close();ok('15D completion and restart reset the feedback session');
-    }
-
-    {
-      const {page,errors}=await feedbackFixture();
-      const source='work: Review https://example.com/export';
-      await page.evaluate(source=>{Object.assign(manualTasks[0],{text:source,url:'https://example.com/export',focusSessions:3});Today.use('connections').renderManual();},source);
-      const index=await ask(page);
-      await expectAll('Ask uses source text without rendered badges or link labels',{
-        exactSource:await page.evaluate(({index,source})=>window.__asks[index].body.messages[0].content==='Task: '+JSON.stringify(source),{index,source}),
-      });
-      await reply(page,index,{content:'Which export format needs reviewing?'});
-      await page.waitForFunction(()=>!document.querySelector('.focus-ask-feedback').hidden);
-      await page.evaluate(()=>{document.querySelector('.task.focused .task-text').textContent='A different displayed task';});
-      await page.waitForFunction(()=>document.querySelector('.focus-ask-feedback').hidden&&!document.querySelector('.focus-timer').classList.contains('ai-active'));
-      await expectAll('display-only source withdrawal still clears Ask',{noErrors:!errors.length});
-      await page.close();ok('15D source-only payload excludes metadata; displayed task changes still invalidate feedback');
-    }
-
-    const question = 'Which book would you like to spend time with?';
-
-    {
-      const {page,errors}=await habitFixture();
-      await startHabit(page);
-      const before=await page.evaluate(()=>({count:window.__asks.length,session:JSON.parse(localStorage.getItem('today_focus_session'))}));
-      await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));
-      const index=await ask(page);
-      const body=await page.evaluate(index=>window.__asks[index].body,index);
-      await expectAll('habit request privacy and trigger',{
-        noAutomaticCall:before.count===0,
-        oneHabitOnly:JSON.stringify(body.messages)===JSON.stringify([{role:'user',content:'Habit: "Read"'}]),
-        noTaskOrMemoryContext:!JSON.stringify(body).includes('Write the tests')&&!body.systemPrompt.includes('What we know about the user'),
-        notAlwaysScheduling:body.systemPrompt.includes('do not turn every habit into a scheduling or cue-planning question'),
-        openChoiceNotMenu:body.systemPrompt.includes('Invite their own preference or a practical arrangement; do not supply a menu'),
-        noAssumedEnthusiasm:body.systemPrompt.includes('Do not assume enthusiasm'),
-        notTwentyFiveMinutes:body.systemPrompt.includes('Do not assume the action needs 25 minutes'),
-        existingRoute:!!body.provider&&body.apiKey==='test-key',
-        timerStillOwned:before.session?.taskId==='habit_read',
-      });
-      await reply(page,index,{content:question,message:'Wrong truncated preview'});
-      await page.waitForFunction(question=>document.querySelector('.focus-ai-timer-btn').textContent===question,{},question);
-      const accepted=await page.evaluate(()=>({spoken:window.__spoken,owner:JSON.parse(localStorage.getItem('today_focus_session')).taskId}));
-      await expectAll('habit question delivery',{
-        contentFirst:accepted.spoken[0]?.[1]===question,
-        existingPrivateHistory:accepted.spoken.length===1&&accepted.spoken[0][0]==='focus question',
-        timerUnchanged:accepted.owner==='habit_read',noErrors:!errors.length,
-        accessibleQuestion:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))===question,
-      });
-      await page.$eval('.focus-ai-timer-btn',async button=>{await Promise.all(button.getAnimations().map(animation=>animation.finished.catch(()=>{})))});
-      await page.addScriptTag({path:join(ROOT,'scripts/node_modules/axe-core/axe.min.js')});
-      const violations=await page.evaluate(async()=> (await axe.run(document.querySelector('.focus-timer'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations.map(v=>v.id));
-      await expectAll('accepted habit question accessibility',{noViolations:violations.length===0});
-      await page.click('.focus-ai-timer-btn');
-      await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));
-      await expectAll('habit question dismissal label',{askLabelRestored:await page.$eval('.focus-ai-timer-btn',button=>button.getAttribute('aria-label'))==='Ask for focus help'});
-      ok('habit Ask: explicit, name-only, no forced cue/25-minute framing; existing timer and spoken-line storage');
-      await page.close();
-    }
-
-    // Closing/dismissing invalidates even a transport that ignores AbortSignal.
-    for(const change of ['dismiss','escape','switch','rename','archive','remove','complete','day','connection','body']){
-      const {page,errors}=await habitFixture();
-      await startHabit(page);const index=await ask(page);
-      if(change==='dismiss')await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      else if(change==='escape'||change==='switch'){
-        await page.keyboard.press('Escape');
-        await page.waitForFunction(()=>!document.querySelector('.habit.focused'));
-        if(change==='switch'){await startHabit(page,'habit_walk');await ask(page);}
-      }else if(change==='body'){
-        await reply(page,index,{},'body');
-        await page.waitForFunction(index=>!!window.__asks[index].finishBody,{},index);
-        await page.keyboard.press('Escape');
-        await page.evaluate(async ({index,question})=>{window.__asks[index].finishBody({content:question});await new Promise(requestAnimationFrame)},{index,question});
-      }else await page.evaluate(change=>{
-        const h=habitsList.find(h=>h.id==='habit_read');
-        if(change==='rename')h.name='Read a poem';
-        if(change==='archive')h.archived=true;
-        if(change==='remove')habitsList=habitsList.filter(h=>h.id!=='habit_read');
+    for(const change of ['rename','archive','complete','habit-day']){
+      const {page,errors}=await focusFixture();const index=await enter(page,'habit_read');await reply(page,index);await ready(page);
+      await page.evaluate(change=>{
+        if(change==='rename')habitsList[0].name='Read poetry';
+        if(change==='archive')habitsList[0].archived=true;
         if(change==='complete')habitCompletions.habit_read=[_habitTodayISO()];
-        if(change==='day')window._habitTodayISO=()=> '2099-01-01';
-        if(change==='connection'){localStorage.removeItem('today_ai_key_claude');localStorage.removeItem('today_ai_key_gemini');}
-        if(change==='rerender')Today.use('habits').renderHabits();
+        if(change==='habit-day'){const native=_habitTodayISO;window._habitTodayISO=()=>native()==='1999-01-01'?'1999-01-02':'1999-01-01';}
+        document.querySelector('.focus-ai-timer-btn').click();
       },change);
-      if(change!=='body')await reply(page,index,{content:question});
-      const result=await page.evaluate(index=>({spoken:window.__spoken.length,text:document.querySelector('.focus-ai-timer-btn')?.textContent||'',aborted:window.__asks[index].signal.aborted,active:!!document.querySelector('.focus-timer')?.classList.contains('ai-active')}),index);
-      await expectAll(`habit stale reply: ${change}`,{
-        notRecorded:result.spoken===0,
-        notDisplayed:!result.text.includes(question),
-        staleAborted:result.aborted,
-        currentUnaffected:change==='switch'?result.active&&result.text==='thinking…':!result.active,
-        noErrors:!errors.length,
-      });
-      ok(`habit stale reply withheld: ${change}`);
-      await page.close();
+      await quiet(page);await expectAll('habit ready candidate invalidated on '+change,{unrecorded:await page.evaluate(()=>__spoken.length===0),noErrors:!errors.length});await page.close();
     }
-    ok('habit Ask: late headers/body fenced after dismissal, exit/switch, edit/archive/delete/check, day change or connection loss');
-
-    for(const first of ['task','habit']){
-      const {page,errors}=await habitFixture();
-      const startTask=async()=>{await page.evaluate(()=>document.querySelector('.task-text').click());await page.waitForFunction(()=>document.querySelector('.task.focused')?.dataset.taskid==='manual_t1');};
-      if(first==='task')await startTask();else await startHabit(page);
-      const stale=await ask(page);await page.keyboard.press('Escape');
-      await page.waitForFunction(()=>!document.querySelector('.task.focused,.habit.focused'));
-      if(first==='task')await startHabit(page);else await startTask();
-      const latest=await ask(page);
-      await reply(page,stale,{content:'What stale question should never appear?'});
-      await expectAll('task/habit request separation',{latestStillLoading:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)==='thinking…'});
-      await reply(page,latest,{content:question});
-      await expectAll('task/habit response separation',{
-        currentShown:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)===question,
-        onlyCurrentRecorded:await page.evaluate(()=>window.__spoken.length===1),noErrors:!errors.length,
-      });
-      await page.close();
-    }
-    ok('task and habit pending questions cannot cross into one another');
-
+    ok('habit-only questions, reduced-motion availability and live habit ownership fences');
     {
-      const {page,errors}=await habitFixture();await startHabit(page);
-      const cases=[
-        [{content:''}], [{content:'A statement, not a question.'}], [{content:'Which book? Why that one?'}],
-        [{content:'Which book!'}], [{content:'Which book?\nPick one.'}],
-        [{content:Array(20).fill('word').join(' ')+'?'}], [{content:42}], [{error:'synthetic'}],
-        [{content:question},'http'], [{},'json'], [{},'network'],
-      ];
-      for(const [data,mode]of cases){const index=await ask(page);await reply(page,index,data,mode);await page.waitForFunction(()=>!document.querySelector('.focus-timer').classList.contains('ai-active'));}
-      const accepted=await ask(page);await reply(page,accepted,{message:question});
-      await page.waitForFunction(question=>document.querySelector('.focus-ai-timer-btn').textContent===question,{},question);
-      await expectAll('habit malformed replies and recovery',{onlyValidRecorded:await page.evaluate(()=>window.__spoken.length===1),noErrors:!errors.length});
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      const old=await ask(page);
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      const current=await ask(page);await reply(page,current,{content:question});
-      await reply(page,old,{},'network');
-      await expectAll('old rejection cannot reset new answer',{
-        stillVisible:await page.$eval('.focus-ai-timer-btn',button=>button.textContent)===question,
-        recordedOnce:await page.evaluate(()=>window.__spoken.length===2),
+      const {page,errors}=await focusFixture();const index=await enter(page);
+      const long='Which original input and export settings reproduce the crash before the file is written?';
+      await reveal(page,index,payload(long));
+      const geometry=()=>page.$eval('.focus-ai-timer-btn',e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height};});
+      const before=await geometry();await clickControl(page,'.focus-ask-feedback');await page.waitForSelector('#focusAskFeedback:not([hidden])');
+      await clickControl(page,'[data-choice="landed"]');
+      await expectAll('feedback preserves answer geometry',{fixed:JSON.stringify(before)===JSON.stringify(await geometry())});
+      await page.setViewport({width:320,height:844});await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      await expectAll('narrow answer stays separate from feedback',{
+        notOverflowing:await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),
+        distinct:await page.evaluate(()=>{const a=document.querySelector('.focus-ai-timer-btn').getBoundingClientRect(),b=document.querySelector('.focus-ask-feedback').getBoundingClientRect();return a.right<=b.left;}),
       });
-      await page.evaluate(()=>document.querySelector('.focus-ai-timer-btn').click());
-      await page.evaluate(()=>{const original=window.setTimeout;window.setTimeout=(callback,ms,...args)=>{if(ms===25000)window.__expireAsk=callback;return original(callback,ms,...args)};});
-      const timedOut=await ask(page);
-      await page.evaluate(()=>window.__expireAsk());
-      await reply(page,timedOut,{content:question});
-      await expectAll('habit deadline and late reply',{
-        aborted:await page.evaluate(index=>window.__asks[index].signal.aborted,timedOut),
-        reset:await page.$eval('.focus-timer',timer=>!timer.classList.contains('ai-active')),
-        notRecorded:await page.evaluate(()=>window.__spoken.length===2),
-      });
-      ok('habit Ask: invalid/empty/malformed/network/HTTP replies reset quietly; retry and legacy message response work');
-      await page.close();
+      await page.setViewport({width:1280,height:900});await page.waitForFunction(()=>!document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
+      await expectAll('layout and feedback do not regenerate',{oneCall:await page.evaluate(()=>__asks.length===1),noErrors:!errors.length});await page.close();
     }
-
+    {
+      const {page,errors}=await focusFixture();const index=await enter(page);await reply(page,index,payload('','none'));await quiet(page);
+      const restoredSession=await page.evaluate(()=>localStorage.getItem('today_focus_session'));
+      await page.evaluateOnNewDocument(value=>localStorage.setItem('today_focus_session',value),restoredSession);
+      let preparationCalls=0;
+      await page.setRequestInterception(true);
+      page.on('request',request=>{
+        if(request.url().includes('ai-assist')&&request.postData()?.includes('Prepare at most one optional focus suggestion')){preparationCalls++;request.respond({status:503,body:'{}'});}
+        else request.continue();
+      });
+      await page.reload({waitUntil:'domcontentloaded'});await page.waitForSelector('.focus-timer.open');
+      await expectAll('restoring an existing Focus session makes no preparation request',{none:preparationCalls===0,hidden:await page.$eval('.focus-ai-timer-btn',e=>e.hidden),noErrors:!errors.length});await page.close();
+    }
+    {
+      const {page,errors}=await focusFixture();await page.setBypassServiceWorker(true);await page.setCacheEnabled(false);await page.setRequestInterception(true);
+      let failedHelpers=0;
+      page.on('request',request=>{if(new URL(request.url()).pathname==='/assets/focus-ask.js'){failedHelpers++;request.respond({status:503,body:''});}else request.continue();});
+      await page.evaluate(()=>document.querySelector('.task-text').click());await page.waitForSelector('.focus-timer.open');await quiet(page);
+      await expectAll('missing suggestion helper stays silent without a model call',{none:await page.evaluate(()=>__asks.length===0),actuallyUnavailable:failedHelpers===1,noErrors:!errors.length});await page.close();
+    }
     for(const options of [{configured:false},{hoverHover:false}]){
-      const {page,errors}=await habitFixture(options);
-      await page.click('.habit[data-habit-id="habit_read"] .habit-name');
-      if(options.hoverHover!==false){await page.waitForFunction(()=>document.querySelector('.focus-timer.open'));await page.evaluate(()=>{const button=document.querySelector('.focus-ai-timer-btn');if(button.checkVisibility())button.click()});}
-      await expectAll('habit no AI/mobile boundary',{noCall:await page.evaluate(()=>window.__asks.length===0),noErrors:!errors.length});
-      await page.close();
+      const {page,errors}=await focusFixture(options);await page.evaluate(()=>document.querySelector('.task-text').click());
+      if(options.hoverHover!==false)await page.waitForSelector('.focus-timer.open');
+      await expectAll('no connection or mobile means no preparation',{none:await page.evaluate(()=>__asks.length===0),hidden:await page.$$eval('.focus-ai-timer-btn',buttons=>buttons.every(e=>e.hidden)),noErrors:!errors.length});await page.close();
     }
-    ok('habit Ask: no configured AI or touch device makes no request');
+    ok('answer/feedback layout remains responsive; mobile and unconfigured Focus never prepare');
+    console.log('\nFocus tests passed (timer/PiP and contextual suggestion checks).');
 
-    console.log('\nFocus tests passed (post-extraction, 31 check groups).');
   }
 } finally {
   if (browser) await browser.close();

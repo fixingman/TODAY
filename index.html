@@ -402,6 +402,8 @@
       line-height: 1.6;
       pointer-events: auto;
     }
+    .focus-ai-timer-btn[hidden] { display: none; }
+    .focus-timer.ai-ready .focus-ai-timer-btn { color: var(--accent); }
     .focus-ai-timer-btn:hover { opacity: 1; color: var(--text); border-color: var(--border); }
     /* Hide when paused text is showing (they share the left position) */
     #focusPaused.show ~ .focus-ai-timer-btn { opacity: 0; pointer-events: none; }

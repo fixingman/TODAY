@@ -65,7 +65,7 @@ function focus(action,concern){
 }
 function shortcut(canDraft){
   const timer=document.querySelector('.focus-timer'),ask=document.querySelector('.focus-ai-timer-btn');
-  if(ask&&!timer?.classList.contains('ai-active')){
+  if(ask&&!ask.hasAttribute('data-focus-suggestion')&&!timer?.classList.contains('ai-active')){
     ask.textContent=canDraft?'✦︎ draft reply':'✦︎ ask';
     ask.setAttribute('aria-label',canDraft?'Draft reply using this email context':'Ask for focus help');
     if(!canDraft)Today.use('task-enrich').refreshShortcut();

@@ -439,7 +439,7 @@ try {
     manualTasks=[]; doneIds.clear(); _agentCleanupCache();
     __agentSeed('manual_agent_focus','Find white paint');
     window.__enrichCalls=0;
-    window.fetch=async () => { __enrichCalls++; return {ok:true,status:200,json:async () => ({card:{
+    window.fetch=async (_url,options={}) => { if(JSON.parse(options.body||'{}').systemPrompt?.startsWith('Prepare at most one optional focus suggestion'))return {ok:true,status:200,json:async()=>({content:JSON.stringify({kind:'none',text:''})})}; __enrichCalls++; return {ok:true,status:200,json:async () => ({card:{
       icon:'↗',headline:'Paint shop',body:'Open until 18:00',cta:{label:'Visit',href:'https://example.com/paint'},
     }})}; };
     await _agentEnrichTask('manual_agent_focus','Find white paint');
@@ -553,7 +553,7 @@ try {
     document.querySelector('#focusAgentBlock .focus-agent-feedback').click();
     return label;
   });
-  assert(mailPriority.includes('draft reply'),'card hiding preserves the existing Gmail draft shortcut priority',mailPriority);
+  assert(!mailPriority.includes('draft reply'),'card hiding does not relabel the independently prepared Focus cue',mailPriority);
   const exactCard=await page.evaluate(()=>{
     const button=document.querySelector('#focusAgentBlock .focus-agent-feedback');
     const key='agent_enrichment_manual_agent_focus',entry=JSON.parse(localStorage.getItem(key));

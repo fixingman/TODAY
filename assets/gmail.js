@@ -105,7 +105,7 @@
       const block = document.getElementById('focusGmailBlock');
       if (block) { block.hidden = true; block.innerHTML = ''; delete block.dataset.focusTaskId; }
       const ask = document.querySelector('.focus-ai-timer-btn');
-      if (ask && !ask.closest('.ai-active') && /draft reply/i.test(ask.textContent)) {
+      if (ask && !ask.hasAttribute('data-focus-suggestion') && !ask.closest('.ai-active') && /draft reply/i.test(ask.textContent)) {
         ask.textContent = '✦︎ ask'; ask.setAttribute('aria-label','Ask for focus help');
         Today.use('task-enrich').refreshShortcut();
       }

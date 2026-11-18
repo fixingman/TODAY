@@ -190,26 +190,28 @@ window._startFocus = (function() {
   kbdHint.setAttribute('aria-hidden', 'true');
   kbdHint.innerHTML = '<span class="focus-kbd-hints"><kbd>space</kbd> breathe &nbsp;&nbsp; <kbd>esc</kbd> rest</span>';
   let focusAIBtn;
-  let _thinkAnim = null;
+  let _focusCue = null, _focusSuggestionAttempted = false;
   let _focusAIRequest = null;
   let _focusHelp = null, _focusHelpLoading = null;
 
   function _focusResetAI(clearHistory = false) {
+    const wasFocused = document.activeElement === focusAIBtn;
     _focusHelp?.reset(clearHistory);
     timeEl.inert = false; timeEl.removeAttribute('aria-hidden');
     if (_focusAIRequest) {
       const request = _focusAIRequest;
       _focusAIRequest = null;
       clearTimeout(request.timeout);
-      clearTimeout(request.thinkDelay);
       request.controller.abort();
     }
-    if (_thinkAnim) { _thinkAnim.cancel(); _thinkAnim = null; }
-    timerEl.classList.remove('ai-active');
+    if (_focusCue) { _focusCue.cancel(); _focusCue = null; }
+    timerEl.classList.remove('ai-active', 'ai-preparing', 'ai-ready');
     if (focusAIBtn) {
+      focusAIBtn.hidden = true;
       focusAIBtn.classList.remove('loading', 'question-scroll');
       focusAIBtn.textContent = '\u2726\ufe0e ask';
       focusAIBtn.setAttribute('aria-label', 'Ask for focus help');
+      if (wasFocused && timerEl.classList.contains('open') && uiTaskEl?.isConnected) timeEl.focus();
 
       focusAIBtn.style.pointerEvents = 'none';
       requestAnimationFrame(() => { if (focusAIBtn) focusAIBtn.style.pointerEvents = ''; });
@@ -217,19 +219,13 @@ window._startFocus = (function() {
   }
 
   function _focusFailAI(request) {
-    const current = _focusRequestCurrent(request);
-    if (_focusAIRequest !== request) return;
-    _focusResetAI();
-    if (current && !request.habit && focusAIBtn) {
-      focusAIBtn.textContent = 'No reply to show. Try again.';
-      focusAIBtn.setAttribute('aria-label', focusAIBtn.textContent);
-    }
+    if (_focusAIRequest === request) _focusResetAI(true);
   }
 
   function _focusRequestCurrent(request) {
     if (_focusAIRequest !== request || request.controller.signal.aborted ||
         uiTaskId !== request.id || !uiTaskEl?.isConnected ||
-        !uiTaskEl.classList.contains('focused') || !timerEl.classList.contains('ai-active')) return false;
+        !uiTaskEl.classList.contains('focused')) return false;
     return _focusSourceCurrent(request);
   }
 
@@ -255,22 +251,39 @@ window._startFocus = (function() {
       !(habitCompletions[request.id] || []).includes(request.day);
   }
 
-  async function _focusAskAI() {
-    if (timerEl.classList.contains('ai-active')) { _focusResetAI(); return; }
-
-
-    const _gmailBlock = document.getElementById('focusGmailBlock');
-    if (_gmailBlock && !_gmailBlock.hidden) {
-      const _draftBtn = _gmailBlock.querySelector('.focus-gmail-draft-btn:not([hidden])');
-
-      if (_draftBtn) { _draftBtn.click(); return; }
+  function _syncFocusCue() {
+    const ready = timerEl.classList.contains('ai-ready');
+    const visible = ready && !pausedEl.classList.contains('show');
+    if (ready) focusAIBtn.hidden = !visible;
+    if ((!visible || window.matchMedia('(prefers-reduced-motion: reduce)').matches) && _focusCue) {
+      _focusCue.cancel(); _focusCue = null;
     }
-    const _agentBlock = document.getElementById('focusAgentBlock');
-    if (_agentBlock && !_agentBlock.hidden) {
-      const _ctaLink = _agentBlock.querySelector('.focus-agent-link');
-      if (_ctaLink) { window.open(_ctaLink.href, '_blank', 'noopener'); return; }
-    }
+    if (visible && !_focusCue) _focusCue = _loopPulse(focusAIBtn,
+      [{ opacity: 0.55 }, { opacity: 1 }, { opacity: 0.55 }], 2400); // motion-literal: quiet ready-suggestion breath
+  }
 
+  function _focusRevealAI() {
+    const request = _focusAIRequest;
+    if (!request || !_focusRequestCurrent(request)) { _focusResetAI(true); return; }
+    if (request.delivered) {
+      _focusResetAI(true);
+      return;
+    }
+    if (!request.suggestion || focusAIBtn.hidden) return;
+    if (_focusCue) { _focusCue.cancel(); _focusCue = null; }
+    timerEl.classList.remove('ai-ready');
+    timerEl.classList.add('ai-active');
+    timeEl.inert = true; timeEl.setAttribute('aria-hidden','true');
+    focusAIBtn.textContent = request.suggestion;
+    focusAIBtn.setAttribute('aria-label', request.suggestion);
+    if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('focus question', request.suggestion);
+    _focusHelp.offered(request,request.suggestion);
+  }
+
+  async function _focusPrepareAI() {
+    // One attempt per deliberate entry. Restores, ticks, pauses and re-anchors never call this.
+    if (_focusSuggestionAttempted) return;
+    _focusSuggestionAttempted = true;
     if (!Today.use('connections')._aiIsConfigured()) return;
 
     const habitId = uiTaskEl?.dataset.habitId;
@@ -284,18 +297,8 @@ window._startFocus = (function() {
       provider: Today.use('connections')._aiGetProvider(), key: Today.use('connections')._aiGetKey(),
       date: _localISO(), day: habit ? _habitTodayISO() : _localISO(), controller: new AbortController() };
     _focusAIRequest = request;
-    timerEl.classList.add('ai-active');
-    if (!_focusRequestCurrent(request)) { _focusResetAI(); return; }
-    timeEl.inert = true; timeEl.setAttribute('aria-hidden','true');
-    focusAIBtn.textContent = 'thinking…';
-    focusAIBtn.classList.add('loading');
-
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      request.thinkDelay = setTimeout(function() {
-        if (!_focusRequestCurrent(request) || !focusAIBtn.classList.contains('loading')) return;
-        _thinkAnim = focusAIBtn.animate([{ opacity: 0.25 }, { opacity: 0.65 }, { opacity: 0.25 }], { duration: 2400, easing: _motionEasing('--ease-in-out'), iterations: Infinity } /* motion-literal: thinking breath */);
-      }, 150);
-    }
+    timerEl.classList.add('ai-preparing');
+    if (!_focusRequestCurrent(request)) { _focusResetAI(true); return; }
     request.timeout = setTimeout(() => {
       _focusFailAI(request);
     }, 25000);
@@ -336,22 +339,13 @@ window._startFocus = (function() {
         if (_focusAIRequest === request) _focusResetAI();
         return;
       }
-      const q = _parseAIText(data)?.trim();
-      const questions = (q?.match(/\?/g) || []).length;
-      const valid = q && q.split(/\s+/u).length < 20 && !/[!\r\n]/.test(q) &&
-        (questions === 1 ? /\?$/.test(q) : !habit && questions === 0);
-      if (valid) {
-        clearTimeout(request.thinkDelay);
-        if (_thinkAnim) { _thinkAnim.cancel(); _thinkAnim = null; }
-        focusAIBtn.classList.remove('loading', 'question-scroll');
-        focusAIBtn.textContent = q;
-        focusAIBtn.setAttribute('aria-label', q);
-        if (typeof _memoryRecordSpokenLine === 'function') _memoryRecordSpokenLine('focus question', q);
-        _focusHelp.offered(request,q);
-
-      } else {
-        _focusFailAI(request);
-      }
+      const suggestion = help.parseSuggestion(_parseAIText(data),request.habit);
+      if (!suggestion) { _focusFailAI(request); return; }
+      request.suggestion = suggestion;
+      timerEl.classList.remove('ai-preparing');
+      timerEl.classList.add('ai-ready');
+      focusAIBtn.setAttribute('aria-label', 'Show focus suggestion');
+      _syncFocusCue();
     } catch (_) {
       _focusFailAI(request);
     } finally {
@@ -371,16 +365,17 @@ window._startFocus = (function() {
     '<div class="focus-timer-inner" role="complementary" aria-label="Focus timer controls">' +
       '<div class="focus-timer-fill" id="focusFill" role="progressbar" aria-label="Focus session progress" aria-valuemin="0" aria-valuemax="1500" aria-valuenow="0"></div>' +
       '<span class="focus-timer-paused" id="focusPaused">paused</span>' +
-      '<button class="focus-ai-timer-btn" aria-label="Ask for focus help" aria-live="polite" aria-atomic="true">✦ ask</button>' +
+      '<button hidden data-focus-suggestion class="focus-ai-timer-btn" aria-label="Ask for focus help" aria-live="polite" aria-atomic="true">✦ ask</button>' +
       '<button type="button" class="focus-timer-time" id="focusTime" aria-label="Pause focus timer">25:00</button>' +
     '</div>' +
     '<div class="focus-gmail-block" id="focusGmailBlock" hidden></div>' +
     '<div class="focus-agent-block" id="focusAgentBlock" hidden></div>';
   document.body.appendChild(timerEl);
   focusAIBtn = timerEl.querySelector('.focus-ai-timer-btn');
+  window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', _syncFocusCue);
   focusAIBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    _focusAskAI();
+    _focusRevealAI();
   });
 
   const fillEl   = timerEl.querySelector('#focusFill');
@@ -517,6 +512,7 @@ window._startFocus = (function() {
     timeEl.classList.toggle('paused', on);
     fillEl.classList.toggle('paused', on);
     pausedEl.classList.toggle('show', on);
+    _syncFocusCue();
     timeEl.setAttribute('aria-label', on ? 'Resume focus timer' : 'Pause focus timer');
     _breatheRun(fillEl, !on);
   }
@@ -578,7 +574,7 @@ window._startFocus = (function() {
     return true;
   }
 
-  function openUI(taskEl, taskId) {
+  function openUI(taskEl, taskId, prepareSuggestion = false) {
 
     if (uiTaskEl && uiTaskEl !== taskEl) closeUI(false);
     // Supersede the prior close callback before reusing the timer (BUG-065).
@@ -692,6 +688,7 @@ window._startFocus = (function() {
     if (_hdr) {
       document.body.style.paddingTop = _hdr.getBoundingClientRect().height + 'px';
     }
+    if (prepareSuggestion) _focusPrepareAI();
   }
 
 
@@ -743,6 +740,7 @@ window._startFocus = (function() {
     document.getElementById('sidebarRoot')?.classList.remove('focusing');
     _setFocusInert(false, uiTaskEl);
     _focusResetAI(true);
+    _focusSuggestionAttempted = false;
     _updateBreatheOverlay(false);
     _breatheRun(fillEl, false);
     const _gmailBlock = document.getElementById('focusGmailBlock');
@@ -919,7 +917,7 @@ window._startFocus = (function() {
     st.tracked    = false;
     playStartSound();
 
-    openUI(taskEl, taskId);
+    openUI(taskEl, taskId, true);
     _saveSession(taskId, getState(taskId));
     tickFor(taskId);
   }
@@ -1218,7 +1216,7 @@ window._startFocus = (function() {
       // Stop any background tick for this task — openUI + tickFor will restart it
       clearTimeout(tickHandle);
       st.running = false; // temporarily so tickFor doesn't double-fire
-      openUI(focusEl, taskId);
+      openUI(focusEl, taskId, true);
       // openUI's internal close cleared the persisted session; re-assert it here so a
       // re-opened paused task still survives an iOS kill. tickFor overwrites this a
       // moment later in the auto-resume branch, which is harmless. (BUG-065)

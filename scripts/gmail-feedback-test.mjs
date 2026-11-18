@@ -43,7 +43,7 @@ async function fixture(context){
      if(next.hold==='body')return{ok:true,status:200,json:()=>new Promise(resolve=>{__holding={item,release:()=>resolve({content:'Late draft must not appear.'})};})};
      return response(next);
     }
-    if(String(sent.systemPrompt).startsWith('The person explicitly asked for help with one task')){__askRequests.push(sent);return response({content:'Which contract section needs your draft reply?'});}
+    if(String(sent.systemPrompt).startsWith('Prepare at most one optional focus suggestion for a task')){__askRequests.push(sent);return response({content:JSON.stringify({kind:'question',text:'Which contract section needs your draft reply?'})});}
     return response({content:'',isComm:true,searchQuery:'subject:contract'});
    }
    if(address.includes('gmail.googleapis.com')){
@@ -96,19 +96,23 @@ try{
   const{page,errors}=await fixture();
   await page.evaluate(id=>localStorage.setItem('agent_enrichment_'+id,JSON.stringify({v:3,taskText:'Reply about contract',boardId:'',state:'success',fetchedAt:Date.now(),card:{icon:'↗',headline:'Contract reference',body:'Reference for this contract.',cta:{label:'Open',href:'https://example.org/contract'}}})),A);
   await open(page);await page.waitForFunction(()=>document.querySelector('#focusAgentBlock .focus-agent-link'));
-  await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').textContent==='✦︎ draft reply');
+  await page.waitForSelector('.focus-timer.ai-ready');
+  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')),'Show focus suggestion');
+  assert.equal(await page.$eval('#focusGmailBlock .focus-gmail-draft-btn',e=>e.hidden),false);
   await click(page,'gmail.context');
-  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.textContent),'✦︎ open');
-  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')),'Open context source');
+  assert.equal(await page.$eval('#focusAgentBlock .focus-agent-link',e=>e.href),'https://example.org/contract');
+  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')),'Show focus suggestion');
   await page.evaluate(()=>{window.__opened=[];window.open=(...args)=>__opened.push(args);});
-  await page.click('.focus-ai-timer-btn');assert.equal(await page.evaluate(()=>__opened[0][0]),'https://example.org/contract');
-  assert.equal(await page.evaluate(()=>__draftRequests.length+__askRequests.length),0);assert.deepEqual(errors,[]);
-  ok('rejecting mail releases the actual Focus shortcut to available web context, with its matching accessible name');await page.browserContext().close();
+  await page.click('.focus-ai-timer-btn');
+  await page.waitForSelector('.focus-timer.has-focus-answer');
+  assert.equal(await page.evaluate(()=>__opened.length+__draftRequests.length),0);
+  assert.equal(await page.evaluate(()=>__askRequests.length),1);assert.deepEqual(errors,[]);
+  ok('mail/web context actions cannot relabel or hijack the prepared Focus cue; reveal uses the cached suggestion');await page.browserContext().close();
  }
  {
-  const{page,errors}=await fixture();await open(page);await click(page,'gmail.context');
-  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.textContent),'✦︎ ask');
-  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')),'Ask for focus help');
+  const{page,errors}=await fixture();await open(page);await page.waitForSelector('.focus-timer.ai-ready');await click(page,'gmail.context');
+  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.textContent),'✦ ask');
+  assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')),'Show focus suggestion');
   await page.click('.focus-ai-timer-btn');const answer='Which contract section needs your draft reply?';
   await page.waitForFunction(answer=>document.querySelector('.focus-ai-timer-btn').textContent===answer,{},answer);
   assert.equal(await page.evaluate(()=>__draftRequests.length),0);assert.equal(await page.evaluate(()=>__askRequests.length),1);
@@ -116,7 +120,7 @@ try{
   await click(page,'gmail.context');assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.textContent),answer);
   await page.evaluate(()=>Today.use('gmail').closeFocus());
   assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.textContent),answer);assert.equal(await page.$eval('.focus-ai-timer-btn',e=>e.getAttribute('aria-label')),answer);
-  assert.deepEqual(errors,[]);ok('hidden mail returns to task-only Ask; restoring or closing mail preserves an accepted answer and its accessible name');await page.browserContext().close();
+  assert.deepEqual(errors,[]);ok('hiding/restoring/closing mail preserves task-only preparation and the revealed answer');await page.browserContext().close();
  }
  {
   const{page,errors}=await fixture();await open(page);await page.evaluate(()=>__mailCandidates=['first']);await click(page,'gmail.context');await click(page,'gmail.context-retry');
