@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Use the shared boot-readiness observer in the meeting fixture (engineering, app v3.11.4 unchanged)
+
+Full dev run 44186586652 passed the scroll suites and performance gate but rejected meeting-test's startup timeout followed by a diagnostic retry pass. Replace its older animation-frame owner-only observer with the existing timer-polled waitForAppReady helper, requiring completed boot and the meeting API/button within the unchanged15-second deadline. Gate the first real startup yield and suspend animation-frame callbacks until readiness succeeds, then restore normal frames before exercising unchanged capability/media assertions. Preserve the original failure: its log lacks boot/visibility diagnostics, so the exact hosted cause cannot be established retroactively. The shared helper adds those diagnostics for future failures. No application/runtime change.
+
 ## Limit mobile opening scroll-to-top to Habits (app v3.11.4)
 
 Can corrects the v3.11.3 scope: only the inline Habits sheet needs the viewport returned to its top-opening position. Restrict both immediate and generation-fenced layout resets to mobile Habits; remove the new reset from full-screen/loading panel entry. Remove Explore's new first-visit override and restore its original conversation-follow behavior. Retain Habits' free later reading/current-position close and desktop isolation. Update the platform/real-conversation regressions to require preservation of full-screen panel reading positions, alongside Habits opening/close tests. Installed phone acceptance remains separate.
