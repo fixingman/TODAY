@@ -86,7 +86,9 @@
     for (const record of selected) {
       if (record.appliedAt) result.applied++;
       if (record.dismissedAt) result.dismissed++;
-      if (record.ignoredAt) result.ignored++;
+      // Before exposure 2, a row hidden under the add bar could count as ignored; those
+      // timeouts are not evidence. Explicit dismissals, applies and reversals still count.
+      if (record.ignoredAt && record.exposure >= 2) result.ignored++;
       if (record.reversedAt && !record.helpedAt) result.reversed++;
       if (record.helpedAt) result.helped++;
       if (record.appliedAt && (!record.reversedAt || record.helpedAt)) result.retained++;

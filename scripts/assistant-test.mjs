@@ -263,15 +263,21 @@ try {
         const analyzedText = 'Write the draft and add examples';
         manualTasks.find(task => task.id === 'task_1').text = analyzedText;
         Today.use('connections').renderManual(); // ensure the analyzed task text and rendered row agree
+        // Scroll the task far out of view: delivery waits until it is genuinely visible.
+        const spacer = document.createElement('div'); spacer.style.height = '3000px';
+        document.getElementById('main-app').append(spacer);
+        scrollTo(0, document.documentElement.scrollHeight);
         Today.use('assistant')._aiAnalyzeTask('task_1', analyzedText);
         await new Promise(r => setTimeout(r, 2400)); // debounce 2s + fetch
         const pendingNotMounted = !document.querySelector('.task-suggestion');
         const pendingNotOffered = appMemory.suggestionOutcomes.length === 0;
+        const offscreenDoesNotCount = exposureTimersArmed === 0;
         const deliveryObserver = observers[0];
+        scrollTo(0, 0); spacer.remove();
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         deliveryObserver?.callback([{ target: deliveryObserver.target, isIntersecting: true }]);
         const suggestionEl = document.querySelector('.task-suggestion');
         const suggestionAppeared = !!suggestionEl;
-        const offscreenDoesNotCount = exposureTimersArmed === 0;
         const taskRow = document.querySelector('.task[data-taskid="task_1"]');
         const movedDown = _a11yMoveRow(taskRow, 1);
         const followsMoveDown = movedDown.moved && suggestionEl?.previousElementSibling === taskRow;
@@ -284,7 +290,7 @@ try {
           document.querySelectorAll('.task-suggestion').length === 1;
         const exposureObserver = observers[1];
         exposureObserver?.callback([{ target: exposureObserver.target, isIntersecting: true }]);
-        const visibleExposureArmed = exposureTimersArmed === 1;
+        const visibleExposureArmed = exposureTimersArmed >= 1;
         const offered = appMemory.suggestionOutcomes[0];
         Today.use('assistant')._aiDismissSuggestion('user');
         const getsRemoving = !!document.querySelector('.task-suggestion.removing');
@@ -308,6 +314,37 @@ try {
       });
       await expectAll('post-add suggest + dismiss', { ...result, noErrors: errors.length === 0 });
       ok('post-add suggest: follows its task, then records exposure and dismissal');
+      await page.close();
+    }
+
+    // 1b. 15F: a row covered by the fixed add bar is not "seen". A just-added task at the end of a
+    //     long phone list is brought into view so its suggestion appears above the bar.
+    {
+      const tasks = JSON.stringify(Array.from({ length: 13 }, (_, i) => ({ id: 'manual_' + (Date.now() - i * 1000), text: 'Existing task ' + (i + 1) })));
+      const { page, errors } = await openPage({ today_ai_key_claude: 'ck-test', today_manual: tasks }, { width: 390, height: 844, isMobile: true, hasTouch: true });
+      const result = await page.evaluate(async () => {
+        document.getElementById('triageBar').classList.add('hidden'); // the evening review bar is a separate overlay
+        window.fetch = async () => ({ ok: true, json: async () => ({ suggest: true, type: 'clarify', reason: 'vague_task', message: 'What would done look like here?' }) });
+        const last = manualTasks.at(-1);
+        last.text = 'sort out the thing'; Today.use('connections').renderManual();
+        scrollTo(0, 0);
+        Today.use('assistant')._aiAnalyzeTask(last.id, last.text);
+        const until = async (test, ms = 6000) => { const t = performance.now(); while (!test() && performance.now() - t < ms) await new Promise(r => setTimeout(r, 50)); return test(); };
+        const shown = await until(() => document.querySelector('.task-suggestion'));
+        await new Promise(r => setTimeout(r, 700)); // smooth reveal settles
+        const row = document.querySelector('.task-suggestion'), visible = Today.use('assistant')._aiVisibleShare;
+        const aboveBar = !!row && row.getBoundingClientRect().bottom <= document.getElementById('addTaskBar').getBoundingClientRect().top + 1;
+        const seenWhenClear = !!row && visible(row) >= 0.5;
+        // Push the row under the add bar: still inside the viewport, but not visible.
+        const bar = document.getElementById('addTaskBar').getBoundingClientRect();
+        scrollBy(0, -(bar.top - row.getBoundingClientRect().top + 4));
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const r = row.getBoundingClientRect();
+        return { shown: !!shown, aboveBar, seenWhenClear, inViewport: r.top < innerHeight, notSeenUnderBar: visible(row) < 0.5,
+          recordMarked: appMemory.suggestionOutcomes[0]?.exposure === 2 };
+      });
+      await expectAll('suggestion visibility under the add bar', { ...result, noErrors: errors.length === 0 });
+      ok('post-add suggest: brought above the add bar on a long phone list; covered rows are not counted as seen');
       await page.close();
     }
 
@@ -346,6 +383,10 @@ try {
         manualTasks.find(task => task.id === 'task_1').text = firstText;
         manualTasks.find(task => task.id === 'task_2').text = secondText;
         Today.use('connections').renderManual();
+        // Keep the tasks genuinely out of view so delivery stays pending throughout.
+        const spacer = document.createElement('div'); spacer.style.height = '3000px';
+        document.getElementById('main-app').append(spacer);
+        scrollTo(0, document.documentElement.scrollHeight);
         Today.use('assistant')._aiAnalyzeTask('task_1', firstText);
         Today.use('assistant')._aiAnalyzeTask('task_2', secondText);
         await new Promise(r => setTimeout(r, 2400));

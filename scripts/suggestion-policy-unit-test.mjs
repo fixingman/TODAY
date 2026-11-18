@@ -39,8 +39,13 @@ assert.equal(policy.groundedBreakdown('Write the draft and add examples',Array(2
 assert.equal(policy.resolveBreakdown('Write the draft and add examples',{subtasks:['Compose a draft','Include examples']}),null,'Legacy paraphrases remain untrusted');
 assert.deepEqual(Array.from(policy.resolveBreakdown('Write the draft and add examples',{subtasks:['Write the draft','Add examples']})),['Write the draft','add examples']);
 const failures = Array.from({ length: 4 }, (_, i) => ({
-  id: String(i), reason: 'vague_task', ignoredAt: `2026-09-0${i + 1}`,
+  id: String(i), reason: 'vague_task', ignoredAt: `2026-09-0${i + 1}`, exposure: 2,
 }));
+// Ignores recorded before visible-band exposure (no exposure: 2) are not evidence (15F).
+const legacy = failures.map(({ exposure, ...rest }) => rest);
+assert.equal(policy.stats(legacy, 'vague_task').ignored, 0);
+assert.equal(policy.stats(legacy, 'vague_task').underperforming, false);
+assert.equal(policy.stats([...legacy, { id: 'd', reason: 'vague_task', dismissedAt: '2026-09-09' }], 'vague_task').dismissed, 1, 'explicit dismissals still count');
 assert.equal(policy.stats(failures, 'vague_task').underperforming, true);
 const exploration = Array.from({ length: 20 }, (_, i) => policy.shouldOffer(failures, 'vague_task', `task-${i}`));
 assert.ok(exploration.some(Boolean) && exploration.some(value => !value));

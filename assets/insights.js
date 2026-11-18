@@ -609,6 +609,7 @@ function _suggestionOutcomeRecord(details) {
     reasonText: (details.message || '').slice(0, 120),
     offeredAt: now,
     updatedAt: now,
+    exposure: 2, // "ignored" means seen above the add bar (15F); older ignores were not
   });
   appMemory.suggestionOutcomes = appMemory.suggestionOutcomes.slice(0, SUGGESTION_OUTCOME_LIMIT);
   _saveMemory();

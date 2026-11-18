@@ -337,7 +337,7 @@ The existing Split control remains explicit. Before replacement, require the sti
 
 - **Applied:** the split chip was used; generated task IDs are attached to the offer.
 - **Dismissed:** the explicit close chip was used.
-- **Ignored:** the row accumulated ten seconds while both intersecting the viewport and in a visible document, then auto-expired. Off-screen time, background-tab time, and programmatic replacement are not counted.
+- **Ignored:** the row accumulated ten seconds with at least half of it inside the visible band (below the sticky header, above the fixed add bar and triage bar) in a visible document, then auto-expired. Off-screen time, time covered by those bars, background-tab time and programmatic replacement are not counted. Records carry `exposure: 2`; ignores without it (before v3.11.6, when a row under the add bar still counted) are not reason evidence. Delivery uses the same band; a just-added task sitting just below it is scrolled into view with room for its row.
 - **Helped:** at least one generated step was later completed. This is the positive preference signal; application alone is weaker intent evidence.
 - **Later reversed:** after a ten-minute undo grace, the original task was recreated or every generated step was deleted/let go before any generated step completed. Duplicate originals already present at apply time are excluded. Moving a step to Soon is not reversal.
 

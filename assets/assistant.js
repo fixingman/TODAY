@@ -141,17 +141,53 @@ function _aiCancelPendingSuggestion(pending = _aiPendingSuggestion) {
   if (!pending || pending !== _aiPendingSuggestion) return;
   pending.intersectionObserver?.disconnect();
   pending.mutationObserver?.disconnect();
-  if (pending.onScroll) window.removeEventListener('scroll', pending.onScroll);
-  if (pending.onResize) window.removeEventListener('resize', pending.onResize);
+  pending.stopGeometry?.();
   if (pending.onVisibility) document.removeEventListener('visibilitychange', pending.onVisibility);
   _aiPendingSuggestion = null;
 }
 
+// The band a person can actually see: below the sticky header, above the fixed add bar and
+// triage bar. A row under the add bar is in the viewport but covered (15F: offers at the bottom
+// of the list were recorded as "ignored" while hidden behind it).
+function _aiClearBand() {
+  let top = 0, bottom = window.visualViewport?.height || window.innerHeight;
+  const covers = el => {
+    if (!el || el.hidden) return null;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) return null;
+    const r = el.getBoundingClientRect();
+    return r.height > 0 && r.bottom > 0 && r.top < bottom ? r : null;
+  };
+  const header = covers(document.getElementById('sticky-header'));
+  if (header && header.top <= 0) top = Math.max(top, header.bottom);
+  for (const id of ['addTaskBar', 'triageBar']) {
+    const r = covers(document.getElementById(id));
+    if (r && r.top > top) bottom = Math.min(bottom, r.top);
+  }
+  return { top, bottom };
+}
+function _aiVisibleShare(el) {
+  if (!el?.isConnected || document.visibilityState !== 'visible') return 0;
+  const r = el.getBoundingClientRect(), band = _aiClearBand();
+  if (!r.height || r.right <= 0 || r.left >= window.innerWidth) return 0;
+  return Math.max(0, Math.min(r.bottom, band.bottom) - Math.max(r.top, band.top)) / r.height;
+}
 function _aiTaskInDeliveryZone(taskEl) {
-  if (!taskEl?.isConnected || document.visibilityState !== 'visible') return false;
-  const rect = taskEl.getBoundingClientRect();
-  const deliveryBottom = Math.max(0, window.innerHeight - 64);
-  return rect.bottom > 0 && rect.right > 0 && rect.top < deliveryBottom && rect.left < window.innerWidth;
+  return _aiVisibleShare(taskEl) >= 0.5;
+}
+// Re-check geometry on anything that can uncover or cover a row.
+function _aiWatchGeometry(callback) {
+  let frame = 0;
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; callback(); }); };
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', schedule, { passive: true });
+  window.visualViewport?.addEventListener('resize', schedule);
+  return () => {
+    cancelAnimationFrame(frame);
+    window.removeEventListener('scroll', schedule);
+    window.removeEventListener('resize', schedule);
+    window.visualViewport?.removeEventListener('resize', schedule);
+  };
 }
 
 function _aiQueueSuggestion(taskId, analyzedText, data) {
@@ -181,14 +217,18 @@ function _aiQueueSuggestion(taskId, analyzedText, data) {
     pending.intersectionObserver?.disconnect();
     pending.taskEl = taskEl;
     if (typeof IntersectionObserver === 'function') {
-      pending.intersectionObserver = new IntersectionObserver(entries => {
-        if (_aiPendingSuggestion !== pending) return;
-        if (entries.some(entry => entry.target === taskEl && entry.isIntersecting) &&
-            document.visibilityState === 'visible') show(taskEl);
-      }, { rootMargin: '0px 0px -64px 0px', threshold: 0.25 });
+      pending.intersectionObserver = new IntersectionObserver(() => {
+        if (_aiPendingSuggestion === pending && _aiTaskInDeliveryZone(taskEl)) show(taskEl);
+      }, { threshold: [0, 0.25, 0.5, 0.75, 1] });
       pending.intersectionObserver.observe(taskEl);
-    } else if (_aiTaskInDeliveryZone(taskEl)) {
-      show(taskEl);
+    }
+    if (_aiTaskInDeliveryZone(taskEl)) { show(taskEl); return; }
+    // A just-added task often lands under the add bar at the end of the list. If it sits just
+    // below the visible band (the person is at the bottom of the list), bring it and room for
+    // its row into view; further away means they scrolled elsewhere, so wait instead.
+    const band = _aiClearBand(), r = taskEl.getBoundingClientRect();
+    if (r.top >= band.top && r.top <= band.bottom + r.height) {
+      window.scrollBy({ top: r.bottom + 52 - band.bottom, behavior: _motionReduced() ? 'auto' : 'smooth' });
     }
   };
   const list = $.manualList || document.getElementById('manualList');
@@ -207,15 +247,9 @@ function _aiQueueSuggestion(taskId, analyzedText, data) {
     if (_aiPendingSuggestion === pending && _aiTaskInDeliveryZone(pending.taskEl)) show(pending.taskEl);
   };
   document.addEventListener('visibilitychange', pending.onVisibility);
-  if (typeof IntersectionObserver !== 'function') {
-    pending.onScroll = () => {
-      attach();
-      if (_aiPendingSuggestion === pending && _aiTaskInDeliveryZone(pending.taskEl)) show(pending.taskEl);
-    };
-    pending.onResize = pending.onScroll;
-    window.addEventListener('scroll', pending.onScroll, { passive: true });
-    window.addEventListener('resize', pending.onResize, { passive: true });
-  }
+  pending.stopGeometry = _aiWatchGeometry(() => {
+    if (_aiPendingSuggestion === pending && _aiTaskInDeliveryZone(pending.taskEl)) show(pending.taskEl);
+  });
   attach();
 }
 
@@ -248,6 +282,11 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   row.appendChild(msg);
   row.appendChild(chips);
   taskEl.insertAdjacentElement('afterend', row);
+  // The task was in view (delivery requires it); if its new row landed under the add bar,
+  // scroll just enough to show it. Only scroll down, never past the task itself.
+  const band = _aiClearBand(), rowRect = row.getBoundingClientRect(), taskTop = taskEl.getBoundingClientRect().top;
+  const need = rowRect.bottom + 8 - band.bottom;
+  if (need > 0 && taskTop - need >= band.top) window.scrollBy({ top: need, behavior: _motionReduced() ? 'auto' : 'smooth' });
   if (appMemory?.patterns?.inlineSuggestions) {
     appMemory.patterns.inlineSuggestions.offered++;
   }
@@ -299,20 +338,17 @@ function _aiStartSuggestionExposure(current) {
   };
   const onVisibility = () => update();
   document.addEventListener('visibilitychange', onVisibility);
+  // Seen = at least half the row inside the clear band, not merely inside the viewport.
+  const recheck = () => { const next = _aiVisibleShare(current.element) >= 0.5; if (next !== intersecting) { intersecting = next; update(); } };
   let observer = null;
   if (typeof IntersectionObserver === 'function') {
-    observer = new IntersectionObserver(entries => {
-      intersecting = entries.some(entry => entry.target === current.element && entry.isIntersecting);
-      update();
-    }, { threshold: 0.01 });
+    observer = new IntersectionObserver(recheck, { threshold: [0, 0.25, 0.5, 0.75, 1] });
     observer.observe(current.element);
-  } else {
-    const rect = current.element.getBoundingClientRect();
-    intersecting = rect.bottom > 0 && rect.right > 0 &&
-      rect.top < window.innerHeight && rect.left < window.innerWidth;
-    update();
   }
+  const stopGeometry = _aiWatchGeometry(recheck);
+  recheck();
   current.stopExposure = () => {
+    stopGeometry();
     if (exposureStartedAt !== null) exposedMs += performance.now() - exposureStartedAt;
     exposureStartedAt = null;
     clearTimeout(timer);
@@ -394,6 +430,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks, sourceText) {
         _aiDismissSuggestion,
         _aiReanchorSuggestion,
         _aiApplyBreakdown,
+        _aiVisibleShare,
       });
     }
   };
