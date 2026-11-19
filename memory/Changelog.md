@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Wait for settled Focus layout before comparing feedback geometry (engineering, app v3.12.1 unchanged)
+
+Dev CI 44426188188 passed the enrichment checks but rejected focus-test's exact geometry assertion twice. Local reproduction records loaded fonts and identical x/width/height while y moves during startup/Focus entrance animations. Wait within a bounded three-second predicate for loaded fonts and existing finite layout-affecting motion to finish before and after feedback, excluding the independent progress-fill animation. Keep exact rectangle equality and report both rectangles on failure. Preserve the original failed run and controls; no product CSS, animation timing or geometry tolerance changes. The owning suite and an intentionally shifted feedback-answer control verify that real layout movement still fails.
+
 ## Task context recognizes natural lookup wording (app v3.12.1)
 
 15E real-use diagnosis showed zero current tasks admitted by either lookup filter. Add bounded web check/view/track and specific shopping forms, plus Gmail artifact-lookup classification, without another judge call, broader source input or a change to provider/auth/relevance rules. Strip only recognized leading lookup scaffolding before the new Gmail fallback and relevance matching; preserve named evidence. Reconsider an old negative artifact classification once using lookupPolicy, then cache current declines normally. HTTP/response/network/timeout web failures emit content-free console stage/status and remain retryable rather than becoming false no-result cache entries. Tests cover natural eligible/ineligible cases, unchanged mailbox grounding, legacy/current rejection behavior and actual typed capture → source calls → indicators → Focus delivery with fictional responses. Live usefulness/account acceptance remains open.
