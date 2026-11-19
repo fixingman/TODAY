@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Backlog #15F rows reflect the November 18 suggestion findings (engineering, app v3.12.1 unchanged)
+
+The v3.11.6 release added a #15F visibility Watching row but left three rows saying suggestions had not been seen. The verdict-loop, sub-item and recovery rows now record the backup counts (50 offers: 29 ignored, mostly hidden under the add bar; 12 dismissed; 1 applied then reversed), BUG-173, and the 2026-12-02 re-judgement.
+
 ## Wait for settled Focus layout before comparing feedback geometry (engineering, app v3.12.1 unchanged)
 
 Dev CI 44426188188 passed the enrichment checks but rejected focus-test's exact geometry assertion twice. Local reproduction records loaded fonts and identical x/width/height while y moves during startup/Focus entrance animations. Wait within a bounded three-second predicate for loaded fonts and existing finite layout-affecting motion to finish before and after feedback, excluding the independent progress-fill animation. Keep exact rectangle equality and report both rectangles on failure. Preserve the original failed run and controls; no product CSS, animation timing or geometry tolerance changes. The owning suite and an intentionally shifted feedback-answer control verify that real layout movement still fails.
