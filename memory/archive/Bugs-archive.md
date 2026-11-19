@@ -18,11 +18,12 @@
 
 | # | Description | Status |
 |---|---|---|
-| 172 | Single functional artifact download fails the CI result combiner. | ✅ Hosted single-worker gate 43975777473; 2026-11-17 |
+| 172 | Single functional artifact download fails the CI result combiner. | ✅ Hosted single-worker gate 43975777473; 2026-11-17 (v3.10.11 engineering, CI-only fix) |
 | 171 | Earlier days' finished tasks inflate the done count after sync. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
 | 170 | Explore hides credit failures behind generic retry. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
 | 169 | The habit name field in edit mode stayed 13.5px on phones, so iOS zooms when it is focused. | ✅ Can verified on device, 2026-11-19 (v3.10.6) |
 | 168 | Explore's Connections plug misses the expired-sign-in attention state. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
+| 167 | Habit focus loses the timer and focused row after renderHabits() wipes the list (sync, completion, day change). | ✅ Verified (other session's on-device check, recorded in Bugs.md); archived 2026-11-19 (v3.10.3) |
 | 165 | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | ✅ Can verified on device, 2026-11-19 (v3.10.2) |
 | 164 | A splash poem fading in just after midnight is recorded as the new day's, so the next morning shows no poem. | ✅ Midnight-crossing splash regression fails on v3.10.0, passes on v3.10.1; 2026-11-14 |
 | 163 | About left open across midnight keeps showing yesterday's poem. | ✅ About-open midnight regression fails before, passes after; 2026-11-14 |
@@ -243,6 +244,16 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 **Fix:** see the v-release changelog entry. Verify on device with an expired Gmail, Dropbox or Calendar sign-in: ✧ and the plug both breathe; opening Connections in Explore stops both until the next day.
 
 **Verified November 17, 2026 — actual-component expired-sign-in checks for all three services:** expanded `connections-test` to seed Gmail, Dropbox and Calendar expired-sign-in states separately. At desktop width the main entrance and Explore plug both carry attention; the plug has an active animation and the accessible sign-in label. Opening Connections inside Explore, closing and reopening Explore leaves both attention indicators and the plug animation off with the ordinary label restored. All three cases pass with no page errors. Fresh receipt `.context/fresh-RMjGlE/receipt.json`: invariants and Connections pass first attempt with zero failures/flakes. This verifies the warning/seen behavior with fictional local states, not account reconnection or a real expired credential. No personal account or device interaction is required for the reported defect.
+
+---
+
+## BUG-167 — Habit focus loses timer and focused row on re-render
+
+**Report (November 14):** While a habit is focused, the focus timer and the habit row content can disappear. The focused task itself vanishes from the DOM.
+
+**Root cause:** `renderHabits()` in habits.js does `list.innerHTML = ''` to rebuild the habit list. This destroys all child elements including the focused `.habit` row and the `timerEl` / `kbdHint` that `openUI` inserted after it via `taskEl.after(timerEl)`. Triggered by: sync from Dropbox, completing another habit, completing the focused habit's linked task, or the day changing at 3am.
+
+**Fix (habits.js + focus.js):** Before `list.innerHTML = ''`, if a focused habit is in the list, `timerEl` and `kbdHint` are moved to `document.body`. After the list is rebuilt, `window._focusReanchorHabit(newRow)` updates `uiTaskEl`, adds `.focused` to the fresh row, reinserts the timer elements, and re-applies `_setFocusInert` on the new siblings.
 
 ---
 

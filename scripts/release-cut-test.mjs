@@ -67,6 +67,9 @@ console.log('  ✓ versions follow the Rules table; bug numbers continue after t
   // A rejected bug shipped with an engineering note has no version reference.
   const rejected = note('no-fix.md', 'bug: Not fixing\nstatus: 🚫 Rejected\nsummary: Decided against.');
   assert.match(cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, notes: [docs, rejected], maxBug: 166 }).bugs, /\| 167 \| 🚫 Rejected \| Decided against\. \| — \|/);
+  // A fix in an engineering cut still records which release carried it.
+  const ciFix = note('ci-fix.md', 'bug: CI combiner\nstatus: ⏳ Verify\nsummary: Combiner misses flat downloads.');
+  assert.match(cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, notes: [docs, ciFix], maxBug: 166 }).bugs, /\| 167 \| ⏳ Verify \| Combiner misses flat downloads\. \| v3\.10\.3 \(engineering\) \|/);
 }
 assert.throws(() => cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, notes: [], maxBug: 1 }), /Nothing to release/);
 assert.throws(() => cut({ index: index(), sw: sw('3.10.3'), changelog, bugs, notes: [bug], maxBug: 1 }), /change note/);

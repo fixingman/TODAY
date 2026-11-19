@@ -114,7 +114,8 @@ export function cut({ index, sw, changelog, bugs, notes, maxBug }) {
 
   if (newBugs.length) {
     const ordered = [...newBugs].sort((a, b) => assigned[b.slug] - assigned[a.slug]);
-    const reference = n => appChanged && ['⏳ Verify', '🔧 Local'].includes(n.status) ? `v${version}` : '—';
+    // A fix shipped in an engineering cut still names its release; only rejected/open bugs have none.
+    const reference = n => !['⏳ Verify', '🔧 Local'].includes(n.status) ? '—' : appChanged ? `v${version}` : `v${current} (engineering)`;
     const rows = ordered.map(n => `| ${assigned[n.slug]} | ${n.status} | ${fill(n.summary)} | ${reference(n)} |\n`).join('');
     const divider = '|---|---|---|---|\n', at = bugs.indexOf(divider);
     if (at < 0) fail('memory/Bugs.md: status table not found');
