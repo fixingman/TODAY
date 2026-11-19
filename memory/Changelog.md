@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Task context recognizes natural lookup wording (app v3.12.1)
+
+15E real-use diagnosis showed zero current tasks admitted by either lookup filter. Add bounded web check/view/track and specific shopping forms, plus Gmail artifact-lookup classification, without another judge call, broader source input or a change to provider/auth/relevance rules. Strip only recognized leading lookup scaffolding before the new Gmail fallback and relevance matching; preserve named evidence. Reconsider an old negative artifact classification once using lookupPolicy, then cache current declines normally. HTTP/response/network/timeout web failures emit content-free console stage/status and remain retryable rather than becoming false no-result cache entries. Tests cover natural eligible/ineligible cases, unchanged mailbox grounding, legacy/current rejection behavior and actual typed capture → source calls → indicators → Focus delivery with fictional responses. Live usefulness/account acceptance remains open.
+
 ## Focus offers help only when a suggestion is ready (app v3.12.0)
 
 Can approved one automatic task-only/name-only preparation per deliberate desktop Focus entry. Ask is hidden during preparation, abstention, malformed output and failure; one closed-format question/action can earn the existing button's quiet ready breath. Reveal is cached, not another request, and only then records a shown line/enables feedback. Dismissal consumes the visit; pause/resume, restoration, re-anchor and feedback never generate. Current-source/config/day/wording fences cover pending, ready and revealed states; no retry or second judge call. Whole votes remain transient, optional fixed same-owner wording retains its approved caps, and no prepared prose enters persistence/sync/backup. Owning Focus and wording tests cover availability, abstention, timers, source withdrawal, delayed bodies, deadline, keyboard/reduced motion and exact-answer feedback. Real-model usefulness and installed feel remain acceptance work.
