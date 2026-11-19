@@ -103,7 +103,17 @@
       });
     }).catch(error => { _feedbackLoading = null; throw error; });
   }
-  const _enrichShouldTrigger = text => typeof text === 'string' && text.length <= 500 && TRIGGER_RE.test(text);
+  function _enrichShouldTrigger(text) {
+    if (typeof text !== 'string' || text.length > 500) return false;
+    if (TRIGGER_RE.test(text)) return true;
+    const lookup = text.match(/^\s*(?:check(?:\s+(?:on|out))?|view|track)\s+(.+)$/i);
+    if (lookup && (lookup[1].match(/[\p{L}\p{N}]+/gu) || []).filter(word=>!/^(?:a|an|the|my|our)$/i.test(word)).length >= 2 && /\b(?:prices?|options?|availability|hours|directions|flights?|tickets?|reservations?|bookings?|invoices?|receipts?|shipments?|delivery|deliveries|warranty|verification|(?:order|application)\s+status)\b/i.test(lookup[1])) return true;
+    if (/^\s*(?:search\s+for|look\s+into)\s+\S/i.test(text)) return true;
+    const purchase = text.match(/^\s*(?:buy|shop\s+for)\s+(.+)$/i);
+    if (!purchase || /\b(?:and|or)\b|[,;]/i.test(purchase[1])) return false;
+    const object = purchase[1].match(/[\p{L}\p{N}]+/gu) || [];
+    return object.filter(word => !/^(?:a|an|the|my|our|some|new|more)$/i.test(word)).length >= 2;
+  }
 
   function _agentEnrichTask(taskId, taskText, retry = null) {
     const existing = _getCache(taskId);
@@ -117,13 +127,13 @@
     const request = { text:taskText, source, controller:new AbortController(), view:retry?.view, epoch:_feedbackEpoch };
     const cache = localStorage.getItem(CACHE_PREFIX + taskId);
     _inflight.set(taskId, request);
-    const current = () => _inflight.get(taskId) === request && !request.controller.signal.aborted
+    const current = (allowTimeout = false) => _inflight.get(taskId) === request && (!request.controller.signal.aborted || (allowTimeout && request.timedOut))
       && _task(taskId)?.text === taskText && _sourceKey() === source
       && cache === localStorage.getItem(CACHE_PREFIX + taskId) && request.epoch === _feedbackEpoch
       && (!request.support || request.support === _feedbackComponent.snapshot().stamp)
       && (!retry || _viewCurrent(retry.view));
     request.promise = (async () => {
-      const timeout = setTimeout(() => request.controller.abort(), 26000);
+      const timeout = setTimeout(() => { request.timedOut = true; request.controller.abort(); }, 26000);
       try {
         const help = await Promise.race([_feedback(),new Promise((_,reject) => {
           request.controller.signal.addEventListener('abort',() => reject(new DOMException('Aborted','AbortError')),{once:true});
@@ -136,12 +146,12 @@
             ...(retry ? {avoidSource:help.avoidSource(retry.entry)} : {}) }),
         });
         if (!current()) return 'stale';
-        if (!res.ok) return 'failed';
+        if (!res.ok) { console.warn('[task context]',{stage:'http',status:res.status}); return 'failed'; }
         const data = await res.json();
         if (!current()) return 'stale';
-        if (!data || !Object.hasOwn(data,'card')) return 'failed';
+        if (!data || !Object.hasOwn(data,'card')) { console.warn('[task context]',{stage:'response',status:'invalid'}); return 'failed'; }
         const card = _card(data.card);
-        if (data.card !== null && !card) return 'failed';
+        if (data.card !== null && !card) { console.warn('[task context]',{stage:'response',status:'invalid-card'}); return 'failed'; }
         if (retry && (!card || JSON.stringify(card) === JSON.stringify(_card(existing.card)))) return 'empty';
         if (_setCache(taskId, { v:CACHE_VERSION, state:card ? 'success' : 'no_result', card,
           taskText, boardId:JSON.parse(source).trelloBoardId, fetchedAt:Date.now(),
@@ -150,7 +160,7 @@
           return 'updated';
         }
         return 'failed';
-      } catch (_) { return current() ? 'failed' : 'stale'; }
+      } catch (_) { if (!current(true)) return 'stale'; console.warn('[task context]',{stage:request.timedOut?'timeout':'request',status:'failed'}); return 'failed'; }
       finally {
         clearTimeout(timeout);
         if (_inflight.get(taskId) === request) _inflight.delete(taskId);

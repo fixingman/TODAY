@@ -103,6 +103,12 @@ try {
       && ranking.lexicalBoundary.status === 'weak-match' && ranking.libraryLoads === 1,
     'ambiguous, unsupported and lexical-only misses stay silent; the same local library serves subsequent rankings', ranking);
 
+  const lookupRanking=await page.evaluate(async()=>{
+    const candidate={threadId:'fictional-ticket',subject:'Flight tickets',from:'Airline <travel@example.test>',snippet:'Your flight tickets are confirmed.',date:'2026-11-18'};
+    return {matched:await Today.use('gmail').rankCandidates('Check my flight tickets',[candidate]),unrelated:await Today.use('gmail').rankCandidates('Check my train tickets',[candidate]),reservation:await Today.use('gmail').rankCandidates('Check museum reservation',[{...candidate,threadId:'fictional-reservation',subject:'Museum reservation',snippet:'Your museum reservation is confirmed.'}]),fallback:_gmailBuildQueryFallback('Check my flight tickets')};
+  });
+  assert(lookupRanking.matched.result?.threadId==='fictional-ticket'&&!lookupRanking.unrelated.result&&lookupRanking.reservation.result?.threadId==='fictional-reservation'&&lookupRanking.fallback==='subject:"flight tickets"','lookup verbs are not email evidence; named artifact terms still have to match',lookupRanking);
+
   const fallback = await page.evaluate(() => ({
     topic: _gmailBuildQueryFallback('Follow up on the three proposals we sent last week'),
     topicUnsent: _gmailBuildQueryFallback('Follow up on renewal'),
@@ -873,6 +879,63 @@ try {
     Today.use('gmail').closeFocus();return result;
   });
   assert(draftDeadline,'a stalled draft body reaches its deadline, resets the native button and cannot paint late prose');
+
+  // Real task entry -> independent lookups -> row indicators -> cached Focus delivery.
+  // All source responses are fictional; this is not live account/usefulness proof.
+  const captureContext = async (taskText, mailExpected, decline = false) => {
+    const context = await browser.createBrowserContext(), capture = await context.newPage(), errors=[];
+    capture.on('pageerror',error=>errors.push(error.message));
+    try {
+      await capture.setViewport({width:1200,height:900});
+      await capture.evaluateOnNewDocument(({taskText,decline})=>{
+        localStorage.clear();
+        for(const [key,value]of Object.entries({splash_shown_at:String(Date.now()),today_ai_provider:'claude',today_ai_key_claude:'fictional-key',gmail_access_token:'fictional-access',gmail_refresh_token:'fictional-refresh',gmail_token_expiry:String(Date.now()+3600000)}))localStorage.setItem(key,value);
+        window.__delivery={web:0,classify:0,mail:0};const original=window.fetch.bind(window),reply=data=>Promise.resolve({ok:true,status:200,json:async()=>data});
+        window.fetch=(url,options={})=>{
+          const address=String(url);
+          if(address.includes('/task-enrich')){__delivery.web++;return reply({card:{headline:'Flight ticket reference',body:'Fictional supporting context',cta:{label:'Open',href:'https://example.test/tickets'}}});}
+          if(address.includes('/ai-assist')){
+            const body=JSON.parse(options.body);
+            if(body.systemPrompt?.startsWith('Prepare at most'))return reply({content:JSON.stringify({kind:'none',text:''})});
+            if(body.systemPrompt?.startsWith('Return ONLY valid JSON: {"isComm"')){__delivery.classify++;return reply({isComm:!decline,searchQuery:decline?'':'subject:"flight tickets"'});}
+            return reply({content:'none',suggest:false,type:'none',reason:'other_complexity'});
+          }
+          if(address.includes('gmail.googleapis.com')){
+            __delivery.mail++;
+            if(new URL(address).pathname.endsWith('/threads'))return reply({threads:[{id:'fictional-thread'}]});
+            return reply({messages:[{id:'fictional-message',threadId:'fictional-thread',snippet:'Your flight tickets are confirmed.',payload:{headers:[{name:'Subject',value:'Flight tickets'},{name:'From',value:'Airline <travel@example.test>'},{name:'Date',value:new Date().toUTCString()},{name:'Message-ID',value:'<fictional@example.test>'}]}}]});
+          }
+          return original(url,options);
+        };
+      },{taskText,decline});
+      await capture.goto(URL_BASE,{waitUntil:'domcontentloaded'});
+      await capture.waitForFunction(()=>!document.body.hasAttribute('data-booting')&&typeof window.addManual==='function');
+      await capture.evaluate(()=>{dropboxAutoSave=()=>{};});
+      await capture.type('#newTask',taskText);await capture.keyboard.press('Enter');
+      await capture.waitForSelector('.agent-indicator',{timeout:5000});
+      if(mailExpected)await capture.waitForSelector('.gmail-indicator',{timeout:5000});
+      await capture.click('.task-text');
+      await capture.waitForFunction(mail=>!document.getElementById('focusAgentBlock').hidden&&(!mail||!document.getElementById('focusGmailBlock').hidden),{timeout:5000},mailExpected);
+      // Join the existing coalesced lookup before asserting a negative; do not rely on elapsed time.
+      await capture.evaluate(async()=>{await _gmailEnrichTask(manualTasks[0].id,manualTasks[0].text);});
+      const first=await capture.evaluate(()=>({counts:{...__delivery},mailVisible:!document.getElementById('focusGmailBlock').hidden,draftButton:!!document.querySelector('#focusGmailBlock .focus-gmail-draft-btn'),webVisible:!document.getElementById('focusAgentBlock').hidden}));
+      if(decline){
+        const cached = await capture.evaluate(async()=>{
+          const id=manualTasks[0].id,key='gmail_classify_'+id;
+          const old=JSON.parse(localStorage.getItem(key));delete old.lookupPolicy;localStorage.setItem(key,JSON.stringify(old));
+          await _gmailEnrichTask(id,manualTasks[0].text);
+          await _gmailEnrichTask(id,manualTasks[0].text);
+          return {counts:{...__delivery},policy:JSON.parse(localStorage.getItem(key)).lookupPolicy};
+        });
+        assert(cached.counts.classify===2&&cached.counts.mail===0&&cached.policy==='lookup-v1','an old lookup rejection is reconsidered once; new declines reuse their classification without searching mail',cached);
+      }
+      assert(first.webVisible&&first.mailVisible===mailExpected&&!first.draftButton&&first.counts.web===1&&first.counts.classify===(mailExpected||decline?1:0)&&first.counts.mail===(mailExpected?2:0)&&!errors.length,'typed '+taskText+' reaches only eligible sources and Focus reuses the delivered context',{first,errors});
+    } finally {await context.close();}
+  };
+  await captureContext('Check my flight tickets',true);
+  await captureContext('Check flight options',false);
+  await captureContext('Buy a headphone case',false);
+  await captureContext('Check my flight tickets',false,true);
 
   const diagnostics = await page.evaluate(async () => {
     window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) });

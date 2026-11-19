@@ -305,14 +305,14 @@ try {
     'no-result entries written while every lookup failed (before v2.90.52) are retried once', poisoned);
 
   const transient = await page.evaluate(async () => {
-    let calls = 0;
+    let calls = 0;const warnings=[],warn=console.warn;console.warn=(...args)=>{if(args[0]==='[task context]')warnings.push(args);warn(...args);};
     window.fetch = async () => { calls++; return { ok: false, status: 503, json: async () => ({}) }; };
     __agentSeed('agent_retry', 'Find paint hours');
     await _agentEnrichTask('agent_retry', 'Find paint hours');
     await _agentEnrichTask('agent_retry', 'Find paint hours');
-    return { calls, cached: localStorage.getItem('agent_enrichment_agent_retry') };
+    console.warn=warn;return { calls, cached: localStorage.getItem('agent_enrichment_agent_retry'),warnings };
   });
-  assert(transient.calls === 2 && transient.cached === null,
+  assert(transient.calls === 2 && transient.cached === null && transient.warnings.length===2 && transient.warnings.every(row=>row[1].stage==='http'&&row[1].status===503) && !JSON.stringify(transient.warnings).includes('Find paint hours') && !JSON.stringify(transient.warnings).includes('browser-key'),
     'transient failures remain retryable and are not cached', transient);
 
   const plainCalls = await page.evaluate(async () => {
@@ -323,6 +323,17 @@ try {
     return calls;
   });
   assert(plainCalls === 0, 'plain tasks do not trigger enrichment requests', plainCalls);
+
+  const eligibility = await page.evaluate(async () => {
+    const positives=['Check flight options','Check out train ticket prices','Track my parcel delivery','View store opening hours','Buy a headphone case','Shop for a portable speaker','Search for replacement filters','Look into museum accessibility'];
+    const negatives=['Exercise','Check my posture','Check my options','Check prices','Buy milk','Buy some groceries','Buy milk and eggs','Buy a new bike','Stretch for five minutes'];
+    const rows=[];let calls=0;window.fetch=async()=>{calls++;return{ok:true,json:async()=>({card:null})};};
+    for(const [allowed,texts] of [[true,positives],[false,negatives]]) for(const [i,text] of texts.entries()){
+      const before=calls,id='eligibility_'+allowed+'_'+i;__agentSeed(id,text);await _agentEnrichTask(id,text);rows.push({text,allowed,called:calls>before});
+    }
+    return rows;
+  });
+  assert(eligibility.every(row=>row.allowed===row.called),'natural lookup/shopping wording reaches enrichment while routine and underspecified tasks stay quiet',eligibility);
 
   const deadline=await page.evaluate(async()=>{
     __agentSeed('agent_deadline','Find paint');
