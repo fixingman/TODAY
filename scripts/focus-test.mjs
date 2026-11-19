@@ -943,6 +943,10 @@ try {
       await page.waitForFunction(selector=>{const e=document.querySelector(selector);if(!e||e.closest('[hidden]'))return false;const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));},{timeout:5000},selector);
       await page.click(selector);
     };
+    const settleFocusLayout = page => page.waitForFunction(()=>document.fonts.status==='loaded'&&
+      document.getAnimations().filter(animation=>animation.effect?.getTiming().iterations!==Infinity&&
+        !animation.effect?.target?.classList.contains('focus-timer-fill'))
+        .every(animation=>animation.playState!=='running'&&!animation.pending),{timeout:3000,polling:'raf'});
     const reveal=async(page,index=0,data=payload())=>{
       await reply(page,index,data);await ready(page);await clickControl(page,'.focus-ai-timer-btn');
       await page.waitForSelector('.focus-timer.has-focus-answer');
@@ -1088,9 +1092,13 @@ try {
       const long='Which original input and export settings reproduce the crash before the file is written?';
       await reveal(page,index,payload(long));
       const geometry=()=>page.$eval('.focus-ai-timer-btn',e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height};});
+      // Compare feedback geometry after startup/Focus motion, not two different entrance frames.
+      await settleFocusLayout(page);
       const before=await geometry();await clickControl(page,'.focus-ask-feedback');await page.waitForSelector('#focusAskFeedback:not([hidden])');
       await clickControl(page,'[data-choice="landed"]');
-      await expectAll('feedback preserves answer geometry',{fixed:JSON.stringify(before)===JSON.stringify(await geometry())});
+      await settleFocusLayout(page);
+      const after=await geometry();
+      if(JSON.stringify(before)!==JSON.stringify(after))await fail('feedback preserves answer geometry',{before,after});
       await page.setViewport({width:320,height:844});await page.waitForFunction(()=>document.querySelector('.focus-ai-timer-btn').classList.contains('question-scroll'));
       await expectAll('narrow answer stays separate from feedback',{
         notOverflowing:await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),
