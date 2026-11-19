@@ -33,11 +33,13 @@
 | 157 | Opening Habits hides the task input; moving directly back over Today does not restore it. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 156 | A deployed update forces a second boot or refresh in an open desktop PWA session. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 155 | Task-list daily reading remains after not really; optional reason keeps the strip open indefinitely. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
+| 154 | Mobile panels have a low header and dark bottom band; prior desktop/sidebar continuity repairs remain recorded below. | ✅ Can verified on device, 2026-11-19 (v3.8.2 phone follow-up) |
 | 153 | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 152 | Native window controls turn gray only while a sidebar is open; retain Today’s dark base theme. | ✅ Can verified on device, 2026-11-19 (v3.7.6) |
 | 150 | Delete undo/reason bar stays centred on the window and overlaps Explore instead of following Today. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 149 | Explore shows an earlier suggestion failure when reopening Something to try, without a new request. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 148 | Functional runner accepts a timed-out child when its signal handler exits with code zero. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
+| 144 | Exploration opens late, flashes content and exposes unclear or redundant controls. | ✅ Can verified on device, 2026-11-19 (v3.3.0) |
 | 143 | Exploration rejects valid structured AI replies and suggestions. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 142 | Full release visual gate samples the bottom input fade as page background at320px. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 141 | Repeated dev CI failures: legacy feeling-feedback records survive source edits or withdrawal. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
@@ -383,6 +385,24 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 
 ---
 
+## BUG-154 — Desktop header and sidebar continuity
+
+**Installed feedback (November 8):** Can confirms the phone panel now paints the full background after the v3.8.2 repair. This accepts the background-fill part of this report. Can rejects the extra section-icon row; its removal is shipped to dev in v3.8.7. Keep unrelated desktop/header acceptance separate; do not describe the physical phone background fill as still unverified.
+
+**Phone follow-up (v3.8.2):** Can confirms v3.7.8/3.7.10 did not correct the installed appearance. All four screenshots have the same186px/62pt bottom band. The supplied readout is `sheet 0–812 · head 61 · inner 812 · vv 812@0 · scroll 0 · safe 62 · screen 874 · lock 0`: the sheet fills its reported viewport, with no current/pre-lock scroll; the61px navigation row precedes the safe-area-padded header. Reorder the actual DOM so the protected header/close row leads and navigation follows, rebuilding that placement after Explore/Connections redraws. Paint both narrow coarse-pointer page backings with the panel surface while open, restoring original inline backgrounds on close and preserving native theme metadata. This treats the backing; it does not claim another62px of usable viewport. Keep keyboard fitting, modal focus and drafts. Capture task-list scroll before the open-panel overflow rule resets it; a controlled280→0 class toggle reproduces the prior lost return position. Correct the cold Explore panel-navigation entry so it enters rather than toggles itself shut; retain the normal repeated-header toggle.
+
+**Verification scope:** the new native-safe-inset Chromium fixture rejects the old61px header offset and separately requires both document backing colours, DOM/visual ordering, redraws, native panel selection, keyboard dimensions, close restoration and desktop isolation. It cannot reproduce the physical iOS strip. Local evidence and Can's actual readout remain under `.context/mobile-sidebar-investigation/`; installed full-screen/keyboard acceptance remains required. Earlier combined validation passed12 suites (`.context/fresh-7YEOkO/receipt.json`). The isolated staged publication candidate also passes12 suites without failures/flakes in103.1s (`.context/mobile-sidebar-investigation/staged-validation/receipt.json`), excluding the other session’s pending changes. Preserve the initial narrow-desktop failure and its verified coarse-pointer scope correction. Dev publication authorized; installed phone acceptance remains required.
+
+**Reported November 8:** transparent native-title area exposes scrolling tasks. Explore refocuses instead of toggling closed, cursor motion can hide the active composer, and changing from another panel replays shell entry. Can also requests a pinned desktop-PWA header and sidebar dimming during Focus, and reports a mobile bottom-edge paint gap.
+
+**Repair (v3.7.3):** paint an opaque `--bg` title backdrop behind Today while retaining the continuous soft sidebar above it. Desktop standalone and window-controls-overlay documents grow to their content height so the full sticky header stays pinned; ordinary tabs and mobile standalone keep their existing scroll behavior. The mobile surface stays opaque and covers the layout viewport behind a composer fitted to the visual viewport. Explore closes on a repeated entrance click. Pointer movement activates only on a real pane crossing, leaves an editing caret alone, and explicit clicks/keyboard focus still choose a pane. Switching panels cancels obsolete shell motion, replaces content within the same root, and cancels an abandoned lazy import. Focus dims every desktop peer panel through the existing recede token; the active habit/timer inside Habits remains legible.
+
+**Coverage gap:** the old platform fixture asserted transparent dragging and geometry without checking scrolled paint. Sidebar checks sampled settled panels, and the Explore fixture explicitly expected hover to park a focused composer; those checks encoded incomplete or superseded behavior. New checks exercise scrolling pixels, desktop-installed versus browser/mobile sticky bounds, cold/warm transitions and repeated toggles, caret ownership, Focus across all four panels and reduced motion. Final local checks pass nine affected suites without failures/flakes in51.6s, plus the final header-paint/invariant check in6.3s. Deliberate shipped-runtime, missing-title-backdrop and missing-mobile-backing controls are rejected. Native Chromium-owned controls remain a separate installed acceptance check. Local receipts and deliberate broken controls stay under `.context/sidebar-polish/`.
+
+**Verified (2026-11-19):** Can confirmed on the installed app.
+
+---
+
 ## BUG-153 — Shared sidebar integration incomplete
 
 **Evidence (November 8):** v3.7.0 dev42424267836 and master42424288959 fail19 suites. Keep complete first-attempt logs and the hosted evidence under `.context/sidebar-completion/failed-evidence/`. Earlier v3.6.1 passed59 and failed3; no earlier receipt approves this repair.
@@ -464,6 +484,18 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 ---
 
 **Verified (2026-11-14):** The owning regression described above (which fails on the original code) passes in the [hosted Linux gate 43026453419](https://github.com/fixingman/TODAY/actions/runs/43026453419) on `daadf199` (66/66 suites, zero flakes). Separately tracked acceptance noted in this record (installed paint, live accounts, AI usefulness) stays with its own bug or Backlog item.
+
+---
+
+## BUG-144 — Exploration opening and control friction
+
+**Report (November 4):** desktop Explore opens/content appears laggily; Start has no visible hover; question heading feels oversized; setup explanation, retry, Document tools and task-copy picker are unclear/redundant.
+
+**Follow-up (Can):** remove the unsupported list arrow and count-sized topic, restore daily capture in both Memory/Explore, and correct prose/navigation type roles. Can approved the clarity study and explicitly requested production integration. Local v3.3.0 replaces the mixed Notes/source/admin view with focused pages and experience-first Send; Memory prepares code/styles ahead of use, increases prose/action sizing and removes routine repeated row labels. Claude reviewed both actual components and rendered before/after captures. Intentional entrance/capture changes refresh the six visual references without raising tolerances; the Memory scene waits for the actual lazy view and fonts.
+
+**Local v3.3.0:** show the standard panel shell before lazy imports, keep cancellation/current-open fences, skip unrelated Memory rendering/preview and wait for CSS before replacing loading content. Loaded content fades and its height settles through shared motion tokens, with reduced-motion bypass. Use text-md for the question, token hover/focus for Start, Enter submission/Shift+Enter newline with IME/repeat guards and a small accessible send control. Preserve focus with readonly while waiting. Replace setup boilerplate with compact source scope; remove duplicate task-copy picker and generic tools while retaining old records and contextual recovery/export/clear. Retry is only shown for a failed/interrupted saved observation. Tests cover held imports/styles/downloads, cancellation, one canonical read, focus and keyboard, source safety and 320/390/736/1024px axe/containment. Local verification:46 affected checks passed with zero failures/flakes; the subsequent recovery changes pass nine final checks, including actual-component accessibility/visual and held stylesheet/write failure paths. Input fingerprints stay unchanged. Latest clarity follow-up:61 other full-run suites pass; the reflection feedback helper clicked beneath the restored task bar. A causal hit-test shows the task bar at the vote centre. Scrolling/hit-testing before the same vote preserves all feedback/privacy assertions; the suite and invariants pass separately. All five performance runs pass unchanged budgets. Original full failure and receipts stay in `.context/exploration-clarity/`. The current v3.3.0 full run has61 passes and one nudge browser-startup flake before navigation (diagnostic retry passes); it is not a green release gate. A final exact-native-title/first-save-export patch passes all six targeted checks, zero flakes/failures. Both frozen receipts are retained in `.context/memory-clarity/`; all five final performance runs pass unchanged limits at1197.6KiB decoded /339.2KiB Brotli /38 scripts. Installed smoothness remains a user verdict. Can authorized dev/master publication November 5; exact-commit hosted release proof remains required.
+
+**Verified (2026-11-19):** Can confirmed on the installed app.
 
 ---
 
