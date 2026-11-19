@@ -153,9 +153,10 @@ export function createPublisherIO(root,{run=runCommand,pause=ms=>new Promise(r=>
   };
 }
 
-// After publishing, bring other checkouts of this repository up to the published commit so the
-// folders people look at (Conductor workspaces) do not silently fall behind dev. Only a clean,
-// detached checkout whose commit dev already contains moves; anything else is left as it is.
+// After publishing, bring the folders a person looks at up to the published commit so they do not
+// silently fall behind dev. Opt-in only: a checkout follows dev when it holds `.context/follow-dev`
+// (other sessions' workspaces and pinned evidence snapshots must never move). Even then only a
+// clean, detached checkout whose commit dev already contains moves.
 export function syncWorktrees(root,sha,{run=(dir,args)=>execFileSync('git',['-C',dir,...args],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim(),
   temp=realpathSync(tmpdir()),tempPattern=/^\/(private\/)?tmp\//}={}) {
   const self=realpathSync(root),out=[];
@@ -165,6 +166,7 @@ export function syncWorktrees(root,sha,{run=(dir,args)=>execFileSync('git',['-C'
     let real;try{real=realpathSync(path);}catch{continue;}
     const skip=reason=>out.push({path,moved:false,reason});
     if(real===self)continue;
+    if(!existsSync(join(path,'.context/follow-dev')))continue;
     if(real.startsWith(temp+sep)||tempPattern.test(real)){skip('temporary session copy');continue;}
     if(!/^detached$/m.test(block)){skip('on a named branch');continue;}
     const head=block.match(/^HEAD ([0-9a-f]{40})$/m)?.[1];if(!head||head===sha)continue;

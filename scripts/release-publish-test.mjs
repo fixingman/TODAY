@@ -169,9 +169,11 @@ try {
   try {
     const main=join(home,'main');mkdirSync(main);g(main,'init','-q','-b','dev');g(main,'config','user.name','F');g(main,'config','user.email','f@example.invalid');
     writeFileSync(join(main,'a.txt'),'1');g(main,'add','.');g(main,'commit','-q','-m','one');const old=g(main,'rev-parse','HEAD');
-    const add=name=>{const dir=join(home,name);g(main,'worktree','add','-q','--detach',dir,old);g(dir,'config','user.name','F');g(dir,'config','user.email','f@example.invalid');return dir;};
-    const clean=add('clean'),dirty=add('dirty'),own=add('own'),rebasing=add('rebasing'),branch=join(home,'branch');
-    g(main,'worktree','add','-q','-b','feature',branch,old);
+    const follow=dir=>{mkdirSync(join(dir,'.context'),{recursive:true});writeFileSync(join(dir,'.context/follow-dev'),'');};
+    const add=(name,opt=true)=>{const dir=join(home,name);g(main,'worktree','add','-q','--detach',dir,old);g(dir,'config','user.name','F');g(dir,'config','user.email','f@example.invalid');if(opt)follow(dir);return dir;};
+    writeFileSync(join(main,'.gitignore'),'.context/\n');g(main,'add','.gitignore');g(main,'commit','-q','-m','ignore');
+    const clean=add('clean'),dirty=add('dirty'),own=add('own'),rebasing=add('rebasing'),notOpted=add('other-session',false),branch=join(home,'branch');
+    g(main,'worktree','add','-q','-b','feature',branch,old);follow(branch);
     writeFileSync(join(dirty,'a.txt'),'local edit');
     writeFileSync(join(own,'b.txt'),'mine');g(own,'add','b.txt');g(own,'commit','-q','-m','own');
     mkdirSync(join(g(rebasing,'rev-parse','--absolute-git-dir'),'rebase-merge'));
@@ -183,6 +185,7 @@ try {
     assert.notEqual(g(own,'rev-parse','HEAD'),sha);assert.match(result.own.reason,/own commits/);
     assert.equal(g(rebasing,'rev-parse','HEAD'),old);assert.match(result.rebasing.reason,/rebase/);
     assert.equal(g(branch,'rev-parse','HEAD'),old);assert.match(result.branch.reason,/named branch/);
+    assert.equal(g(notOpted,'rev-parse','HEAD'),old,'a checkout without .context/follow-dev never moves');assert.equal(result['other-session'],undefined);
     g(clean,'checkout','-q','--detach',old);
     const tempOnly=syncWorktrees(main,sha);
     assert.ok(tempOnly.length&&tempOnly.every(r=>!r.moved&&r.reason==='temporary session copy'),'checkouts under the temp directory are never moved');
