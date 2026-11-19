@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Folder sync after publishing is opt-in (engineering, app v3.12.1 unchanged)
+
+The first live run of `syncWorktrees` (v3.12.1 engineering) moved Can's `beirut` workspace as intended, but also four other sessions' Conductor workspaces and eight pinned `.context/` evidence snapshots that happened to be clean and behind. All twelve were restored to their previous commits from their own reflogs the same day (each checked clean). The sync is now opt-in: only checkouts holding an empty `.context/follow-dev` (gitignored) move; `beirut` has it. `release-publish-test` adds a clean, not-opted-in checkout that must stay put. Housekeeping updated.
+
 ## Publishing keeps other checkouts (Conductor workspaces) on the published commit (engineering, app v3.12.1 unchanged)
 
 Can's workspace folder was 46 commits behind dev: since November 15 each session works in its own copy and pushes to dev, so nothing moved the folders people look at. After a successful publish, `release:publish` now runs `syncWorktrees`: every other checkout of the repository that is detached, clean (no tracked changes), not mid-merge/rebase, without its own commits (dev already contains its HEAD) and not under the temp directory is fast-forwarded with `git checkout --detach <sha>`. Everything else is listed as left unchanged with the reason; a failure there never fails the publish. `release-publish-test` covers all six cases with real Git. Housekeeping documents it.
