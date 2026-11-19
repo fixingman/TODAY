@@ -30,15 +30,19 @@
 | 162 | Sidebar bleeds surface color into the WCO titlebar area on desktop PWA. | ✅ Can verified on device, 2026-11-19 (v3.10.0) |
 | 161 | CURRENT badge and i-button do not pulse after an update since sidebar migration. | ✅ New About regression fails with the fix reverted, passes on dev; 2026-11-14 |
 | 160 | Focus mode does not obscure sidebar date/section headers, allows clicks and scroll through blurred UI. | ✅ New Focus regression fails with the fix reverted, passes on dev; 2026-11-14 |
+| 159 | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | ✅ Can verified on device, 2026-11-19 (v3.8.1) |
 | 157 | Opening Habits hides the task input; moving directly back over Today does not restore it. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 156 | A deployed update forces a second boot or refresh in an open desktop PWA session. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 155 | Task-list daily reading remains after not really; optional reason keeps the strip open indefinitely. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 154 | Mobile panels have a low header and dark bottom band; prior desktop/sidebar continuity repairs remain recorded below. | ✅ Can verified on device, 2026-11-19 (v3.8.2 phone follow-up) |
 | 153 | Shared sidebar migration loses panel styling, loading/cancellation, disclosure state and existing test coverage. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 152 | Native window controls turn gray only while a sidebar is open; retain Today’s dark base theme. | ✅ Can verified on device, 2026-11-19 (v3.7.6) |
+| 151 | Offscreen TODAY can flash as moving haze when entering Focus on a long list, with or without Explore. | ✅ Can verified on device, 2026-11-19 (v3.6.1 follow-up) |
 | 150 | Delete undo/reason bar stays centred on the window and overlaps Explore instead of following Today. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 149 | Explore shows an earlier suggestion failure when reopening Something to try, without a new request. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 148 | Functional runner accepts a timed-out child when its signal handler exits with code zero. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
+| 147 | Desktop Explore covers Today, dismisses unexpectedly, and exposes competing inputs and chat controls. | ✅ Can verified on device, 2026-11-19 (v3.4.2) |
+| 146 | Linked Explore controls crowd daily/focus task rows. | ✅ Can verified on device, 2026-11-19 (v3.4.2) |
 | 144 | Exploration opens late, flashes content and exposes unclear or redundant controls. | ✅ Can verified on device, 2026-11-19 (v3.3.0) |
 | 143 | Exploration rejects valid structured AI replies and suggestions. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
 | 142 | Full release visual gate samples the bottom input fade as page background at320px. | ✅ Owning regression passes in full hosted gate 43026453419; 2026-11-14 |
@@ -341,6 +345,16 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 
 ---
 
+## BUG-159 — Connections header and embedded layout
+
+**Report (November 8):** Can supplied desktop screenshots showing the link icon pushing Hide toward the centre, a duplicate Connections title and an inconsistent return control. Connected service controls must fit the sidebar with the app's existing tokens.
+
+**v3.8.1:** group link/Hide as44px native header controls, with Hide rightmost and page navigation on its own row. Keep one Connections title, move the token-sized SVG return below the header, and scope the legacy title suppression to the embedded panel. Reflow service/status/actions within the actual sidebar width, preserve mobile-safe input type and use native typography/border/spacing roles. Keep the live config DOM node through context/viewport redraws, expose it accessibly while mounted, and restore/hide it on return, panel switch or close. Drafts and focus return to the exact opener; settings navigation makes no AI request. Claude reviewed the actual component, tokens and proposed correction; actual-component phone/desktop captures are inspected separately. The original implementation fails the standard Hide-inset assertion. Evidence and final verification: `.context/connections-ui/`. Parallel pointer-ownership and historical-reading changes remain separate.
+
+**Verified (2026-11-19):** Can confirmed on the installed app.
+
+---
+
 ## BUG-157 — Habits leaves task capture hidden
 
 **Report (November 8):** task input disappears immediately on opening Habits, before New habit or Edit, and does not return when the pointer moves over Today.
@@ -441,6 +455,28 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 
 ---
 
+## BUG-151 — Focus entrance moves or reveals the header
+
+**November 7 offscreen-paint follow-up (v3.6.1):** Can still sees the offscreen logo as moving haze on long lists, with Explore both open and closed. On120 fictional tasks, geometry and a CPU4 screencast keep the logo offscreen; this does not reproduce the full installed rendering flash. The older test only compared rectangles and allowed offscreen chrome to enter the blur surface. Add paint eligibility assertions: exclude fully offscreen header groups before pinning; a wholly offscreen header creates no filter/transition layer. Keep visible/partially visible chrome on its existing fade/blur sequence. Restore normal visibility after exit animations, with the existing generation fence protecting rapid re-entry. Preserve scroll/anchor geometry, a11y for visible chrome, motion tokens and limits. The old runtime fails the offscreen-paint guard at42 tasks; include120-task and rapid-reentry cases with/without Explore. Final fresh combined check passes ten suites without failures/flakes in71.3s (`.context/fresh-AVMk3j/receipt.json`). Evidence `.context/focus-offscreen/`. Installed confirmation remains open.
+
+**November 7 CI driver follow-up:** distinguish native pre-click preparation from Focus motion, and the app’s legitimate anchor correction from failed scroll restoration. Repair the fixture input boundary and verify visible task restoration without changing tolerances/deadlines. CPU4 and deliberately broken-runtime controls are recorded in Changelog and `.context/explore-ci-repair/`. This changes no runtime or installed acceptance verdict.
+
+**Report (November 6):** entering desktop Focus makes the logo/chrome appear to move rather than blur; exit does not show the same noticed effect. Can clarified that a long list and a task toward the bottom make it worse, briefly showing TODAY; Explore can also be open.
+
+**Two reproduced causes:** (1) Focus switches the sticky header to fixed positioning for scroll lock (BUG-098). Beside Explore, `width:100%` then resolves against the whole viewport. At1280px it gains419.33px and logo/navigation move209.67px in the first29ms. The same short-list control with Explore closed records zero drift. (2) On a42-task scrolled list without Explore, the header was already partially scrolled out (`top:-77.80px`, logo bottom:-5.80px). Focus forces `top:0`, moving it77.80px and bringing the logo back into view before dimming. The long-list before-control still fails after the width-only repair. Original traces/failures: `.context/focus-header-motion/before.log`, `before-closed.json`, `before-docked.json`, `scrolled-before.log`, `before-scrolled.json`.
+
+**Local v3.5.1:** capture the header’s actual viewport top before pinning and clear that owned inline top on unlock. Keep its available Today width when Explore is docked. Preserve scroll lock, flow-space padding, task adjustment, blur/opacity sequence, timer and restored document scrolling. No background/lifecycle/sync change. Shorten stale shell comments without changing budgets.
+
+**Haze follow-up (v3.5.3):** Can still sees a haze over TODAY during entry. Exact shipped v3.5.2 reproduction shows full6px blur on the first frame while header opacity is0.80; the SVG reference filter cannot interpolate from `none`, so its declared delay does not create a blur transition. Preserve geometry, background, scroll lock and recede timing; use interpolable CSS blur for the header alone. A native-click regression freezes the real transitions at0/60/120/150/180ms and checks dimming before gradual blur. It fails the shipped runtime (no filter transition, bright immediate blur). Before trace/screenshots/assertion: `.context/focus-haze/`. Other surfaces retain their existing noise treatment. Final fresh Focus/visual/invariant check passes3 suites without failures/flakes in36.4s (`.context/fresh-SmNAtk/receipt.json`); the earlier Focus/design/smoke/invariant check passes4 in32.9s (`.context/fresh-1nHLZq/receipt.json`). Final runtime/test file fingerprints still match. Before-control fails on shipped v3.5.2; entry screenshots and real-frame traces confirm blur stays0px during dimming after the repair. Dev publication authorized; hosted and installed acceptance remain separate. The previous published movement fix remains awaiting user acceptance.
+
+**Coverage gap and repair:** earlier tests checked settled pinning/dimming/filter and a static sidebar, not the transition or a genuinely scrolled long list. New native tests sample actual header/logo/navigation on every animation frame, anchored to click/Escape, across entry/exit. Include closed/sidebar widths736/1024/1440px and42-task scrolled cases with and without Explore. Entry geometry must remain within1px. On deep exit the document legitimately restores its nudged scroll position, so offscreen chrome may move farther offscreen but cannot reappear; verify the restored scroll and retain all raw frames. The intermediate strict all-y exit assertion is retained in `scrolled-after.log` as test development evidence, not a runtime regression claim.
+
+**Verification:** final fresh combined check passes12 suites with zero failures/flakes in78.2s (`.context/fresh-1h4UhX/receipt.json`), including Focus, Explore, task actions, triage, accessibility, visual, smoke/SW/component/AI-handler, design and invariants/payload. Both42-task entrance traces keep header/logo/navigation geometry unchanged across34 sampled frames, with and without Explore; exit restores the nudged scroll without revealing offscreen chrome. Captured runtime/test input hashes still match the workspace after the check. Owning initial width-only check and `.context/fresh-mLgaAF/` predate the long-list repair and remain historical. Earlier controls and the legitimate deep-exit test correction are retained. Dev publication authorized November6; hosted and installed acceptance remain separate.
+
+**Verified (2026-11-19):** Can confirmed on the installed app.
+
+---
+
 ## BUG-150 — Fixed task bars ignore the Explore column
 
 **Report (November 6):** deleting a task with the sidebar open leaves the undo/reason bar at the window centre rather than shifting with Today.
@@ -484,6 +520,38 @@ Reported Chat showed an unavailable earlier-context notice and a kept-message re
 ---
 
 **Verified (2026-11-14):** The owning regression described above (which fails on the original code) passes in the [hosted Linux gate 43026453419](https://github.com/fixingman/TODAY/actions/runs/43026453419) on `daadf199` (66/66 suites, zero flakes). Separately tracked acceptance noted in this record (installed paint, live accounts, AI usefulness) stays with its own bug or Backlog item.
+
+---
+
+## BUG-147 — Persistent desktop Explore and responsive chat
+
+**Report (Can, November 6):** the sidebar should push the logo, navigation and tasks aside, stay open until its header close control is used, and follow pointer location for dimming and the active input. Chat thinking lacks animation, sent messages render late, and repeated Sources/correction links crowd the conversation.
+
+**Repair:** dock above600px, reserve space for the complete Today column, keep both desktop panes usable, and dim only the inactive pane without intercepting clicks. Pointer and keyboard focus select the visible/reachable composer; drafts remain separate. Header close is the sidebar dismissal; Escape only returns from secondary views. Move Chat/Living note/Earlier/Sources into header navigation and retain immutable wording changes in the note. Render submitted observations immediately while Dropbox confirms; request AI only after confirmation. Inline dots use token-timed WAAPI and respect reduced motion. Release waiting uses one logged watcher, without repeated status checks.
+
+**Verification:** Five fresh first-attempt checks pass after scoping the composer fade to Explore: invariants, Exploration, Focus, design lint and visual regression (39.7s, zero flakes/failures). About and nudge-feedback passed in the preceding owning run. Final captures retain736/1024/1440px docking, complete header containment and both active panes. Evidence: `.context/explore-dock/local-verified/`; the original Focus regression and development failures remain retained. Hosted full proof is still required; no installed/live-account acceptance is claimed.
+
+**Linux release follow-up:** Full Linux run42175964210 retained61 passing suites and failed Exploration twice before desktop Focus opened; performance correctly did not run. Native Linux headless hover was false, unlike the local browser. Reuse the established Focus fixture contract by explicitly pinning mouse hardware in JS and mapping only CSS hardware predicates, preserving selectors/declarations, native width/motion and all deadlines. Assert that desktop Focus is actually installed. A deliberately touch-only control rejects that assertion; it cannot silently skip Focus coverage. Runtime code and budgets are unchanged; the repaired exact commit needs new full hosted proof.
+
+**Verified (2026-11-19):** Can confirmed on the installed app.
+
+---
+
+## BUG-146 — Linked Explore tasks crowd the daily task row
+
+**Report (Can, November 6):** inline Explore buttons conflict with the existing task-row pattern; layout appears broken on desktop and mobile.
+
+**Cause and coverage gap:** entry coordination appends a Memory-style button after the native task controls when a saved conversation references the task or an experiment creates it. The six canonical screenshot scenes do not load that saved conversation; Explore's containment checks inspect the Explore surface, not the daily rows after closing it.
+
+**Follow-up (Can):** the permanent “explore this →” below the nudge and task-level CTA in desktop focus also feel scattered or break layout. Keep daily-reading exploration beside the revealed feedback actions in the nudge and About instead.
+
+**Local repair:** remove row-button injection and the permanent below-nudge CTA; add a separate non-voting contextual Explore action beside the daily reading’s existing feedback in both places. Opening snapshots the exact clicked AI wording as optional, initially unselected context, without a vote, model request or journal write. Desktop focus keeps its native controls.
+
+**Original task-row repair:** remove row-button injection; retain the normal list/Memory entrances and task references/experiments within Explore. Add actual-component coverage that creates a saved conversation and linked experiment, closes Explore, rerenders tasks at390/320/1024px, and checks native controls and containment. The original published implementation fails the new assertion with an unexpected `explore` action; receipts and fictional images are in `.context/task-row-explore/`. Verification: the published implementation fails the new row-control assertion. The isolated repair passes invariants, design lint, six-scene visual regression and Exploration (four first-attempt passes, zero flakes/failures,17.4s). The combined local candidate also passes those four checks in17.4s (`.context/fresh-80HWJv/receipt.json`). Phone/desktop fictional captures were inspected. No live personal journal is read or changed. Publication and any further layout reports remain separate.
+
+**Final contextual-entry verification:** fresh receipt `.context/fresh-lP3saa/receipt.json` passes seven owning checks in44.0s with zero flakes/failures (invariants, Exploration, About, nudge feedback, Focus, design lint and visual regression). Actual-component coverage checks linked tasks in desktop Focus, no permanent below-nudge CTA, both reading-to-Explore handoffs, unselected exact AI wording, unchanged votes/model requests/journal entry count, stale-reading refusal and320/390/1024px action containment. Reading payload metadata uses its own attribute rather than the rendered-reading marker. Captures are retained under `ci-test-results/task-row-explore` so hosted artifacts and fresh-check receipts keep them. Source/app changes remain local and uncommitted.
+
+**Verified (2026-11-19):** Can confirmed on the installed app.
 
 ---
 
