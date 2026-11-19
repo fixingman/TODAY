@@ -25,16 +25,12 @@ Current publication/CI evidence is maintained once in the [release contract](../
 | 172 | ✅ Verified | Small selected runs download flat evidence; the combiner previously searched only subdirectories. | — |
 | 171 | ✅ Verified | The header showed "32 of 44 done" on a day with far fewer tasks; done tasks from the past week were counted. | v3.10.10 |
 | 170 | ✅ Verified | Explore discards the reason a reply failed and offers a generic retry even when the AI account needs credit or billing attention. | v3.10.8 |
-| 169 | ⏳ Verify | The habit name field in edit mode stayed 13.5px on phones, so iOS zooms when it is focused. | v3.10.6 |
 | 168 | ✅ Verified | An expired sign-in makes ✧ breathe, but Explore's Connections button stays still, and opening Connections there never stops the nudge. | v3.10.5 |
 | 167 | ✅ Verified | Habit focus loses the timer and focused row after renderHabits() wipes the list (sync, completion, day change). | v3.10.3 |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
-| 165 | ⏳ Verify | Add-task input stays behind the keyboard on iOS PWA standalone — bar not repositioned when vv.resize is suppressed. | v3.10.2 |
-| 162 | ⏳ Verify | Sidebar bleeds surface color into the WCO titlebar area on desktop PWA. | v3.10.0 |
 | 159 | ⏳ Verify | Connections displaces Hide, repeats its title and crowds the Explore sidebar. | v3.8.1 |
 | 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
 | 154 | ⏳ Verify | Mobile panels have a low header and dark bottom band; prior desktop/sidebar continuity repairs remain recorded below. | v3.8.2 phone follow-up |
-| 152 | ⏳ Verify | Native window controls turn gray only while a sidebar is open; retain Today’s dark base theme. | v3.7.6 |
 | 151 | ⏳ Verify | Offscreen TODAY can flash as moving haze when entering Focus on a long list, with or without Explore. | v3.6.1 follow-up |
 | 147 | ⏳ Verify | Desktop Explore covers Today, dismisses unexpectedly, and exposes competing inputs and chat controls. | v3.4.2 |
 | 146 | ⏳ Verify | Linked Explore controls crowd daily/focus task rows. | v3.4.2 |
@@ -64,16 +60,6 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ---
 
-## BUG-169 — Renaming a habit on iPhone zooms the page
-
-**Found (November 15)** while investigating Can's report that habit edit mode looks off-token: computed font-size of `.habit-edit-input` at 390px was 13.5px.
-
-**Root cause:** the shared ≤600px rule sets `.habit-edit-input` to `--text-lg` (Rule 5c), but the component's own base rule, later in `index.html`, set `--text-task` with equal specificity and won. The exit path's viewport `maximum-scale` reset existed to undo that zoom.
-
-**Fix:** the component repeats the 16px rule in its own ≤600px query; `habits-test` asserts ≥16px at 390px. Verify on iPhone: tap a habit name in edit mode; the page should not zoom.
-
----
-
 ## BUG-166 — No splash poem after an overnight resume
 
 **Status:** 🚫 Rejected by Can, 2026-11-14. The day's poem is in About and the empty-list echo, and the splash shows it on the day's first full restart; that is enough.
@@ -89,28 +75,6 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Root cause:** `renderHabits()` in habits.js does `list.innerHTML = ''` to rebuild the habit list. This destroys all child elements including the focused `.habit` row and the `timerEl` / `kbdHint` that `openUI` inserted after it via `taskEl.after(timerEl)`. Triggered by: sync from Dropbox, completing another habit, completing the focused habit's linked task, or the day changing at 3am.
 
 **Fix (habits.js + focus.js):** Before `list.innerHTML = ''`, if a focused habit is in the list, `timerEl` and `kbdHint` are moved to `document.body`. After the list is rebuilt, `window._focusReanchorHabit(newRow)` updates `uiTaskEl`, adds `.focused` to the fresh row, reinserts the timer elements, and re-applies `_setFocusInert` on the new siblings.
-
----
-
-## BUG-165 — Add-task input stays behind keyboard on iOS PWA
-
-**Report (November 14):** On iOS in standalone PWA mode, focusing the add-task input bar does not reposition it above the software keyboard. The bar remains at its default bottom position, hidden behind the keyboard.
-
-**Root cause:** `visualViewport.resize` is suppressed in iOS 18 standalone PWA mode when the software keyboard opens. The only fallback was `setTimeout(positionBar, 100)`, but at 100ms `vv.height` has not changed yet, so `positionBar()` runs against the pre-keyboard viewport height and places the bar at the bottom of the layout viewport rather than above the keyboard.
-
-**Fix (platform.js):** Added a RAF polling loop that starts on `input.focus` and detects when `vv.height` actually decreases (keyboard open). When the height changes, `positionBar()` is called immediately. The poll runs at ~60fps for up to 1500ms and self-cancels once `keyboard-open` is removed (blur). `resetBar()` also cancels the polling RAF.
-
----
-
-## BUG-162 — Sidebar bleeds surface color into WCO titlebar
-
-**November 17 correction (awaiting installed verification):** Can reports the separate dark title strip remains after the non-WCO header repair and asks to restore the earlier integrated PWA appearance. The below-titlebar repair here traded the native-control mismatch for a full-width strip; its test explicitly required that gap. Restore the pane to the top edge and place clearance inside its header. Blend the occupied native-control regions locally through the transparent drag region, using the reported titlebar geometry and existing base/pane colours; keep global theme metadata stable to avoid the earlier gray patch and origin-label retrigger. Restore desktop WCO content-header glass while retaining the opaque Today title underlay against scrolling text. The corrected geometry and pixel guards reject the shipped gap, missing control blend and opaque desktop header; Focus/input/native fallback remain covered. Installed native-frame acceptance is separate from synthetic renderer paint.
-
-**Report (November 14):** In desktop PWA with Window Controls Overlay active, the sidebar's `.ex-sheet` element starts at `top: 0`, causing it to bleed its surface background color up into the WCO-controlled titlebar area, creating a color mismatch with the native OS titlebar chrome.
-
-**Root cause:** `.ex-sheet` had no `top` override in the WCO media query. The WCO titlebar height is exposed via `--window-titlebar-height`, but `.ex-sheet` did not consume it, so its background started at the top of the screen rather than below the titlebar.
-
-**Fix (index.html):** Added `.ex-sheet { top: var(--window-titlebar-height); }` inside the existing `@media (display-mode: window-controls-overlay)` block so the sidebar pane is pinned below the native titlebar.
 
 ---
 
@@ -143,24 +107,6 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Repair (v3.7.3):** paint an opaque `--bg` title backdrop behind Today while retaining the continuous soft sidebar above it. Desktop standalone and window-controls-overlay documents grow to their content height so the full sticky header stays pinned; ordinary tabs and mobile standalone keep their existing scroll behavior. The mobile surface stays opaque and covers the layout viewport behind a composer fitted to the visual viewport. Explore closes on a repeated entrance click. Pointer movement activates only on a real pane crossing, leaves an editing caret alone, and explicit clicks/keyboard focus still choose a pane. Switching panels cancels obsolete shell motion, replaces content within the same root, and cancels an abandoned lazy import. Focus dims every desktop peer panel through the existing recede token; the active habit/timer inside Habits remains legible.
 
 **Coverage gap:** the old platform fixture asserted transparent dragging and geometry without checking scrolled paint. Sidebar checks sampled settled panels, and the Explore fixture explicitly expected hover to park a focused composer; those checks encoded incomplete or superseded behavior. New checks exercise scrolling pixels, desktop-installed versus browser/mobile sticky bounds, cold/warm transitions and repeated toggles, caret ownership, Focus across all four panels and reduced motion. Final local checks pass nine affected suites without failures/flakes in51.6s, plus the final header-paint/invariant check in6.3s. Deliberate shipped-runtime, missing-title-backdrop and missing-mobile-backing controls are rejected. Native Chromium-owned controls remain a separate installed acceptance check. Local receipts and deliberate broken controls stay under `.context/sidebar-polish/`.
-
----
-
-## BUG-152 — Desktop window controls sit on a mismatched background
-
-**Origin-label correction (November8):** Can notes the hostname did not appear this way before and is exposed during sidebar actions soon after launch. Browser ownership alone does not establish that the app is uninvolved: Chromium’s [ThemeColorChange browser test](https://chromium.googlesource.com/chromium/src/+/005c6a2094b83a0c665fbcca0d3b40e1d6e45f57/chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_browsertest.cc#3199) requires origin text to reappear, and [SetColors](https://github.com/chromium/chromium/blob/main/chrome/browser/ui/views/web_apps/frame_toolbar/web_app_toolbar_button_container.cc#L313) passes color_changed as show_text. Our removed sidebar hook changed exactly that metadata. An actual cold/warm native-button fixture captures repeated base/surface mutations with the original hook and zero with local v3.7.6, without document replacement (`.context/native-title-theme/origin-control.log`, `.context/fresh-PO6mUh/receipt.json`; three suites pass in24.4s). This removes an app-controlled retrigger; it does not claim suppression of Chromium’s ordinary launch indicator or directly observed installed paint. The earlier blanket platform-only diagnosis was too strong.
-
-**November 8 follow-up (v3.7.6):** Can confirms the gray top-left native patch appears only with a sidebar open. The platform hook still switches global theme-color from Today’s dark base to the softer sidebar surface. Remove that sidebar-dependent override; retain the manifest/meta base color through opening, switching, closing and overlay-mode changes. Preserve the opaque scrolling backdrop, sticky desktop header, continuous soft sidebar and native drag/control clearance. The updated existing geometry fixture rejects the original code specifically at controlsMatchToday; before log retained under `.context/native-title-theme/`. Native desktop/browser access is unavailable in this session, so installed Chromium paint still needs confirmation. This supersedes the pane-colored native-theme portion of the November7 contract below.
-
-**November 7 correction (v3.6.1):** Can rejects the dark strip introduced in v3.5.6 and carried into v3.5.7–8. Its fixture asserted that strip and could not catch the design regression. Restore Explore to the top edge, place native clearance inside the header, and match native overlay theme colour to the pane while open/closing. Restore the original colour when closed or when Chromium exits overlay mode. No icon replacement or claim of native transparency. The corrected regression fails shipped v3.5.8 for both pane top and control/pane colour; retain `.context/window-overlay-correction/before.log`. Nine fresh suites pass with zero failures/flakes in62.1s (`.context/fresh-p9J3cr/receipt.json`). Installed icon paint remains acceptance work; the isolated installation attempt did not yield a stable PWA window.
-
-**Report (November 7):** after enabling Chromium’s title-bar chevron in v3.5.2, the browser-owned controls form a dark rectangle over Explore’s softer surface. Screenshot: `.context/attachments/qYalXB/Screenshot 2026-11-07 at 11.42.41 AM.png`.
-
-**Local v3.5.6:** keep one continuous `--bg` window-control strip, matching the existing manifest/meta theme colour. Start Explore below the native title-bar height and let it fill the remaining height, including narrow desktop windows. Retain ordinary header padding, softer panel/composer, native drag bounds and header/Focus clearance. Tabs and mobile retain their existing layout. No theme/provider/sync/storage change.
-
-**Verification:** the old layout fails the new pane-below-strip assertion with the existing native geometry fixture. Preserve before evidence in `.context/window-strip/`. Test left/right controls, compact/narrow desktop windows, zero-height overlay and ordinary-tab fallback; screenshots emulate native geometry and cannot establish browser-owned control paint. Fresh check retains five first-attempt passes (platform, visual, design, smoke and invariants) and one Explore failure in21.2s (`.context/fresh-pnzufE/receipt.json`). The same pending-reply focus assertion fails at the same line on unchanged v3.5.5 (`fb95fb13`), without the title-bar patch; preserve `.context/window-strip/control.log`. No failed assertion was weakened. Owning runtime/test hashes still match. Installed browser control paint remains to be checked; this was the pre-publication local receipt.
-
-**CI completion:** the strip layout is already present in the published v3.5.7 shell. Full Linux42367097472 passes61 suites and fails the obsolete pane-at-zero assertion; this follow-up commits the missing geometry regression and owning documentation. Native browser control paint remains manual acceptance.
 
 ---
 
