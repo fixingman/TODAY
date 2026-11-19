@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## BUG-146, 147, 151 and 159 verified on device and archived (engineering, app v3.12.1 unchanged)
+
+Can confirmed on November 19 on the installed app: linked Explore controls no longer crowd task rows (146), desktop Explore docking and controls (147), no offscreen header haze entering Focus (151), and the Connections header layout (159). All four move to the archive with the verification noted.
+
 ## Folder sync after publishing is opt-in (engineering, app v3.12.1 unchanged)
 
 The first live run of `syncWorktrees` (v3.12.1 engineering) moved Can's `beirut` workspace as intended, but also four other sessions' Conductor workspaces and eight pinned `.context/` evidence snapshots that happened to be clean and behind. All twelve were restored to their previous commits from their own reflogs the same day (each checked clean). The sync is now opt-in: only checkouts holding an empty `.context/follow-dev` (gitignored) move; `beirut` has it. `release-publish-test` adds a clean, not-opted-in checkout that must stay put. Housekeeping updated.
