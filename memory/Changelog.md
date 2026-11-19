@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Close overdue morning-line Watching rows from backup counts (engineering, app v3.12.1 unchanged)
+
+Three overdue rows settled from Can's production backup (counts only, no line text): #15A daily nudge quality (landed 8/12 Oct 19–31 → 15/18 Nov 1–18) and #15A length recovery (31/31 lines ≤30 words) are closed; the BUG-118 delivery row records 31/31 days with a line, leaving only strip/About agreement for Can. Remaining overdue rows need Can's own judgement (pool/Sunday novelty, enrichment, booking email, Connections nudge, HOW DAYS FELT, triage countdown, PATTERNS, KNOWN).
+
 ## Backlog morning-line row names its shipped version (engineering, app v3.12.1 unchanged)
 
 The #15A one-sentence Watching row said v3.11.4; the change shipped as v3.11.5 (the release tool assigned the number at publish time). Corrected so the 2026-12-02 comparison starts from the right release.
