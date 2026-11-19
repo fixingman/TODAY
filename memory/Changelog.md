@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## BUG-144 and BUG-154 verified on device and archived (engineering, app v3.12.1 unchanged)
+
+Can confirmed on November 19: Explore opening/controls (144) and mobile panel header/bottom band (154). Both move to the archive with the verification noted.
+
 ## Engineering bug fixes keep their release reference; stale verified rows cleared (engineering, app v3.12.1 unchanged)
 
 BUG-172 showed "—" as its reference because `release:cut` wrote "—" for any bug shipped in an engineering-only cut. Fixes in such cuts now record `v<current> (engineering)`; only rejected or open bugs get "—" (`release-cut-test` covers it). BUG-172's archive row now names v3.10.11 (engineering, CI-only fix).
