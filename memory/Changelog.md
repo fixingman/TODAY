@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## BUG-118 verified and archived with merged BUG-120 (engineering, app v3.12.1 unchanged)
+
+Can confirmed on November 19 that the morning strip and About show the same line; delivery was already met from the production backup (a line on 31 of 31 days, Oct 19–Nov 18, counts only). BUG-118 and its merged alias BUG-120 move to the archive with the verification noted; the Backlog delivery row is closed.
+
 ## Master candidate for v3.12.1 (full validation) (engineering, app v3.12.1 unchanged)
 
 Can asked to promote dev to master on November 19. Dev's latest run was selected-only, so this engineering-only cut carries `CI-Validation: full` (every suite plus the five-run performance gate) for exact-commit proof before `release:publish --master`. Master moves from v3.11.3 to v3.12.1. App code is unchanged by this commit.
