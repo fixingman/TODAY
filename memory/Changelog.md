@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Master candidate for current v3.12.1 engineering updates (full validation) (engineering, app v3.12.1 unchanged)
+
+Prepare the current dev changes for Can's authorized master promotion: verified-bug records, release-reference handling and opt-in checkout following after publication. App runtime and version remain identical to master. The prior selected dev run does not provide reusable full-release proof for this commit; the release cut requests all functional checks and all five performance runs through `CI-Validation: full`. Promote only the identical successful candidate after exact-commit preflight, preserving the existing publication, proof and permission boundaries.
+
 ## BUG-146, 147, 151 and 159 verified on device and archived (engineering, app v3.12.1 unchanged)
 
 Can confirmed on November 19 on the installed app: linked Explore controls no longer crowd task rows (146), desktop Explore docking and controls (147), no offscreen header haze entering Focus (151), and the Connections header layout (159). All four move to the archive with the verification noted.
