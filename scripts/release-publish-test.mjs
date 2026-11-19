@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { parsePublishArgs, checkPublishRun, publishCandidate, createPublisherIO, main } from './release-publish.mjs';
+import { parsePublishArgs, checkPublishRun, publishCandidate, createPublisherIO, main, syncWorktrees } from './release-publish.mjs';
 import { REPOSITORY, WORKFLOW, WORKFLOW_ID } from './release-evidence.mjs';
 const ROOT=join(dirname(fileURLToPath(import.meta.url)),'..'),temporary=mkdtempSync(join(tmpdir(),'today-publish-'));
 let serial=0;
@@ -162,5 +162,33 @@ try {
   } finally {for(const [key,value]of Object.entries(previous))if(value===undefined)delete process.env[key];else process.env[key]=value;}
   assert.deepEqual(f.state.pushes,[]);
   console.log('  ✓ real CLI help is read-only, CI cannot auto-publish, and a second publisher cannot take the existing lock');
+{
+  // After publishing, clean detached checkouts that dev already contains move to the published
+  // commit; branches, dirty or mid-rebase checkouts, own commits and temporary copies stay put.
+  const home=mkdtempSync(join(tmpdir(),'today-sync-')),g=(cwd,...a)=>execFileSync('git',a,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+  try {
+    const main=join(home,'main');mkdirSync(main);g(main,'init','-q','-b','dev');g(main,'config','user.name','F');g(main,'config','user.email','f@example.invalid');
+    writeFileSync(join(main,'a.txt'),'1');g(main,'add','.');g(main,'commit','-q','-m','one');const old=g(main,'rev-parse','HEAD');
+    const add=name=>{const dir=join(home,name);g(main,'worktree','add','-q','--detach',dir,old);g(dir,'config','user.name','F');g(dir,'config','user.email','f@example.invalid');return dir;};
+    const clean=add('clean'),dirty=add('dirty'),own=add('own'),rebasing=add('rebasing'),branch=join(home,'branch');
+    g(main,'worktree','add','-q','-b','feature',branch,old);
+    writeFileSync(join(dirty,'a.txt'),'local edit');
+    writeFileSync(join(own,'b.txt'),'mine');g(own,'add','b.txt');g(own,'commit','-q','-m','own');
+    mkdirSync(join(g(rebasing,'rev-parse','--absolute-git-dir'),'rebase-merge'));
+    writeFileSync(join(main,'a.txt'),'2');g(main,'commit','-q','-am','two');const sha=g(main,'rev-parse','HEAD');
+    // The fixture lives in the temp directory, so point "temporary" elsewhere to exercise the real rules.
+    const result=Object.fromEntries(syncWorktrees(main,sha,{temp:'/nonexistent-temp',tempPattern:/^$/}).map(r=>[r.path.split('/').at(-1),r]));
+    assert.equal(g(clean,'rev-parse','HEAD'),sha,'clean detached checkout moves');assert.equal(result.clean.moved,true);
+    assert.equal(g(dirty,'rev-parse','HEAD'),old);assert.match(result.dirty.reason,/uncommitted/);assert.equal(readFileSync(join(dirty,'a.txt'),'utf8'),'local edit');
+    assert.notEqual(g(own,'rev-parse','HEAD'),sha);assert.match(result.own.reason,/own commits/);
+    assert.equal(g(rebasing,'rev-parse','HEAD'),old);assert.match(result.rebasing.reason,/rebase/);
+    assert.equal(g(branch,'rev-parse','HEAD'),old);assert.match(result.branch.reason,/named branch/);
+    g(clean,'checkout','-q','--detach',old);
+    const tempOnly=syncWorktrees(main,sha);
+    assert.ok(tempOnly.length&&tempOnly.every(r=>!r.moved&&r.reason==='temporary session copy'),'checkouts under the temp directory are never moved');
+    assert.equal(g(clean,'rev-parse','HEAD'),old);
+  } finally { rmSync(home,{recursive:true,force:true}); }
+  console.log('  ✓ after publishing, only clean detached checkouts behind dev move to the published commit');
+}
 } finally {rmSync(temporary,{recursive:true,force:true});}
 console.log('✓ RELEASE PUBLISH TEST PASSED (offline only)');

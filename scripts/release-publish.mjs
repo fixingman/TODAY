@@ -1,7 +1,8 @@
 // Publish an already-reviewed commit. Selection, proof and promotion stay with existing guards.
-import { execFile, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, renameSync, existsSync, realpathSync, openSync, closeSync, unlinkSync, rmdirSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { SUITE } from './ci-policy.mjs';
 import { REPOSITORY, WORKFLOW, WORKFLOW_ID, validSha, requireValue } from './release-evidence.mjs';
@@ -152,6 +153,31 @@ export function createPublisherIO(root,{run=runCommand,pause=ms=>new Promise(r=>
   };
 }
 
+// After publishing, bring other checkouts of this repository up to the published commit so the
+// folders people look at (Conductor workspaces) do not silently fall behind dev. Only a clean,
+// detached checkout whose commit dev already contains moves; anything else is left as it is.
+export function syncWorktrees(root,sha,{run=(dir,args)=>execFileSync('git',['-C',dir,...args],{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim(),
+  temp=realpathSync(tmpdir()),tempPattern=/^\/(private\/)?tmp\//}={}) {
+  const self=realpathSync(root),out=[];
+  const blocks=run(root,['worktree','list','--porcelain']).split('\n\n').filter(Boolean);
+  for(const block of blocks) {
+    const path=block.match(/^worktree (.+)$/m)?.[1];if(!path)continue;
+    let real;try{real=realpathSync(path);}catch{continue;}
+    const skip=reason=>out.push({path,moved:false,reason});
+    if(real===self)continue;
+    if(real.startsWith(temp+sep)||tempPattern.test(real)){skip('temporary session copy');continue;}
+    if(!/^detached$/m.test(block)){skip('on a named branch');continue;}
+    const head=block.match(/^HEAD ([0-9a-f]{40})$/m)?.[1];if(!head||head===sha)continue;
+    try {
+      if(run(path,['status','--porcelain','--untracked-files=no'])){skip('has uncommitted changes');continue;}
+      if(['MERGE_HEAD','rebase-merge','rebase-apply'].some(m=>existsSync(resolve(path,run(path,['rev-parse','--git-path',m]))))){skip('merge or rebase in progress');continue;}
+      try{run(path,['merge-base','--is-ancestor',head,sha]);}catch{skip('has its own commits');continue;}
+      run(path,['checkout','-q','--detach',sha]);out.push({path,moved:true});
+    } catch(error) {skip('git refused: '+String(error.message).split('\n')[0]);}
+  }
+  return out;
+}
+
 export async function main(args,root=ROOT) {
   let io,lock,locked=false;
   try {
@@ -163,7 +189,14 @@ export async function main(args,root=ROOT) {
     try {mkdirSync(lock);locked=true;} catch(error) {if(error.code==='EEXIST')throw Error('A publisher is active, or its lock needs review: '+lock);throw error;}
     writeFileSync(join(lock,'owner.json'),JSON.stringify({pid:process.pid,sha:options.sha})+'\n');
     io=createPublisherIO(root);const result=await publishCandidate(options,io);
-    console.log(`Published ${result.sha.slice(0,8)} to ${result.master?'dev and master':'dev'}. Receipt: ${io.receipt}`);return 0;
+    console.log(`Published ${result.sha.slice(0,8)} to ${result.master?'dev and master':'dev'}. Receipt: ${io.receipt}`);
+    try {
+      const synced=syncWorktrees(root,result.sha);
+      const moved=synced.filter(s=>s.moved),kept=synced.filter(s=>!s.moved&&s.reason!=='temporary session copy');
+      if(moved.length)console.log('Updated to the published commit: '+moved.map(s=>s.path).join(', '));
+      for(const s of kept)console.log(`Left unchanged (${s.reason}): ${s.path}`);
+    } catch(error) {console.log('Could not update other checkouts: '+error.message);}
+    return 0;
   } catch(error) {
     if(io)io.save({phase:'stopped',error:error.message});
     console.error(error.message);if(io)console.error('Receipt: '+io.receipt);return 1;
