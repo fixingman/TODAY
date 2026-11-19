@@ -2,6 +2,12 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Engineering bug fixes keep their release reference; stale verified rows cleared (engineering, app v3.12.1 unchanged)
+
+BUG-172 showed "—" as its reference because `release:cut` wrote "—" for any bug shipped in an engineering-only cut. Fixes in such cuts now record `v<current> (engineering)`; only rejected or open bugs get "—" (`release-cut-test` covers it). BUG-172's archive row now names v3.10.11 (engineering, CI-only fix).
+
+Bugs.md still listed BUG-168 and 170–172 as ✅ after they were archived on November 17; those rows are removed. BUG-167 was marked verified but never archived; it moves to the archive with its detail. Bugs.md now holds only open, awaiting, rejected and merge rows, as its header says.
+
 ## BUG-152, 162, 165 and 169 verified on device and archived (engineering, app v3.12.1 unchanged)
 
 Can confirmed on November 19 on the installed app: native window controls keep Today's base theme with a sidebar open (152), the desktop PWA title area with a sidebar (162), the iOS add-task bar above the keyboard (165), and no zoom when renaming a habit on iPhone (169). All four move to the archive, newest first, with the verification noted.
