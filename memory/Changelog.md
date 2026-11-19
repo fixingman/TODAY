@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## BUG-152, 162, 165 and 169 verified on device and archived (engineering, app v3.12.1 unchanged)
+
+Can confirmed on November 19 on the installed app: native window controls keep Today's base theme with a sidebar open (152), the desktop PWA title area with a sidebar (162), the iOS add-task bar above the keyboard (165), and no zoom when renaming a habit on iPhone (169). All four move to the archive, newest first, with the verification noted.
+
 ## BUG-118 verified and archived with merged BUG-120 (engineering, app v3.12.1 unchanged)
 
 Can confirmed on November 19 that the morning strip and About show the same line; delivery was already met from the production backup (a line on 31 of 31 days, Oct 19–Nov 18, counts only). BUG-118 and its merged alias BUG-120 move to the archive with the verification noted; the Backlog delivery row is closed.
