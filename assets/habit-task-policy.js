@@ -67,7 +67,7 @@
   function progression(state, habit, day, completions = [], events = {}) {
     const c = state.configs[habit.id];
     const reference = text(c?.actions.find(a => a.id === c.defaultId)?.text, 120);
-    const result = { direction: 'baseline', reference, recentPractice: [] };
+    const result = { direction: 'baseline', reference, recentPractice: [], lastStretch: null };
     if (habit.archived || !c?.enabled || c.mode !== 'fresh' || !c.note || !dayPattern.test(day)) return result;
     const date = new Date(day + 'T12:00:00');
     const localDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -89,13 +89,15 @@
       if (!done) continue;
       checked++; if (offset <= 7) recentChecked++;
       if (!slot && result.recentPractice.length < 3 && o.text) result.recentPractice.push(text(o.text, 120));
+      if (slot && result.lastStretch === null && o.text) result.lastStretch = text(o.text, 120);
     }
     // Conservative product parameters, not formation/mastery claims. Unknown days
     // never become misses. A single miss cannot erase a stored level: none exists.
     if (known >= 5 && checked <= 2) result.direction = 'return';
     else if (known >= 10 && checked >= 10 && recentChecked >= 4) {
       result.direction = stretchDay(habit.id, date) && lastKnownDone !== false && lastStretchDone !== false ? 'deepen' : 'practice';
-    } else if (checked >= 3) result.direction = 'practice';
+    } else if (checked >= 1 && recentChecked === 0 && known >= 3) result.direction = 'return';
+    else if (checked >= 1) result.direction = 'practice';
     return result;
   }
   // recent: action ids of earlier days, newest first; the set rotates through before repeating.
