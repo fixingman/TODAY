@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 174 | ⏳ Verify | .habit-daily-link inside .habit[data-habit-id] was missing from the focus.js document click handler exclusion list. | v3.13.0 |
 | 173 | ⏳ Verify | New tasks land at the bottom of the list, so their suggestion row sat behind the fixed input bar; the app still counted 10 seconds there as "seen and ignored" and throttled all suggestions. | v3.11.6 |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
 | 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
@@ -34,6 +35,20 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–134, 136–143, 148–150, 153, 155–157, 160, 161, 163, 164, 168, 170–172 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-174 — Clicking the daily-task link in a habit row enters focus mode instead of opening the habit task editor
+
+**Report:** Can noticed on desktop that clicking the "daily task" link in the habit edit panel caused the page to enter focus mode. A second click then revealed the habit task editor.
+
+**Root cause:** `assets/focus.js` has a document-level click handler (line ~1135) that fires focus mode when `e.target.closest('.habit[data-habit-id]')` matches. The handler has an explicit exclusion list (`.habit-edit-input`, `.habit-edit-delete`, etc.) but `.habit-daily-link` was absent. Because `.habit-daily-link` lives inside `.habit[data-habit-id]`, the outer `.closest()` match triggered focus mode before the `data-today-click="habits.daily-task"` handler could open the editor.
+
+**Fix** (commit 1bb7ab01): added `if (e.target.closest('.habit-daily-link')) return;` to the exclusion list in `focus.js`.
+
+**Test** (commit bed8cf21): `scripts/habits-test.mjs` now clicks `.habit-daily-link` in edit mode, waits for `habitsTitle` to become "Daily task" (confirming the editor opened), and asserts `document.body.classList.contains('focus-locked')` is false.
+
+**Verification needed:** confirm on the installed app that clicking the daily-task link in the habit panel opens the editor directly without triggering focus mode.
 
 ---
 

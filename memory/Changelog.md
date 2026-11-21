@@ -2,6 +2,25 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Adaptive habit progression — variety, responsive direction, cumulative deepen (app v3.13.0)
+
+Shipped November 21 (commit 4433f9b4) to origin/dev. Changes to `assets/habit-task-policy.js` and `assets/habit-tasks.js`:
+
+- **`earlier` repetition avoidance** — `FRESH_RULES` now explicitly instructs the AI to use the `earlier` field (past occurrence texts) to avoid verbatim repetition. Previously the field was passed but ignored by the prompt.
+- **`practice` threshold** — lowered from 3→1 completion. Variety begins after the first success; waiting for three made rotation nearly invisible in practice.
+- **`return` on recent drift** — added condition: `checked >= 1 && recentChecked === 0 && known >= 3`. A week without completion suggests a lower-friction angle even before the sustained-miss threshold (5 known / ≤2 checked) fires.
+- **Cumulative `lastStretch`** — `progression()` now tracks the most recent completed stretch-day AI occurrence text as `lastStretch`. The AI is instructed to build on `lastStretch` for `deepen` direction, enabling push-ups to grow 10→11→12 over time rather than always referring back to the original baseline.
+- **`baseline` rewritten** — now starts from "a genuinely achievable step toward the note's goal." Reduction habits (note contains quit/stop/reduce) get a bounded constraint on current behavior, not full cessation as the first-day floor.
+- **`practice` direction** — now "offer a fresh approach at the same effort level using recentPractice — vary the angle, not the difficulty" (was: consolidate a familiar appropriate action).
+
+Unit test (`scripts/habit-task-policy-unit-test.mjs`) updated for changed thresholds. Browser test (`scripts/habits-test.mjs`) adds click-propagation assertion for `.habit-daily-link`. W3 checkpoint December 1.
+
+## Error indicator click target too small on desktop (app v3.13.0)
+
+On desktop (≥640px) the error indicator button was 12×12px with a 3px transparent border — 18×18px total, below the 24px minimum. Increased border-width from 3px to 6px; total click area is now 24×24px. Visible dot size unchanged.
+
+Root cause: the mobile size (24×24px + 7px border) was fine; the desktop override shrank the border without compensating.
+
 ## Adaptive habit progression — variety, responsive direction, cumulative deepen (dev, app v3.12.1+)
 
 November 21 refinements to the fresh daily habit task progression (shipped to origin/dev, commits 4433f9b4, ce800473, 1bb7ab01). Behavior changes from the November 17 implementation: practice threshold lowered from 3→1 completion so variety begins after the first success; a new `return` condition fires when checked≥1 but recentChecked=0 and known≥3 (a week without completion suggests a lower-friction angle before sustained-miss threshold); `deepen` now references `lastStretch` (the most recent completed stretch-day text) so push-ups can grow 10→11→12 cumulatively instead of always returning to the original baseline; `earlier` field now explicitly instructs the AI to avoid verbatim repetition across days; `baseline` starts from a genuinely achievable step and handles reduction habits (bounded constraint on current behavior, not full cessation as the first-day floor). The W3 checkpoint on December 1 evaluates this behavior. Also: `.habit-daily-link` added to the focus.js document click handler exclusion list (bug fix); click-propagation browser test added to `scripts/habits-test.mjs`.
