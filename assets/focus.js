@@ -1152,6 +1152,7 @@ window._startFocus = (function() {
     if (e.target.closest('.focus-timer')) return;
     if (e.target.closest('.habit-edit-input')) return;
     if (e.target.closest('.habit-edit-delete')) return;
+    if (e.target.closest('.habit-daily-link')) return;
     if (e.target.closest('#habitAddRow')) return;
     if (e.target.closest('#habitEditBtn')) return;
     if (e.target.closest('#habitNewBtn')) return;
