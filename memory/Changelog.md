@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Adaptive habit progression — variety, responsive direction, cumulative deepen (dev, app v3.12.1+)
+
+November 21 refinements to the fresh daily habit task progression (shipped to origin/dev, commits 4433f9b4, ce800473, 1bb7ab01). Behavior changes from the November 17 implementation: practice threshold lowered from 3→1 completion so variety begins after the first success; a new `return` condition fires when checked≥1 but recentChecked=0 and known≥3 (a week without completion suggests a lower-friction angle before sustained-miss threshold); `deepen` now references `lastStretch` (the most recent completed stretch-day text) so push-ups can grow 10→11→12 cumulatively instead of always returning to the original baseline; `earlier` field now explicitly instructs the AI to avoid verbatim repetition across days; `baseline` starts from a genuinely achievable step and handles reduction habits (bounded constraint on current behavior, not full cessation as the first-day floor). The W3 checkpoint on December 1 evaluates this behavior. Also: `.habit-daily-link` added to the focus.js document click handler exclusion list (bug fix); click-propagation browser test added to `scripts/habits-test.mjs`.
+
 ## Master candidate for current v3.12.1 engineering updates (full validation) (engineering, app v3.12.1 unchanged)
 
 Prepare the current dev changes for Can's authorized master promotion: verified-bug records, release-reference handling and opt-in checkout following after publication. App runtime and version remain identical to master. The prior selected dev run does not provide reusable full-release proof for this commit; the release cut requests all functional checks and all five performance runs through `CI-Validation: full`. Promote only the identical successful candidate after exact-commit preflight, preserving the existing publication, proof and permission boundaries.

@@ -478,6 +478,14 @@ try {
     await expectAll('phone edit keeps the draft',await page.$eval('.habit-edit-input[data-id="habit_short"]',n=>({draft:n.value==='Walk after breakfast'})));
     await page.evaluate(()=>document.getElementById('sidebarRoot').style.removeProperty('width'));
     await editSettled(1200);
+    // Clicking the daily-task link must open the editor, not enter focus mode.
+    // This guards against a missing exclusion in the focus.js document click handler.
+    await page.click('.habit[data-habit-id="habit_old"] .habit-daily-link');
+    await page.waitForFunction(()=>document.getElementById('habitsTitle')?.textContent==='Daily task',{timeout:3000});
+    const dailyLinkFocusLock=await page.evaluate(()=>document.body.classList.contains('focus-locked'));
+    await page.evaluate(()=>{Today.use('sidebar').open('habits',{fromDailyTask:true});});
+    await page.waitForFunction(()=>!!document.querySelector('#habitList .habit'),{timeout:3000});
+    await expectAll('daily-task link in edit mode opens editor and does not enter focus mode',{noFocusLock:!dailyLinkFocusLock});
     await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
     await settled(1200);await layoutGeometry(1200);
     await expectAll('layout preserves names, strength and order',await page.evaluate(()=>({
