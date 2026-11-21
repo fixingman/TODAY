@@ -2,6 +2,12 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Replace waitForFunction with RAF wait in daily-link focus test (engineering, app v3.13.0 unchanged)
+
+habits-test: waiting for habitsTitle to change to "Daily task" timed out on CI
+because the habit task editor lazy-loads its module. Focus-lock is synchronous
+on click; switched to two animation frames which is sufficient and always fast.
+
 ## Adaptive habit progression — variety, responsive direction, cumulative deepen (app v3.13.0)
 
 Shipped November 21 (commit 4433f9b4) to origin/dev. Changes to `assets/habit-task-policy.js` and `assets/habit-tasks.js`:
