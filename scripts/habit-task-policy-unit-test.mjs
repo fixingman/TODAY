@@ -181,7 +181,7 @@ function practiceFixture(day, count = 14) {
 const day = '2026-11-17', evidence = practiceFixture(day);
 const run = (value = evidence, h = learner, when = day, events = {}) => progression(value.state, h, when, value.completions, events);
 assert.equal(run().recentPractice.length, 3, 'only three checked-associated wordings leave the policy');
-assert.deepEqual(Object.keys(run()).sort(), ['direction', 'recentPractice', 'reference'], 'no raw dates, counts, identifiers or other habits are projected');
+assert.deepEqual(Object.keys(run()).sort(), ['direction', 'lastStretch', 'recentPractice', 'reference'], 'no raw dates, counts, identifiers or other habits are projected');
 const slots = ['2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'].map(d => run(practiceFixture(d), learner, d).direction);
 assert.equal(slots.filter(d => d === 'deepen').length, 1, 'one bounded stretch slot in four calendar days');
 assert.equal(slots.filter(d => d === 'practice').length, 3, 'practice days separate stretches');
@@ -204,7 +204,7 @@ const isolatedMiss = structuredClone(evidence); isolatedMiss.completions.pop();
 assert.equal(run(isolatedMiss).direction, run().direction, 'one miss does not reset progress');
 const low = structuredClone(evidence); low.completions = low.completions.slice(0,2);
 assert.equal(run(low).direction, 'return', 'sustained known lower completion prefers a familiar return');
-assert.equal(run(practiceFixture(day, 2)).direction, 'baseline', 'sparse history is not failure or readiness');
+assert.equal(run(practiceFixture(day, 2)).direction, 'practice', 'one or more completions in sparse history is enough for practice variety');
 const recentGap = structuredClone(evidence); recentGap.completions = recentGap.completions.slice(4);
 assert.notEqual(run(recentGap).direction, 'deepen', 'older completions cannot hide a recent gap');
 const none = practiceFixture(day, 0); none.completions = [...evidence.completions, day, '2099-12-31'];
