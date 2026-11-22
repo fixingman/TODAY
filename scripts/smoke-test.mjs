@@ -504,7 +504,7 @@ try {
     await open();
     Today.use('about').toggleInfo();
     const hiddenAfterOtherPanel = !isVisible() && !document.getElementById('configPanel').classList.contains('open');
-    if (document.getElementById('infoPanel').classList.contains('open')) Today.use('about').toggleInfo();
+    if (Today.use('sidebar').isOpen('about')) Today.use('sidebar').close(true);
 
     const cases = [
       ['trello token', 'trello_token', 'token'],
