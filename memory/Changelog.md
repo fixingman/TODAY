@@ -2,6 +2,15 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Add habit-task-editor in-place swap invariant test (engineering, app v3.13.0 unchanged)
+
+habit-task-editor.open() replaces #habitsContent directly without changing
+sidebar.active, so isOpen('habits') true does not mean the habits list is
+present. Added two new assertions to habits-test: one that documents the
+invariant (sidebar stays on habits, #habitList gone, .ht-editor present,
+title and habit name correct), and one that verifies back() restores the
+full list and exits edit mode.
+
 ## Fix daily-task link test after habit-task-editor in-place swap (engineering, app v3.13.0 unchanged)
 
 Habits-test daily-task-link check timed out waiting for `#habitList .habit`
