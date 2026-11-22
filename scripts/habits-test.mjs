@@ -506,6 +506,25 @@ try {
       return {done:row.classList.contains('done-today'),today:row.querySelector('.is-today').classList.contains('filled'),
         summary:row.querySelector('.visually-hidden').textContent.startsWith('3 of the last 8 days')};
     }));
+    // habit-task-editor swaps #habitsContent in-place without changing sidebar.active.
+    // Document the invariant: isOpen('habits') true does NOT mean #habitList is present.
+    await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
+    await page.click('.habit[data-habit-id="habit_old"] .habit-daily-link');
+    await page.waitForSelector('#habitsContent .ht-editor',{timeout:3000});
+    await expectAll('habit-task-editor in-place swap: sidebar stays on habits, list gone',await page.evaluate(()=>({
+      sidebarStillHabits:Today.use('sidebar').isOpen('habits'),
+      habitListGone:document.querySelectorAll('#habitList .habit').length===0,
+      editorPresent:!!document.querySelector('#habitsContent .ht-editor'),
+      titleIsEditor:document.getElementById('habitsTitle')?.textContent==='Daily task',
+      habitNameShown:document.querySelector('.ht-title')?.textContent===habitsList.find(h=>h.id==='habit_old')?.name,
+    })));
+    await page.click('#habitsContent .ht-back');
+    await page.waitForSelector('#habitList .habit',{timeout:3000});
+    await expectAll('habit-task-editor back restores habits list',await page.evaluate(()=>({
+      sidebarOpen:Today.use('sidebar').isOpen('habits'),
+      listRestored:document.querySelectorAll('#habitList .habit').length>0,
+      editModeOff:!habitEditMode,
+    })));
     // Reopening creates a new list; fitting must survive that lifecycle.
     await page.evaluate(()=>Today.use('sidebar').open('about'));
     await page.evaluate(()=>Today.use('sidebar').open('habits'));
