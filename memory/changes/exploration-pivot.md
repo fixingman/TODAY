@@ -1,6 +1,7 @@
 ---
 bump: minor
 title: Add question pivot to Explore
+about: Change the question you're exploring without losing your conversation history.
 ---
 Let users change the exploration question without losing history. A pivot appends
 a 'pivot' entry (kind, from, to) and updates doc.question in place. The old
