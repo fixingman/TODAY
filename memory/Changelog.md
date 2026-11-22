@@ -2,6 +2,13 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Polish pivot UX before first test (engineering, app v3.14.0 unchanged)
+
+De-sticky the pivot chapter break (was using ex-day's sticky positioning);
+rename form title to "New question" (noun style); update label to
+"What are you exploring now?"; drop muted footnote transplanted from
+correction view.
+
 ## Add question pivot to Explore (app v3.14.0)
 
 Let users change the exploration question without losing history. A pivot appends
