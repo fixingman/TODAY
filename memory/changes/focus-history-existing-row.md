@@ -1,0 +1,6 @@
+---
+bump: patch
+title: Preserve focus minutes when a daily-history row already exists (BUG-{focus-history-existing-row-bug})
+about: Focus minutes are preserved when another device has already saved part of the day’s history.
+---
+New-day cleanup skipped its entire outgoing-day snapshot when a row for that date already existed, then reset the live focus counter. A fictional existing zero-minute row reproduces loss of90 unbanked minutes. Merge the snapshot with the existing sync-merge per-field max/fixed-count contract before resetting, preserving richer focus/task/habit values and the30-row cap without adding counters. Keep BUG-063’s midnight snapshot and today-counter guard, day boundaries, backup schema and all other cleanup behavior. Regression coverage includes two isolated devices on Friday/Saturday, actual sync before rollover, converged About grids and stale-zero replay; that test fails with the original runtime and passes with the repair. Coverage also checks the real About week-grid result, richer-row retention, corrected added counts, midnight snapshot/live-counter separation and idempotence. Can’s November23 report concerns Friday November20 and an estimated1–2h; the exact account cause and recoverable total remain unverified. No live data was changed or inferred.

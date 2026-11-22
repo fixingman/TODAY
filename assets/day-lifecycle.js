@@ -70,21 +70,18 @@ window._startDayLifecycle = (function() {
         (habitCompletions[h.id] || []).includes(yesterdayISO)
       ).length;
       const dailyHistory = safeJSON('today_daily_history', []);
-      if (!dailyHistory.find(e => e.date === yesterdayISO)) {
-        dailyHistory.push({
-          date: yesterdayISO,
-          tasksDone: doneToday,
-          tasksAdded: appMemory?.patterns?.tasksAddedToday || 0,
-          dayStartCount: appMemory?.patterns?.dayStartCount ?? null,
-          focusMins: focusMinsYesterday,
-          habitsKept: habitsKeptYesterday,
-          habitsTotal: activeHabitsYesterday.length,
-        });
-        // Keep only the last 30 days
-        dailyHistory.sort((a, b) => a.date.localeCompare(b.date));
-        if (dailyHistory.length > 30) dailyHistory.splice(0, dailyHistory.length - 30);
-        localStorage.setItem('today_daily_history', JSON.stringify(dailyHistory));
-      }
+      // Another device may already have banked a partial row for this day.
+      // Merge before resetting the counter so that row cannot swallow local focus.
+      const mergedHistory = Today.use('sync-merge').mergeDailyHistory(dailyHistory, [{
+        date: yesterdayISO,
+        tasksDone: doneToday,
+        tasksAdded: appMemory?.patterns?.tasksAddedToday || 0,
+        dayStartCount: appMemory?.patterns?.dayStartCount ?? null,
+        focusMins: focusMinsYesterday,
+        habitsKept: habitsKeptYesterday,
+        habitsTotal: activeHabitsYesterday.length,
+      }], _sanitizeDailyTasksAdded);
+      localStorage.setItem('today_daily_history', JSON.stringify(mergedHistory));
 
       // Reset daily counters. Done-today is derived from today_checked_ids (cleared below),
       // so there's no done counter to zero here — only focus minutes.

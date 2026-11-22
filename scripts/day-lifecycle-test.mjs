@@ -1,4 +1,4 @@
-import { installFixtureClock } from './browser-fixture.mjs';
+import { installFixtureClock, waitForAppReady } from './browser-fixture.mjs';
 // TODAY — day-lifecycle module regression test
 //
 // Tests: applyNewDayCleanup (first-open guard, same-day guard, done→PAST graduation,
@@ -323,6 +323,121 @@ try {
       await page.close();
     }
 
+    // Friday-to-Saturday, two isolated devices: stale synced history must not
+    // consume the working device's counter, and replay must not erase the repair.
+    {
+      const friday='2026-11-20',fridayDs=new Date(2026,10,20,12).toDateString();
+      const saturday=new Date(2026,10,21,12).getTime(),saturdayDs=new Date(saturday).toDateString();
+      const contexts=[await browser.createBrowserContext(),await browser.createBrowserContext()];
+      const devices=[];
+      try {
+        for(const [index,context] of contexts.entries()){
+          const page=await context.newPage(),errors=[];
+          page.on('pageerror',error=>errors.push(error.message));
+          await installFixtureClock(page,saturday);
+          await page.evaluateOnNewDocument(({fridayDs,saturdayDs,minutes})=>{
+            localStorage.setItem('stat_last_visit',saturdayDs);
+            localStorage.setItem('stat_focus_mins_date',fridayDs);
+            localStorage.setItem('stat_focus_mins_today',String(minutes));
+            localStorage.setItem('splash_shown_at',String(Date.now()));
+          },{fridayDs,saturdayDs,minutes:index===0?90:0});
+          await page.goto(URL_BASE,{waitUntil:'domcontentloaded',timeout:15000});
+          await waitForAppReady(page,{label:'Friday history device '+index});
+          devices.push({page,errors});
+        }
+        const [working,other]=devices;
+        const stale=await other.page.evaluate(({friday,fridayDs})=>{
+          localStorage.setItem('stat_last_visit',fridayDs);applyNewDayCleanup();
+          const daily=safeJSON('today_daily_history',[]);
+          return {daily_history:daily,stat_focus_mins_today:localStorage.getItem('stat_focus_mins_today'),
+            stat_focus_mins_date:localStorage.getItem('stat_focus_mins_date')};
+        },{friday,fridayDs});
+        await expectAll('second device banks the partial Friday row',{
+          zeroFriday:stale.daily_history.find(row=>row.date===friday)?.focusMins===0,
+          isolated:await working.page.evaluate(()=>safeJSON('today_daily_history',[]).length===0),
+        });
+        const outgoing=await working.page.evaluate(({stale,friday,fridayDs})=>{
+          mergeRemoteData(stale);
+          const syncedZero=safeJSON('today_daily_history',[]).find(row=>row.date===friday)?.focusMins===0;
+          localStorage.setItem('stat_last_visit',fridayDs);applyNewDayCleanup();
+          const history=safeJSON('today_daily_history',[]),row=history.find(row=>row.date===friday);
+          return {syncedZero,retained:row?.focusMins===90,
+            reset:localStorage.getItem('stat_focus_mins_today')==='0',history};
+        },{stale,friday,fridayDs});
+        await expectAll('Friday focus survives real sync then rollover',{
+          syncedPartial:outgoing.syncedZero,retained:outgoing.retained,todayReset:outgoing.reset,
+        });
+        await other.page.evaluate(history=>mergeRemoteData({daily_history:history}),outgoing.history);
+        await working.page.evaluate(stale=>mergeRemoteData(stale),stale);
+        for(const [index,{page,errors}] of devices.entries()){
+          const result=await page.evaluate(({friday})=>{
+            applyNewDayCleanup();Today.use('sidebar').open('about');
+            const dates=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);dates.push(_localISO(d));}
+            const rows=safeJSON('today_daily_history',[]),matches=rows.filter(row=>row.date===friday);
+            const col=document.querySelectorAll('#weekGrid .week-col')[dates.indexOf(friday)];
+            return {exactMinutes:matches[0]?.focusMins===90,oneRow:matches.length===1,
+              aboutShowsFriday:col?.querySelector('.week-col-day')?.textContent==='F'
+                &&col.querySelector('.week-col-focus')?.textContent==='1h 30m',
+              noCarryover:localStorage.getItem('stat_focus_mins_today')==='0'};
+          },{friday});
+          await expectAll('Friday history converges and resists stale replay on device '+index,{...result,noErrors:errors.length===0});
+        }
+        ok('Friday focus survives two-device sync, rollover and stale replay; both About grids show 1h 30m');
+      }finally{for(const context of contexts)await context.close();}
+    }
+
+    // A second device may already have saved an incomplete row for yesterday.
+    // Its presence must not discard this device's still-unbanked focus counter.
+    {
+      const {page,errors}=await openPage({extraSeed:{
+        stat_focus_mins_date:YESTERDAY_DS,stat_focus_mins_today:'90',
+        today_daily_history:JSON.stringify([{date:YESTERDAY_ISO,tasksDone:3,focusMins:0,habitsKept:1,habitsTotal:2}]),
+      }});
+      const r=await page.evaluate(({day,date})=>{
+        localStorage.setItem('stat_last_visit',day);applyNewDayCleanup();
+        const row=safeJSON('today_daily_history',[]).find(x=>x.date===date);
+        return {minutesRetained:row?.focusMins===90,oneRow:safeJSON('today_daily_history',[]).filter(x=>x.date===date).length===1,
+          existingTasksRetained:row?.tasksDone>=3,todayReset:localStorage.getItem('stat_focus_mins_today')==='0'};
+      },{day:YESTERDAY_DS,date:YESTERDAY_ISO});
+      await expectAll('existing history row retains unbanked focus',{...r,noErrors:!errors.length});
+      await waitForAppReady(page,{label:'History About fixture'});
+      const display=await page.evaluate(({date})=>{
+        Today.use('sidebar').open('about');
+        const now=new Date(),dates=[];
+        for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);dates.push(_localISO(d));}
+        const col=document.querySelectorAll('#weekGrid .week-col')[dates.indexOf(date)];
+        return col?.querySelector('.week-col-focus')?.textContent;
+      },{date:YESTERDAY_ISO});
+      if(display!=='1h 30m')await fail('About retains the banked focus time',{display});
+      ok('Existing daily history retains unbanked focus and About displays 1h 30m');await page.close();
+    }
+
+    // Bank by per-field max, never by addition or whole-row replacement.
+    for(const scenario of [
+      {name:'richer remote history',recorded:120,counter:90,expected:120},
+      {name:'post-midnight snapshot',recorded:0,counter:90,snapshot:45,expected:45},
+    ]){
+      const {page,errors}=await openPage({extraSeed:{
+        stat_focus_mins_date:scenario.snapshot?TODAY_DS:YESTERDAY_DS,
+        stat_focus_mins_today:String(scenario.counter),
+        ...(scenario.snapshot?{stat_focus_mins_yesterday_snapshot:String(scenario.snapshot)}:{}),
+        today_daily_history:JSON.stringify([{date:YESTERDAY_ISO,tasksDone:8,tasksAdded:4,tasksAddedFixed:true,
+          focusMins:scenario.recorded,habitsKept:2,habitsTotal:3}]),
+      }});
+      const r=await page.evaluate(({day,date,scenario})=>{
+        localStorage.setItem('stat_last_visit',day);applyNewDayCleanup();
+        const saved=localStorage.getItem('today_daily_history');applyNewDayCleanup();
+        const row=JSON.parse(saved).find(x=>x.date===date);
+        return {correctFocus:row?.focusMins===scenario.expected,existingCounts:row?.tasksDone===8&&row?.habitsKept===2&&row?.habitsTotal===3,
+          correctedAdded:row?.tasksAdded===4&&row?.tasksAddedFixed===true,
+          liveCounter:localStorage.getItem('stat_focus_mins_today')===String(scenario.snapshot?scenario.counter:0),
+          idempotent:saved===localStorage.getItem('today_daily_history'),
+          snapshotConsumed:!localStorage.getItem('stat_focus_mins_yesterday_snapshot')};
+      },{day:YESTERDAY_DS,date:YESTERDAY_ISO,scenario});
+      await expectAll('existing history '+scenario.name,{...r,noErrors:!errors.length});
+      ok('Existing daily history: '+scenario.name+' survives cleanup without double counting');await page.close();
+    }
+
     // 6. Streak increment — consecutive-day visit.
     {
       const { page, errors } = await openPage({
@@ -526,7 +641,7 @@ try {
       await page.close();
     }
 
-    console.log('\nDay-lifecycle tests passed (post-extraction, 15 tests).');
+    console.log('\nDay-lifecycle tests passed (post-extraction).');
   }
 } finally {
   if (browser) await browser.close();

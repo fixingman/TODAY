@@ -188,6 +188,10 @@ Additive keys do not bump the version; `Rules.md` #12 records which keys arrived
 
 `appMemory.noticed` ("has THIS device shown this line") travels in the backup but is **never read back** — device-local (reverting BUG-058's earlier sync). `appMemory.noticedDates` ("when did this occurrence first fire anywhere", keyed per value, e.g. `'peak:14'`, `'habit:<id>:30'`, so a later occurrence gets a fresh key) **is merged**, earliest date wins; `_noticedEligible()` / `_noticedStamp()` in `assets/insights.js` check it before a signal fires locally. It carries only dates, never text, so it cannot recreate BUG-058 (devices showing different content for one pattern): a signal shows on every device that opens About on the day it first fired anywhere, then goes quiet.
 
+### Daily-history rollover
+
+`applyNewDayCleanup()` merges its outgoing-day snapshot through `sync-merge.mergeDailyHistory` before resetting the live focus counter. A row already received from another device may be partial; its existence cannot veto the local snapshot. Preserve per-field maxima, corrected `tasksAddedFixed` precedence, one row per date and the existing30-row cap. This is the same merge contract used by automatic sync and manual Restore; do not sum counters or replace a richer whole row. BUG-063’s pre-midnight snapshot and today-counter guard remain in force. This prevents a demonstrated loss path; it does not reconstruct minutes already discarded or establish the cause of a particular account’s historical row.
+
 ### Trello aging: two maps
 
 Age basis is `lastactive || firstseen || now`, mirroring manual `lastActive || created`. `firstseen` is MIN because a card is as old as its first sighting; `lastactive` is MAX because activity should un-age it. Pushing `firstseen` forward on focus looks right locally and is silently reverted by the next MIN merge — that is why activity has its own key (BUG-064).
