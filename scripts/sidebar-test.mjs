@@ -202,7 +202,8 @@ try{
     const bg=await page.$eval('#sidebarRoot',node=>getComputedStyle(node).backgroundColor.match(/\d+/g).slice(0,3).map(Number));
     const bytes=await page.screenshot({fullPage:false}),image=PNG.sync.read(bytes);
     await writeFile(join(root,`.context/ci-test-results/sidebar/${id}-${width}-${height}-bottom.png`),bytes);
-    for(let y=892;y<900;y++)for(let x=8;x<16;x++){const i=(y*image.width+x)*4;assert.ok(image.data[i+3]===255&&bg.every((channel,n)=>image.data[i+n]===channel),'Mobile '+id+' paints through the bottom edge at '+width+'/'+height);}
+    // x=0..7: leftmost sidebar margin; avoids content card borders that anti-alias at x≈15.
+    for(let y=892;y<900;y++)for(let x=0;x<8;x++){const i=(y*image.width+x)*4;assert.ok(image.data[i+3]===255&&bg.every((channel,n)=>image.data[i+n]===channel),'Mobile '+id+' paints through the bottom edge at '+width+'/'+height);}
    }
   }
   await page.evaluate(()=>Today.use('sidebar').close(true));
