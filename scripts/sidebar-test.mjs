@@ -196,6 +196,9 @@ try{
    for(const height of [710,900]){
     await page.evaluate(height=>{Object.defineProperty(visualViewport,'height',{configurable:true,value:height});visualViewport.dispatchEvent(new Event('resize'));},height);
     await page.waitForFunction(height=>Math.abs(document.getElementById('sidebarRoot').getBoundingClientRect().height-height)<1,{},height);
+    // fitViewport uses rAF; layout is updated but paint may not have flushed. One
+    // extra frame ensures the compositor has painted before the pixel assertion.
+    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(r)));
     const bg=await page.$eval('#sidebarRoot',node=>getComputedStyle(node).backgroundColor.match(/\d+/g).slice(0,3).map(Number));
     const bytes=await page.screenshot({fullPage:false}),image=PNG.sync.read(bytes);
     await writeFile(join(root,`.context/ci-test-results/sidebar/${id}-${width}-${height}-bottom.png`),bytes);
