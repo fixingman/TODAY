@@ -484,8 +484,14 @@ try {
     await page.click('.habit[data-habit-id="habit_old"] .habit-daily-link');
     await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
     const dailyLinkFocusLock=await page.evaluate(()=>document.body.classList.contains('focus-locked'));
-    await page.evaluate(()=>{Today.use('sidebar').open('habits',{fromDailyTask:true});});
+    // The click handler turns off habitEditMode synchronously. The habit-task-editor may then
+    // open asynchronously, unmounting the habits panel. Re-open habits if needed, then restore
+    // habitEditMode directly (no DOM call) so line 491's toggleHabitEditMode() exits cleanly.
+    // habit-task-editor swaps #habitsContent in-place (sidebar stays on 'habits').
+    // Reopen with {fromDailyTask:true} to remount the habits list; ctx bypasses toggle.
+    await page.evaluate(()=>{if(!document.querySelector('#habitList .habit'))Today.use('sidebar').open('habits',{fromDailyTask:true});});
     await page.waitForFunction(()=>!!document.querySelector('#habitList .habit'),{timeout:3000});
+    await page.evaluate(()=>{habitEditMode=true;});
     await expectAll('daily-task link in edit mode does not enter focus mode',{noFocusLock:!dailyLinkFocusLock});
     await page.evaluate(()=>Today.use('habits').toggleHabitEditMode());
     await settled(1200);await layoutGeometry(1200);
