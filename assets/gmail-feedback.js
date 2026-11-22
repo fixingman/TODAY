@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 function create(hooks){
-const _buildQueryFallback=hooks.query, _isBookingTask=hooks.booking, _viewCurrent=hooks.current;
+const _contentQuery=hooks.query, _isBookingTask=hooks.booking, _viewCurrent=hooks.current;
 const CONCERNS=['hard_to_follow','too_formal'];
 const WORDING_SCOPE='device';
 const PREFIX='gmail_enrichment_';
@@ -99,7 +99,7 @@ function controls(entry,view){
     const undo=button(choices,'undo','gmail.wording-undo','Undo Gmail wording feedback');undo.dataset.draft=view.accepted.id;undo.hidden=!view.wordingUndo;
     const clear=button(choices,'clear all','gmail.wording-clear','Clear all Gmail wording feedback on this device');clear.dataset.draft=view.accepted.id;clear.hidden=!rows().some(r=>r.feedback?.wording);
   }
-  shortcut(!hidden&&!hooks.booking(view.text));window._focusExpandTimer?.();
+  shortcut(!hidden&&!hooks.booking(view.text)&&view.canReply!==false);window._focusExpandTimer?.();
 }
 function reconcile(entry,view){
   const active=document.activeElement,action=block()?.contains(active)&&active.dataset.todayClick,concern=active?.dataset.concern;
@@ -124,8 +124,11 @@ function failSave(){announce('Could not save feedback on this device.');}
       const booking  = _isBookingTask(taskText || enrichment.taskText || '');
       const fromRaw  = enrichment.from || '';
       const fromName = fromRaw.replace(/<[^>]+>/g, '').replace(/"/g, '').trim();
-      const _emailM  = fromRaw.match(/<([^>]+@[^>]+)>/);
-      block.dataset.fromEmail = _emailM ? _emailM[1] : (fromRaw.includes('@') ? fromRaw.trim() : '');
+      // Replies go to the latest message not sent by Can; the card shows the evidence message.
+      const replyRaw = typeof enrichment.replyFrom === 'string' ? enrichment.replyFrom : fromRaw;
+      const _emailM  = replyRaw.match(/<([^>]+@[^>]+)>/);
+      block.dataset.fromEmail = _emailM ? _emailM[1] : (replyRaw.includes('@') ? replyRaw.trim() : '');
+      const canReply = !booking && !!replyRaw;
       block.dataset.subject   = enrichment.subject || '';
       const dateStr  = enrichment.date
         ? (function() {
@@ -137,8 +140,11 @@ function failSave(){announce('Could not save feedback on this device.');}
         .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c))
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
         .slice(0, 200);
-      const searchQ  = encodeURIComponent(enrichment.searchQuery || _buildQueryFallback(taskText || enrichment.taskText || ''));
-      const gmailUrl = 'https://mail.google.com/mail/u/0/#search/' + searchQ;
+      // Open the matched conversation itself; a search link is only the fallback for entries without a thread.
+      const gmailUrl = 'https://mail.google.com/mail/u/0/' + (enrichment.threadId
+        ? '#all/' + encodeURIComponent(enrichment.threadId)
+        : '#search/' + encodeURIComponent(enrichment.searchQuery || _contentQuery(taskText || enrichment.taskText || '')));
+      const detail = String(enrichment.detail || '').trim();
       // Desktop Mac uses Apple Mail; other platforms/missing IDs use Gmail.
       const appleMail = _isDesktopMac() && enrichment.messageId;
       const openLink = appleMail
@@ -151,9 +157,10 @@ function failSave(){announce('Could not save feedback on this device.');}
             '<span class="focus-gmail-icon">↩</span>' +
             esc(fromName) + (dateStr ? ' — ' + esc(dateStr) : '') +
           '</div>' +
+          (detail ? '<div class="focus-gmail-detail">' + esc(detail) + '</div>' : '') +
           '<div class="focus-gmail-snippet">&ldquo;' + esc(snippet) + (snippet.length >= 200 ? '…' : '') + '&rdquo;</div>' +
           '<div class="focus-gmail-actions">' +
-            (booking ? '' : '<button class="focus-gmail-draft-btn"><span class="focus-gmail-draft-label">Draft reply</span></button>') +
+            (!canReply ? '' : '<button class="focus-gmail-draft-btn"><span class="focus-gmail-draft-label">Draft reply</span></button>') +
             openLink +
           '</div>' +
           '<div class="focus-gmail-draft" hidden></div>' +
@@ -166,11 +173,12 @@ function failSave(){announce('Could not save feedback on this device.');}
       if (window._focusExpandTimer) _focusExpandTimer();
       const thread=block.querySelector('.focus-gmail-thread'),context=document.createElement('div');
       context.className='focus-gmail-context';thread.prepend(context);
-      context.append(thread.querySelector('.focus-gmail-meta'),thread.querySelector('.focus-gmail-snippet'));
+      context.append(...['.focus-gmail-meta','.focus-gmail-detail','.focus-gmail-snippet'].map(s=>thread.querySelector(s)).filter(Boolean));
       const feedback=document.createElement('span');feedback.className='gmail-context-feedback focus-gmail-actions';
       block.querySelector('.focus-gmail-actions').append(feedback);
       const footer=document.createElement('div');footer.className='gmail-draft-feedback focus-gmail-actions';thread.append(footer);
-      view.snippet=snippet;view.controlsStamp=null;
+      view.snippet=(typeof enrichment.replySnippet==='string'&&enrichment.replySnippet?enrichment.replySnippet:snippet).slice(0,200);
+      view.canReply=canReply;view.controlsStamp=null;
       const primary=block.querySelector('.focus-gmail-draft-btn');
       if(primary){primary.dataset.todayClick='gmail.draft';primary.dataset.context=view.identity;}
       controls(enrichment,view);
@@ -271,7 +279,7 @@ function failSave(){announce('Could not save feedback on this device.');}
         if(typeof entry.threadId!=='string'||!entry.threadId||entry.threadId.length>128)return;
         const prior=next.context;next.context={at:Date.now(),hidden:true,rejectedThreads:[...(prior?.rejectedThreads||[]).filter(id=>id!==entry.threadId),entry.threadId].slice(-5)};
         if(!write(view.id,entry,next))return failSave();
-        view.contextUndo={context:prior,memory:hooks.memoryClear(),epoch:hooks.epoch()};
+        view.contextUndo={context:prior,memory:hooks.memoryClear(),epoch:hooks.epoch()};hooks.rejected?.(view.id);
       }
       trim();controls(hooks.get(view.id),view);hooks.indicator(view.id,false);focus('gmail.context');
       announce(hidden?'Email restored for this task.':'Thread rejected for this task. Undo is available.');

@@ -252,11 +252,13 @@ function _playEnrichmentArrival(el) {
   const muted = _cssToken('--color-muted');
   const accent = _cssToken('--color-accent');
   const easing = _motionEasing('--ease-out');
+  // Settle at the arrow's own resting opacity (hover-only arrows rest at 0, the ↩ email arrow stays visible).
+  const rest = Number(getComputedStyle(el).opacity) || 0;
   const animation = el.animate([
     { opacity: 0, color: muted, easing },
     { opacity: 1, color: accent, offset: 0.15, easing },
     { opacity: 1, color: accent, offset: 0.65, easing },
-    { opacity: 0, color: muted },
+    { opacity: rest, color: muted },
   ], {
     // Seven mid-duration beats preserve the established 1.4s arrival cue.
     duration: _motionDuration('--dur-base') * 7,

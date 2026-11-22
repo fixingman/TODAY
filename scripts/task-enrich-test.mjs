@@ -227,7 +227,7 @@ try {
     await _gmailEnrichTask('agent_success', 'Find white paint replacement');
     const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(location.origin + '\0mock-refresh'));
     const connectionKey = Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
-    localStorage.setItem('gmail_enrichment_agent_success', JSON.stringify({ subject:'Synthetic context', matchPolicy:'minisearch-v1',
+    localStorage.setItem('gmail_enrichment_agent_success', JSON.stringify({ subject:'Synthetic context', matchPolicy:'judge-v1',
       taskText:'Find white paint replacement', ownerPolicy:'owner-v2', connectionKey, fetchedAt:Date.now() }));
     _agentUpdateIndicator('agent_success', true);
     _gmailUpdateIndicator('agent_success', true);
@@ -251,13 +251,13 @@ try {
     const samples = [];
     for (let pass = 0; pass < 3; pass++) {
       repaint(); await new Promise(resolve => setTimeout(resolve, 120));
-      samples.push(...indicators.map(el => ({ opacity: Number(getComputedStyle(el).opacity), running: el.getAnimations().length })));
+      samples.push(...indicators.map(el => ({ gmail: el.classList.contains('gmail-indicator'), opacity: Number(getComputedStyle(el).opacity), running: el.getAnimations().length })));
     }
     return { started: true, bright, survived, samples };
   });
   assert(arrival.started && arrival.bright && arrival.survived
-      && arrival.samples.every(s => s.opacity === 0 && s.running === 0),
-    'both enrichment arrows announce new context once and survive active and completed wake repaints', arrival);
+      && arrival.samples.every(s => (s.gmail ? s.opacity > 0 && s.opacity < 1 : s.opacity === 0) && s.running === 0),
+    'both enrichment arrows announce new context once, survive wake repaints, and settle at rest (agent hidden, ↩ quietly visible)', arrival);
 
   await page.hover('[data-taskid="agent_success"]');
   await new Promise(resolve => setTimeout(resolve, 200));
@@ -450,7 +450,9 @@ try {
     manualTasks=[]; doneIds.clear(); _agentCleanupCache();
     __agentSeed('manual_agent_focus','Find white paint');
     window.__enrichCalls=0;
-    window.fetch=async (_url,options={}) => { if(JSON.parse(options.body||'{}').systemPrompt?.startsWith('Prepare at most one optional focus suggestion'))return {ok:true,status:200,json:async()=>({content:JSON.stringify({kind:'none',text:''})})}; __enrichCalls++; return {ok:true,status:200,json:async () => ({card:{
+    window.fetch=async (_url,options={}) => { if(JSON.parse(options.body||'{}').systemPrompt?.startsWith('Prepare at most one optional focus suggestion'))return {ok:true,status:200,json:async()=>({content:JSON.stringify({kind:'none',text:''})})};
+      // Count web/Trello context requests only; Focus may also run its own Gmail lookup.
+      if(!String(_url).includes('/task-enrich'))return {ok:true,status:200,json:async()=>({threads:[]})}; __enrichCalls++; return {ok:true,status:200,json:async () => ({card:{
       icon:'↗',headline:'Paint shop',body:'Open until 18:00',cta:{label:'Visit',href:'https://example.com/paint'},
     }})}; };
     await _agentEnrichTask('manual_agent_focus','Find white paint');

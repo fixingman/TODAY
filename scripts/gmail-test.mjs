@@ -1,4 +1,4 @@
-// Gmail classification/query and focus-enrichment regression tests.
+// Gmail search → judge → grounding, ownership fences and focus/phone card regression tests.
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
@@ -42,9 +42,6 @@ const effectiveQuery = query => '(' + query + ') -from:calendar-notification@goo
 const DESKTOP_INPUT = '--blink-settings=availableHoverTypes=2,primaryHoverType=2,availablePointerTypes=4,primaryPointerType=4';
 
 try {
-  assert(createHash('sha256').update(await readFile(join(ROOT, 'assets/vendor/minisearch-7.2.0.js'))).digest('base64')
-      === 'A5OzuiU7gJ1eVXB8ewh175tRiilqAGxnObKIduFU7bM=',
-    'vendored MiniSearch matches the pinned upstream distribution');
   browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--disable-extensions', DESKTOP_INPUT] });
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(() => {
@@ -55,87 +52,14 @@ try {
     localStorage.setItem('today_ai_key_claude', 'claude-test-key');
   });
   await page.goto(URL_BASE, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => typeof window._gmailBuildQueryFallback === 'function');
+  await page.waitForFunction(() => typeof window.Today?.use('gmail')?.contentQuery === 'function');
   assert(await page.evaluate(() => matchMedia('(hover: hover)').matches),
     'test browser exposes the desktop hover input required by focus mode');
-  assert(await page.evaluate(() => !performance.getEntriesByType('resource').some(r => r.name.includes('minisearch-'))),
-    'MiniSearch is not an eager startup resource');
-
-  const ranking = await page.evaluate(async () => {
-    const rank = Today.use('gmail').rankCandidates;
-    const email = (threadId, subject, from, snippet, date = '2026-10-01') => ({ threadId, subject, from, snippet, date });
-    const relevant = email('haircut-confirmation', 'Haircut booking confirmed', 'Salon <hi@salon.se>', 'Your haircut appointment is booked');
-    const candidates = [
-      email('wrong-service', 'Dentist booking confirmed', 'Dentist <hi@dentist.se>', 'Your appointment is confirmed', '2026-10-06'),
-      email('promotion', 'Haircut special offer', 'Offers <offers@example.com>', 'Save on your next haircut', '2026-10-05'),
-      relevant,
-    ];
-    const service = await rank('Book haircut', candidates);
-    const provider = await rank('Book haircut at Gaia', [
-      email('wrong-salon', 'Haircut booking confirmed', 'Other salon <hi@other.se>', 'Gaia recommended our haircut appointment'),
-      email('gaia', 'Haircut booking confirmed', 'Gaia <hi@gaia.se>', 'Your haircut appointment'),
-    ]);
-    const ambiguous = await rank('Book haircut', [relevant,
-      email('another-salon', relevant.subject, 'Another salon <hi@another.se>', relevant.snippet)]);
-    const personTopic = await rank('email to gaia for reservation', [
-      email('gaia-invoice', 'Invoice', 'Gaia <gaia@example.com>', 'Payment details'),
-      email('gaia-reservation', 'Reservation', 'Gaia <gaia@example.com>', 'Your reservation is confirmed'),
-      email('someone-else', 'Reservation', 'Someone else <other@example.com>', 'Your reservation'),
-    ]);
-    const unrelated = await rank('Book haircut', [candidates[0]]);
-    const missingIntent = await rank('Book it', [relevant]);
-    const lexicalBoundary = await rank('Book haircut', [email('barber', 'Appointment confirmed', 'Barber <hi@barber.se>', 'Your appointment is booked')]);
-    const tie = await rank('Reply about the contract', [
-      email('one', 'Contract', 'Sam <sam@example.com>', 'The contract is ready'),
-      email('two', 'Contract', 'Alex <alex@example.com>', 'The contract is ready'),
-    ]);
-    return { service, provider, ambiguous, personTopic, unrelated, missingIntent, lexicalBoundary, tie,
-      libraryLoads: performance.getEntriesByType('resource').filter(r => r.name.includes('minisearch-')).length };
-  });
-  assert(ranking.service.result?.threadId === 'haircut-confirmation'
-      && ranking.service.result.matchPolicy === 'minisearch-v1'
-      && ranking.provider.result?.threadId === 'gaia'
-      && ranking.personTopic.result?.threadId === 'gaia-reservation',
-    'MiniSearch selects task-grounded booking/contact evidence, not the first hit, a promotion or a passing business mention', ranking);
-  assert(ranking.ambiguous.status === 'ambiguous-match' && !ranking.ambiguous.result
-      && ranking.tie.status === 'ambiguous-match' && !ranking.tie.result
-      && ranking.unrelated.status === 'weak-match' && ranking.missingIntent.status === 'weak-match'
-      && ranking.lexicalBoundary.status === 'weak-match' && ranking.libraryLoads === 1,
-    'ambiguous, unsupported and lexical-only misses stay silent; the same local library serves subsequent rankings', ranking);
-
-  const lookupRanking=await page.evaluate(async()=>{
-    const candidate={threadId:'fictional-ticket',subject:'Flight tickets',from:'Airline <travel@example.test>',snippet:'Your flight tickets are confirmed.',date:'2026-11-18'};
-    return {matched:await Today.use('gmail').rankCandidates('Check my flight tickets',[candidate]),unrelated:await Today.use('gmail').rankCandidates('Check my train tickets',[candidate]),reservation:await Today.use('gmail').rankCandidates('Check museum reservation',[{...candidate,threadId:'fictional-reservation',subject:'Museum reservation',snippet:'Your museum reservation is confirmed.'}]),fallback:_gmailBuildQueryFallback('Check my flight tickets')};
-  });
-  assert(lookupRanking.matched.result?.threadId==='fictional-ticket'&&!lookupRanking.unrelated.result&&lookupRanking.reservation.result?.threadId==='fictional-reservation'&&lookupRanking.fallback==='subject:"flight tickets"','lookup verbs are not email evidence; named artifact terms still have to match',lookupRanking);
-
-  const fallback = await page.evaluate(() => ({
-    topic: _gmailBuildQueryFallback('Follow up on the three proposals we sent last week'),
-    topicUnsent: _gmailBuildQueryFallback('Follow up on renewal'),
-    person: _gmailBuildQueryFallback('Reply to Maria about the contract'),
-    multi: _gmailBuildQueryFallback('Email Ada Lovelace about the draft'),
-    gaia: _gmailBuildQueryFallback('email to gaia for reservation'),
-    gaiaArticle: _gmailBuildQueryFallback('Email to Gaia for the reservation'),
-    plainPerson: _gmailBuildQueryFallback('Email Gaia'),
-    organization: _gmailBuildQueryFallback('Email Center for Reproductive Rights'),
-    empty: _gmailBuildQueryFallback(''),
-  }));
-  assert(fallback.topic === '"three proposals" in:sent' && fallback.topicUnsent === 'subject:renewal'
-      && !fallback.topic.includes('from:'),
-    'topic fallback searches the subject matter in Sent instead of inventing a person', fallback);
-  assert(fallback.person === '{from:Maria to:Maria} contract'
-      && fallback.multi === '{from:"Ada Lovelace" to:"Ada Lovelace"} draft'
-      && fallback.gaia === '{from:gaia to:gaia} reservation'
-      && fallback.gaiaArticle === '{from:Gaia to:Gaia} reservation'
-      && fallback.plainPerson === 'from:Gaia OR to:Gaia'
-      && fallback.organization === 'from:"Center for Reproductive Rights" OR to:"Center for Reproductive Rights"'
-      && fallback.empty === '',
-    'person fallback separates addressee from about/for topic and handles empty input', fallback);
-
   await page.evaluate(async () => {
     const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(location.origin + '\0' + localStorage.getItem('gmail_refresh_token')));
     window.__binding = taskText => ({ taskText, ownerPolicy:'owner-v2', connectionKey:Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('') });
     window.__mailOwner = (id, text) => {
+      localStorage.removeItem('gmail_daily_v1');
       const task = manualTasks.find(t => t.id === id);
       if (task) task.text = text; else manualTasks.push({ id, text });
     };
@@ -144,207 +68,330 @@ try {
     window.__mailFocus = (id, text) => { const timer=document.querySelector('.focus-timer');timer.hidden=false;timer.classList.add('open');timer.style.maxHeight='800px';__mailOwner(id, text); Today.use('gmail').closeFocus(); _gmailRenderFocusBlock(id, text); };
   });
 
-  const classified = await page.evaluate(async () => {
-    const calls = [];
-    window.fetch = async (url, options = {}) => {
-      calls.push({ url: String(url), body: options.body || '' });
-      if (String(url).includes('/ai-assist')) {
-        const sent = JSON.parse(options.body || '{}');
-        if (sent.provider !== 'claude' || sent.apiKey !== 'claude-test-key') {
-          return { ok: false, status: 400, json: async () => ({ error: 'No API key' }) };
+  await page.evaluate(() => {
+    window.__pick = { index: 0, message: 0, evidence: 'ready', detail: 'Ready' };
+    window.__msg = (subject, from, snippet, extra = {}) => ({ id: extra.id || ('msg-' + Math.random().toString(36).slice(2)),
+      labelIds: extra.sent ? ['SENT'] : ['INBOX'], snippet, payload: { headers: [
+        { name: 'Subject', value: subject }, { name: 'From', value: from }, { name: 'Date', value: extra.date || 'Mon, 5 Oct 2026 10:00:00 +0200' },
+        ...(extra.messageId ? [{ name: 'Message-ID', value: '<' + extra.messageId + '>' }] : [])] } });
+    // A fictional mailbox: Gmail-like AND / {OR} matching over headers and snippets, in insertion order.
+    window.__mailbox = (threads, judge = () => ({ index: null }), hold) => {
+      localStorage.removeItem('gmail_daily_v1');
+      window.__threads = threads;
+      const log = { queries: [], urls: [], judges: [], other: [] };
+      window.fetch = async (url, options = {}) => {
+        const u = String(url);
+        if (u.includes('/ai-assist')) {
+          const sent = JSON.parse(options.body || '{}');
+          if (sent.surface !== 'gmail-judge') { log.other.push(sent); return { ok: true, status: 200, json: async () => ({ content: '' }) }; }
+          const input = JSON.parse(sent.messages[0].content);
+          log.judges.push({ sent, input });
+          return { ok: true, status: 200, json: async () => judge(input, sent) };
         }
-        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: '"three proposals" in:sent' }) };
-      }
-      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
+        if (!u.includes('gmail.googleapis.com')) return { ok: true, status: 200, json: async () => ({}) };
+        log.urls.push(u);
+        const parsed = new URL(u);
+        if (hold) await hold(parsed);
+        if (parsed.pathname.endsWith('/threads')) {
+          const q = parsed.searchParams.get('q');
+          log.queries.push(q);
+          const core = q.replace(/\) newer_than:90d -from:calendar-notification@google\.com$/, '').replace(/^\(/, '');
+          const or = /^\{(.+)\}$/.exec(core), words = (or ? or[1] : core).split(' ').filter(Boolean);
+          const hits = Object.entries(__threads).filter(([, messages]) => {
+            const text = messages.map(m => m.payload.headers.map(h => h.value).join(' ') + ' ' + m.snippet).join(' ').toLowerCase();
+            return or ? words.some(w => text.includes(w)) : words.every(w => text.includes(w));
+          }).map(([id]) => ({ id }));
+          return { ok: true, status: 200, json: async () => ({ threads: hits.slice(0, Number(parsed.searchParams.get('maxResults')) || 5) }) };
+        }
+        const id = decodeURIComponent(parsed.pathname.split('/').at(-1));
+        return { ok: true, status: 200, json: async () => ({ id, messages: __threads[id] || [] }) };
+      };
+      return log;
     };
-    await __enrich('gmail_topic_ai', 'Follow up on the three proposals we sent last week');
-    const ai = calls.find(c => c.url.includes('/ai-assist'));
-    const gmail = calls.find(c => c.url.includes('gmail.googleapis.com'));
-    return { prompt: JSON.parse(ai.body).systemPrompt, provider: JSON.parse(ai.body).provider, gmailUrl: gmail.url,
-      cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_topic_ai')) };
+    // Judge stand-in: choose the conversation whose subject has `word`, copying `evidence` from it.
+    window.__bySubject = (word, evidence, detail, message) => input => {
+      const index = input.conversations.findIndex(c => c.subject.toLowerCase().includes(word));
+      if (index < 0) return { index: null };
+      const found = input.conversations[index].messages.findIndex(m => m.text.includes(evidence));
+      return { index, message: message ?? (found < 0 ? 0 : found), evidence, detail: detail ?? evidence };
+    };
+    window.__audit = () => Today.use('gmail').observationAudit();
+    window.__check = id => JSON.parse(localStorage.getItem('gmail_check_' + id) || 'null');
+    window.__until = async (predicate, label) => {
+      for (let i = 0; i < 300 && !predicate(); i++) await new Promise(r => setTimeout(r, 10));
+      if (!predicate()) throw new Error('Timed out: ' + label);
+    };
   });
-  assert(classified.provider === 'claude' && classified.cached?.source === 'ai',
-    'classifier sends the configured provider and key, and marks AI results in the cache', classified);
-  const classifiedQuery = new URL(classified.gmailUrl).searchParams.get('q');
-  assert(classified.prompt.includes('Topic-targeted') && classified.prompt.includes('never invent a person')
-      && classified.prompt.includes('email to NAME for TOPIC')
-      && classifiedQuery === effectiveQuery('"three proposals" in:sent'),
-    'AI classifier permits topic/date operators and the resulting Gmail query is preserved', { ...classified, classifiedQuery });
 
-  const degraded = await page.evaluate(async () => {
-    const calls = [];
-    window.fetch = async (url) => {
-      calls.push(String(url));
-      if (String(url).includes('/ai-assist')) return { ok: false, status: 503, json: async () => ({}) };
-      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
-    };
-    await __enrich('gmail_topic_fallback', 'Follow up on the three proposals we sent last week');
-    const gmail = calls.find(url => url.includes('gmail.googleapis.com'));
-    return {
-      query: new URL(gmail).searchParams.get('q'),
-      cached: localStorage.getItem('gmail_classify_gmail_topic_fallback'),
-    };
-  });
-  assert(degraded.query === effectiveQuery('"three proposals" in:sent') && degraded.cached === null,
-    'AI failure falls back to the same topic-safe query without caching it, so the next attempt retries the AI', degraded);
+  const words = await page.evaluate(() => { const q = Today.use('gmail').contentQuery; return {
+    rent: q('Pay rent'), mum: q('Call mum'), maria: q('Reply to Maria about the contract'),
+    proposals: q('Follow up on the three proposals we sent last week'), number: q('Pay 500 to the landlord'),
+    long: q('Prepare apartment board meeting agenda budget renovation'), empty: q('Do it today') }; });
+  assert(words.rent === 'rent' && words.mum === 'mum' && words.maria === 'maria contract' && words.proposals === 'three proposals'
+      && words.number === 'landlord' && words.long === 'apartment meeting agenda renovation' && words.empty === '',
+    'content words drop actions, filler and bare numbers, keeping at most four of the longest in task order', words);
 
-  const gaiaRetry = await page.evaluate(async () => {
-    const queries = [];
-    window.fetch = async (url) => {
-      const request = String(url);
-      if (request.includes('/ai-assist'))
-        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:too-narrow' }) };
-      if (request.includes('/threads?q=')) {
-        const query = new URL(request).searchParams.get('q');
-        queries.push(query);
-        return { ok: true, status: 200, json: async () => ({ threads: query === '({from:gaia to:gaia} reservation) -from:calendar-notification@google.com' ? [{ id: 'gaia-thread' }] : [] }) };
-      }
-      return { ok: true, status: 200, json: async () => ({ messages: [{ payload: { headers: [
-        { name: 'Subject', value: 'Reservation' }, { name: 'From', value: 'Gaia <gaia@example.com>' },
-      ] }, snippet: 'Reservation confirmed' }] }) };
-    };
-    await __enrich('gmail_gaia_ai_retry', 'email to gaia for reservation');
-    return {
-      queries,
-      enrichment: JSON.parse(localStorage.getItem('gmail_enrichment_gmail_gaia_ai_retry')),
-      diagnostic: Today.use('gmail').observationAudit().entries.at(-1),
-      diagnosticStorage: localStorage.getItem('gmail_diagnostics_v1'),
-    };
+  const rent = await page.evaluate(async () => {
+    const log = __mailbox({
+      landlord: [__msg('Rent for December', 'Lena Landlord <lena@example.test>', 'Hi, the rent of 9500 kr is due on 28 Nov. Same account as before.')],
+      newsletter: [__msg('Weekly news', 'News <news@example.test>', 'Ten ideas for your weekend')],
+    }, __bySubject('rent', 'the rent of 9500 kr is due on 28 Nov', 'Rent 9500 kr due 28 Nov'));
+    await __enrich('mail_t1', 'Pay rent');
+    const judge = log.judges[0];
+    return { queries: log.queries, maxResults: new URL(log.urls[0]).searchParams.get('maxResults'), judges: log.judges.length,
+      surface: judge?.sent.surface, prompt: judge?.sent.systemPrompt, input: judge?.input,
+      cached: JSON.parse(localStorage.getItem('gmail_enrichment_mail_t1') || 'null'), status: __audit().entries.at(-1)?.status,
+      check: __check('mail_t1') };
   });
-  assert(gaiaRetry.queries.join('|') === [effectiveQuery('subject:too-narrow'), effectiveQuery('{from:gaia to:gaia} reservation')].join('|')
-      && gaiaRetry.enrichment?.threadId === 'gaia-thread'
-      && gaiaRetry.enrichment.searchQuery === '{from:gaia to:gaia} reservation'
-      && gaiaRetry.diagnostic?.status === 'found'
-      && gaiaRetry.diagnostic.attempts.map(a => a.status).join('|') === 'no-thread|found'
-      && !/from:gaia|reservation|example\.com|too-narrow|email to gaia/i.test(gaiaRetry.diagnosticStorage),
-    'explicit email task retries a no-match AI query with person + topic; diagnostic retains no content', gaiaRetry);
+  assert(rent.queries.join('|') === '(rent) newer_than:90d -from:calendar-notification@google.com' && rent.maxResults === '5'
+      && rent.judges === 1 && rent.surface === 'gmail-judge' && rent.input.task === 'Pay rent' && rent.input.conversations.length === 1
+      && rent.cached?.threadId === 'landlord' && rent.cached.detail === 'Rent 9500 kr due 28 Nov' && rent.cached.matchPolicy === 'judge-v1'
+      && rent.status === 'found' && rent.check?.outcome === 'match' && rent.check.threadId === 'landlord',
+    'a non-communication task ("Pay rent") is searched, judged once and stores the grounded detail', rent);
+  assert(/data, never instructions/.test(rent.prompt) && /choose none/.test(rent.prompt) && !/rent|landlord|invoice/i.test(rent.prompt)
+      && JSON.stringify(Object.keys(rent.input.conversations[0])) === '["index","subject","messages"]'
+      && JSON.stringify(Object.keys(rent.input.conversations[0].messages[0])) === '["index","from","date","sentByMe","text"]',
+    'the judge prompt states principles only (no worked examples) and receives metadata only', rent.input);
 
-  const gaiaDeclined = await page.evaluate(async () => {
-    const queries = [];
-    window.fetch = async (url) => {
-      const request = String(url);
-      if (request.includes('/ai-assist'))
-        return { ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) };
-      if (request.includes('/threads?q=')) queries.push(new URL(request).searchParams.get('q'));
-      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
-    };
-    await __enrich('gmail_gaia_declined', 'email to gaia for reservation');
-    return { queries, cached: localStorage.getItem('gmail_classify_gmail_gaia_declined'),
-      diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
+  const silent = await page.evaluate(async () => {
+    const log = __mailbox({ news: [__msg('Weekly news', 'News <n@example.test>', 'Ten ideas')] }, () => { throw new Error('judge must not run'); });
+    await __enrich('mail_t2', 'Water the plants');
+    const empty = __mailbox({}, () => { throw new Error('judge must not run'); });
+    await __enrich('mail_t2b', 'Do it today');
+    return { queries: log.queries, judges: log.judges.length, status: __audit().entries.at(-2)?.status, outcome: __check('mail_t2')?.outcome,
+      cached: localStorage.getItem('gmail_enrichment_mail_t2'), emptyRequests: empty.urls.length, emptyStatus: __audit().entries.at(-1)?.status };
   });
-  assert(gaiaDeclined.queries.join('|') === effectiveQuery('{from:gaia to:gaia} reservation')
-      && gaiaDeclined.cached === null && gaiaDeclined.diagnostic?.reason === 'ai-declined-email',
-    'an explicit email task still searches when AI declines, without caching the false negative', gaiaDeclined);
+  assert(silent.queries.join('|') === ['(water plants)', '({plants water})'].map(q => q + ' newer_than:90d -from:calendar-notification@google.com').join('|')
+      && silent.judges === 0 && silent.status === 'no-thread' && silent.outcome === 'none' && silent.cached === null
+      && silent.emptyRequests === 0 && silent.emptyStatus === 'no-words',
+    'no candidates means no AI call; a task with no content words makes no request at all', silent);
 
-  const invalidQuery = await page.evaluate(async () => {
-    const queries = [];
-    window.fetch = async (url) => {
-      const request = String(url);
-      if (request.includes('/ai-assist'))
-        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'gaia reservation' }) };
-      if (request.includes('/threads?q=')) queries.push(new URL(request).searchParams.get('q'));
-      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
-    };
-    await __enrich('gmail_gaia_invalid_query', 'email to gaia for reservation');
-    return { queries, cached: localStorage.getItem('gmail_classify_gmail_gaia_invalid_query'),
-      reason: Today.use('gmail').observationAudit().entries.at(-1)?.reason };
+  const ambiguous = await page.evaluate(async () => {
+    const log = __mailbox({ a: [__msg('Contract', 'Sam <sam@example.test>', 'The contract is ready')],
+      b: [__msg('Contract', 'Alex <alex@example.test>', 'The contract is ready')] }, () => ({ index: null, message: null, evidence: '', detail: '' }));
+    await __enrich('mail_t3', 'Reply about contract');
+    return { judges: log.judges.length, candidates: log.judges[0]?.input.conversations.length, cached: localStorage.getItem('gmail_enrichment_mail_t3'),
+      status: __audit().entries.at(-1)?.status, outcome: __check('mail_t3')?.outcome };
   });
-  assert(invalidQuery.queries.join('|') === effectiveQuery('{from:gaia to:gaia} reservation')
-      && invalidQuery.cached === null && invalidQuery.reason === 'ai-invalid-query',
-    'an AI query without a Gmail operator cannot match an unrelated broad result', invalidQuery);
+  assert(ambiguous.judges === 1 && ambiguous.candidates === 2 && ambiguous.cached === null && ambiguous.status === 'none' && ambiguous.outcome === 'none',
+    'when the judge abstains (unrelated or ambiguous), nothing is shown and the completed check is recorded', ambiguous);
 
-  const cachedDecline = await page.evaluate(async () => {
-    localStorage.setItem('gmail_classify_gmail_gaia_old_decline', JSON.stringify({ isComm: false, searchQuery: '', source: 'ai' }));
-    let aiCalls = 0;
-    window.fetch = async (url) => {
-      if (String(url).includes('/ai-assist')) {
-        aiCalls++;
-        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:reservation' }) };
-      }
-      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
-    };
-    await __enrich('gmail_gaia_old_decline', 'email to gaia for reservation');
-    return { aiCalls, cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_gaia_old_decline')) };
+  const widened = await page.evaluate(async () => {
+    const log = __mailbox({ board: [__msg('Board meeting moved', 'Housing board <board@example.test>', 'The board meets Thursday 18:00 in the lobby')] },
+      __bySubject('board', 'The board meets Thursday 18:00 in the lobby', 'Board meets Thursday 18:00 in the lobby'));
+    await __enrich('mail_t4', 'Apartment board meeting');
+    const full = __mailbox(Object.fromEntries(Array.from({ length: 6 }, (_, i) => ['acme' + i, [__msg('Acme invoice ' + i, 'Acme <billing@acme.test>', 'Invoice ' + i + ' attached')]])));
+    await __enrich('mail_t5', 'Acme invoice');
+    return { queries: log.queries, cached: JSON.parse(localStorage.getItem('gmail_enrichment_mail_t4') || 'null'),
+      fullQueries: full.queries.length, fullCandidates: full.judges[0]?.input.conversations.length, threadFetches: full.urls.filter(u => !u.includes('/threads?')).length };
   });
-  assert(cachedDecline.aiCalls === 1 && cachedDecline.cached?.isComm === true,
-    'an older cached AI false negative is reclassified for explicit email intent', cachedDecline);
+  assert(widened.queries.length === 2 && widened.queries[1] === '({apartment meeting}) newer_than:90d -from:calendar-notification@google.com'
+      && widened.cached?.threadId === 'board' && widened.cached.searchQuery === '{apartment meeting}'
+      && widened.fullQueries === 1 && widened.fullCandidates === 5 && widened.threadFetches === 5,
+    'an empty AND search widens once to the OR of the two most distinctive words; five AND results never widen and stay capped at five', widened);
 
-  const gmailError = await page.evaluate(async () => {
-    let gmailCalls = 0;
-    window.fetch = async (url) => {
-      if (String(url).includes('/ai-assist'))
-        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:reservation' }) };
-      gmailCalls++;
-      return { ok: false, status: 403 };
-    };
-    await __enrich('gmail_gaia_403', 'email to gaia for reservation');
-    return { gmailCalls, diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
+  const calendar = await page.evaluate(async () => {
+    const log = __mailbox({
+      cal: [__msg('Haircut', 'Google Calendar <calendar-notification@google.com>', 'Reminder haircut 10:00')],
+      mixed: [__msg('Haircut booking', 'Salon <hi@salon.test>', 'Your haircut is booked for Tue 10:00'),
+        __msg('Haircut', 'CALENDAR-NOTIFICATION@GOOGLE.COM', 'Reminder haircut')],
+    }, __bySubject('booking', 'Your haircut is booked for Tue 10:00'));
+    await __enrich('mail_t6', 'Book haircut');
+    const input = log.judges[0]?.input;
+    return { query: log.queries[0], conversations: input?.conversations.length, messages: input?.conversations[0]?.messages.length,
+      from: JSON.parse(localStorage.getItem('gmail_enrichment_mail_t6') || 'null')?.from };
   });
-  assert(gmailError.gmailCalls === 1 && gmailError.diagnostic?.status === 'http-403'
-      && gmailError.diagnostic.attempts.length === 1,
-    'Gmail API failure is diagnosed and never mistaken for a no-match retry', gmailError);
+  assert(calendar.query.endsWith('-from:calendar-notification@google.com') && calendar.conversations === 1 && calendar.messages === 1
+      && calendar.from === 'Salon <hi@salon.test>',
+    'calendar notifications are excluded in the query and again inside every conversation', calendar);
 
-  const focusRetry = await page.evaluate(() => {
-    window.fetch = async (url) => {
-      const request = String(url);
-      if (request.includes('/ai-assist'))
-        return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'subject:too-narrow' }) };
-      if (request.includes('/threads?q=')) {
-        const query = new URL(request).searchParams.get('q');
-        return { ok: true, status: 200, json: async () => ({ threads: query === '({from:gaia to:gaia} reservation) -from:calendar-notification@google.com' ? [{ id: 'focus-gaia' }] : [] }) };
-      }
-      return { ok: true, status: 200, json: async () => ({ messages: [{ payload: { headers: [
-        { name: 'Subject', value: 'Reservation' }, { name: 'From', value: 'Gaia <gaia@example.com>' },
-      ] }, snippet: 'Reservation confirmed' }] }) };
-    };
-    __mailFocus('gmail_gaia_focus', 'email to gaia for reservation');
-    return !!document.getElementById('focusGmailBlock');
+  const shape = await page.evaluate(async () => {
+    const acme = 'Acme Billing <billing@acme.test>', me = 'Me <me@example.test>';
+    const log = __mailbox({ inv: [
+      __msg('Invoice 4411', acme, 'Invoice 4411 attached, total 1200 kr due 30 Nov'),
+      __msg('Re: Invoice 4411', me, 'Thanks, I will check', { sent: true }),
+      __msg('Re: Invoice 4411', acme, 'Just checking you got it'),
+      __msg('Re: Invoice 4411', me, 'Yes got it', { sent: true }),
+      __msg('Re: Invoice 4411', me, 'Paying today', { sent: true }),
+    ] }, __bySubject('invoice', 'Invoice 4411 attached, total 1200 kr due 30 Nov', '1200 kr due 30 Nov, invoice 4411', 0));
+    await __enrich('mail_t7', 'Pay Acme invoice');
+    const sent = log.judges[0]?.input.conversations[0];
+    const cached = JSON.parse(localStorage.getItem('gmail_enrichment_mail_t7') || 'null');
+    __mailFocus('mail_t7', 'Pay Acme invoice');
+    await __until(() => document.querySelector('#focusGmailBlock .focus-gmail-thread'), 'invoice card');
+    const block = document.getElementById('focusGmailBlock');
+    const out = { texts: sent?.messages.map(m => m.text), sentByMe: sent?.messages.map(m => m.sentByMe), subject: sent?.subject,
+      snippet: cached?.snippet, replyFrom: cached?.replyFrom, from: cached?.from,
+      detail: block.querySelector('.focus-gmail-detail')?.textContent, link: block.querySelector('.focus-gmail-open')?.getAttribute('href'),
+      fromEmail: block.dataset.fromEmail };
+    block.querySelector('.focus-gmail-draft-btn')?.click();
+    await __until(() => log.other.length, 'draft request');
+    out.draftContext = log.other[0].messages[0].content;
+    Today.use('gmail').closeFocus();
+    // Every message is Can's own: no reply target, so no Draft reply.
+    __mailbox({ slides: [__msg('Slides for Maria', me, 'Hi Maria, slides attached for Friday', { sent: true })] },
+      __bySubject('slides', 'slides attached for Friday', 'Slides sent for Friday'));
+    await __enrich('mail_t8', 'Send Maria the slides');
+    __mailFocus('mail_t8', 'Send Maria the slides');
+    await __until(() => document.querySelector('#focusGmailBlock .focus-gmail-thread'), 'slides card');
+    out.ownOnlyDraft = !!document.querySelector('#focusGmailBlock .focus-gmail-draft-btn');
+    out.ownOnlyOpen = !!document.querySelector('#focusGmailBlock .focus-gmail-open');
+    Today.use('gmail').closeFocus();
+    return out;
   });
-  assert(focusRetry, 'focus Gmail block exists for an on-demand no-match retry');
-  await page.waitForFunction(() => !!document.querySelector('#focusGmailBlock .focus-gmail-thread'));
-  const focusResult = await page.evaluate(() => ({
-    threadId: JSON.parse(localStorage.getItem('gmail_enrichment_gmail_gaia_focus'))?.threadId,
-    diagnostic: Today.use('gmail').observationAudit().entries.at(-1),
-  }));
-  assert(focusResult.threadId === 'focus-gaia' && focusResult.diagnostic?.status === 'found',
-    'focus on-demand enrichment uses the same safe retry path', focusResult);
+  assert(JSON.stringify(shape.texts) === JSON.stringify(['Invoice 4411 attached, total 1200 kr due 30 Nov', 'Yes got it', 'Paying today'])
+      && JSON.stringify(shape.sentByMe) === '[false,true,true]' && shape.subject === 'Invoice 4411',
+    'one candidate per conversation: subject once, first message plus the latest two', shape);
+  assert(shape.snippet === 'Invoice 4411 attached, total 1200 kr due 30 Nov' && shape.detail === '1200 kr due 30 Nov, invoice 4411'
+      && shape.link?.endsWith('#all/inv') && shape.fromEmail === 'billing@acme.test' && shape.draftContext.includes('Just checking you got it')
+      && !shape.ownOnlyDraft && shape.ownOnlyOpen,
+    'an older evidence message is shown with its detail; replies target the latest message not sent by Can; own-only threads offer no Draft reply', shape);
 
-  const cache = await page.evaluate(async () => {
-    localStorage.setItem('gmail_classify_gmail_cached', JSON.stringify({ ...__binding('Follow up on renewal'), isComm: true, searchQuery: '"renewal" in:sent', source: 'ai' }));
-    const calls = [];
-    window.fetch = async (url) => {
-      calls.push(String(url));
-      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
+  const grounding = await page.evaluate(() => {
+    const ground = Today.use('gmail').ground;
+    const conversation = { threadId: 'bank', subject: 'Your balance', messages: [
+      { gid: '1', subject: 'Your balance', from: 'Bank <bank@example.test>', snippet: 'Previous balance 500 kr; current balance 700 kr due 1 Dec' },
+      { gid: '2', subject: 'Re: Your balance', from: 'Bank <bank@example.test>', snippet: 'Thanks for your message' }] };
+    const pick = (evidence, detail, message = 0, task = 'Pay the bank') => !!ground(task, conversation, { index: 0, message, evidence, detail });
+    const out = {
+      grounded: pick('current balance 700 kr due 1 Dec', '700 kr due 1 Dec'),
+      invented: pick('current balance 900 kr', '900 kr'),
+      neighbouringNumber: pick('current balance 700 kr', 'Pay 500 kr'),
+      missingDate: pick('current balance 700 kr', '700 kr due Friday'),
+      echo: pick('current balance', 'Balance', 0, 'Pay balance'),
+      wrongMessage: pick('current balance 700 kr', '700 kr', 1),
+      reworded: pick('current balance 700 kr', '700 kr current', 0),
     };
-    await __enrich('gmail_cached', 'Follow up on renewal');
-    return calls;
+    const rent = { threadId: 'rent', subject: 'Rent', messages: [{ gid: 'r', subject: 'Rent', from: 'Lena <l@example.test>',
+      snippet: 'The December rent of 9 500 kr is due on 28 Nov' }] };
+    const pay = detail => !!ground('Pay rent', rent, { index: 0, message: 0, evidence: 'The December rent of 9 500 kr is due on 28 Nov', detail });
+    out.spaced = pay('December rent 9,500 kr due 28 Nov') && pay('December rent 9500 kr due 28 Nov') && pay('December rent 9 500 kr due 28 Nov');
+    out.otherAmount = pay('December rent 9 000 kr due 28 Nov') || pay('December rent 500 kr due 28 Nov');
+    const cut = { threadId: 'salon', subject: 'Confirmed', messages: [{ gid: 's', subject: 'Confirmed', from: 'Salon <s@example.test>', snippet: 'Haircut with Jonas, Tue 3 Dec at 10:00.' }] };
+    const book = detail => !!ground('Book haircut', cut, { index: 0, message: 0, evidence: 'Haircut with Jonas, Tue 3 Dec at 10:00.', detail });
+    out.dayNames = book('Jonas on Tuesday, 3 December at 10:00') && !book('Jonas on Thursday, 3 Dec at 10:00') && !book('Jonas on Tue 3 Jan at 10:00');
+    return out;
   });
-  assert(cache.length === 2 && cache.every(url => url.includes('gmail.googleapis.com'))
-      && new URL(cache[1]).searchParams.get('q') === effectiveQuery('subject:renewal'),
-    'cached AI classifications remain valid, with a topic-safe no-match retry', cache);
+  assert(grounding.grounded && !grounding.invented && !grounding.neighbouringNumber && !grounding.missingDate && !grounding.echo
+      && !grounding.wrongMessage && grounding.reworded && grounding.spaced && !grounding.otherAmount && grounding.dayNames,
+    'grounding compares numbers by digits ("9 500" = "9,500", never 500) and day/month names by short form ("Tuesday" = "Tue", never Thursday), and needs an exact quote from the chosen message holding every number and date, and a fact the task did not already say', grounding);
 
-  const legacy = await page.evaluate(async () => {
-    // Written before v2.90.52, when the classifier never reached the AI.
-    localStorage.setItem('gmail_classify_gmail_legacy', JSON.stringify({ isComm: true, searchQuery: 'from:Maria OR to:Maria' }));
-    const calls = [];
-    window.fetch = async (url) => {
-      calls.push(String(url));
-      if (String(url).includes('/ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:maria@example.com' }) };
-      return { ok: true, status: 200, json: async () => ({ threads: [] }) };
-    };
-    await __enrich('gmail_legacy', 'Reply to Maria');
-    return { reclassified: calls.some(u => u.includes('/ai-assist')), cached: JSON.parse(localStorage.getItem('gmail_classify_gmail_legacy')) };
+  const fingerprint = await page.evaluate(async () => {
+    const log = __mailbox({ landlord: [__msg('Rent for December', 'Lena <lena@example.test>', 'The rent of 9500 kr is due on 28 Nov', { id: 'r1' })] },
+      __bySubject('rent', 'The rent of 9500 kr is due on 28 Nov', 'Rent 9500 kr due 28 Nov'));
+    await __enrich('mail_fp', 'Pay rent');
+    const savedTasks = manualTasks; manualTasks = manualTasks.filter(t => t.id === 'mail_fp');
+    const yesterday = () => { const c = __check('mail_fp'); localStorage.setItem('gmail_check_mail_fp', JSON.stringify({ ...c, day: '2000-01-01' })); localStorage.removeItem('gmail_enrichment_mail_fp'); };
+    // Expired match, unchanged mailbox: the re-check searches but asks the AI nothing.
+    yesterday(); Today.use('gmail').recheck();
+    await __until(() => localStorage.getItem('gmail_enrichment_mail_fp'), 'unchanged re-check');
+    const unchanged = { judges: log.judges.length, status: __audit().entries.at(-1).status };
+    // Checked today (match or no match) is not re-checked.
+    const before = log.urls.length; localStorage.removeItem('gmail_enrichment_mail_fp'); Today.use('gmail').recheck();
+    await new Promise(r => setTimeout(r, 50));
+    const skipped = log.urls.length === before;
+    // A new reply changes the fingerprint: the AI is asked again.
+    __threads.landlord.push(__msg('Re: Rent for December', 'Lena <lena@example.test>', 'Please use the new account number', { id: 'r2' }));
+    yesterday(); Today.use('gmail').recheck();
+    await __until(() => localStorage.getItem('gmail_enrichment_mail_fp'), 'changed re-check');
+    // Editing the task invalidates reuse even though mail is unchanged.
+    __mailOwner('mail_fp', 'Pay December rent'); await __enrich('mail_fp', 'Pay December rent');
+    const judgesAfterChange = log.judges.length; manualTasks = [...savedTasks.filter(t => t.id !== 'mail_fp'), ...manualTasks];
+    return { unchanged, skipped, judgesAfterChange };
   });
-  assert(legacy.reclassified && legacy.cached.source === 'ai' && legacy.cached.searchQuery === 'from:maria@example.com',
-    'unmarked legacy classifications are reclassified once by the AI', legacy);
+  assert(fingerprint.unchanged.judges === 1 && fingerprint.unchanged.status === 'unchanged-match' && fingerprint.skipped
+      && fingerprint.judgesAfterChange === 3,
+    'an unchanged mailbox costs no AI call; a new message or an edited task asks again; checked-today tasks are skipped', fingerprint);
 
-  const nonCommCalls = await page.evaluate(async () => {
-    let calls = 0;
-    window.fetch = async () => { calls++; return { ok: false, status: 500 }; };
-    await __enrich('gmail_plain', 'Buy milk');
-    return calls;
+  const rejection = await page.evaluate(async () => {
+    const log = __mailbox({ draft: [__msg('Contract draft', 'Sam <sam@example.test>', 'The contract draft is ready for comments')],
+      signed: [__msg('Contract signed', 'Alex <alex@example.test>', 'The signed contract is attached')] },
+      input => { const i = input.conversations.findIndex(c => c.subject === 'Contract draft');
+        return i >= 0 ? { index: i, message: 0, evidence: 'The contract draft is ready for comments', detail: 'Draft ready for comments' }
+          : { index: input.conversations.findIndex(c => c.subject === 'Contract signed'), message: 0, evidence: 'The signed contract is attached', detail: 'Signed contract attached' }; });
+    await __enrich('mail_rej', 'Reply about contract');
+    __mailFocus('mail_rej', 'Reply about contract');
+    await __until(() => document.querySelector('#focusGmailBlock [data-today-click="gmail.context"]'), 'feedback controls');
+    document.querySelector('#focusGmailBlock [data-today-click="gmail.context"]').click();
+    await __until(() => __check('mail_rej')?.rejected?.includes('draft'), 'rejection mirrored');
+    Today.use('gmail').closeFocus();
+    // The 24 h match expires; the rejection outlives it and the next lookup never shows the draft thread.
+    localStorage.removeItem('gmail_enrichment_mail_rej');
+    const before = log.urls.length;
+    await __enrich('mail_rej', 'Reply about contract');
+    const later = log.urls.slice(before);
+    const cached = JSON.parse(localStorage.getItem('gmail_enrichment_mail_rej') || 'null');
+    const today = Object.values(__audit().days).at(-1);
+    // Rewording the task forgets its rejections.
+    __mailOwner('mail_rej', 'Reply about the signed contract'); Today.use('gmail').cleanup();
+    return { cached: cached?.threadId, carried: cached?.feedback?.context?.rejectedThreads, maxResults: new URL(later[0]).searchParams.get('maxResults'),
+      fetchedDraft: later.some(u => u.includes('/threads/draft')), rejections: today?.rejections, reworded: __check('mail_rej') };
   });
-  assert(nonCommCalls === 0, 'non-communication tasks make no AI or Gmail request', nonCommCalls);
+  assert(rejection.cached === 'signed' && JSON.stringify(rejection.carried) === '["draft"]' && rejection.maxResults === '6'
+      && !rejection.fetchedDraft && rejection.rejections === 1 && rejection.reworded === null,
+    'a "not this thread" rejection survives the 24 h expiry, is never fetched or shown again, is counted, and clears when the task is reworded', rejection);
+
+  const queue = await page.evaluate(async () => {
+    const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+    const order = []; let release; const gate = new Promise(r => { release = r; });
+    let held = false;
+    const log = __mailbox({}, undefined, async parsed => {
+      if (parsed.pathname.endsWith('/threads')) order.push(parsed.searchParams.get('q').split(')')[0].slice(1));
+      if (!held) { held = true; await gate; }
+    });
+    const savedTasks = manualTasks;
+    manualTasks = [['mail_q1', 'Alpha'], ['mail_q2', 'Bravo'], ['mail_q3', 'Charlie']].map(([id, text]) => ({ id, text }));
+    Today.use('gmail').recheck();
+    await __until(() => held, 'first re-check holds');
+    const added = __enrich('mail_q4', 'Delta');
+    release();
+    await added; await __until(() => order.length >= 4, 'queue drained');
+    await new Promise(r => setTimeout(r, 50));
+    // Device-wide caps: re-checks stop at 20, everything at 30.
+    localStorage.setItem('gmail_daily_v1', JSON.stringify({ day: today(), total: 20, recheck: 20 }));
+    for (const id of ['mail_q1', 'mail_q2', 'mail_q3']) localStorage.removeItem('gmail_check_' + id);
+    const beforeCap = log.urls.length; Today.use('gmail').recheck(); await new Promise(r => setTimeout(r, 100));
+    const recheckCapped = log.urls.length === beforeCap && __audit().entries.at(-1).status === 'daily-cap';
+    localStorage.setItem('gmail_daily_v1', JSON.stringify({ day: today(), total: 30, recheck: 20 }));
+    await _gmailEnrichTask('mail_q4', 'Delta');
+    localStorage.removeItem('gmail_check_mail_q4');
+    const totalCapped = log.urls.length === beforeCap;
+    manualTasks = savedTasks; localStorage.removeItem('gmail_daily_v1');
+    return { order, recheckCapped, totalCapped };
+  });
+  assert(queue.order[0] === 'charlie' && queue.order.indexOf('delta') < queue.order.indexOf('bravo') && queue.recheckCapped && queue.totalCapped,
+    're-checks run newest first, one at a time; a task you add jumps ahead of queued re-checks; 20 re-checks and 30 lookups a day are the device caps', queue);
+
+  const retired = await page.evaluate(async () => {
+    const row = document.createElement('div'); row.className = 'task'; row.dataset.taskid = 'mail_policy';
+    row.innerHTML = '<span class="task-text"><span class="task-tail"></span></span>'; document.body.append(row);
+    __mailOwner('mail_policy', 'Reply about contract');
+    localStorage.setItem('gmail_enrichment_mail_policy', JSON.stringify({ ...__binding('Reply about contract'), matchPolicy: 'minisearch-v1', fetchedAt: Date.now(), threadId: 'old' }));
+    localStorage.setItem('gmail_classify_mail_policy', JSON.stringify({ ...__binding('Reply about contract'), isComm: true, searchQuery: 'subject:contract', source: 'ai' }));
+    _gmailUpdateIndicator('mail_policy');
+    const indicator = !!row.querySelector('.gmail-indicator'); row.remove();
+    Today.use('gmail').cleanup();
+    localStorage.removeItem('today_ai_key_claude');
+    const log = __mailbox({ c: [__msg('Contract', 'Sam <sam@example.test>', 'Contract ready')] });
+    await __enrich('mail_nokey', 'Reply about contract');
+    localStorage.setItem('today_ai_key_claude', 'claude-test-key');
+    return { indicator, oldEnrichment: localStorage.getItem('gmail_enrichment_mail_policy'), oldClassifier: localStorage.getItem('gmail_classify_mail_policy'),
+      noKeyRequests: log.urls.length, noKeyStatus: __audit().entries.at(-1).status };
+  });
+  assert(!retired.indicator && retired.oldEnrichment === null && retired.oldClassifier === null && retired.noKeyRequests === 0 && retired.noKeyStatus === 'no-ai-key',
+    'old-policy matches and classifier caches are discarded; without an AI key nothing is looked up', retired);
+
+  const indicatorStyle = await page.evaluate(() => {
+    const row = document.createElement('div'); row.className = 'task'; row.dataset.taskid = 'mail_visible';
+    row.innerHTML = '<span class="task-text">Visible<span class="task-tail"></span></span>'; document.body.append(row);
+    __mailOwner('mail_visible', 'Reply about contract');
+    localStorage.setItem('gmail_enrichment_mail_visible', JSON.stringify({ ...__binding('Reply about contract'), matchPolicy: 'judge-v1', fetchedAt: Date.now(), threadId: 't' }));
+    _gmailUpdateIndicator('mail_visible');
+    const el = row.querySelector('.gmail-indicator'), out = { tag: el?.tagName, opacity: el && getComputedStyle(el).opacity };
+    row.remove(); return out;
+  });
+  assert(indicatorStyle.tag === 'SPAN' && Number(indicatorStyle.opacity) > 0,
+    'on desktop the ↩ indicator is a quiet, always-visible glyph (no longer hover-only)', indicatorStyle);
 
   const indicator = await page.evaluate(() => {
     const row = document.createElement('div');
@@ -352,7 +399,7 @@ try {
     row.innerHTML = '<span class="task-text"><span class="task-tail"></span></span>';
     document.body.appendChild(row);
     __mailOwner('gmail_indicator', 'Reply to Test');
-    localStorage.setItem('gmail_enrichment_gmail_indicator', JSON.stringify({ ...__binding('Reply to Test'), fetchedAt: Date.now(), subject: 'Test', matchPolicy: 'minisearch-v1' }));
+    localStorage.setItem('gmail_enrichment_gmail_indicator', JSON.stringify({ ...__binding('Reply to Test'), fetchedAt: Date.now(), subject: 'Test', matchPolicy: 'judge-v1' }));
     _gmailUpdateIndicator('gmail_indicator', true);
     const el = row.querySelector('.gmail-indicator');
     return el && { label: el.getAttribute('aria-label'), beforeTail: el.nextElementSibling?.classList.contains('task-tail') };
@@ -372,7 +419,7 @@ try {
       if (String(url).includes('/threads/t1')) return { ok: true, status: 200, json: async () => ({ messages: [{ snippet: 'See you at 3',
         payload: { headers: [{ name: 'Subject', value: 'Haircut' }, { name: 'From', value: 'Salon <hi@salon.se>' },
           { name: 'Date', value: 'Mon, 5 Oct 2026 10:00:00 +0200' }, { name: 'Message-ID', value: '<CAB+x9#1@mail.gmail.com>' }] } }] }) };
-      if (String(url).includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: 'from:salon' }) };
+      if (String(url).includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ index: 0, message: 0, evidence: 'See you at 3', detail: 'See you at 3' }) };
       return { ok: true, status: 200, json: async () => ({}) };
     };
     await __enrich('gmail_mail_1', 'Reply to the salon about the haircut');
@@ -415,9 +462,9 @@ try {
   assert(mailOpen.askedForId && mailOpen.cachedId === 'CAB+x9#1@mail.gmail.com'
       && mailOpen.macOut.text === 'Open in Mail ↗' && mailOpen.macOut.href === 'message://%3CCAB%2Bx9%231%40mail.gmail.com%3E'
       && !mailOpen.macOut.target && mailOpen.defaultPrevented === true
-      && mailOpen.winText === 'Open in Gmail ↗' && /^https:\/\/mail\.google\.com\//.test(mailOpen.winHref)
+      && mailOpen.winText === 'Open in Gmail ↗' && mailOpen.winHref === 'https://mail.google.com/mail/u/0/#all/t1'
       && mailOpen.oldText === 'Open in Gmail ↗',
-    'desktop Mac opens the thread in Apple Mail via message://; other platforms and old caches keep Gmail', mailOpen);
+    'desktop Mac opens the thread in Apple Mail via message://; other platforms and old caches open the matched Gmail conversation, not a search', mailOpen);
 
   // BUG-115: Google answers a refresh with 400 invalid_grant once the saved sign-in is gone.
   // The app stops asking, reports once, and Connections offers Reconnect instead of "Connected".
@@ -462,118 +509,6 @@ try {
       && expired.pulseBeforeOpen && expired.pulseStoppedOnOpen,
     'an expired Gmail sign-in stops retrying, reports once, pulses ✧ until Connections is opened, and offers Reconnect', expired);
 
-  // Booking a service is looked up like writing to someone: the useful thread is the
-  // last booking confirmation, found on this device. It shows without "Draft reply",
-  // and the focus Ask button keeps asking about the task instead of drafting.
-  const booking = await page.evaluate(async () => {
-    const out = {
-      fallbackHaircut: _gmailBuildQueryFallback('Book haircut'),
-      fallbackTable: _gmailBuildQueryFallback('Reserve a table at Gaia'),
-      fallbackDentist: _gmailBuildQueryFallback('Schedule dentist appointment'),
-      contactStillPerson: _gmailBuildQueryFallback('Email Gaia about the booking'),
-    };
-    const calls = [];
-    window.fetch = async (url, opts = {}) => {
-      const u = String(url); calls.push({ url: u, body: opts.body || '' });
-      if (u.includes('ai-assist')) return { ok: true, status: 200, json: async () => ({ isComm: true, searchQuery: '{subject:booking subject:confirmation} haircut' }) };
-      if (u.includes('/threads?q=')) return { ok: true, status: 200, json: async () => ({ threads: [{ id: 'cut-thread' }] }) };
-      return { ok: true, status: 200, json: async () => ({ messages: [{ snippet: 'Your haircut is booked for Tue 10:00',
-        payload: { headers: [{ name: 'Subject', value: 'Booking confirmed — haircut' }, { name: 'From', value: 'Salon <hi@salon.se>' },
-          { name: 'Date', value: 'Tue, 1 Sep 2026 09:00:00 +0200' }] } }] }) };
-    };
-    await __enrich('gmail_booking_1', 'Book haircut');
-    const ai = calls.find(c => c.url.includes('ai-assist'));
-    out.reachedClassifier = !!ai;
-    out.promptCoversBooking = !!ai && /book, reserve, or schedule a service/.test(JSON.parse(ai.body).systemPrompt);
-    out.searched = calls.some(c => c.url.includes('/threads?q='));
-    out.cached = !!localStorage.getItem('gmail_enrichment_gmail_booking_1');
-    const block = document.getElementById('focusGmailBlock');
-    __mailFocus('gmail_booking_1', 'Book haircut');
-    out.threadShown = !block.hidden && block.textContent.includes('haircut is booked');
-    out.noDraftButton = !block.querySelector('.focus-gmail-draft-btn');
-    out.openLinkShown = !!block.querySelector('.focus-gmail-open');
-    out.askNotRelabelled = !/draft reply/i.test(document.querySelector('.focus-ai-timer-btn')?.textContent || '');
-    localStorage.removeItem('gmail_enrichment_gmail_booking_1');
-    block.hidden = true; block.innerHTML = '';
-    calls.length = 0;
-    await __enrich('gmail_plain_1', 'Water the plants');
-    out.unrelatedStillSkipped = !calls.some(c => c.url.includes('ai-assist'));
-    return out;
-  });
-  assert(booking.fallbackHaircut === '{subject:booking subject:confirmation subject:appointment subject:reservation subject:booked} haircut'
-      && booking.fallbackTable === '{subject:booking subject:confirmation subject:appointment subject:reservation subject:booked} "table at Gaia"'
-      && booking.fallbackDentist === '{subject:booking subject:confirmation subject:appointment subject:reservation subject:booked} dentist'
-      && booking.contactStillPerson === '{from:Gaia to:Gaia} booking'
-      && booking.reachedClassifier && booking.promptCoversBooking && booking.searched && booking.cached
-      && booking.threadShown && booking.noDraftButton && booking.openLinkShown && booking.askNotRelabelled
-      && booking.unrelatedStillSkipped,
-    'booking tasks look up the last confirmation on-device and show it without Draft reply; unrelated tasks still skip Gmail', booking);
-
-  const calendarFiltering = await page.evaluate(async () => {
-    const notification = (from = 'Google Calendar <calendar-notification@google.com>') => ({
-      snippet: 'Calendar-only private fixture', payload: { headers: [
-        { name: 'From', value: from }, { name: 'Subject', value: 'Notification: Haircut' },
-        { name: 'Message-ID', value: '<calendar-only@example.com>' },
-      ] },
-    });
-    const salon = (from = 'Salon <hi@salon.se>') => ({
-      snippet: 'Your haircut booking details', payload: { headers: [
-        { name: 'From', value: from }, { name: 'Subject', value: 'Appointment reminder' },
-        { name: 'Message-ID', value: '<salon-confirmation@example.com>' },
-      ] },
-    });
-    async function run(id, text, threads) {
-      localStorage.setItem('gmail_classify_' + id, JSON.stringify({ ...__binding(text), isComm: true, searchQuery: 'from:salon OR to:salon', source: 'ai' }));
-      const requests = [];
-      window.fetch = async (url) => {
-        const u = new URL(String(url), location.href);
-        requests.push(u.href);
-        if (u.pathname.endsWith('/threads')) return { ok: true, json: async () => ({ threads: Object.keys(threads).map(id => ({ id })) }) };
-        return { ok: true, json: async () => ({ messages: threads[u.pathname.split('/').at(-1)] }) };
-      };
-      await __enrich(id, text);
-      return { requests, cached: JSON.parse(localStorage.getItem('gmail_enrichment_' + id) || 'null'),
-        status: Today.use('gmail').observationAudit().entries.at(-1)?.status };
-    }
-    const next = await run('calendar_next', 'Book haircut', { calendar: [notification()], salon: [salon()] });
-    const mixed = await run('calendar_mixed', 'Email the salon', { mixed: [salon(), notification()] });
-    const only = await run('calendar_only', 'Book haircut', { calendar: [notification()] });
-    const bounded = await run('calendar_bounded', 'Email the salon', Object.fromEntries(
-      Array.from({ length: 6 }, (_, i) => ['calendar' + i, [notification()]])));
-    const allowed = [];
-    for (const [i, from] of [
-      'Calendar team <sam@example.com>',
-      '"calendar-notification@google.com" <hi@salon.se>',
-      'calendar-notification@google.com.example.org',
-    ].entries()) allowed.push((await run('calendar_allowed_' + i, 'Reply about haircut', { human: [salon(from)] })).cached?.from);
-    const blocked = [];
-    for (const [i, from] of [
-      'calendar-notification@google.com',
-      'Google Calendar <CALENDAR-NOTIFICATION@GOOGLE.COM>',
-    ].entries()) blocked.push((await run('calendar_blocked_' + i, 'Reply about the haircut', { calendar: [notification(from)] })).status);
-    return { next, mixed, only, bounded, allowed, blocked,
-      diagnostics: localStorage.getItem('gmail_diagnostics_v1') };
-  });
-  const calendarQuery = new URL(calendarFiltering.next.requests[0]);
-  assert(calendarQuery.searchParams.get('q') === effectiveQuery('from:salon OR to:salon')
-      && calendarQuery.searchParams.get('maxResults') === '5'
-      && calendarFiltering.next.cached?.threadId === 'salon'
-      && calendarFiltering.next.requests.length === 3
-      && calendarFiltering.next.cached.subject === 'Appointment reminder',
-    'all query branches exclude calendar mail, then skip a notification for genuine salon mail—even a reminder', calendarFiltering.next);
-  assert(calendarFiltering.mixed.cached?.messageId === 'salon-confirmation@example.com'
-      && calendarFiltering.mixed.cached.from === 'Salon <hi@salon.se>'
-      && calendarFiltering.only.cached === null && calendarFiltering.only.status === 'excluded-calendar'
-      && calendarFiltering.only.requests.length === 2
-      && calendarFiltering.bounded.requests.length === 6 && calendarFiltering.bounded.cached === null,
-    'mixed threads select a non-calendar message; calendar-only results stay silent without broad retries and inspection is bounded',
-    { mixed: calendarFiltering.mixed, only: calendarFiltering.only, bounded: calendarFiltering.bounded });
-  assert(calendarFiltering.allowed.every(Boolean)
-      && calendarFiltering.blocked.every(status => status === 'excluded-calendar')
-      && !/Calendar-only private fixture|salon\.se|salon-confirmation|calendar-only@example|from:salon/i.test(calendarFiltering.diagnostics),
-    'actual sender matching handles case without blocking display-name/lookalike matches, and diagnostics remain content-free',
-    { allowed: calendarFiltering.allowed, blocked: calendarFiltering.blocked });
-
   const calendarCache = await page.evaluate(async () => {
     const id = 'calendar_cached';
     const row = document.createElement('div');
@@ -584,7 +519,6 @@ try {
       from: 'Google Calendar <calendar-notification@google.com>', subject: 'Notification: haircut',
       snippet: 'Old private calendar reminder', taskText: 'Book haircut', fetchedAt: Date.now(),
     }));
-    localStorage.setItem('gmail_classify_' + id, JSON.stringify({ isComm: true, searchQuery: 'subject:haircut', source: 'ai' }));
     let searches = 0;
     window.fetch = async () => { searches++; return { ok: true, json: async () => ({ threads: [] }) }; };
     _gmailUpdateIndicator(id);
@@ -600,42 +534,11 @@ try {
   assert(calendarCache.removed && calendarCache.hidden && calendarCache.searches > 0,
     'an old cached calendar reminder loses its arrow, stays out of focus, and cannot prevent a new search', calendarCache);
 
-  const rankedSearch = await page.evaluate(async () => {
-    const id = 'ranked_search';
-    localStorage.setItem('gmail_classify_' + id, JSON.stringify({ ...__binding('Book haircut'), isComm: true, searchQuery: 'subject:appointment', source: 'ai' }));
-    localStorage.setItem('gmail_enrichment_' + id, JSON.stringify({ taskText: 'Book haircut',
-      subject: 'Dentist appointment', from: 'Dentist <hi@dentist.se>', fetchedAt: Date.now() }));
-    const requests = [];
-    const msg = (subject, from, snippet, messageId) => ({ snippet, payload: { headers: [
-      { name: 'Subject', value: subject }, { name: 'From', value: from }, { name: 'Message-ID', value: '<' + messageId + '>' },
-    ] } });
-    window.fetch = async url => {
-      const u = new URL(String(url), location.href); requests.push(u.pathname);
-      if (u.pathname.endsWith('/threads')) return { ok: true, json: async () => ({ threads: [{ id: 'dentist' }, { id: 'salon' }] }) };
-      return { ok: true, json: async () => ({ messages: u.pathname.endsWith('/dentist')
-        ? [msg('Appointment confirmed', 'Dentist <hi@dentist.se>', 'Your dental appointment', 'dentist@example.com')]
-        : [msg('Haircut booking confirmed', 'Salon <hi@salon.se>', 'Your haircut appointment is confirmed', 'haircut@example.com'),
-          msg('Invoice', 'Salon <hi@salon.se>', 'Payment processed', 'invoice@example.com')] }) };
-    };
-    await __enrich(id, 'Book haircut');
-    const cached = JSON.parse(localStorage.getItem('gmail_enrichment_' + id));
-    // A later edit must not reuse the haircut card for a different commitment.
-    await __enrich(id, 'Book dentist');
-    const edited = JSON.parse(localStorage.getItem('gmail_enrichment_' + id));
-    return { cached, edited, requests, diagnostic: Today.use('gmail').observationAudit().entries.at(-1) };
-  });
-  assert(rankedSearch.cached?.threadId === 'salon' && rankedSearch.cached.messageId === 'haircut@example.com'
-      && rankedSearch.cached.matchPolicy === 'minisearch-v1'
-      && rankedSearch.edited?.threadId === 'dentist' && rankedSearch.edited.taskText === 'Book dentist'
-      && rankedSearch.requests.filter(path => !path.includes('ai-assist')).length === 6,
-    'real enrichment ranks multiple threads/messages, replaces unvalidated caches and rechecks a task edit', rankedSearch);
-
   const focusRace = await page.evaluate(async () => {
     let release;
     let ready;
     const pending = new Promise(resolve => { ready = resolve; });
-    localStorage.setItem('gmail_classify_race_a', JSON.stringify({ ...__binding('Reply about contract'), isComm: true, searchQuery: 'subject:contract', source: 'ai' }));
-    localStorage.setItem('gmail_enrichment_race_b', JSON.stringify({ ...__binding('Reply about invoice'), matchPolicy: 'minisearch-v1',
+    localStorage.setItem('gmail_enrichment_race_b', JSON.stringify({ ...__binding('Reply about invoice'), matchPolicy: 'judge-v1',
       from: 'Pat <pat@example.com>', subject: 'Invoice', snippet: 'Invoice context must stay', fetchedAt: Date.now() }));
     window.fetch = async url => {
       if (String(url).includes('/threads?')) return { ok: true, json: async () => ({ threads: [{ id: 'race-a' }] }) };
@@ -667,36 +570,33 @@ try {
     ] } }] };
     const seed = (id, text='Reply about contract') => {
       __mailOwner(id,text); doneIds.delete(id);
-      localStorage.setItem('gmail_classify_'+id,JSON.stringify({ ...__binding(text), isComm:true,searchQuery:'subject:contract',source:'ai' }));
-      localStorage.removeItem('gmail_enrichment_'+id);
+            localStorage.removeItem('gmail_enrichment_'+id);
     };
     const mutate = (kind,id) => {
       if (kind==='rename') manualTasks.find(t=>t.id===id).text='Reply about invoice';
       if (kind==='delete'||kind==='move') { const task=manualTasks.find(t=>t.id===id); manualTasks=manualTasks.filter(t=>t.id!==id); if(kind==='move')soonTasks.push(task); }
       if (kind==='complete') doneIds.add(id);
       if (kind==='ai-key') localStorage.setItem('today_ai_key_claude','changed-fictional-key');
-      if (kind==='adopt') localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({ ...__binding('Reply about contract'),matchPolicy:'minisearch-v1',threadId:'adopted',snippet:'New accepted context',fetchedAt:Date.now() }));
-      if (kind==='classification-adopt') localStorage.setItem('gmail_classify_'+id,JSON.stringify({ ...__binding('Reply about contract'),isComm:true,searchQuery:'subject:newer',source:'ai' }));
+      if (kind==='adopt') localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({ ...__binding('Reply about contract'),matchPolicy:'judge-v1',threadId:'adopted',snippet:'New accepted context',fetchedAt:Date.now() }));
       if (kind==='account') localStorage.setItem('gmail_refresh_token','different-fictional-grant');
     };
-    for (const stage of ['classify','list','thread']) for (const kind of ['rename','delete','move','complete','ai-key','adopt','classification-adopt','account']) {
+    for (const stage of ['judge','list','thread']) for (const kind of ['rename','delete','move','complete','ai-key','adopt','account']) {
       const id='owner_'+stage+'_'+kind; seed(id);
-      if(stage==='classify')localStorage.removeItem('gmail_classify_'+id);
-      let release;
+            let release;
       window.fetch=async url=>{
-        const u=String(url), response=u.includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:u.includes('/threads?')?{threads:[{id:'contract'}]}:msg;
-        const hold=stage==='classify'?u.includes('ai-assist'):stage==='list'?u.includes('/threads?'):!u.includes('ai-assist')&&!u.includes('/threads?');
+        const u=String(url), response=u.includes('ai-assist')?__pick:u.includes('/threads?')?{threads:[{id:'contract'}]}:msg;
+        const hold=stage==='judge'?u.includes('ai-assist'):stage==='list'?u.includes('/threads?'):!u.includes('ai-assist')&&!u.includes('/threads?');
         return {ok:true,status:200,json:()=>hold?new Promise(resolve=>{release=()=>resolve(response);}):Promise.resolve(response)};
       };
       const pending=_gmailEnrichTask(id,'Reply about contract'); await wait(()=>!!release); mutate(kind,id);
       const adopted=localStorage.getItem('gmail_enrichment_'+id), classified=localStorage.getItem('gmail_classify_'+id);
       release();await pending;
       cases.push({stage,kind,noOverwrite:localStorage.getItem('gmail_enrichment_'+id)===adopted,
-        noClassificationOverwrite:stage!=='classify'||localStorage.getItem('gmail_classify_'+id)===classified});
+        noClassificationOverwrite:stage!=='judge'||localStorage.getItem('gmail_classify_'+id)===classified});
       localStorage.setItem('gmail_refresh_token','refresh-test');localStorage.setItem('today_ai_key_claude','claude-test-key');
     }
     // Renamed cached classifications and indicators must use the live owner even without supplied text.
-    seed('owner_cache');localStorage.setItem('gmail_enrichment_owner_cache',JSON.stringify({ ...__binding('Reply about invoice'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'Wrong invoice' }));
+    seed('owner_cache');localStorage.setItem('gmail_enrichment_owner_cache',JSON.stringify({ ...__binding('Reply about invoice'),matchPolicy:'judge-v1',fetchedAt:Date.now(),snippet:'Wrong invoice' }));
     const row=document.createElement('div');row.className='task';row.dataset.taskid='owner_cache';row.innerHTML='<span class="task-text"><span class="task-tail"></span></span>';document.body.append(row);
     _gmailUpdateIndicator('owner_cache'); const wrongArrow=!row.querySelector('.gmail-indicator')&&!localStorage.getItem('gmail_enrichment_owner_cache');row.remove();
     for(const kind of ['exit','switch','revisit']) {
@@ -704,14 +604,14 @@ try {
       window.fetch=async url=>({ok:true,status:200,json:()=>String(url).includes('/threads?')?Promise.resolve({threads:[{id:'contract'}]}):new Promise(resolve=>{release=()=>resolve(msg);})});
       _gmailRenderFocusBlock(id,'Reply about contract');await wait(()=>!!release);
       Today.use('gmail').closeFocus();
-      if(kind==='switch') {seed('other_focus');localStorage.setItem('gmail_enrichment_other_focus',JSON.stringify({...__binding('Reply about contract'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'New accepted context'}));_gmailRenderFocusBlock('other_focus','Reply about contract');}
-      if(kind==='revisit') {localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({...__binding('Reply about contract'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'New accepted context'}));_gmailRenderFocusBlock(id,'Reply about contract');}
+      if(kind==='switch') {seed('other_focus');localStorage.setItem('gmail_enrichment_other_focus',JSON.stringify({...__binding('Reply about contract'),matchPolicy:'judge-v1',fetchedAt:Date.now(),snippet:'New accepted context'}));_gmailRenderFocusBlock('other_focus','Reply about contract');}
+      if(kind==='revisit') {localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({...__binding('Reply about contract'),matchPolicy:'judge-v1',fetchedAt:Date.now(),snippet:'New accepted context'}));_gmailRenderFocusBlock(id,'Reply about contract');}
       const before=localStorage.getItem('gmail_enrichment_'+id);release();await turn();await turn();
       const block=document.getElementById('focusGmailBlock');cases.push({stage:'focus',kind,noOverwrite:localStorage.getItem('gmail_enrichment_'+id)===before,noClassificationOverwrite:kind==='exit'?block.hidden:block.textContent.includes('New accepted context')});
     }
     // Access-token renewal belongs to the same grant and must not invalidate the lookup.
     seed('owner_refresh');localStorage.setItem('gmail_token_expiry','1');let refreshes=0;
-    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('gmail-token')?(refreshes++,{access_token:'renewed-fictional-access',expires_in:3600}):String(url).includes('/threads?')?{threads:[{id:'contract'}]}:msg});
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('gmail-token')?(refreshes++,{access_token:'renewed-fictional-access',expires_in:3600}):String(url).includes('ai-assist')?__pick:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:msg});
     await _gmailEnrichTask('owner_refresh','Reply about contract');
     const refreshSurvives=refreshes===1&&JSON.parse(localStorage.getItem('gmail_enrichment_owner_refresh')||'null')?.threadId==='contract';
     // A refresh begun before Forget must not resurrect a credential or expired flag.
@@ -723,7 +623,7 @@ try {
     return {cases,wrongArrow,refreshSurvives,forgottenStaysGone};
   });
   assert(ownership.cases.every(c=>c.noOverwrite&&c.noClassificationOverwrite)&&ownership.wrongArrow,
-    'BUG-128: classification/list/body races fence edits, deletion, moves, completion, key/account changes and adopted caches; closed/switched/revisited views stay current',ownership);
+    'BUG-128: list/thread/judge races fence edits, deletion, moves, completion, key/account changes and adopted caches; closed/switched/revisited views stay current',ownership);
   assert(ownership.refreshSurvives&&ownership.forgottenStaysGone,
     'normal access-token refresh preserves ownership; a late refresh after Forget cannot restore credentials',ownership);
 
@@ -732,7 +632,7 @@ try {
     for(const kind of ['rename','delete','exit','switch','ai-key','account','adopt','control','control-copy']) {
       const id='draft_owner_'+kind;__mailOwner(id,'Reply about contract');
       // Populate through the real lookup to bind the renewed connection.
-      window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+      window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?__pick:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
       await _gmailEnrichTask(id,'Reply about contract');_gmailRenderFocusBlock(id,'Reply about contract');
       let release,calls=0;
       window.fetch=async()=>{calls++;return{ok:true,status:200,json:()=>new Promise(resolve=>{release=()=>resolve({content:'Thanks, I will review the contract.'});})};};
@@ -745,7 +645,7 @@ try {
       if(kind==='ai-key')localStorage.setItem('today_ai_key_claude','new-fictional-key');
       if(kind==='account')localStorage.setItem('gmail_refresh_token','another-fictional-grant');
       if(kind==='control-copy')delete document.getElementById('focusGmailBlock').dataset.fromEmail;
-      if(kind==='adopt')localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({...__binding('Reply about contract'),matchPolicy:'minisearch-v1',fetchedAt:Date.now(),snippet:'New cache'}));
+      if(kind==='adopt')localStorage.setItem('gmail_enrichment_'+id,JSON.stringify({...__binding('Reply about contract'),matchPolicy:'judge-v1',fetchedAt:Date.now(),snippet:'New cache'}));
       release();await turn();await turn();
       const block=document.getElementById('focusGmailBlock');
       results.push({kind,correct:kind.startsWith('control')?block.textContent.includes('Thanks, I will review'):!block.textContent.includes('Thanks, I will review')});
@@ -774,7 +674,7 @@ try {
   const lifecycle = await page.evaluate(async () => {
     const turn=()=>new Promise(resolve=>setTimeout(resolve,0));
     __mailOwner('mail_lifecycle','Reply about contract');
-    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?__pick:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
     await _gmailEnrichTask('mail_lifecycle','Reply about contract');
     const original=localStorage.getItem('gmail_enrichment_mail_lifecycle');
     _gmailRenderFocusBlock('mail_lifecycle','Reply about contract');
@@ -794,7 +694,7 @@ try {
     const native=window.setTimeout;let expire,release;
     window.setTimeout=(fn,ms,...args)=>ms===26000?(expire=fn,987654):native(fn,ms,...args);
     __mailOwner('mail_deadline','Reply about contract');
-    window.fetch=async()=>({ok:true,status:200,json:()=>new Promise(resolve=>{release=()=>resolve({isComm:true,searchQuery:'subject:contract'});})});
+    window.fetch=async()=>({ok:true,status:200,json:()=>new Promise(resolve=>{release=()=>resolve(__pick);})});
     const pending=_gmailEnrichTask('mail_deadline','Reply about contract');
     for(let i=0;i<100&&(!release||!expire);i++)await turn();
     expire();await pending;release();await turn();window.setTimeout=native;
@@ -810,7 +710,7 @@ try {
     localStorage.setItem('splash_shown_at',String(Date.now()));
     Today.use('connections').renderManual();
     window.__nativeRelease=null;
-    window.fetch=async url=>({ok:true,status:200,json:()=>String(url).includes('ai-assist')?Promise.resolve({isComm:true,searchQuery:'subject:contract'}):String(url).includes('/threads?')?Promise.resolve({threads:[{id:'contract'}]}):new Promise(resolve=>{window.__nativeRelease=()=>resolve({messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]});})});
+    window.fetch=async url=>({ok:true,status:200,json:()=>String(url).includes('ai-assist')?Promise.resolve(__pick):String(url).includes('/threads?')?Promise.resolve({threads:[{id:'contract'}]}):new Promise(resolve=>{window.__nativeRelease=()=>resolve({messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]});})});
   });
   await page.waitForFunction(()=>!document.getElementById('splash')||!document.getElementById('splash').classList.contains('show'));
   await page.evaluate(()=>document.querySelector('.task[data-taskid="mail_native_exit"] .task-text').click());
@@ -821,7 +721,7 @@ try {
 
   const staleLink=await page.evaluate(async()=>{
     __mailOwner('mail_stale_link','Reply about contract');
-    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'},{name:'Message-ID',value:'<fixture@example.com>'}]}}]}});
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?__pick:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'},{name:'Message-ID',value:'<fixture@example.com>'}]}}]}});
     await _gmailEnrichTask('mail_stale_link','Reply about contract');_gmailRenderFocusBlock('mail_stale_link','Reply about contract');
     const link=document.querySelector('#focusGmailBlock .focus-gmail-open');link.href='#must-not-navigate';
     manualTasks.find(t=>t.id==='mail_stale_link').text='Reply about invoice';
@@ -830,22 +730,6 @@ try {
   });
   assert(staleLink,'an already-rendered Mail/Gmail link cannot navigate after its task changes');
 
-  // Isolate this from the first page's HTTP/module/SW caches: a cached library
-  // correctly remains usable when the network is blocked.
-  const unavailableContext = await browser.createBrowserContext();
-  const unavailablePage = await unavailableContext.newPage();
-  await unavailablePage.setCacheEnabled(false);
-  await unavailablePage.setBypassServiceWorker(true);
-  await unavailablePage.setRequestInterception(true);
-  unavailablePage.on('request', request => request.url().includes('minisearch-7.2.0.js') ? request.abort() : request.continue());
-  await unavailablePage.goto(URL_BASE, { waitUntil: 'domcontentloaded' });
-  await unavailablePage.waitForFunction(() => window.Today?.use('gmail')?.rankCandidates);
-  const unavailable = await unavailablePage.evaluate(() => Today.use('gmail').rankCandidates('Book haircut', [{
-    threadId: 'not-a-fallback', from: 'Salon <hi@salon.se>', subject: 'Haircut booking confirmed', snippet: 'Your haircut appointment',
-  }]));
-  assert(unavailable.status === 'ranking-unavailable' && !unavailable.result,
-    'an unavailable ranking library abstains instead of reverting to an unchecked first hit', unavailable);
-  await unavailableContext.close();
 
   const peer=await browser.newPage();
   await peer.goto(URL_BASE,{waitUntil:'domcontentloaded'});
@@ -853,7 +737,7 @@ try {
   await peer.evaluate(()=>{window.__sawMailCache=false;window.addEventListener('storage',event=>{if(event.key==='gmail_enrichment_mail_peer')window.__sawMailCache=true;});});
   await page.evaluate(async()=>{
     __mailOwner('mail_peer','Reply about contract');
-    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?__pick:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
     await _gmailEnrichTask('mail_peer','Reply about contract');_gmailRenderFocusBlock('mail_peer','Reply about contract');
   });
   await peer.waitForFunction(()=>window.__sawMailCache);
@@ -867,7 +751,7 @@ try {
   const draftDeadline=await page.evaluate(async()=>{
     const turn=()=>new Promise(resolve=>setTimeout(resolve,0));
     __mailOwner('mail_draft_deadline','Reply about contract');
-    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?{isComm:true,searchQuery:'subject:contract'}:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
+    window.fetch=async url=>({ok:true,status:200,json:async()=>String(url).includes('ai-assist')?__pick:String(url).includes('/threads?')?{threads:[{id:'contract'}]}:{messages:[{snippet:'Contract ready',payload:{headers:[{name:'Subject',value:'Contract'},{name:'From',value:'Sam <sam@example.com>'}]}}]}});
     await _gmailEnrichTask('mail_draft_deadline','Reply about contract');__mailFocus('mail_draft_deadline','Reply about contract');
     let expire,release;const native=setTimeout;
     window.setTimeout=(fn,ms,...args)=>ms===26000?(expire=fn,987654):native(fn,ms,...args);
@@ -880,24 +764,25 @@ try {
   });
   assert(draftDeadline,'a stalled draft body reaches its deadline, resets the native button and cannot paint late prose');
 
+
   // Real task entry -> independent lookups -> row indicators -> cached Focus delivery.
   // All source responses are fictional; this is not live account/usefulness proof.
-  const captureContext = async (taskText, mailExpected, decline = false) => {
+  const captureContext = async (taskText, mailExpected) => {
     const context = await browser.createBrowserContext(), capture = await context.newPage(), errors=[];
     capture.on('pageerror',error=>errors.push(error.message));
     try {
       await capture.setViewport({width:1200,height:900});
-      await capture.evaluateOnNewDocument(({taskText,decline})=>{
+      await capture.evaluateOnNewDocument(({mailExpected})=>{
         localStorage.clear();
         for(const [key,value]of Object.entries({splash_shown_at:String(Date.now()),today_ai_provider:'claude',today_ai_key_claude:'fictional-key',gmail_access_token:'fictional-access',gmail_refresh_token:'fictional-refresh',gmail_token_expiry:String(Date.now()+3600000)}))localStorage.setItem(key,value);
-        window.__delivery={web:0,classify:0,mail:0};const original=window.fetch.bind(window),reply=data=>Promise.resolve({ok:true,status:200,json:async()=>data});
+        window.__delivery={web:0,judge:0,mail:0};const original=window.fetch.bind(window),reply=data=>Promise.resolve({ok:true,status:200,json:async()=>data});
         window.fetch=(url,options={})=>{
           const address=String(url);
           if(address.includes('/task-enrich')){__delivery.web++;return reply({card:{headline:'Flight ticket reference',body:'Fictional supporting context',cta:{label:'Open',href:'https://example.test/tickets'}}});}
           if(address.includes('/ai-assist')){
             const body=JSON.parse(options.body);
             if(body.systemPrompt?.startsWith('Prepare at most'))return reply({content:JSON.stringify({kind:'none',text:''})});
-            if(body.systemPrompt?.startsWith('Return ONLY valid JSON: {"isComm"')){__delivery.classify++;return reply({isComm:!decline,searchQuery:decline?'':'subject:"flight tickets"'});}
+            if(body.surface==='gmail-judge'){__delivery.judge++;return reply(mailExpected?{index:0,message:0,evidence:'Your flight tickets are confirmed.',detail:'Tickets confirmed'}:{index:null});}
             return reply({content:'none',suggest:false,type:'none',reason:'other_complexity'});
           }
           if(address.includes('gmail.googleapis.com')){
@@ -907,48 +792,104 @@ try {
           }
           return original(url,options);
         };
-      },{taskText,decline});
+      },{mailExpected});
       await capture.goto(URL_BASE,{waitUntil:'domcontentloaded'});
       await capture.waitForFunction(()=>!document.body.hasAttribute('data-booting')&&typeof window.addManual==='function');
       await capture.evaluate(()=>{dropboxAutoSave=()=>{};});
       await capture.type('#newTask',taskText);await capture.keyboard.press('Enter');
       await capture.waitForSelector('.agent-indicator',{timeout:5000});
       if(mailExpected)await capture.waitForSelector('.gmail-indicator',{timeout:5000});
+      else await capture.waitForFunction(()=>__delivery.judge===1,{timeout:5000});
+      const afterAdd=await capture.evaluate(()=>({...__delivery}));
       await capture.click('.task-text');
       await capture.waitForFunction(mail=>!document.getElementById('focusAgentBlock').hidden&&(!mail||!document.getElementById('focusGmailBlock').hidden),{timeout:5000},mailExpected);
       // Join the existing coalesced lookup before asserting a negative; do not rely on elapsed time.
       await capture.evaluate(async()=>{await _gmailEnrichTask(manualTasks[0].id,manualTasks[0].text);});
-      const first=await capture.evaluate(()=>({counts:{...__delivery},mailVisible:!document.getElementById('focusGmailBlock').hidden,draftButton:!!document.querySelector('#focusGmailBlock .focus-gmail-draft-btn'),webVisible:!document.getElementById('focusAgentBlock').hidden}));
-      if(decline){
-        const cached = await capture.evaluate(async()=>{
-          const id=manualTasks[0].id,key='gmail_classify_'+id;
-          const old=JSON.parse(localStorage.getItem(key));delete old.lookupPolicy;localStorage.setItem(key,JSON.stringify(old));
-          await _gmailEnrichTask(id,manualTasks[0].text);
-          await _gmailEnrichTask(id,manualTasks[0].text);
-          return {counts:{...__delivery},policy:JSON.parse(localStorage.getItem(key)).lookupPolicy};
-        });
-        assert(cached.counts.classify===2&&cached.counts.mail===0&&cached.policy==='lookup-v1','an old lookup rejection is reconsidered once; new declines reuse their classification without searching mail',cached);
-      }
-      assert(first.webVisible&&first.mailVisible===mailExpected&&!first.draftButton&&first.counts.web===1&&first.counts.classify===(mailExpected||decline?1:0)&&first.counts.mail===(mailExpected?2:0)&&!errors.length,'typed '+taskText+' reaches only eligible sources and Focus reuses the delivered context',{first,errors});
+      const first=await capture.evaluate(()=>({counts:{...__delivery},mailVisible:!document.getElementById('focusGmailBlock').hidden,detail:document.querySelector('#focusGmailBlock .focus-gmail-detail')?.textContent||'',webVisible:!document.getElementById('focusAgentBlock').hidden}));
+      assert(first.webVisible&&first.mailVisible===mailExpected&&(!mailExpected||first.detail==='Tickets confirmed')&&first.counts.web===1&&afterAdd.judge===1
+          &&first.counts.judge===1&&afterAdd.mail===4&&(mailExpected?first.counts.mail===4:[8,12].includes(first.counts.mail))&&!errors.length,
+        'typed '+taskText+' is searched (AND, then widened), judged once; Focus reuses the match, and an unchanged mailbox is not judged again',{afterAdd,first,errors});
     } finally {await context.close();}
   };
   await captureContext('Check my flight tickets',true);
-  await captureContext('Check flight options',false);
   await captureContext('Buy a headphone case',false);
-  await captureContext('Check my flight tickets',false,true);
+
+  // Phones (no hover) have no Focus mode: ↩ is a native button that opens the same card under the task.
+  const phone = await (async () => {
+    const context = await browser.createBrowserContext(), mobile = await context.newPage(), errors = [];
+    mobile.on('pageerror', e => errors.push(e.message));
+    const grant = createHash('sha256').update(URL_BASE + '\0fictional-refresh').digest('hex');
+    try {
+      await mobile.setViewport({ width: 375, height: 760, isMobile: true, hasTouch: true });
+      await mobile.evaluateOnNewDocument(grant => {
+        const nativeMedia = window.matchMedia.bind(window);
+        window.matchMedia = query => {
+          const input = { '(hover: hover)': false, '(hover: none)': true, '(pointer: fine)': false, '(pointer: coarse)': true };
+          return Object.hasOwn(input, query) ? { matches: input[query], media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} } : nativeMedia(query);
+        };
+        localStorage.clear();
+        for (const [k, v] of Object.entries({ splash_shown_at: String(Date.now()), today_ai_provider: 'claude', today_ai_key_claude: 'fictional-key',
+          gmail_access_token: 'fictional-access', gmail_refresh_token: 'fictional-refresh', gmail_token_expiry: String(Date.now() + 3600000) })) localStorage.setItem(k, v);
+        localStorage.setItem('today_manual', JSON.stringify([{ id: 'manual_1700000000001', text: 'Pay rent' }, { id: 'manual_1700000000002', text: 'Water the plants' }]));
+        localStorage.setItem('gmail_enrichment_manual_1700000000001', JSON.stringify({ taskText: 'Pay rent', ownerPolicy: 'owner-v2', connectionKey: grant,
+          matchPolicy: 'judge-v1', fetchedAt: Date.now(), threadId: 'landlord', subject: 'Rent for December', from: 'Lena <lena@example.test>',
+          replyFrom: 'Lena <lena@example.test>', date: 'Mon, 5 Oct 2026 10:00:00 +0200', snippet: 'The rent of 9500 kr is due on 28 Nov', detail: 'Rent 9500 kr due 28 Nov' }));
+        const original = window.fetch.bind(window);
+        window.fetch = (url, options) => /gmail\.googleapis|\/\.netlify\//.test(String(url))
+          ? Promise.resolve({ ok: true, status: 200, json: async () => ({ threads: [] }) }) : original(url, options);
+      }, grant);
+      await mobile.goto(URL_BASE, { waitUntil: 'domcontentloaded' });
+      await mobile.waitForSelector('.task[data-taskid="manual_1700000000001"] button.gmail-indicator', { timeout: 5000 });
+      return await mobile.evaluate(async () => {
+        const id = 'manual_1700000000001', task = () => document.querySelector('.task[data-taskid="' + id + '"]');
+        const turn = () => new Promise(r => setTimeout(r, 10));
+        const button = task().querySelector('button.gmail-indicator'), rect = button.getBoundingClientRect();
+        const out = { noHover: !matchMedia('(hover: hover)').matches, label: button.getAttribute('aria-label'), expandedBefore: button.getAttribute('aria-expanded'),
+          target: rect.width >= 24 && rect.height >= 24, opacity: Number(getComputedStyle(button).opacity) };
+        button.click();
+        for (let i = 0; i < 100 && !document.querySelector('.gmail-card-row .focus-gmail-thread'); i++) await turn();
+        const card = document.querySelector('.gmail-card-row');
+        Object.assign(out, { afterTask: card?.previousElementSibling === task(), visible: !!card && !card.hidden,
+          detail: card?.querySelector('.focus-gmail-detail')?.textContent, expanded: task().querySelector('.gmail-indicator').getAttribute('aria-expanded'),
+          notToggled: !task().classList.contains('done'), draft: !!card?.querySelector('.focus-gmail-draft-btn'),
+          reject: !!card?.querySelector('[data-today-click="gmail.context"]'), link: card?.querySelector('.focus-gmail-open')?.getAttribute('href') });
+        Today.use('connections').renderManual();
+        await turn();
+        out.reanchored = document.querySelector('.gmail-card-row')?.previousElementSibling === task() && document.querySelectorAll('.gmail-card-row').length === 1
+          && !!document.querySelector('.gmail-card-row .focus-gmail-detail');
+        task().querySelector('button.gmail-indicator').click();
+        out.closed = !document.querySelector('.gmail-card-row') && task().querySelector('.gmail-indicator').getAttribute('aria-expanded') === 'false';
+        task().querySelector('button.gmail-indicator').click();
+        for (let i = 0; i < 100 && !document.querySelector('.gmail-card-row .focus-gmail-thread'); i++) await turn();
+        Today.use('gmail').closeCard(id);
+        out.closedForSuggestion = !document.querySelector('.gmail-card-row');
+        out.noMatchNoIcon = !document.querySelector('.task[data-taskid="manual_1700000000002"] .gmail-indicator');
+        return out;
+      }).then(result => ({ ...result, errors }));
+    } finally { await context.close(); }
+  })();
+  assert(phone.noHover && phone.label === 'Show email context' && phone.expandedBefore === 'false' && phone.target && phone.opacity > 0
+      && phone.afterTask && phone.visible && phone.detail === 'Rent 9500 kr due 28 Nov' && phone.expanded === 'true' && phone.notToggled
+      && phone.draft && phone.reject && phone.link?.endsWith('#all/landlord') && phone.reanchored && phone.closed && phone.closedForSuggestion
+      && phone.noMatchNoIcon && !phone.errors.length,
+    'phone: ↩ is a 24px native button; tapping opens the Focus email card under its task (detail, Draft reply, not this thread, thread link), survives re-render, closes on a second tap or a suggestion', phone);
 
   const diagnostics = await page.evaluate(async () => {
-    window.fetch = async () => ({ ok: true, status: 200, json: async () => ({ isComm: false, searchQuery: '' }) });
+    __mailbox({});
+    const old = { taskId: 'old', status: 'found', source: 'add', reason: null, attempts: [], at: Date.now() - 15 * 86400000 };
+    localStorage.setItem('gmail_diagnostics_v1', JSON.stringify([old]));
     for (let i = 0; i < 22; i++) await __enrich('gmail_diagnostic_' + i, 'Call aunt');
-    const before = Today.use('gmail').observationAudit();
+    const before = Today.use('gmail').observationAudit(), stored = JSON.parse(localStorage.getItem('gmail_diagnostics_v1'));
+    localStorage.setItem('gmail_check_fictional', '{}');
     gmailDisconnect();
-    return { schema: before.schema, count: before.entries.length,
-      firstTask: before.entries[0]?.taskId, lastTask: before.entries.at(-1)?.taskId,
-      cleared: localStorage.getItem('gmail_diagnostics_v1') === null };
+    return { schema: before.schema, count: before.entries.length, stored: stored.length, pruned: !stored.some(e => e.taskId === 'old'),
+      lastTask: before.entries.at(-1)?.taskId, today: Object.values(before.days).at(-1), raw: JSON.stringify(stored),
+      cleared: ['gmail_diagnostics_v1', 'gmail_daily_v1', 'gmail_check_fictional'].every(k => localStorage.getItem(k) === null) };
   });
-  assert(diagnostics.schema === 1 && diagnostics.count === 20
-      && diagnostics.lastTask === 'gmail_diagnostic_21' && diagnostics.cleared,
-    'local Gmail diagnostic is bounded and cleared with the connection', diagnostics);
+  assert(diagnostics.schema === 2 && diagnostics.count === 20 && diagnostics.stored === 22 && diagnostics.pruned
+      && diagnostics.lastTask === 'gmail_diagnostic_21' && diagnostics.today?.lookups === 22 && diagnostics.today.abstains['no-thread'] === 22
+      && !/aunt/i.test(diagnostics.raw) && diagnostics.cleared,
+    'diagnostics keep 14 days by time with content-free per-day counts; Disconnect clears them with the checks and daily counter', diagnostics);
 
   console.log(`\nGmail tests passed (${passed} checks).`);
 } finally {

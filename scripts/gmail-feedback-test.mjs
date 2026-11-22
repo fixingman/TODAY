@@ -29,7 +29,7 @@ async function fixture(context){
   localStorage.setItem('splash_shown_at',String(Date.now()));localStorage.setItem('gmail_access_token','fictional-access');localStorage.setItem('gmail_refresh_token','fictional-mail-grant');localStorage.setItem('gmail_token_expiry',String(Date.now()+3600000));
   localStorage.setItem('today_ai_provider','claude');localStorage.setItem('today_ai_key_claude','fictional-ai-key');
   localStorage.setItem('today_manual',JSON.stringify([{id:A,text:'Reply about contract'},{id:B,text:'Reply about invoice'}]));
-  window.__entry=(text,threadId='first',snippet='The contract is ready to review.')=>({taskText:text,threadId,subject:text.includes('invoice')?'Invoice':'Contract',from:'Sam <sam@example.com>',date:'2026-10-20',messageId:threadId+'@fictional.invalid',snippet,fetchedAt:Date.now(),matchPolicy:'minisearch-v1',ownerPolicy:'owner-v2',connectionKey:grant});
+  window.__entry=(text,threadId='first',snippet='The contract is ready to review.')=>({taskText:text,threadId,subject:text.includes('invoice')?'Invoice':'Contract',from:'Sam <sam@example.com>',date:'2026-10-20',messageId:threadId+'@fictional.invalid',snippet,fetchedAt:Date.now(),matchPolicy:'judge-v1',ownerPolicy:'owner-v2',connectionKey:grant});
   for(const [id,text]of[[A,'Reply about contract'],[B,'Reply about invoice']]){if(!localStorage.getItem('gmail_enrichment_'+id))localStorage.setItem('gmail_enrichment_'+id,JSON.stringify(__entry(text)));localStorage.setItem('gmail_classify_'+id,JSON.stringify({taskText:text,isComm:true,searchQuery:'subject:'+(text.includes('invoice')?'invoice':'contract'),source:'ai',ownerPolicy:'owner-v2',connectionKey:grant}));}
   window.__draftRequests=[];window.__askRequests=[];window.__mailRequests=[];window.__draftQueue=[];window.__holding=null;window.__mailCandidates=['first','second'];
   const response=data=>({ok:true,status:200,json:async()=>data});const originalFetch=window.fetch.bind(window);
@@ -44,7 +44,9 @@ async function fixture(context){
      return response(next);
     }
     if(String(sent.systemPrompt).startsWith('Prepare at most one optional focus suggestion for a task')){__askRequests.push(sent);return response({content:JSON.stringify({kind:'question',text:'Which contract section needs your draft reply?'})});}
-    return response({content:'',isComm:true,searchQuery:'subject:contract'});
+    if(sent.surface==='gmail-judge'){const input=JSON.parse(sent.messages[0].content),index=input.conversations.length?0:null;
+     return response(index===null?{index:null}:{index,message:0,evidence:'ready to review',detail:'Ready to review'});}
+    return response({content:''});
    }
    if(address.includes('gmail.googleapis.com')){
     __mailRequests.push(address);if(window.__mailError)return{ok:false,status:503,json:async()=>({})};
@@ -88,9 +90,9 @@ try{
   await click(page,'gmail.context');assert.equal((await read(page)).feedback,undefined);
   await click(page,'gmail.context');await click(page,'gmail.context-retry');await page.waitForFunction(()=>document.querySelector('.focus-gmail-context')?.hidden===false);
   entry=await read(page);assert.equal(entry.threadId,'second');assert.deepEqual(entry.feedback.context.rejectedThreads,['first']);assert.equal(entry.feedback.context.hidden,false);
-  const requests=await page.evaluate(()=>__mailRequests);assert.equal(requests.length,3);assert.equal(new URL(requests[0]).searchParams.get('maxResults'),'5');assert.ok(requests.every(url=>!url.includes('apiKey')));
+  const requests=await page.evaluate(()=>__mailRequests);assert.equal(requests.length,2);assert.equal(new URL(requests[0]).searchParams.get('maxResults'),'6');assert.ok(requests.every(url=>!url.includes('/threads/first')));assert.ok(requests.every(url=>!url.includes('apiKey')));
   await click(page,'gmail.context');assert.equal(await page.$eval('[data-today-click="gmail.context-retry"]',b=>b.disabled),true);
-  assert.deepEqual(errors,[]);ok('thread rejection persists before hiding, Undo adds no call, one explicit alternative excludes it locally within the existing search');await page.browserContext().close();
+  assert.deepEqual(errors,[]);ok('thread rejection persists before hiding, Undo adds no call, one explicit alternative never fetches the rejected thread again');await page.browserContext().close();
  }
  {
   const{page,errors}=await fixture();

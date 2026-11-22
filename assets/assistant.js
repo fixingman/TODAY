@@ -281,6 +281,8 @@ function _aiShowSuggestion(taskId, taskEl, data) {
   chips.appendChild(dismissBtn);
   row.appendChild(msg);
   row.appendChild(chips);
+  // One sibling row per task: a new suggestion closes the phone email card on the same task.
+  if (Today.has('gmail')) Today.use('gmail').closeCard(taskId);
   taskEl.insertAdjacentElement('afterend', row);
   // The task was in view (delivery requires it); if its new row landed under the add bar,
   // scroll just enough to show it. Only scroll down, never past the task itself.
@@ -429,6 +431,7 @@ function _aiApplyBreakdown(originalTaskId, subtasks, sourceText) {
         _aiAnalyzeTask,
         _aiDismissSuggestion,
         _aiReanchorSuggestion,
+        _aiClearBand,
         _aiApplyBreakdown,
         _aiVisibleShare,
       });

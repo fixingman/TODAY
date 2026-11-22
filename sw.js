@@ -25,7 +25,6 @@ const CACHE_APP_SHELL = [
   '/assets/calendar.js',
   '/assets/calendar-nudge.js',
   '/assets/calendar-nudge-policy.js',
-  '/assets/vendor/minisearch-7.2.0.js',
   '/assets/task-enrich.js',
   '/assets/enrichment-feedback.js',
   '/assets/reflections.js',

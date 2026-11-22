@@ -337,13 +337,15 @@ try {
   assert.equal(offlineShell.title.endsWith('TODAY'), true);
   assert.equal(offlineShell.app, true);
   assert.equal(offlineShell.addInput, true);
-  await page.waitForFunction(() => window.Today?.use('gmail')?.rankCandidates);
-  const offlineRanking = await page.evaluate(() => Today.use('gmail').rankCandidates('Book haircut', [{
-    threadId: 'offline-confirmation', subject: 'Haircut booking confirmed', from: 'Salon <hi@salon.se>',
-    snippet: 'Your haircut appointment is confirmed',
-  }]));
-  assert.equal(offlineRanking.result?.threadId, 'offline-confirmation');
-  console.log('  ✓ the lazy local email ranker loads from the service-worker cache offline');
+  // Judging needs the network; the search builder and the lazy email card must still load offline.
+  await page.waitForFunction(() => window.Today?.use('gmail')?.contentQuery);
+  const offlineMail = await page.evaluate(async () => {
+    await import('/assets/gmail-feedback.js');
+    return { query: Today.use('gmail').contentQuery('Pay rent'), card: Today.has('gmail-feedback') };
+  });
+  assert.equal(offlineMail.query, 'rent');
+  assert.equal(offlineMail.card, true);
+  console.log('  ✓ the email search builder and the lazy email card load from the service-worker cache offline');
 
   const offlineCalendarPolicy = await page.evaluate(async () => {
     await import('/assets/calendar-nudge.js');

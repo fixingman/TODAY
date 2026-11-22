@@ -454,14 +454,41 @@
     display: inline;
     font-size: var(--text-sm);
     color: var(--muted);
-    opacity: 0;
+    /* Always visible (also on phones), quiet like the ↗ link family. */
+    opacity: var(--opacity-soft);
     margin-left: var(--space-2);
     transition: opacity var(--dur-fast);
     pointer-events: none;
     user-select: none;
   }
-  @media (hover: hover) {
-    .task:hover .gmail-indicator { opacity: var(--opacity-soft); }
+  /* Touch: a native button that opens the email card below the task. */
+  button.gmail-indicator {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    line-height: inherit;
+    min-width: var(--space-6);
+    min-height: var(--space-6);
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  button.gmail-indicator[aria-expanded="true"] { opacity: 1; }
+  /* Phone card: the Focus email card as a sibling row, shaped like .task-suggestion. */
+  .focus-gmail-block.gmail-card-row {
+    border-top: none;
+    margin: 0 0 var(--space-2) 26px; /* align with task text, past checkbox */
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    animation: revealDown var(--dur-fast) var(--ease-out);
+  }
+  /* Narrow card: "not this thread" wraps under the links; the 24px tap heights already space the rows. */
+  .gmail-card-row .focus-gmail-actions { row-gap: 0; }
+  .gmail-card-row .gmail-context-feedback { margin-top: 0; }
+  .focus-gmail-detail {
+    font-size: var(--text-sm);
+    color: var(--text);
+    line-height: 1.4;
   }
 
   /* ── Agent enrichment indicator ─ */

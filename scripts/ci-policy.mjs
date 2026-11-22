@@ -283,7 +283,8 @@ export const GROUPS = {
     ],
     "dependents": [
       "focus",
-      "connections"
+      "connections",
+      "assistant"
     ]
   },
   "enrichment": {
