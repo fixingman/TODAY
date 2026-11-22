@@ -18,6 +18,7 @@
 
 | # | Description | Status |
 |---|---|---|
+| 173 | Post-add suggestions hidden behind the input bar but counted as ignored. | ✅ Can verified, 2026-11-22 (v3.11.6); separate evening-review overlap remains unverified |
 | 172 | Single functional artifact download fails the CI result combiner. | ✅ Hosted single-worker gate 43975777473; 2026-11-17 (v3.10.11 engineering, CI-only fix) |
 | 171 | Earlier days' finished tasks inflate the done count after sync. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
 | 170 | Explore hides credit failures behind generic retry. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
@@ -199,6 +200,22 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 ## Verification batch — 2026-09-07
 
 Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. All five are now ✅. Remaining open from the 2026-09-04 batch: BUG-091 (real Gmail), BUG-089 (native Mail handoff), and BUG-061 (stale, Sunday/habit badge).
+
+---
+
+## BUG-173 — Post-add suggestions hidden behind the input bar but counted as ignored
+
+**Verified — November 22, 2026:** Can confirms BUG-173 is verified. This closes the reported add-bar visibility/exposure defect in v3.11.6. The separate evening-review overlap noted below remains an unverified follow-up in Backlog; this confirmation does not establish that adjacent layout condition is fixed.
+
+**Report (Can, November 18):** never sees post-add suggestions or splits, yet the backup holds 50 offers (Aug 28–Nov 16): 29 ignored, 12 dismissed, 1 applied then reversed.
+
+**Root cause:** the exposure check counted a row as visible when 1% of it intersected the viewport, without regard to the fixed add bar. Reproduced at 390px with 13 tasks: the row rendered at 782–817px under the bar (top 776px), and `elementFromPoint` hit the input. On desktop the new task itself landed under the bar, so delivery (which waited for viewport entry) never fired. The policy then read those timeouts as rejections: every reason reached ≥70% and dropped to one in four.
+
+**Fix:** see the release changelog entry. Verify: on phone and desktop, add a task with two actions or a vague wording; the suggestion appears above the input bar and the list scrolls just enough to show it.
+
+**Still open:** between 8pm and midnight the evening review bar also covers the end of the list, and the page has no extra room to scroll above it, so a task added then (and its suggestion) can stay hidden. The suggestion now waits rather than being miscounted; the list layout itself is unchanged.
+
+---
 
 ## BUG-172 — Single functional artifact download fails the CI result combiner
 

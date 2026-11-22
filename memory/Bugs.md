@@ -23,7 +23,6 @@ Current publication/CI evidence is maintained once in the [release contract](../
 |---|---|---|---|
 | 175 | ⏳ Verify | A single weekly-reading miss adds a second quiet week even when fresh weekly evidence qualifies. | v3.13.1 |
 | 174 | ⏳ Verify | .habit-daily-link inside .habit[data-habit-id] was missing from the focus.js document click handler exclusion list. | v3.13.0 |
-| 173 | ⏳ Verify | New tasks land at the bottom of the list, so their suggestion row sat behind the fixed input bar; the app still counted 10 seconds there as "seen and ignored" and throttled all suggestions. | v3.11.6 |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
 | 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
 | 145 | ⏳ Verify | Living note hides unchanged interpretations when source records leave display windows, and puts a generic status under “A possibility”. | v3.5.0 |
@@ -34,7 +33,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ---
 
-*BUG-001–087 (all), verified BUG-088–119, 121–143, 148–150, 153, 155–157, 160, 161, 163, 164, 168, 170–172 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+*BUG-001–087 (all), verified BUG-088–119, 121–143, 148–150, 153, 155–157, 160, 161, 163, 164, 168, 170–173 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
 
 ---
 
@@ -59,18 +58,6 @@ Current publication/CI evidence is maintained once in the [release contract](../
 **Test** (commit bed8cf21): `scripts/habits-test.mjs` now clicks `.habit-daily-link` in edit mode, waits for `habitsTitle` to become "Daily task" (confirming the editor opened), and asserts `document.body.classList.contains('focus-locked')` is false.
 
 **Verification needed:** confirm on the installed app that clicking the daily-task link in the habit panel opens the editor directly without triggering focus mode.
-
----
-
-## BUG-173 — Post-add suggestions hidden behind the input bar but counted as ignored
-
-**Report (Can, November 18):** never sees post-add suggestions or splits, yet the backup holds 50 offers (Aug 28–Nov 16): 29 ignored, 12 dismissed, 1 applied then reversed.
-
-**Root cause:** the exposure check counted a row as visible when 1% of it intersected the viewport, without regard to the fixed add bar. Reproduced at 390px with 13 tasks: the row rendered at 782–817px under the bar (top 776px), and `elementFromPoint` hit the input. On desktop the new task itself landed under the bar, so delivery (which waited for viewport entry) never fired. The policy then read those timeouts as rejections: every reason reached ≥70% and dropped to one in four.
-
-**Fix:** see the release changelog entry. Verify: on phone and desktop, add a task with two actions or a vague wording; the suggestion appears above the input bar and the list scrolls just enough to show it.
-
-**Still open:** between 8pm and midnight the evening review bar also covers the end of the list, and the page has no extra room to scroll above it, so a task added then (and its suggestion) can stay hidden. The suggestion now waits rather than being miscounted; the list layout itself is unchanged.
 
 ---
 

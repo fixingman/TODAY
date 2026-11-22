@@ -63,7 +63,7 @@ v3.0.0 is published on master. The following design follow-ups retain the agreed
 | 15C / 12c — pool morning / Sunday | Really good, continuing | Close iterate verdict when novelty confirmed over multiple Sundays |
 | 15D — Focus Ask | Rarely opened; contextual availability approved | November 18: automatic preparation approved; review surfaced suggestions |
 | 15E — Trello / Gmail enrichment | No exposure yet | First time it fires |
-| 15F — post-add suggestions | Exposure was hidden: offers sat under the add bar (BUG-173, v3.11.6) | 2026-12-02, first two weeks of visible offers |
+| 15F — post-add suggestions | Add-bar visibility/exposure fix verified by Can November 22 (BUG-173, v3.11.6); usefulness review remains | 2026-12-02, first two weeks of visible offers |
 
 ### Gated roadmap items that may now unlock
 
@@ -195,6 +195,7 @@ The underlying habit/context idea remains open. Preserve the actual Habits compo
 
 - BUG-118: phone/desktop morning delivery, legacy rejection recovery and strip/About agreement through normal use.
 - BUG-139 (v2.106.2): deployed to dev/master (confirmed November 1). Verify the accepted About reading and vote survive completion/sync in real installed use; the fix leaves the writer unchanged.
+- Post-add evening-review overlap (separate from [verified BUG-173](archive/Bugs-archive.md#bug-173--post-add-suggestions-hidden-behind-the-input-bar-but-counted-as-ignored)): the recorded 8pm–midnight review bar can cover the final new task/suggestion without enough scroll room. This adjacent layout follow-up remains unverified; Can’s November 22 confirmation closes the add-bar visibility/exposure defect. Preserve the December 2 suggestion-usefulness checkpoint.
 - Current installed Calendar/mail relevance and other explicit account checks remain with [Bugs.md](Bugs.md) and the relevant product item. Technical source/cache/request ownership BUG-127/128 and precache BUG-136 are independently verified and archived; this does not close account relevance or normal installed experience. BUG-137 is verified fixed in v2.106.4; BUG-141 retains the v3.0.8 feedback/CI repair history; current hosted proof is linked above.
 - Ordinary two-device sync experience remains an installed check; BUG-130's confirmed unread-revision defect is already verified/archived and is not reopened as an implementation task. Do not promise a delivery SLA or lower polling to conceal latency.
 
