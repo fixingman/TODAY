@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Preserve focus minutes when a daily-history row already exists (BUG-176) (app v3.14.1)
+
+New-day cleanup skipped its entire outgoing-day snapshot when a row for that date already existed, then reset the live focus counter. A fictional existing zero-minute row reproduces loss of90 unbanked minutes. Merge the snapshot with the existing sync-merge per-field max/fixed-count contract before resetting, preserving richer focus/task/habit values and the30-row cap without adding counters. Keep BUG-063’s midnight snapshot and today-counter guard, day boundaries, backup schema and all other cleanup behavior. Regression coverage includes two isolated devices on Friday/Saturday, actual sync before rollover, converged About grids and stale-zero replay; that test fails with the original runtime and passes with the repair. Coverage also checks the real About week-grid result, richer-row retention, corrected added counts, midnight snapshot/live-counter separation and idempotence. Can’s November23 report concerns Friday November20 and an estimated1–2h; the exact account cause and recoverable total remain unverified. No live data was changed or inferred.
+
 ## Record Can’s verification and archive BUG-173 (engineering, app v3.14.0 unchanged)
 
 Can confirmed on November 22 that BUG-173 is verified. Archive its v3.11.6 add-bar visibility/exposure defect with full original history and confirmation, and update the Backlog acceptance status. Preserve the separately recorded evening-review bar overlap as an unverified follow-up and retain the December 2 suggestion-usefulness checkpoint. No app, data, feedback, version or service-worker change.
