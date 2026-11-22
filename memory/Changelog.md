@@ -2,6 +2,12 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Stabilise mobile bottom-edge paint assertion in sidebar-test (engineering, app v3.13.0 unchanged)
+
+Stabilise mobile bottom-edge paint assertion: fitViewport uses rAF so layout
+updates before paint flushes; add one extra rAF wait inside the viewport-height
+loop so the screenshot lands after the compositor paints.
+
 ## Add habit-task-editor in-place swap invariant test (engineering, app v3.13.0 unchanged)
 
 habit-task-editor.open() replaces #habitsContent directly without changing
