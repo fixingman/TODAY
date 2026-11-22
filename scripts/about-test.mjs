@@ -801,6 +801,58 @@ try {
     await page.close();
   }
 
+  // A rejected Sunday sentence must not silence the next week's qualified fallback.
+  // Exercise the actual mounted block, writer, cache and audit for both feedback stores.
+  for (const feedbackSource of ['spoken-line', 'retained-verdict']) {
+    const {page,errors}=await openPage();
+    const expected='You finished more commitments than you let go or brought back from Soon.';
+    const before=await page.evaluate(({feedbackSource,expected})=>{
+      const today=_localISO(),prior=new Date();prior.setDate(prior.getDate()-7);
+      const previous=_localISO(prior);
+      appMemory.taskOutcomes=Array.from({length:3},(_,i)=>({id:'fresh-week-'+i,date:today,outcome:'done',obligation:null}));
+      appMemory.spokenLines=[{surface:'Sunday reflection',date:previous,kind:'week-shape',
+        text:'A fictional rejected earlier sentence.',policy:window._weekReflectionPolicy,
+        ...(feedbackSource==='spoken-line'?{reaction:'missed'}:{})}];
+      appMemory.kindVerdicts=feedbackSource==='retained-verdict'?{'week-shape':{missed:1,retired:null}}:{};
+      localStorage.removeItem('week_reflection_'+today);
+      localStorage.setItem('week_policy_'+today,window._weekReflectionPolicy);
+      window.__sundayRequests=[];
+      const realFetch=window.fetch;
+      window.fetch=async(url,options)=>{
+        if(url!=='/.netlify/functions/ai-assist')return realFetch(url,options);
+        window.__sundayRequests.push(JSON.parse(options.body));
+        return {ok:true,json:async()=>({content:expected})};
+      };
+      const about=Today.use('about'),audit=about._debugSundayAudit(today);
+      const originalDay=Date.prototype.getDay;
+      try {Date.prototype.getDay=()=>0;about.renderInfoStats();}
+      finally {Date.prototype.getDay=originalDay;}
+      return {selected:audit.selectedKind==='week-shape',previous};
+    },{feedbackSource,expected});
+    await expectAll('Sunday next-week eligibility ('+feedbackSource+')',{selected:before.selected});
+    await page.waitForFunction(expected=>localStorage.getItem('week_reflection_'+_localISO())===expected,
+      {timeout:5000,polling:50},expected);
+    const result=await page.evaluate(({expected,previous})=>{
+      const today=_localISO(),about=Today.use('about'),block=document.getElementById('sundayBlock');
+      const audit=JSON.parse(localStorage.getItem('sunday_observation_audit_'+today));
+      const calls=window.__sundayRequests;
+      const originalDay=Date.prototype.getDay;
+      try {Date.prototype.getDay=()=>0;about.renderInfoStats();}
+      finally {Date.prototype.getDay=originalDay;}
+      return {visible:block.style.display!=='none'&&block.querySelector('.week-summary')?.textContent===expected,
+        oneRequest:calls.length===1,kindInPrompt:calls[0]?.messages?.[0]?.content.includes('Verified observation type: week-shape'),
+        priorSentenceNotSent:!JSON.stringify(calls).includes('A fictional rejected earlier sentence.'),
+        accepted:audit.generation.status==='accepted',
+        spoken:appMemory.spokenLines.some(row=>row.date===today&&row.kind==='week-shape'&&row.text===expected),
+        previousRetained:appMemory.spokenLines.some(row=>row.date===previous),
+        cachedReopen:calls.length===1&&localStorage.getItem('week_reflection_'+today)===expected,
+        noSecondSameDay:about._pickSundayInsight({})===null};
+    },{expected,previous:before.previous});
+    await expectAll('Sunday next-week delivery ('+feedbackSource+')',{...result,noErrors:errors.length===0});
+    ok('Sunday after one miss: fresh weekly evidence reaches the existing block once ('+feedbackSource+')');
+    await page.close();
+  }
+
   // Phase 3: fallback selection, audit and existing feedback have one meaning.
   {
     const {page,errors}=await openPage();

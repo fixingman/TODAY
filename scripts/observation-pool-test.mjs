@@ -946,14 +946,25 @@ test('mixed fallback requires all observed actions and cannot invent a majority'
     && !_weekReflectionTextIsGrounded('You mostly finished commitments, let some go, and brought others back from Soon.',c);
 });
 
-test('fallback follows weekly cooldown and an extra week after a miss', () => {
-  const prior={date:ago(7),surface:'Sunday reflection',kind:'week-shape'};
+test('one missed Sunday sentence does not skip the following weekly fallback', () => {
+  const prior={date:ago(7),surface:'Sunday reflection',kind:'week-shape',reaction:'missed'};
   const k={todayISO:TODAY,surface:'sunday',spokenLines:[prior]};
   return _observationGateExplain(weekShape,k) === null
     && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,date:ago(6)}]}) !== null
-    && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,reaction:'missed'}]}) !== null
-    && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,date:ago(14),reaction:'missed'}]}) === null;
+    && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,date:TODAY}]}) !== null
+    && _observationGateExplain(weekShape,{...k,spokenLines:[{...prior,reaction:'landed'}]}) === null;
 });
+
+test('a retained single-miss verdict cannot add another week after its sentence expires', () => {
+  const k={todayISO:TODAY,surface:'sunday',
+    spokenLines:[{date:ago(7),surface:'Sunday reflection',kind:'week-shape'}],
+    kindVerdicts:{'week-shape':{missed:1,retired:null}}};
+  return _observationGateExplain(weekShape,k) === null;
+});
+
+test('two misses still block the fallback without a persisted retirement date', () =>
+  _observationGateExplain(weekShape,{todayISO:TODAY,surface:'sunday',spokenLines:[],
+    kindVerdicts:{'week-shape':{missed:2,retired:null}}}) === 'marked as not landing twice');
 
 test('fallback respects retirement even when its voted lines have expired', () =>
   /retired/.test(_observationGateExplain(weekShape,{todayISO:TODAY,

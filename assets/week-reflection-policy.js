@@ -329,7 +329,7 @@
     // 12e — the person's own verdicts. kindVerdicts (v2.87.0) is the permanent
     // record: a retired kind stays out until "bring back" in the Memory panel. The
     // reactions on the 30-day spokenLines are read too, so the gate works without
-    // the slot. One `missed` doubles the kind's cooldown; two retire it. `landed`
+    // the slot. One `missed` extends outcome-kind cooldowns; two retire a kind. `landed`
     // never blocks: recognition is not a reason to repeat.
     const verdict = k.kindVerdicts && k.kindVerdicts[candidate.kind];
     if (verdict && verdict.retired) return 'retired by you on ' + verdict.retired;
@@ -341,9 +341,9 @@
     const baseCooldown = Object.prototype.hasOwnProperty.call(_KIND_COOLDOWN_DAYS, candidate.kind)
       ? _KIND_COOLDOWN_DAYS[candidate.kind]
       : _DEFAULT_COOLDOWN_DAYS;
-    // A miss adds one extra week rather than doubling. Pool kinds fire at most weekly,
-    // so doubling (21→42 days) silenced Sunday for 6+ weeks from a single forgotten vote.
-    const cooldown = baseCooldown + (misses ? 7 : 0);
+    // One rejected weekly sentence must not skip the next week's fresh fallback.
+    // Outcome kinds retain their extra week; two misses/retirement were checked above.
+    const cooldown = baseCooldown + (misses && candidate.kind !== 'week-shape' ? 7 : 0);
 
     const active = spoken
       .filter(line => line && line.date && line.kind === candidate.kind)

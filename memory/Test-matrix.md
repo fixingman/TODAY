@@ -854,3 +854,9 @@ Required for visual acceptance of titlebar/header/overlay changes; automated CI 
 - Record pass/fail and before/after native-window captures in the release evidence. A failure remains an open device defect. An unavailable candidate or active live session is **pending**, not a pass; do not reload, quit or alter that session merely to run this check.
 
 **November 17 observation:** the available installed TODAY window uses the production origin and has an active paused Focus session. No candidate-version/native-paint acceptance was established and no live session was changed. Dev v3.11.2 still needs this installed checklist; passing headless checks do not clear it.
+
+## Sunday weekly fallback after a missed sentence — local November 22
+
+`observation-pool-test` covers seven-day eligibility after a missed weekly sentence or retained single-miss verdict, six-day/same-day suppression, two-miss and persisted-retirement rejection, and unchanged extra-week penalties for the other outcome kinds. `about-test` seeds fresh qualified weekly outcomes and each single-miss source, then exercises the mounted Sunday block, existing writer, dated cache and spoken-line record: one fictional request, no previous sentence in its prompt, retained earlier feedback, cache reuse and no second same-day selection. Before the repair the new policy checks and component eligibility assertion must fail. Existing source/readiness/clear/day/response fences and abstention checks remain.
+
+W1: a rejected sentence does not make a later fresh week inaccessible. W2: existing evidence-gated Sunday surface and writer, with no retry loop, new data, added controls or revival of retired topics. W3: actual release +14 days in Backlog; live delivery and prose usefulness remain separate from fictional tests.
