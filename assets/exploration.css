@@ -219,6 +219,11 @@
 .ex-content .ex-turn-cont > .ex-source { display: none; }
 /* Typing: the nudge star's breath. */
 .ex-content .ex-thinking-star { display: inline-block; color: var(--accent); font-size: var(--text-md); }
+/* Pivot: chapter break that records a question change. Text block carries the new question. */
+.ex-content .ex-pivot-text { margin: calc(-1 * var(--space-3)) 0 var(--space-5); }
+.ex-content .ex-pivot-text p { color: var(--muted); font-size: var(--text-sm2); line-height: 1.6; }
+/* Change-question link sits below the question heading, only when there's a conversation. */
+.ex-content .ex-question-change { margin-top: calc(-1 * var(--space-2)); margin-bottom: var(--space-4); }
 /* Jump to latest: the quiet secondary-control tokens, pinned above the composer. */
 .ex-content .ex-jump { position: sticky; bottom: var(--space-3); z-index: 2; display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) auto 0; min-height: var(--space-8); padding: var(--space-1) var(--space-3); background: var(--surface2); border: 1px solid var(--control-border); border-radius: var(--radius-lg); color: var(--text); font: var(--text-sm2)/1 var(--font-mono); cursor: pointer; }
 .ex-content .ex-jump:hover, .ex-content .ex-jump:focus-visible { border-color: var(--muted); }

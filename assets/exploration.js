@@ -16,7 +16,7 @@
   let controller = null, aiController = null, pendingReading = false, activeGrant = '', retryId = null;
   let snapshot = null, forgot = false, opened = false, loaded = false, confirmForget = false;
   let suggestionMessage = '', correctionTarget = null, correctionText = '', setupQuestion = '', historyWindow = 24, navigation = 0;
-  let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [];
+  let taskPending = null, liveSources = [], sourceGeneration = 0, pendingSources = [], pivotText = '';
   let offlineWaiting = false; // the document could not open only because the device was offline
   let replyFailure = '', recovery = '', retryReading = false, stylesLoading = null, arrivalMotion = null;
   const dataContext=()=>Today.use('exploration-context');
@@ -57,7 +57,7 @@
     liveSources=[];sourceGeneration++;pendingSources=[];
     epoch++; controller?.abort(); abortAI(); doc = null; revision = null; draft = ''; imported = ''; incoming = null;
     snapshot = null; retryId = null; taskPending = null; activeGrant = ''; busy = false; forgot = false; loaded = false;
-    setupQuestion = ''; draftWorkspace = null; view = 'conversation'; trail = []; correctionTarget = null; correctionText = ''; confirmForget = false; retryReading = false;
+    setupQuestion = ''; draftWorkspace = null; view = 'conversation'; trail = []; correctionTarget = null; correctionText = ''; pivotText = ''; confirmForget = false; retryReading = false;
     replyFailure='';recovery = '';suggestionMessage='';sourceWindow=6;browseWindow=12;usedWindow=12;sourceQuery='';
     if (root) root.replaceChildren(); decorate();
   }
@@ -246,7 +246,7 @@
     return `<div class="ex-notice">${note(h(text),{kind:failure.test(text)?'error':'info',actions,status:true})}</div>`;
   }
   function turnsHTML(entries,reading,saved=false) {
-    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you${retryReading&&entry.id===retryId?' ex-unanswered':''}"><span class="ex-source ex-speaker-you">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && (saved||core.supportedReading(doc,entry,liveSources)) ? `<div class="ex-turn" ${saved?'data-ex-saved-reading':'data-ex-reading'}="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : '').join('');
+    return entries.map(entry=>entry.kind === 'observation' ? `<div class="ex-turn ex-you${retryReading&&entry.id===retryId?' ex-unanswered':''}"><span class="ex-source ex-speaker-you">You</span><p>${h(entry.text)}</p></div>` : entry.kind === 'reading' && (saved||core.supportedReading(doc,entry,liveSources)) ? `<div class="ex-turn" ${saved?'data-ex-saved-reading':'data-ex-reading'}="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(entry.synthesis_version===1?entry.text:core.amendments(doc,entry.id).at(-1)?.text || entry.text)}</p></div>` : entry.kind === 'pivot' ? `<p class="ex-day" role="separator">New question</p><div class="ex-pivot-text"><p>${h(entry.to)}</p></div>` : '').join('');
   }
   // Option A (Can, November 9): name what the hidden reply relied on, why, and what to do.
   // Returns trusted HTML; record text is escaped.
@@ -273,14 +273,14 @@
   const dayLabel=at=>{const d=new Date(at);if(isNaN(d))return '';const day=_localISO(d),today=_localISO(),y=new Date();y.setDate(y.getDate()-1);
     return day===today?'Today':day===_localISO(y)?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});};
   function earlierHTML() {
-    const earlier=doc.entries.slice(0,visitStart).filter(entry=>['observation','reading'].includes(entry.kind));
+    const earlier=doc.entries.slice(0,visitStart).filter(entry=>['observation','reading','pivot'].includes(entry.kind));
     if(!earlier.length)return '';
     const shown=earlier.slice(-historyWindow);let html='',day='';
     if(earlier.length>shown.length)html+=`<div class="ex-earlier-more">${action('more-history','show earlier')}</div>`;
     for(const entry of shown){
       const label=dayLabel(entry.at);
       if(label&&label!==day){day=label;html+=`<p class="ex-day" role="separator">${h(label)}</p>`;}
-      if(entry.kind==='observation'||core.supportedReading(doc,entry,liveSources))html+=turnsHTML([entry],null);
+      if(entry.kind==='observation'||entry.kind==='pivot'||core.supportedReading(doc,entry,liveSources))html+=turnsHTML([entry],null);
       else{const text=entry.synthesis_version===1?entry.text:(core.amendments(doc,entry.id).at(-1)?.text||entry.text);if(text)html+=`<div class="ex-turn ex-turn-stale" data-ex-stale="${h(entry.id)}"><span class="ex-source ex-speaker-logo">TO<span>DAY</span></span><p>${h(text)}</p></div>`;}
     }
     const now=dayLabel(doc.entries[visitStart]?.at||new Date().toISOString());
@@ -296,6 +296,7 @@
     const latestUser=sessionEntries.some(entry=>entry.kind==='observation');
     const currentReply=reading&&sessionEntries.some(entry=>entry.id===reading.id);
     let html=title(doc.question);
+    if(doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-links ex-question-change">${action('pivot-question','change question',disabled)}</div>`;
     if(!latestUser&&!currentReply&&doc.entries.some(entry=>entry.kind==='observation'))html+=`<div class="ex-resume"><span class="ex-source">${reading?'Where we left off':'Your words'}</span><p>${h(reading?(core.amendments(doc,reading.id).filter(row=>core.included(doc,row.id)).at(-1)?.text||reading.summary):doc.entries.findLast(entry=>entry.kind==='observation'&&core.included(doc,entry.id))?.text||doc.question)}</p></div>`;
     const earlier=earlierHTML();
     // Every day starts with its divider, including a first visit with no history.
@@ -364,6 +365,9 @@
   function documentHTML(disabled) {
     return title('Your document')+`<p>Your words, corrections and readings stay together in your Dropbox.</p><div class="ex-links">${action('record','read Markdown')}${action('export','export document')}${action('privacy','privacy &amp; forget')}${action('import','bring in earlier notes')}</div>${draft?`<div class="ex-links">${action('draft-export','export unsent text')}${action('draft-clear','clear unsent text',disabled)}</div>`:''}`;
   }
+  function pivotHTML(disabled) {
+    return title('Change question')+`<p>Update what you're exploring. Your earlier conversation and history stay as a chapter you can scroll back to.</p><label for="exPivot">New question</label><textarea id="exPivot" rows="4" maxlength="500" data-today-input="exploration.pivot">${h(pivotText)}</textarea><p class="ex-muted">Your words, not an interpretation.</p><div class="ex-links">${action('confirm-pivot','keep this question',disabled)}${action('cancel-pivot','cancel')}</div>`;
+  }
   function privacyHTML(disabled) {
     return title('Privacy & forget')+`<div class="ex-privacy"><p>This document lives in your Dropbox at ${h(files.path)}. It is held in this page while open, outside TODAY’s task backup. Updates need a connection. Reloading an unsent draft can lose it; export it first.</p><p>Each reply uses your supplied notes, the current thread and a bounded selection of relevant TODAY records. Other chats and private checkpoints are not automatically available. The installed Life skill does not run inside TODAY. No exploration happens between visits, and no reminder has been scheduled.</p><p>Clearing Memory withholds dependent readings; this separate document and its reply history stay. Forget removes this document and page-held records. Dropbox may retain recoverable versions under your account policy. Your tasks stay.</p>${action('forget','forget exploration',disabled)}${confirmForget?`<p>Remove this exploration document from Dropbox?</p>${action('forget-confirm','yes, forget',disabled)}${action('forget-cancel','keep it')}`:''}</div>`;
   }
@@ -374,6 +378,7 @@
     if(view==='sources-next')return todayHTML(disabled);
     if(view==='sources-notes')return ownSourcesHTML();
     if(view==='sources-last')return lastSourcesHTML(reading);
+    if(view==='pivot-question')return pivotHTML(disabled);
     if(view==='sources-browse')return browseSourcesHTML();
     if(view==='step')return stepHTML(reading,disabled);
     if(view==='document')return documentHTML(disabled);
@@ -382,7 +387,7 @@
     if(view==='import')return title('Earlier notes')+`<p>Add a Markdown journal or checkpoint to this exploration. Your existing notes stay. Nothing is sent to AI by importing.</p><label class="memory-item-btn ex-file">choose a document<input type="file" accept=".md,.txt,text/plain,text/markdown" data-today-change="exploration.checkpoint" ${disabled}></label>`;
     if(view==='history')return title('Earlier')+action('original-history','saved conversation');
     if(view==='original-history') {
-      const all=doc.entries.filter(entry=>['observation','reading'].includes(entry.kind));
+      const all=doc.entries.filter(entry=>['observation','reading','pivot'].includes(entry.kind));
       return title('Saved conversation')+'<p class="ex-muted" id="exHistoryNotice">Saved history only. Replies may rely on information that has changed or been removed; reading them here does not restore them as current understanding.</p>'+turnsHTML(all.slice(-historyWindow),reading,true)+(all.length>historyWindow?action('more-history','show earlier conversation'):'');
     }
     if(view==='correct')return title('Your wording')+`<label for="exCorrection">How would you put it?</label><textarea id="exCorrection" rows="5" maxlength="8000" data-today-input="exploration.correction">${h(correctionText)}</textarea><p class="ex-muted">Your correction stays alongside the earlier version. It does not verify an explanation.</p>${reading?.id===correctionTarget?action('amend','keep correction',disabled):'<p>The supporting reading changed. Your wording is still here; return to the note to review it.</p>'}${action('cancel-correction','cancel')}`;
@@ -620,6 +625,15 @@
       if(taskId&&await commit(core.append(doc,row('task',reading.experiment.action,{target:reading.id,task_id:taskId})))) taskPending=null;
       render();
     },
+    'pivot-question'(){pivotText=doc?.question||'';go('pivot-question');const field=byId('exPivot');if(field){field.focus({preventScroll:true});field.select();}},
+    async 'confirm-pivot'(){
+      const newQ=(byId('exPivot')?.value||'').trim();
+      if(!newQ||newQ.length>500||!doc||busy)return;
+      if(newQ===doc.question){leave();return;}
+      try{const next=core.pivot(doc,newQ,id(),now());if(await commit(next)){pivotText='';await refreshSources(false);leave();}}
+      catch(_){busy=false;status('The question could not be updated. Your conversation stays.');}
+    },
+    'cancel-pivot'(){pivotText='';leave();},
     record(){go('record');}, privacy(){go('privacy');},
     forget(){confirmForget=true;render();root.querySelector('[data-ex-action="forget-cancel"]')?.focus();},
     'forget-cancel'(){confirmForget=false;render();root.querySelector('[data-ex-action="forget"]')?.focus();},
@@ -644,6 +658,7 @@
   Today.ui.register('input','exploration.draft',(_event,input)=>{fitInput(input);promptFor(input.value);draft=input.value;draftWorkspace=doc?.workspace_id||null;const send=byId('exSend');if(send)send.disabled=!draft.trim()||busy||pendingReading;root.querySelectorAll('[data-ex-action="draft-export"],[data-ex-action="draft-clear"]').forEach(button=>{button.hidden=!draft;});});
   Today.ui.register('input','exploration.source-search',(event,input)=>{if(event.isComposing)return;sourceQuery=input.value;browseWindow=12;render();});
   Today.ui.register('input','exploration.correction',(_event,input)=>{correctionText=input.value;});
+  Today.ui.register('input','exploration.pivot',(_event,input)=>{pivotText=input.value;fitInput(input);});
   Today.ui.register('input','exploration.question',(_event,input)=>{fitInput(input);promptFor(input.value);setupQuestion=input.value;});
   const submits=event=>event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229&&!event.repeat;
   Today.ui.register('keydown','exploration.start-key',event=>{if(submits(event)){event.preventDefault();if(!busy)createDocument();}});
