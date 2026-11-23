@@ -21,6 +21,7 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 178 | ⏳ Verify | The hosting skip rule compares only the final commit pair, missing app changes awaiting production deployment. | v3.15.1 (engineering) |
 | 177 | ⏳ Verify | Distinct enrichment failures all return a generic502, leaving the console unable to distinguish the cause. | v3.15.1 |
 | 176 | ⏳ Verify | Cleanup skips unbanked focus minutes when another history row already exists, then resets the counter. | v3.14.1 |
 | 175 | ⏳ Verify | A single weekly-reading miss adds a second quiet week even when fresh weekly evidence qualifies. | v3.13.1 |
@@ -36,6 +37,16 @@ Current publication/CI evidence is maintained once in the [release contract](../
 ---
 
 *BUG-001–087 (all), verified BUG-088–119, 121–143, 148–150, 153, 155–157, 160, 161, 163, 164, 168, 170–173 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-178 — Netlify can skip pending app changes behind a validation-only promotion
+
+**Observed:** master4c5529c7 and its full exact-candidate CI pass, while fresh production responses still show3.14.1. The configured parent-only comparison returns0 for that exact tip; comparison with the previously deployed98c27fcb returns1. Hosting logs are unavailable, so the skip mechanism is reproduced rather than inferred from a Netlify log.
+
+**Repair:** compare the hosting context’s last built commit with the target via Netlify’s documented read-only CACHED_COMMIT_REF and COMMIT_REF variables. Retain deployable paths. Missing/equal/invalid refs build safely; docs-only changes after an already-built app still skip. Application bytes and version remain3.15.1.
+
+**Regression:** the actual configured Bash command runs against real Git commits in a disposable fixture. Old code fails the validation-only promotion assertion; corrected code passes pending app/function changes, genuinely unchanged app and absent/equal/unknown-ref cases. The Netlify CSP/badge/offline tests still pass. Evidence: `.context/enrichment-master-20261123/hosting-before.log`, `hosting-after.log`, `fresh-Ymcjaf/receipt.json`. Live production verification remains separate from CI.
 
 ---
 

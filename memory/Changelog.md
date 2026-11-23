@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Compare Netlify builds with the last built commit (BUG-178) (engineering, app v3.15.1 unchanged)
+
+The validated v3.15.1 promotion4c5529c7 passed dev45236065609/master45236938554 but production still served v3.14.1. Its ignore command compares only HEAD^ with HEAD: that returns no deployable change for a validation-only tip even when production has not received earlier app changes. Use Netlify’s CACHED_COMMIT_REF/COMMIT_REF deployment-context baseline instead, retaining the existing deployable path list and skipping only a successful no-change comparison. Missing, equal (uncached), or invalid refs continue the build. No app/SW/model/routing/auth/cache policy change or version bump. A real temporary Git repository proves the old rule skips the metadata promotion, while the new rule builds pending app/function changes and still skips docs-only changes after an app is built. Preserve the failing control and passing netlify-security suite (fresh-Ymcjaf,2 checks,0 failures/flakes). Revalidate the full exact candidate before promotion, then inspect live production. Reference: https://docs.netlify.com/build/configure-builds/ignore-builds/ and https://docs.netlify.com/build/configure-builds/environment-variables/.
+
 ## Request full release validation for the task-context diagnostic update (engineering, app v3.15.1 unchanged)
 
 Can authorized master publication of v3.15.1. The preceding dev-only run45225650172 passed selected checks but does not supply reusable full release proof. Request the full functional inventory and all five unchanged performance measurements through the existing CI-Validation trailer before identical-SHA promotion. Application/service-worker bytes and the enrichment diagnostic behavior remain unchanged; no new provider calls, data, configuration or diagnostic policy. The underlying live task-context502 and Calendar400 causes remain unverified.
