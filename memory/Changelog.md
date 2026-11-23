@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Request full release validation for the task-context diagnostic update (engineering, app v3.15.1 unchanged)
+
+Can authorized master publication of v3.15.1. The preceding dev-only run45225650172 passed selected checks but does not supply reusable full release proof. Request the full functional inventory and all five unchanged performance measurements through the existing CI-Validation trailer before identical-SHA promotion. Application/service-worker bytes and the enrichment diagnostic behavior remain unchanged; no new provider calls, data, configuration or diagnostic policy. The underlying live task-context502 and Calendar400 causes remain unverified.
+
 ## Distinguish safe failure reasons for task context (BUG-177) (app v3.15.1)
 
 The current generic502 combines provider transport/response failures, missing or malformed cards, output limits, exhausted tool turns and deadline exits. Return fixed reason codes through the existing error response and allowlist them in the existing console warning, with numeric upstream status only for provider HTTP errors. Retain legacy error text/status, no-result and retry/cache semantics, owner/source/epoch guards and client deadline; recheck ownership after reading error bodies. Remove raw provider HTTP error-body logging. No stored diagnostics, telemetry, extra request, retry, provider/model/tool/limit/configuration change. Actual-handler and browser regressions cover categorical separation, original request caps, unknown/private error rejection and a held stale error body. Underlying live enrichment failure and Calendar400 cause remain unverified; this is a diagnostic improvement, not a claimed retrieval repair.
