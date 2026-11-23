@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Text-presentation ↩ in the v3.15.0 About line (Rule 20) (engineering, app v3.15.0 unchanged)
+
+The v3.15.0 About/CHANGELOG line used a bare ↩, which design-lint flags as emoji-capable (Rule 20) and failed the dev functional shard (run 45224246598). Added U+FE0E in `index.html` CHANGELOG and its `memory/Changelog.md` mirror. The lint passed locally before the cut because the About line is only written by `release:cut`.
+
 ## Email context finds the email behind any task, and shows it on phones too (app v3.15.0)
 
 **Why:** Can's device audit (November 22) showed the old pipeline never searched: 19 of 20 logged attempts in 14 days were declined as "not communication" by the verb pre-filter plus AI classifier, 0 searches, 0 matches; the ↩ indicator was also hover-only, so phones never showed it. Design: `~/.gstack/projects/fixingman-TODAY/can-dev-design-20261122-011643.md` (office-hours + eng review + Codex outside voice, all decisions Can's).
