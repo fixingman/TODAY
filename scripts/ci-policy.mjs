@@ -71,6 +71,7 @@ export const SUITE = [
   "habit-tasks-test"
 ];
 export const EXCLUDED = {
+  "task-enrich-live-test": "Explicit opt-in deployed probe; real provider calls, never automatic CI.",
   "ai-test": "Requires an approved provider key and live calls.",
   "dream-live-test": "Requires approved keys, live calls and macOS speech.",
   "performance-test": "Separate unchanged five-run release/nightly gate."

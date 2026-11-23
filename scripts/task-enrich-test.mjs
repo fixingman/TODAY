@@ -1,3 +1,5 @@
+import nodeAssert from 'node:assert/strict';
+import { runProbe, validResult, parseArgs, LOOKUP } from './task-enrich-live-test.mjs';
 // Client and Netlify task-enrichment regression tests. No live provider calls.
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
@@ -22,6 +24,73 @@ const assert = (condition, message, detail) => {
   throw new Error(message);
 };
 const event = (body, method = 'POST') => ({ httpMethod: method, body: typeof body === 'string' ? body : JSON.stringify(body) });
+
+// Exercise the deployed probe offline: ordinary CI must never make a paid call.
+{
+  const version='3.15.1',html=`const CHANGELOG = { "${version}": "Fictional" };`;
+  const card={icon:'↗',headline:'Fictional museum',body:'Visitor information',cta:{label:'Visit',href:'https://example.com/visit'}};
+  nodeAssert.equal(validResult({card:null}),'no-result');
+  nodeAssert.equal(validResult({card}),'card');
+  for(const data of [{},{error:'failed',card:null},{card:{}},{card:{...card,cta:{label:'Go',href:'https://secret@example.com'}}}])nodeAssert.equal(validResult(data),null);
+  nodeAssert.throws(()=>parseArgs(['--target','https://untrusted.invalid']),/invalid-target/);
+  nodeAssert.throws(()=>parseArgs(['--key=PRIVATE_KEY']),/invalid-options/);
+  nodeAssert.throws(()=>parseArgs(['--live','--live']),/invalid-options/);
+  let forbiddenCalls=0;
+  await nodeAssert.rejects(()=>runProbe({target:'dev',live:false},{expectedVersion:version,fetcher:()=>{forbiddenCalls++;}}),/live-opt-in/);
+  await nodeAssert.rejects(()=>runProbe({target:'constructor',live:true},{expectedVersion:version,fetcher:()=>{forbiddenCalls++;}}),/invalid-target/);
+  nodeAssert.equal(forbiddenCalls,0);
+  for(const fixture of [
+    {name:'card',status:200,data:{card},expected:'pass'},
+    {name:'no-result',status:200,data:{card:null},expected:'pass'},
+    {name:'missing-card',status:200,data:{},expected:'fail'},
+    {name:'error-at-200',status:200,data:{error:'PRIVATE_ERROR',card:null},expected:'fail'},
+    {name:'502',status:502,data:{error:'PRIVATE_ERROR',reason:'output-limit'},expected:'fail'},
+    {name:'private-reason',status:502,data:{reason:'PRIVATE_REASON',upstreamStatus:'PRIVATE_STATUS'},expected:'fail'},
+    {name:'provider-http',status:502,data:{reason:'provider-http',upstreamStatus:401},expected:'fail'},
+    {name:'missing-credential',status:400,data:{error:'No API key — add your Claude key in Connections'},expected:'blocked'},
+    {name:'html-gateway',status:502,raw:'PRIVATE_HTML',expected:'fail'},
+    {name:'oversized',status:502,raw:'PRIVATE_LARGE'.repeat(6000),expected:'fail'},
+    {name:'network',network:true,expected:'fail'},
+    {name:'timeout',timeout:true,expected:'fail'},
+    {name:'held-body-timeout',held:true,expected:'fail'},
+    {name:'wrong-version',wrongVersion:true,expected:'blocked'},
+  ]){
+    const calls=[];
+    const fetcher=async(url,options)=>{
+      calls.push({url,method:options.method||'GET'});
+      nodeAssert.equal(options.redirect,'error');
+      if(!options.method)return new Response(fixture.wrongVersion?html.replace(version,'0.0.0'):html);
+      const sent=JSON.parse(options.body);
+      nodeAssert.deepEqual(Object.keys(sent).sort(),['apiKey','taskText']);
+      nodeAssert.equal(sent.taskText,LOOKUP);nodeAssert.equal(sent.apiKey,'PRIVATE_TEST_KEY');
+      if(fixture.network)throw Error('PRIVATE_NETWORK_ERROR');
+      if(fixture.timeout)return new Promise(()=>{});
+      if(fixture.held)return new Response(new ReadableStream({start(){}}));
+      return new Response(fixture.raw??JSON.stringify(fixture.data),{status:fixture.status});
+    };
+    const report=await runProbe({target:'dev',live:true},{fetcher,key:'PRIVATE_TEST_KEY',expectedVersion:version,timeoutMs:20});
+    nodeAssert.equal(report.status,fixture.expected,fixture.name);
+    nodeAssert.equal(report.lookupRequests,fixture.wrongVersion?0:1,fixture.name);
+    nodeAssert.equal(calls.filter(call=>call.method==='POST').length,fixture.wrongVersion?0:1,fixture.name);
+    nodeAssert.ok(!JSON.stringify(report).includes('PRIVATE_'),fixture.name);
+    if(fixture.timeout||fixture.held)nodeAssert.equal(report.result,'request-timeout');
+    if(fixture.name==='oversized')nodeAssert.equal(report.result,'response-too-large');
+  }
+  // No environment key means no credential field; deployment configuration owns auth.
+  let credentialFreePosts=0;
+  const noKey=await runProbe({target:'dev',live:true},{expectedVersion:version,fetcher:async(url,options)=>{
+    if(!options.method)return new Response(html);
+    credentialFreePosts++;
+    nodeAssert.deepEqual(JSON.parse(options.body),{taskText:LOOKUP});
+    return new Response(JSON.stringify({error:'No API key — add your Claude key in Connections'}),{status:400});
+  }});
+  nodeAssert.equal(noKey.status,'blocked');nodeAssert.equal(noKey.result,'credential-required');
+  nodeAssert.equal(noKey.credentialSource,'deployment-only');nodeAssert.equal(credentialFreePosts,1);
+  const preflightFailure=await runProbe({target:'dev',live:true},{expectedVersion:version,fetcher:async()=>{throw Error('PRIVATE_PREFLIGHT');}});
+  nodeAssert.equal(preflightFailure.status,'blocked');nodeAssert.equal(preflightFailure.lookupRequests,0);
+  nodeAssert.ok(!JSON.stringify(preflightFailure).includes('PRIVATE_'));
+  ok('live probe: explicit opt-in/pinned targets, valid card or no-result, 502/auth/body/network/timeouts fail safely with one lookup and no private output');
+}
 
 const oldEnvKey = process.env.ANTHROPIC_API_KEY;
 const oldFetch = global.fetch;
