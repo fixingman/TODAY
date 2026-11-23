@@ -3,7 +3,9 @@
   # video/ is dev-only tooling (HyperFrames projects, capture script) — never serve it.
   command = "rm -rf video && node netlify/prepare-security-headers.mjs"
   functions = "netlify/functions"
-  ignore = "git diff --quiet HEAD^ HEAD -- index.html sw.js netlify.toml netlify/ docs/media/"
+  # Compare with this deployment context's last build, including validation-only promotions.
+  # Empty/equal refs mean no usable cache baseline: build rather than skip.
+  ignore = 'if [ -n "$CACHED_COMMIT_REF" ] && [ -n "$COMMIT_REF" ] && [ "$CACHED_COMMIT_REF" != "$COMMIT_REF" ] && git diff --quiet "$CACHED_COMMIT_REF" "$COMMIT_REF" -- index.html sw.js netlify.toml netlify/ docs/media/; then exit 0; else exit 1; fi'
 
 [functions."*"]
   timeout = 26

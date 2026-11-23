@@ -55,6 +55,8 @@ Each fixture owns its output directories and cleanup. Tests must not depend on e
 
 Use `npm run release:publish --prefix scripts -- FULL_SHA [--master] [--suites name,name] [--run RUN_ID]` after reviewing and committing the candidate on dev or in your detached worktree. It validates locally, pushes dev and waits quietly. Only an authorised `--master` request invokes exact-SHA full proof/preflight, normal promotion and master CI. Add `CI-Validation: full` before committing a new master candidate. Default local validation is smoke plus invariants; pass the affected suites explicitly. The command preserves existing work, refuses stale/dirty/mismatched candidates and keeps raw logs with one `.context/publish-*/receipt.json`. Resume using the same SHA/run rather than starting duplicate CI. The existing status/preflight/dispatch commands remain authoritative; no background publishing service is enabled.
 
+Netlify’s deploy skip check compares `CACHED_COMMIT_REF` with `COMMIT_REF`, not just `HEAD^` with `HEAD`: a validation-only promotion can contain earlier app changes that production has not built. Missing/equal/invalid baselines must build. Verify the public production version/source after promotion separately from GitHub CI. The actual ignore command has a real-Git regression in `netlify-security-test`.
+
 ## Product acceptance and maintenance
 
 CI does not establish installed-device feel, live account access or useful AI writing. Retain the relevant manual/account checks in Bugs/Backlog. Recurring surfaces still require W1/W2 review in Test-matrix and a dated Backlog Watching row with the surface, shipped version and W3 due date (ship date + 14 days); do not infer that exposure or a positive unrelated reading unlocks deferred features.

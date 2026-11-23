@@ -1,7 +1,9 @@
 // Fictional, account-free verification of the policy Netlify will serve after its build command.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { dirname, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
@@ -9,6 +11,33 @@ import { prepareSecurityHeaders } from '../netlify/prepare-security-headers.mjs'
 import { installFixtureClock, waitForFonts, openSidebar } from './browser-fixture.mjs';
 const root=join(dirname(fileURLToPath(import.meta.url)),'..');
 const config=await readFile(join(root,'netlify.toml'),'utf8');
+// Run the actual hosting skip command against a real fictional Git history.
+const ignore=config.match(/^\s*ignore = (["'])(.*)\1$/m)?.[2];
+assert.ok(ignore,'Netlify ignore command exists');
+const repository=await mkdtemp(join(tmpdir(),'today-hosting-ignore-'));
+try {
+ const git=(...args)=>execFileSync('git',args,{cwd:repository,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+ git('init','-q');git('config','user.name','Fixture');git('config','user.email','fixture@example.invalid');
+ const commit=message=>{git('add','.');git('commit','-qm',message);return git('rev-parse','HEAD');};
+ await writeFile(join(repository,'index.html'),'old app');await writeFile(join(repository,'README.md'),'old docs');
+ const deployed=commit('deployed app');
+ await writeFile(join(repository,'index.html'),'new app');const app=commit('app update');
+ await writeFile(join(repository,'README.md'),'validation note');const target=commit('validation metadata');
+ const check=(cached,current)=>{
+  const environment={...process.env};delete environment.CACHED_COMMIT_REF;delete environment.COMMIT_REF;
+  if(cached!==undefined)environment.CACHED_COMMIT_REF=cached;
+  if(current!==undefined)environment.COMMIT_REF=current;
+  return spawnSync('bash',['-c',ignore],{cwd:repository,env:environment,encoding:'utf8',timeout:5000}).status;
+ };
+ assert.equal(spawnSync('git',['diff','--quiet','HEAD^','HEAD','--','index.html'],{cwd:repository}).status,0);
+ assert.equal(check(deployed,target),1,'metadata-only promotion must build changes since the last deployed app');
+ assert.equal(check(app,target),0,'documentation-only updates to an already-built app stay skipped');
+ for(const [cached,current] of [[undefined,target],['',target],[target,target],[deployed,undefined],['0'.repeat(40),target]])
+  assert.equal(check(cached,current),1,'missing/uncached/unavailable build baselines must build');
+ await mkdir(join(repository,'netlify'));await writeFile(join(repository,'netlify','function.js'),'new handler');
+ const server=commit('function change');assert.equal(check(target,server),1,'function changes rebuild');
+ console.log('✓ Netlify deploy skip: metadata promotion, unchanged app, missing/equal/invalid refs and function changes');
+}finally{await rm(repository,{recursive:true,force:true});}
 const policy=text=>text.match(/Content-Security-Policy = "([^"]+)"/)[1];
 const base=policy(config);
 const env={URL:'https://today-here.netlify.app',DEPLOY_PRIME_URL:'https://dev--today-here.netlify.app',DEPLOY_URL:'https://abc123--today-here.netlify.app'};

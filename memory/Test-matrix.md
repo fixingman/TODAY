@@ -817,6 +817,8 @@ The Sources privacy return opens its labelled ancestor disclosure and restores t
 
 **Dropbox fixture readiness (November9):** `dropbox-test.mjs` holds an actual startup MessageChannel yield and suspends animation-frame delivery. The existing model-ready predicate must survive the nudge registration gap and settle without paint, within the unchanged15-second deadline. Failure diagnostics include boot seal, memory readiness, visibility and page errors. Real two-device upload/download/revision/check/uncheck assertions remain intact. The old missing-component and frame-polling controls are retained under `.context/ci-63ead175/`.
 
+**Hosting promotion baseline:** `netlify-security-test` runs the actual TOML ignore command in a disposable Git repository. A pending app update followed by a metadata-only tip must build relative to the last built SHA; already-built app plus docs skips. Missing/equal/invalid refs build, and function changes rebuild. Preserve the failing original parent-only control.
+
 **Hosting script policy:** `netlify-security-test.mjs` validates deployment URL expansion and unchanged existing policy directives, then serves the actual app with the generated CSP and an injected HUD-shaped script. A permissive control must execute and draw the badge; the restricted case must produce a script-element violation with zero HUD HTTP requests/execution while boot, task capture, lazy panels, poem headers and offline PWA reload remain usable. Hosting settings are verified against served headers after publication; this does not claim protection from arbitrary future host-controlled HTML changes.
 
 
