@@ -96,9 +96,11 @@ exports.handler = async function(event) {
   const messages = [{ role: 'user', content: taskText + (avoidSource ? '\nPrevious source to avoid: ' + JSON.stringify(avoidSource) : '') }];
   const deadline = Date.now() + TIMEOUT_MS;
 
+  let stage = 'request', failureReason = 'tool-limit';
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      if (Date.now() > deadline) break;
+      if (Date.now() > deadline) { failureReason = 'deadline'; break; }
+      stage = 'request';
 
       const res = await fetch(ANTHROPIC_URL, {
         method: 'POST',
@@ -117,23 +119,24 @@ exports.handler = async function(event) {
       });
 
       if (!res.ok) {
-        const errBody = await res.text().catch(() => '');
-        console.error('[task-enrich] API error', res.status, errBody);
+        console.error('[task-enrich] API error', res.status);
         // Not "nothing found": the client caches a 200 { card: null } for good.
         return {
           statusCode: res.status === 429 ? 429 : 502,
           headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ error: 'Enrichment unavailable (' + res.status + ')' }),
+          body: JSON.stringify({ error: 'Enrichment unavailable (' + res.status + ')', reason:'provider-http', upstreamStatus:res.status }),
         };
       }
 
+      stage = 'response';
       const data = await res.json();
+      if (!data || !Array.isArray(data.content)) return _unavailable(CORS_HEADERS, 'provider-response');
       console.log('[task-enrich] turn', turn, 'stop_reason:', data.stop_reason,
         'content_types:', (data.content || []).map(b => b.type).join(','));
 
       if (data.stop_reason === 'end_turn') {
         const textBlock = (data.content || []).find(b => b.type === 'text');
-        if (!textBlock) { console.error('[task-enrich] end_turn but no text block'); break; }
+        if (!textBlock) return _unavailable(CORS_HEADERS, 'missing-answer');
         return _parseCard(textBlock.text, CORS_HEADERS, avoidSource);
       }
 
@@ -152,7 +155,7 @@ exports.handler = async function(event) {
         messages.push({ role: 'assistant', content: assistantContent });
 
         const toolUseBlocks = assistantContent.filter(b => b.type === 'tool_use');
-        if (toolUseBlocks.length === 0) break;
+        if (toolUseBlocks.length === 0) return _unavailable(CORS_HEADERS, 'invalid-tool-response');
 
         const toolResults = [];
         for (const tb of toolUseBlocks) {
@@ -168,14 +171,15 @@ exports.handler = async function(event) {
         continue;
       }
 
-      console.error('[task-enrich] unexpected stop_reason:', data.stop_reason);
+      failureReason = data.stop_reason === 'max_tokens' ? 'output-limit' : 'unsupported-stop';
       break;
     }
   } catch(e) {
-    // Failure is retryable; only an explicit valid no-result may be cached.
+    // Only categorical failure data leaves the handler; never exception text.
+    failureReason = stage === 'response' ? 'provider-response' : 'request-failed';
   }
 
-  return _unavailable(CORS_HEADERS);
+  return _unavailable(CORS_HEADERS, failureReason);
 };
 
 async function _searchTrello(query, token, boardId, avoidSource) {
@@ -211,9 +215,9 @@ function _nullCard(headers) {
   };
 }
 
-function _unavailable(headers) {
+function _unavailable(headers, reason = 'invalid-card') {
   return { statusCode: 502, headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ error: 'Enrichment unavailable' }) };
+    body: JSON.stringify({ error: 'Enrichment unavailable', reason }) };
 }
 
 function _parseCard(text, headers, avoidSource) {
@@ -249,6 +253,6 @@ function _parseCard(text, headers, avoidSource) {
       body: JSON.stringify({ card: { icon, headline, body, cta } }),
     };
   } catch(e) {
-    return _unavailable(headers);
+    return _unavailable(headers, 'invalid-card-json');
   }
 }

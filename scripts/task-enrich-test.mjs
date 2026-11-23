@@ -82,6 +82,37 @@ try {
   const empty = await handler(event({taskText:'Find paint',apiKey:'key'}));
   assert(empty.statusCode === 200 && JSON.parse(empty.body).card === null, 'explicit no-result remains cacheable');
 
+  for (const [reason,response] of [
+    ['request-failed',async()=>{throw new Error('PRIVATE_PROVIDER_FAILURE');}],
+    ['provider-response',async()=>({ok:true,json:async()=>{throw new Error('PRIVATE_RESPONSE');}})],
+    ['provider-response',async()=>({ok:true,json:async()=>null})],
+    ['missing-answer',async()=>({ok:true,json:async()=>({stop_reason:'end_turn',content:[]})})],
+    ['invalid-card-json',async()=>({ok:true,json:async()=>({stop_reason:'end_turn',content:[{type:'text',text:'PRIVATE_MALFORMED_CARD'}]})})],
+    ['invalid-card',async()=>({ok:true,json:async()=>({stop_reason:'end_turn',content:[{type:'text',text:'{}'}]})})],
+    ['output-limit',async()=>({ok:true,json:async()=>({stop_reason:'max_tokens',content:[]})})],
+    ['invalid-tool-response',async()=>({ok:true,json:async()=>({stop_reason:'tool_use',content:[]})})],
+    ['unsupported-stop',async()=>({ok:true,json:async()=>({stop_reason:'unexpected',content:[]})})],
+    ['tool-limit',async()=>({ok:true,json:async()=>({stop_reason:'pause_turn',content:[]})})],
+  ]) {
+    let calls=0;global.fetch=async(...args)=>{calls++;return response(...args);};
+    const result=await handler(event({taskText:'Fictional lookup',apiKey:'fictional-key'}));
+    const detail=JSON.parse(result.body);
+    assert(result.statusCode===502&&detail.reason===reason&&!Object.hasOwn(detail,'card')
+      &&!result.body.includes('PRIVATE_')&&calls===(reason==='tool-limit'?3:1),
+      'safe reason distinguishes '+reason+' without retry or private response data',detail);
+  }
+  global.fetch=async()=>({ok:false,status:401,text:async()=>{throw new Error('Error bodies must not be read');}});
+  const auth=JSON.parse((await handler(event({taskText:'Fictional lookup',apiKey:'fictional-key'}))).body);
+  assert(auth.reason==='provider-http'&&auth.upstreamStatus===401,'upstream HTTP status remains categorical',auth);
+
+  const realNow=Date.now;let clockCalls=0,deadlineCalls=0;
+  try {
+    Date.now=()=>clockCalls++===0?0:25000;
+    global.fetch=async()=>{deadlineCalls++;throw new Error('Deadline must stop before calling provider');};
+    const deadline=JSON.parse((await handler(event({taskText:'Fictional lookup',apiKey:'fictional-key'}))).body);
+    assert(deadline.reason==='deadline'&&deadlineCalls===0,'existing deadline has its own safe reason without another request',deadline);
+  }finally{Date.now=realNow;}
+
   const providerBodies = [];
   const answer = {headline:'Paint shop',body:'Open until 18:00',cta:{label:'Visit',href:'https://example.com/paint'}};
   global.fetch = async (_url,options) => {
@@ -314,6 +345,33 @@ try {
   });
   assert(transient.calls === 2 && transient.cached === null && transient.warnings.length===2 && transient.warnings.every(row=>row[1].stage==='http'&&row[1].status===503) && !JSON.stringify(transient.warnings).includes('Find paint hours') && !JSON.stringify(transient.warnings).includes('browser-key'),
     'transient failures remain retryable and are not cached', transient);
+
+  const safeDiagnostic=await page.evaluate(async()=>{
+    const warnings=[],warn=console.warn;console.warn=(...args)=>{warnings.push(args);};
+    try {
+      for(const [id,detail] of Object.entries({
+        known:{reason:'provider-http',upstreamStatus:401,error:'PRIVATE_SERVER_ERROR'},
+        unknown:{reason:'PRIVATE_REASON',upstreamStatus:'PRIVATE_STATUS',error:'PRIVATE_SERVER_ERROR'},
+      })){
+        __agentSeed('diagnostic_'+id,'Find fictional hours');
+        window.fetch=async()=>({ok:false,status:502,json:async()=>detail});
+        await _agentEnrichTask('diagnostic_'+id,'Find fictional hours');
+      }
+      let release;__agentSeed('diagnostic_stale','Find fictional hours');
+      window.fetch=async()=>({ok:false,status:502,json:()=>new Promise(resolve=>{release=resolve;})});
+      const request=_agentEnrichTask('diagnostic_stale','Find fictional hours');
+      for(let i=0;!release&&i<200;i++)await new Promise(resolve=>setTimeout(resolve,10));
+      if(!release)throw new Error('Error body was not requested');
+      manualTasks.find(task=>task.id==='diagnostic_stale').text='Changed fictional task';
+      release({reason:'provider-http',upstreamStatus:401});await request;
+      return {warnings,cached:localStorage.getItem('agent_enrichment_diagnostic_known')};
+    }finally{console.warn=warn;}
+  });
+  assert(safeDiagnostic.warnings.length===2&&safeDiagnostic.warnings[0][1].reason==='provider-http'
+    &&safeDiagnostic.warnings[0][1].upstreamStatus===401
+    &&!Object.hasOwn(safeDiagnostic.warnings[1][1],'reason')&&!Object.hasOwn(safeDiagnostic.warnings[1][1],'upstreamStatus')
+    &&!JSON.stringify(safeDiagnostic).includes('PRIVATE_')&&safeDiagnostic.cached===null,
+    'client prints only allowed reasons/statuses, fences late error bodies and never caches failures',safeDiagnostic);
 
   const plainCalls = await page.evaluate(async () => {
     let calls = 0;

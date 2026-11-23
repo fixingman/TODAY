@@ -146,7 +146,20 @@
             ...(retry ? {avoidSource:help.avoidSource(retry.entry)} : {}) }),
         });
         if (!current()) return 'stale';
-        if (!res.ok) { console.warn('[task context]',{stage:'http',status:res.status}); return 'failed'; }
+        if (!res.ok) {
+          let detail;
+          try { detail = await res.json(); } catch (_) { /* Proxy errors may not be JSON. */ }
+          if (!current()) return 'stale';
+          const diagnostic = { stage:'http', status:res.status };
+          const reasons = ['provider-http','request-failed','provider-response','missing-answer',
+            'invalid-card-json','invalid-card','output-limit','tool-limit','deadline',
+            'invalid-tool-response','unsupported-stop'];
+          if (reasons.includes(detail?.reason)) diagnostic.reason = detail.reason;
+          if (diagnostic.reason === 'provider-http' && Number.isInteger(detail.upstreamStatus)
+              && detail.upstreamStatus >= 100 && detail.upstreamStatus <= 599) diagnostic.upstreamStatus = detail.upstreamStatus;
+          console.warn('[task context]',diagnostic);
+          return 'failed';
+        }
         const data = await res.json();
         if (!current()) return 'stale';
         if (!data || !Object.hasOwn(data,'card')) { console.warn('[task context]',{stage:'response',status:'invalid'}); return 'failed'; }
