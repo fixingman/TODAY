@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Record review-tooling decisions and correct enrichment probe publication status (engineering, app v3.15.1 unchanged)
+
+Record the agreed use of focused/gstack reviews and Can's EGM removal, keeping the old small-sample benchmark distinct from evidence about updated tools and measured billing. Keep machine-specific versions and rollback receipts local. Correct the enrichment probe reminder from local implementation to published dev/CI-passed status without closing the credential-blocked live check, original502 diagnosis or account/usefulness acceptance. Completed release-worktree evidence was checksum-preserved before removing that session-owned worktree; other sessions' worktrees and machine rollback backups were retained.
+
 ## Add an explicit deployed task-enrichment contract check (engineering, app v3.15.1 unchanged)
 
 Add a dev-default, pinned-origin live probe with version preflight and exactly one fixed public enrichment request. Accept a bounded valid card or explicit no-result; fail unexpected HTTP/JSON/card/network/timeout responses, and report missing credentials or version mismatch as blocked rather than passing. Enforce opt-in, no redirects/retries, request/body deadlines, bounded output and content-free evidence. Credentials come only from an approved environment or existing deployed configuration. Keep real provider calls outside automatic CI; exercise success,502, auth, malformed/oversized bodies, timeouts and privacy guards offline in task-enrich-test. Document cost, manual operation and acceptance limits. Initial dev attempt reached v3.15.1 but was blocked by missing credentials; no live provider pass or original502 root-cause fix is claimed.
