@@ -24,6 +24,12 @@ Conductor reads shared repository settings from the remote default branch for lo
 - Results are compact; detailed evidence stays in `.context/fresh-*/`. Temporary checkouts are removed. This is a local preflight, never hosted release proof.
 - Use affected-suite planning for wider verification when warranted. Shared or unknown changes retain existing full fallbacks. Five-run performance remains a release gate, not a routine fresh-check cost.
 
+## Review tooling
+
+Use focused reviews for bounded fixes; use the relevant gstack review when additional planning depth helps. Can removed EGM on November 25; it is not a TODAY prerequisite. A fresh-reader comprehension check can review the written plan with only the necessary constraints, within the session's delegation authorization.
+
+The November 24 pilot used gstack 1.60.1.0 and EGM 0.1.0 on two short fictional plans. All approaches found the same four seeded behavior defects. Treat that as narrow historical evidence, not a ranking of current tools; actual token use and billing were unavailable. Machine versions, upgrade/removal receipts, rollback backups and raw benchmark evidence stay in local tooling records rather than the shared operating rules.
+
 ## CI execution and evidence
 
 Hosted functional checks use up to five independent runners, balanced by advisory suite weights. The existing planner still chooses coverage, and the final `test` gate checks every result. Five-run performance stays on a separate runner; verified master reuse skips both jobs. Payload fails before browser setup. See the [CI contract](../docs/ci-release-evidence.md#parallel-execution-november-8) for evidence and failure handling. A failed parallel workflow needs **Re-run all jobs**, since reports from separate run attempts cannot be mixed. Keep local fresh checks scoped to affected suites; do not run the full inventory locally just to duplicate the hosted release gate.
