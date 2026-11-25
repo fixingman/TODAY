@@ -980,5 +980,36 @@ test('Sunday audit reports actual fallback selection and its rejection', () => {
     && /retired/.test(retired.candidates[0].gateReason) && today.selectedKind === null;
 });
 
+console.log('\nobservation pool — habit return\n');
+{
+  const habits = [
+    { name: 'Stretch', days: [ago(6), ago(1)] },          // 4 missed days, then back yesterday
+    { name: 'Read', days: [ago(3), ago(1)] },             // 1 missed day: not a return
+    { name: 'Walk', days: [ago(5), ago(2)] },             // back, but not yesterday
+  ];
+  const ranked = _buildObservationCandidates({ outcomes: [], todayISO: TODAY, habits });
+  const habit = ranked.find(c => c.kind === 'habit-return');
+  test('a habit checked yesterday after 2+ missed days becomes one habit-return candidate', () =>
+    ranked.filter(c => c.kind === 'habit-return').length === 1 && habit.signal.name === 'Stretch' && habit.signal.missed === 4
+    && habit.evidence === 'Yesterday "Stretch" was checked again after 4 missed days.');
+  test('one missed day, an older return, a first-ever check or no habits give no candidate', () =>
+    !_buildObservationCandidates({ outcomes: [], todayISO: TODAY, habits: habits.slice(1) }).some(c => c.kind === 'habit-return')
+    && !_buildObservationCandidates({ outcomes: [], todayISO: TODAY, habits: [{ name: 'New', days: [ago(1)] }] }).some(c => c.kind === 'habit-return')
+    && !_buildObservationCandidates({ outcomes: [], todayISO: TODAY }).some(c => c.kind === 'habit-return'));
+  test('habit-return is eligible on the morning line, with no praise or trait in its evidence or insight', () =>
+    _observationEligibleFor([habit], 'nudge', {}).length === 1
+    && !/great|well done|proud|good job|you tend|you always/i.test(habit.evidence + ' ' + habit.insight));
+  test('habit-return waits 5 days before the same kind speaks again on the morning line', () => {
+    const said = d => ({ spokenLines: [{ kind: 'habit-return', date: ago(d), surface: 'nudge' }], surface: 'nudge', todayISO: TODAY });
+    return _observationNoveltyGate([habit], said(4)).length === 0 && _observationNoveltyGate([habit], said(5)).length === 1;
+  });
+  test('two "not landing" votes retire habit-return like any other kind', () =>
+    _observationNoveltyGate([habit], { spokenLines: [{ kind: 'habit-return', date: ago(30), reaction: 'missed' },
+      { kind: 'habit-return', date: ago(40), reaction: 'missed' }], surface: 'nudge', todayISO: TODAY }).length === 0);
+  test('Rules 35: generated text with a trait opener or praise of character is rejected', () =>
+    !_weekReflectionTextIsGrounded('You tend to come back to Stretch after a gap', habit)
+    && !_weekReflectionTextIsGrounded('Good instinct returning to Stretch', habit));
+}
+
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');
 process.exit(failed === 0 ? 0 : 1);

@@ -132,7 +132,7 @@
     if (!row || !Object.hasOwn(poolWriters,row.surface) || (row.policy != null && (typeof row.policy !== 'string' || row.policy.length > 80)) || typeof row.text !== 'string' || !row.text.trim() || row.text.length > 200
         || !/^\d{4}-\d\d-\d\d$/.test(row.date || '') || !Number.isFinite(Date.parse(row.date))
         || new Date(row.date).toISOString().slice(0,10) !== row.date
-        || !['focus-vs-obligation','obligation-completion','letgo-reason','return-finished','soon-pullback','letgo-return',...(row.surface === 'Sunday reflection' ? ['week-shape'] : [])].includes(row.kind)) return null;
+        || !['focus-vs-obligation','obligation-completion','letgo-reason','return-finished','soon-pullback','letgo-return','habit-return',...(row.surface === 'Sunday reflection' ? ['week-shape'] : [])].includes(row.kind)) return null;
     return JSON.stringify([row.surface,row.date,row.kind,row.policy || '',row.text]);
   }
   function poolReadingTag(row) {

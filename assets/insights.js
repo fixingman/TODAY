@@ -983,7 +983,7 @@ function _memoryForAI(scope) {
   if (m.preferences.peakHour !== null) {
     const h = m.preferences.peakHour;
     const period = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-    lines.push(`You tend to get most done in the ${period} (around ${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}).`);
+    lines.push(`Most completed tasks have landed in the ${period} (around ${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}).`);
   }
   
   // Best streak
@@ -1075,7 +1075,7 @@ function _memoryForAI(scope) {
     const latePct = Math.round(lateAdds.filter(e => _lh(e) >= 14).length / lateAdds.length * 100);
     if (latePct >= 40) {
       const period = avgHour < 12 ? 'morning' : avgHour < 17 ? 'afternoon' : 'evening';
-      lines.push(`You tend to add tasks in the ${period} (${latePct}% after 2pm).`);
+      lines.push(`Of the last ${lateAdds.length} tasks added, ${latePct}% were added after 2pm.`);
     }
   }
 
@@ -1083,15 +1083,15 @@ function _memoryForAI(scope) {
   const lifespanSamples = m.patterns.taskLifespanSamples || [];
   if (lifespanSamples.length >= 5) {
     const avg = Math.round(lifespanSamples.reduce((a, b) => a + b, 0) / lifespanSamples.length);
-    if (avg === 0) lines.push('You typically complete tasks the same day you add them.');
-    else if (avg <= 2) lines.push(`You typically close tasks within a day or two.`);
-    else lines.push(`You typically take about ${avg} days to complete a task.`);
+    if (avg === 0) lines.push(`The last ${lifespanSamples.length} completed tasks were mostly done the day they were added.`);
+    else if (avg <= 2) lines.push(`The last ${lifespanSamples.length} completed tasks took a day or two on average.`);
+    else lines.push(`The last ${lifespanSamples.length} completed tasks took about ${avg} days on average.`);
   }
 
   // Soon pull-back pattern — optimistic deferrals that keep coming back
   const soonPulls = m.patterns.soonPulls || 0;
   if (soonPulls >= 3) {
-    lines.push(`You often pull tasks back from Soon — tends to overestimate future availability.`);
+    lines.push(`${soonPulls} tasks have been pulled back from Soon so far.`);
   }
 
   // Daily history — last 7 days rhythm and trend
@@ -1260,7 +1260,7 @@ function _getProactiveObservations(ctx) {
     observations.push({
       type: 'peak_hour',
       priority: 'medium',
-      text: `It's ${hour > 12 ? hour - 12 : hour}${hour >= 12 ? 'pm' : 'am'} — your most productive hour.`
+      text: `It's ${hour > 12 ? hour - 12 : hour}${hour >= 12 ? 'pm' : 'am'} — the hour most tasks get done.`
     });
   }
   // It's morning but their peak is afternoon
@@ -1268,7 +1268,7 @@ function _getProactiveObservations(ctx) {
     observations.push({
       type: 'pace_suggestion',
       priority: 'low',
-      text: `You usually pick up after ${peakHour > 12 ? peakHour - 12 : peakHour}pm. Start light.`
+      text: `Most completed tasks have landed after ${peakHour > 12 ? peakHour - 12 : peakHour}pm. Start light.`
     });
   }
   
@@ -1350,7 +1350,7 @@ function _getProactiveObservations(ctx) {
         observations.push({
           type: 'intentional_pattern',
           priority: 'low',
-          text: `You tend to add tasks in the morning. Good instinct — plans made early tend to stick.`
+          text: `Most tasks lately were added in the morning.`
         });
       }
     }

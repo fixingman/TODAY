@@ -692,6 +692,39 @@ try {
     await page.close();
   }
 
+  // 9b. Rules 35: AI context and observation text describe what happened, never who the person is.
+  {
+    const lateAdditions = Array.from({ length: 12 }, (_, i) => ({ h: i < 8 ? 16 : 9, date: '2026-11-0' + ((i % 9) + 1) }));
+    const { page, errors } = await openPage({
+      memory: baseMem({
+        totalTasksCompleted: 60, totalDaysActive: 30,
+        patterns: {
+          completionsByHour: { '15': 20, '9': 4 }, taskKeywords: {}, focusMinutesTotal: 120, bestStreak: 5,
+          lateAdditions, taskLifespanSamples: [3, 4, 5, 3, 4], letgoReasons: {},
+          triageUndos: 0, soonPulls: 4, reviveReasons: {},
+        },
+        preferences: { peakHour: 15, dragKeywords: [] },
+      }),
+    });
+    const r = await page.evaluate(() => {
+      const trait = /\b(you|they|the (user|person))\s+(tend|tends|usually|typically|always|often|never|are (a|an|someone)|seem)\b|\b(tends to|good instinct|overestimat|morning person|night owl|procrastinat)/i;
+      const texts = [window._memoryForAI('full'), window._memoryForAI('nudge'),
+        ...[8, 15].flatMap(hour => window._getProactiveObservations({ streak: 2, hour }).map(o => o.text))];
+      const hits = texts.flatMap(t => t.split('\n')).filter(line => trait.test(line));
+      return { checked: texts.length >= 2, noTraitLines: hits.length === 0, hits: hits.length ? hits : undefined,
+        keepsFacts: texts[0].includes('pulled back from Soon') && texts[0].includes('after 2pm') };
+    });
+    await expectAll('trait wording', { checked: r.checked, noTraitLines: r.noTraitLines, keepsFacts: r.keepsFacts, noErrors: !errors.length });
+    await page.close();
+    const prompts = { nudge: 2, about: 2, 'memory-panel': 1, 'exploration-core': 1, reflections: 1 };
+    for (const [file, min] of Object.entries(prompts)) {
+      const source = await readFile(join(ROOT, 'assets', file + '.js'), 'utf8');
+      const count = (source.match(/never who the person is|never infer identity or personality|labels about who the person is/gi) || []).length;
+      if (count < min) throw new Error(`Rules 35: ${file}.js prompts must state the identity principle (${count}/${min})`);
+    }
+    ok('Rules 35: AI context and observations state facts, not traits; every prompt writing about the person states the principle');
+  }
+
   // 10. _getProactiveObservations — returns typed observation objects.
   {
     const { page, errors } = await openPage({

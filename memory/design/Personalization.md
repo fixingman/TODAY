@@ -201,15 +201,15 @@ The W3 verdict season (poem coda, brief, Today block, Noticed — all due Jul 28
 Memory must be **inspectable and clearable by the user.** Not just deletable in bulk — individual inferences should be viewable and revocable. **Implementation decision (v2.47.0):** Memory lives in a dedicated `#memoryPanel` (opened via ✦ in the task bar), not in Connections — the two panels have different jobs (memory = content you've inferred about me; connections = data I've consented to share). A "Connections →" link in the Memory panel footer bridges the two for discoverability. Opt-in with visible payoff; never opt-out with invisible benefit. Deletion must trace through derived data, not just clear the source entry.
 
 ### Abstraction over storage
-Don't store behavior — store conclusions. Completion timestamps, focus session counts, and task keywords are inputs. Memory is what you derive from them: *"tends to finish tasks before noon," "focus clusters Tue/Wed," "breaks projects into ≤30-min chunks."* The transformation step is the design. Storing more raw history degrades quality — expanding preference context from 5 to 25 examples dropped LLM accuracy from 61% to 59% in controlled research. The existing `peakHour` inference from `completionsByHour` is the right pattern to extend.
+Don't store behavior — store conclusions. Completion timestamps, focus session counts, and task keywords are inputs. Memory is what you derive from them: *"most tasks finished before noon over 90 days," "focus sessions clustered Tue/Wed this month," "projects split into ≤30-min tasks lately."* The transformation step is the design. Storing more raw history degrades quality — expanding preference context from 5 to 25 examples dropped LLM accuracy from 61% to 59% in controlled research. The existing `peakHour` inference from `completionsByHour` is the right pattern to extend.
 
 ### Four memory types — store, update, and surface differently
 
 | Type | What it holds | Update rate |
 |---|---|---|
-| **Semantic** | Stable identity traits — "is a morning person," "prefers short tasks" | Slow — months |
+| **Semantic** | Slow-changing patterns, always stated as what happened with its basis — "most tasks done before noon (90 days)," never a trait like "is a morning person" (Rules 35) | Slow — months |
 | **Episodic** | Specific recent state — "had three bad focus sessions last week" | Fast — days |
-| **Procedural** | Behavioral habits — "breaks projects into ≤30-min chunks," "avoids admin after 3pm" | Medium — weeks |
+| **Procedural** | Recurring ways of working, as observed — "projects split into ≤30-min tasks lately," "admin tasks mostly done before 3pm this month" | Medium — weeks |
 | **Meta** | System's own confidence and data coverage — "I only have 5 days of evening data" | Continuous |
 
 Storage keeps these types; display does not mirror them. Memory shows semantic and procedural together under **PATTERNS**, episodic under **LATELY**, meta under **WHAT TODAY HAS SEEN** (v2.95.5 — see `design/Components.md` → Memory Panel — PATTERNS).
@@ -219,7 +219,7 @@ Conflating types produces systems too cautious about small things or overconfide
 ### Three temporal scales, different inertia
 - **This week** — high plasticity, updates fast. Episodic state.
 - **This month** — medium inertia, rolling average. Procedural patterns.
-- **Stable identity** — very slow, resists transient noise. Semantic traits.
+- **Slow patterns** — very slow, resists transient noise. Semantic patterns, still worded as observations, never as identity (Rules 35).
 
 If a week looks wildly different from the medium window, surface that as a signal rather than immediately updating the long-window model. Don't let a burned-out week erase 6 months of healthy patterns (catastrophic forgetting).
 

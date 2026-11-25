@@ -250,6 +250,8 @@
   // police itself.
   const _KIND_COOLDOWN_DAYS = {
     'week-shape': 7,
+    // One day's event, not a month aggregate: at most about once a week.
+    'habit-return': 5,
     // Month-window observations. Saying one twice inside its own window is repetition,
     // not accumulation.
     'focus-vs-obligation': 21,
@@ -381,7 +383,7 @@
   // frames a week and may carry any outcome kind. A kind eligible on both is still
   // said once: cooldowns are cross-surface.
   const _SURFACE_KINDS = {
-    nudge:  new Set(['letgo-return', 'soon-pullback', 'focus-vs-obligation']),
+    nudge:  new Set(['letgo-return', 'soon-pullback', 'focus-vs-obligation', 'habit-return']),
     sunday: null, // null = every kind
   };
 
@@ -410,12 +412,43 @@
     return candidates.filter(c => _observationGateExplain(c, knowledge) === null);
   }
 
+  // A habit checked again yesterday after 2+ missed days. The return, not the gap, is
+  // the observation (Rules 35: a dated fact, never praise or a trait). Habit days use
+  // the same local ISO dates as habit completions; yesterday is the newest closed day.
+  function _buildHabitReturnCandidates(habits, todayISO) {
+    if (!Array.isArray(habits) || !todayISO) return [];
+    const base = new Date(todayISO + 'T12:00:00');
+    if (isNaN(base.getTime())) return [];
+    base.setDate(base.getDate() - 1);
+    const yesterday = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
+    let best = null;
+    for (const habit of habits) {
+      const name = typeof habit?.name === 'string' ? habit.name.trim().slice(0, 80) : '';
+      const days = Array.isArray(habit?.days) ? [...new Set(habit.days)].filter(d => typeof d === 'string').sort() : [];
+      if (!name || !days.includes(yesterday)) continue;
+      const before = days.filter(d => d < yesterday).at(-1);
+      if (!before) continue;
+      const missed = _daysBetweenISO(before, yesterday) - 1;
+      if (missed < 2 || missed > 60) continue;
+      if (!best || missed > best.missed) best = { name, missed };
+    }
+    if (!best) return [];
+    return [{
+      kind: 'habit-return',
+      score: 90,
+      signal: { name: best.name, missed: best.missed },
+      evidence: `Yesterday "${best.name}" was checked again after ${best.missed} missed days.`,
+      insight: 'The habit came back after a gap instead of stopping there.',
+    }];
+  }
+
   // The pool: every candidate, ranked. Callers apply gates and per-surface
   // eligibility; this function only proposes. Input is appMemory.taskOutcomes;
   // the week grid's day counts are deliberately not an input any more.
   function _buildObservationCandidates(input) {
     const inp = input || {};
     return _buildOutcomeCandidates(inp.outcomes, inp.todayISO, inp.taskTexts)
+      .concat(_buildHabitReturnCandidates(inp.habits, inp.todayISO))
       .sort((a, b) => b.score - a.score);
   }
 
@@ -598,6 +631,8 @@
   function _observationTextIsGrounded(text, maxWords) {
     if (!text || /^none\.?$/i.test(text.trim())) return false;
     if (/\bwho you are\b|\bthat(?:'s| is) (?:just )?you\b|\byou(?:'re| are) (?:the kind|the type|someone who|a person who)\b/i.test(text)) return false;
+    // Rules 35: no fixed traits or praise of character.
+    if (/\byou (?:tend|usually|typically|always|never)\b|\bgood instinct\b/i.test(text)) return false;
     if (/\b(?:caused|made you|because of)\b/i.test(text)) return false;
     if (/\b\d{2,4}\s+days? in\b/i.test(text)) return false;
     return text.trim().split(/\s+/).length <= (maxWords || 26);
@@ -634,6 +669,10 @@
         return has(/\b(?:let go|letting go|release|released)\b/i)
           && has(/\b(?:back|return|returned|returns|returning|brought)\b/i)
           && has(/\b(?:finish|finished|done|complete|completed)\b/i);
+      case 'habit-return': {
+        const name = String(candidate.signal && candidate.signal.name || '').toLowerCase();
+        return !!name && s.toLowerCase().includes(name) && has(/\b(?:back|again|return|returned|resumed|picked up)\b/i);
+      }
       case 'week-shape': {
         const shape = candidate.signal && candidate.signal.shape;
         const claim = shape === 'mixed' ? s : s.split(/\bthan\b/i)[0];
