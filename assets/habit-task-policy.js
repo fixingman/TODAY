@@ -60,12 +60,14 @@
       let winner = explicitA || explicitB
         ? explicitA && explicitB ? later(current, incoming) : explicitA ? current : incoming
         : wroteA !== wroteB ? (wroteA ? current : incoming) : current.createdAt < incoming.createdAt ? current : incoming.createdAt < current.createdAt ? incoming : later(current, incoming);
-      if (winner.state === 'active' && (current.state === 'expired' || incoming.state === 'expired'))
-        winner = { ...winner, state: 'expired', updatedAt: current.updatedAt > incoming.updatedAt ? current.updatedAt : incoming.updatedAt };
+      // A newer expiry closes an active copy; an older one never undoes a later restore.
+      const expiry = [current, incoming].find(o => o.state === 'expired' && o.updatedAt > winner.updatedAt);
+      if (winner.state === 'active' && expiry) winner = { ...winner, state: 'expired', updatedAt: expiry.updatedAt };
       // The day's load is its own fact: a calendar-informed reading beats a partial one; otherwise first write wins.
       const loaded = [current, incoming].filter(o => o.load);
-      const best = loaded.find(o => o.loadSource === 'full' && loaded.every(x => x.loadSource !== 'full' || x.createdAt >= o.createdAt))
-        || loaded.sort((x, y) => x.createdAt.localeCompare(y.createdAt))[0];
+      // Order is total (source, then creation, then value) so merge(a,b) equals merge(b,a).
+      const rank = o => [o.loadSource === 'full' ? 0 : 1, o.createdAt, LOADS.indexOf(o.load)];
+      const best = loaded.sort((x, y) => { const a = rank(x), b = rank(y); return a[0] - b[0] || a[1].localeCompare(b[1]) || a[2] - b[2]; })[0];
       winner = { ...winner };
       delete winner.load; delete winner.loadSource;
       if (best) Object.assign(winner, { load: best.load, loadSource: best.loadSource });

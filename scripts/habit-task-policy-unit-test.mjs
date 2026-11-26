@@ -269,6 +269,14 @@ assert.equal(ml.load, 'heavy', 'a calendar-informed load beats a partial one');
 const ml2 = merge({ configs: {}, occurrences: { 'habit_x::2026-11-10': mk({ load: 'light', loadSource: 'partial' }) } },
   { configs: {}, occurrences: { 'habit_x::2026-11-10': mk({ createdAt: at2, load: 'heavy', loadSource: 'partial' }) } }).occurrences['habit_x::2026-11-10'];
 assert.equal(ml2.load, 'light', 'otherwise the first load written wins');
+const restored = mk({ state: 'active', updatedAt: at2 }), staleExpired = mk({ state: 'expired', updatedAt: at1 });
+for (const [a, b] of [[restored, staleExpired], [staleExpired, restored]])
+  assert.equal(merge({ configs: {}, occurrences: { 'habit_x::2026-11-10': a } }, { configs: {}, occurrences: { 'habit_x::2026-11-10': b } }).occurrences['habit_x::2026-11-10'].state, 'active', 'an older expiry never undoes a later restore');
+const fullA = mk({ load: 'light', loadSource: 'full' }), fullB = mk({ load: 'heavy', loadSource: 'full' });
+const ab = merge({ configs: {}, occurrences: { 'habit_x::2026-11-10': fullA } }, { configs: {}, occurrences: { 'habit_x::2026-11-10': fullB } }).occurrences['habit_x::2026-11-10'].load;
+const ba = merge({ configs: {}, occurrences: { 'habit_x::2026-11-10': fullB } }, { configs: {}, occurrences: { 'habit_x::2026-11-10': fullA } }).occurrences['habit_x::2026-11-10'].load;
+assert.equal(ab, ba, 'load merge converges regardless of order');
+assert.equal(load({ carried: 3, carriedHistory: [] }).load, 'normal', 'no carry-over history → never heavy from carry-over');
 const cleanedNew = clean({ occurrences: { 'habit_x::2026-11-10': mk({ load: 'bogus', size: 'huge', dismissReason: 'x', reasonCheckAt: 'no' }) } }).occurrences['habit_x::2026-11-10'];
 assert.ok(!('load' in cleanedNew) && !('size' in cleanedNew) && !('dismissReason' in cleanedNew) && !('reasonCheckAt' in cleanedNew), 'clean() drops invalid new fields');
 console.log('  ✓ merge: explicit feedback survives expiry; load merges separately; clean() validates new fields');

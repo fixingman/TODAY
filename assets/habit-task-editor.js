@@ -82,7 +82,7 @@
 <p class="ht-hint ht-fresh-note">Needs an AI connection in Connections. Until then, the task uses the habit’s name.</p>
 <label class="ht-label" for="htNote">Anything to take into account?</label>
 <textarea id="htNote" name="note" rows="2" maxlength="1000"></textarea>
-<p class="ht-hint">Optional. Keeps every task within what suits you. Only the habit, this note and earlier task wording go to your connected AI.</p>
+<p class="ht-hint">Optional. Keeps every task within what suits you. Your connected AI gets the habit, this note, earlier task wording and short labels: when you usually do it, how it has gone lately, and the habit you usually do just before.</p>
 <section class="ht-set" aria-labelledby="htSetLabel"><h4 class="ht-label" id="htSetLabel">This week’s set · remove any you don’t want</h4>
 <ul class="ht-pool"></ul><p class="ht-hint ht-pool-empty">No tasks yet. Prepare a set, or add your own.</p>
 <div class="ht-add"><input name="own" type="text" maxlength="120" autocomplete="off" placeholder="Add your own…" aria-label="Add a task to the set" data-today-keydown="habit-task-editor.own-key"><button type="button" class="ht-link" data-today-click="habit-task-editor.own">add</button></div>

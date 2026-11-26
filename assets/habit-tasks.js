@@ -209,7 +209,7 @@
   function readLoad(day) {
     const calendarDay = _localISO();
     const history = safeJSON('today_daily_history', []);
-    const carriedHistory = history.filter(r => r && r.date < day).slice(-14).map(r => Number(r.dayStartCount));
+    const carriedHistory = history.filter(r => r && r.date < day && r.dayStartCount != null).slice(-14).map(r => Number(r.dayStartCount));
     // Today's carry-over and calendar describe the calendar day; between midnight and
     // the 3am close the habit day is still yesterday, so they do not apply.
     const sameDay = calendarDay === day;
