@@ -13,11 +13,18 @@
 > (needs a fresh-device Sunday/habit badge check) and BUG-062/069 are 🚫 Rejected.
 > BUG-138 closed/archived October 30 after Can disabled Netlify RUM and all four public HTML checks confirmed removal. BUG-136/134/131/128/127 were independently verified and archived the same day at Can’s request; their unrelated real-use/account verdicts remain separate.
 > BUG-137/139–143/148–150/153/155–157/160/161/163/164 archived 2026-11-14: each record names its verification (reproduction-equivalent automated checks or hosted gate 43026453419).
+> BUG-174–179 archived 2026-11-26 after Can accepted the current reproduction-equivalent automated verification; remaining live/account/history/hosting limits are preserved in each detail.
 > Newest first, matching the ordering rule above. Not every row has a detail section —
 > the earliest fixes were summarised only.
 
 | # | Description | Status |
 |---|---|---|
+| 179 | Show a visible status when Gmail cannot supply another email, while retaining the previous email. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.16.2); scope and limits below |
+| 178 | The hosting skip rule compares only the final commit pair, missing app changes awaiting production deployment. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.15.1 engineering); scope and limits below |
+| 177 | Distinct enrichment failures all return a generic502, leaving the console unable to distinguish the cause. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.15.1); scope and limits below |
+| 176 | Cleanup skips unbanked focus minutes when another history row already exists, then resets the counter. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.14.1); scope and limits below |
+| 175 | A single weekly-reading miss adds a second quiet week even when fresh weekly evidence qualifies. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.13.1); scope and limits below |
+| 174 | .habit-daily-link inside .habit[data-habit-id] was missing from the focus.js document click handler exclusion list. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.13.0); scope and limits below |
 | 173 | Post-add suggestions hidden behind the input bar but counted as ignored. | ✅ Can verified, 2026-11-22 (v3.11.6); separate evening-review overlap remains unverified |
 | 172 | Single functional artifact download fails the CI result combiner. | ✅ Hosted single-worker gate 43975777473; 2026-11-17 (v3.10.11 engineering, CI-only fix) |
 | 171 | Earlier days' finished tasks inflate the done count after sync. | ✅ Reproduction-equivalent component checks; 2026-11-17 |
@@ -200,6 +207,100 @@ An iPhone 17e simulator running Mobile Safari 26.3 then passed 10 targeted check
 ## Verification batch — 2026-09-07
 
 Can verified BUG-071, BUG-095, BUG-096, BUG-097, and BUG-098 on real devices. All five are now ✅. Remaining open from the 2026-09-04 batch: BUG-091 (real Gmail), BUG-089 (native Mail handoff), and BUG-061 (stale, Sunday/habit badge).
+
+---
+
+## BUG-179 — Try other email finishes without visible feedback
+
+**Verified — November 26, 2026:** The actual-component Gmail feedback suite passes empty/error alternate-email results, visible status, restoration without another lookup, pending/stale requests, narrow layout and accessibility checks. This verifies the reported feedback defect; installed/live-mailbox availability and matching remain unverified. Can authorized marking this technical repair verified and archiving it after the automated pass.
+
+**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
+
+Can reported that try other email appeared to do nothing in desktop Focus. The unavailable-result path announced only to assistive technology, left the action disabled for the current visit and swallowed rejected promises. The screenshot alone cannot distinguish no match from a network, credential or provider failure.
+
+The repair displays a visit-local accessible status on an unavailable result, preserves pending feedback and allows the original email to be restored without a call. Existing search limits, source fences, one retry per visit and privacy boundaries remain in effect. Extended fictional actual-component tests reproduce the missing visible status before the repair and check empty/error/pending, restoration, narrow layout and accessibility. Local automated proof and the user's installed/live-mailbox acceptance remain separate; no live mailbox has been accessed.
+
+---
+
+## BUG-178 — Netlify can skip pending app changes behind a validation-only promotion
+
+**Verified — November 26, 2026:** The actual configured Bash ignore command passes disposable real-Git cases for pending app/function changes behind a validation-only tip, unchanged deployed app bytes and missing/equal/invalid refs. This verifies the comparison defect; actual Netlify invocation/logs and deployed production bytes were not checked. Can authorized marking this technical repair verified and archiving it after the automated pass.
+
+**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
+
+**Observed:** master4c5529c7 and its full exact-candidate CI pass, while fresh production responses still show3.14.1. The configured parent-only comparison returns0 for that exact tip; comparison with the previously deployed98c27fcb returns1. Hosting logs are unavailable, so the skip mechanism is reproduced rather than inferred from a Netlify log.
+
+**Repair:** compare the hosting context’s last built commit with the target via Netlify’s documented read-only CACHED_COMMIT_REF and COMMIT_REF variables. Retain deployable paths. Missing/equal/invalid refs build safely; docs-only changes after an already-built app still skip. Application bytes and version remain3.15.1.
+
+**Regression:** the actual configured Bash command runs against real Git commits in a disposable fixture. Old code fails the validation-only promotion assertion; corrected code passes pending app/function changes, genuinely unchanged app and absent/equal/unknown-ref cases. The Netlify CSP/badge/offline tests still pass. Evidence: `.context/enrichment-master-20261123/hosting-before.log`, `hosting-after.log`, `fresh-Ymcjaf/receipt.json`. Live production verification remains separate from CI.
+
+---
+
+## BUG-177 — Generic task-context failures obscure their cause in the console
+
+**Verified — November 26, 2026:** Actual-handler failure categories and client whitelisting, late-body source fences and no-failure-cache checks pass. This verifies the diagnostic defect; the original live 502 cause and separate Calendar token 400 remain unclassified. No live provider request was replayed. Can authorized marking this technical repair verified and archiving it after the automated pass.
+
+**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
+
+**Report (Can, November23):** repeated production task-context502 errors during Focus entry; the Response body is `{"error":"Enrichment unavailable"}`. The deployed handlers are reachable and safely reject malformed JSON without any provider request. No actual credential, task payload or provider request was replayed. The separate Calendar token400 has not been classified.
+
+**Diagnosis:** this exact generic error arises from multiple task-enrichment fallback paths; it does not identify whether the live failure is transport, invalid/empty card, truncated output, exhausted turns or deadline. Earlier request limits and provider configuration are retained.
+
+**Change:** add fixed categorical reason codes to the existing response/console path; expose only a whitelisted reason plus numeric HTTP statuses. Ignore arbitrary upstream/error data and fence late error-body reads after source changes. Remove raw provider HTTP-error-body logging. No new telemetry/store, extra call, retry or changed generation policy. This makes a future natural failure diagnosable; its underlying live cause remains open.
+
+**Tests:** actual handler cases for request failure, malformed/unexpected provider response, empty answer, invalid card JSON/shape, output cap, malformed/unsupported tool stop, exhausted turns, deadline and upstream HTTP status. Browser checks reject private/unknown fields, do not cache failures and withhold diagnostics after task rename while an error body is held. The pre-repair test fails on the absent reason code. Preserve raw evidence in `.context/enrichment-failure-diagnostics-20261123/`.
+
+**Local verification:** `fresh-IZV8u7` passes invariants and task-enrich with0 failures/flakes in9.6s, including actual-handler cases and browser privacy/staleness checks. Payload, memory inventory and whitespace pass. The original reason-code assertion fails before the change. Installed reason-code verification awaits publication; no live provider call or credential use.
+
+---
+
+## BUG-176 — Daily-history row can swallow unbanked focus minutes at rollover
+
+**Verified — November 26, 2026:** The two-context Friday/Saturday regression passes: both devices converge on 90 minutes and About shows 1h 30m, resisting stale-zero replay, duplicate rows and next-day carryover. About, merge and Dropbox fixture suites also pass. This verifies the rollover defect; Can’s historical loss cause, recovery and installed acceptance remain unverified. Can authorized marking this technical repair verified and archiving it after the automated pass.
+
+**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
+
+**Report (Can, November23):** Friday November20 focus minutes disappeared from About after previously showing approximately1–2h. Exact minutes, device sequence and when the disappearance occurred are unknown. Related repairs BUG-063 and BUG-066 cover midnight snapshot ordering and adopting synced counters with their dates; those fixes remain in place.
+
+**Reproduction:** seed a fictional outgoing-day history row with focus0 and a correctly dated local live counter of90. `applyNewDayCleanup()` finds the existing row, skips the snapshot and resets the counter to0; About cannot show those minutes. The actual-component regression fails before repair with `minutesRetained:false`, other row/count/reset checks true and no app error. This establishes an independent defect, not the confirmed cause of Can’s historical data.
+
+**Repair:** merge the outgoing-day snapshot before reset through existing `sync-merge.mergeDailyHistory` and `_sanitizeDailyTasksAdded`, preserving per-field maxima, fixed-count precedence, one row/date and30-row retention. Never add totals. Preserve richer rows and the BUG-063 distinction between yesterday’s snapshot and today’s minutes. No live history or backup was read/rewritten and no estimated minutes were restored.
+
+**Verification:** retain failing control and final scoped evidence in `.context/friday-focus-history-20261123/`. Tests cover About’s visible1h30m, a richer120-minute row against90, corrected task/habit values, midnight45 versus today90 and repeated cleanup. Final fresh check `fresh-kCZ0Bs` passes all5 suites (invariants, day lifecycle, About, sync-merge unit and Dropbox) with0 failures/flakes in27.3s; payload, memory inventory and whitespace also pass. Actual Friday cause, recovery and installed acceptance remain unverified after publication.
+
+**Stronger regression (November23):** the existing CI-owned day-lifecycle suite now runs Friday November20/Saturday November21 in two isolated browser contexts. One device banks0; the other merges that row before banking90. Both must converge on90 and display Friday1h30m; stale-zero replay, duplicate rows and next-day carryover are rejected. An isolated original-runtime control fails specifically with `syncedPartial:true`, `retained:false`, `todayReset:true`. The fixed same-test owning-suite run `fresh-FgosJa` passes both checks with0 flakes/failures in12.1s. The earlier five-suite pass remains recorded separately.
+
+---
+
+## BUG-175 — One rejected weekly sentence silences the following Sunday
+
+**Verified — November 26, 2026:** Pure-policy and actual About checks pass for fresh weekly evidence seven days after one missed sentence, including retained single-miss verdicts, with retirement and adjacent suppression gates preserved. This verifies the eligibility defect; installed generation and writing usefulness remain separate. Can authorized marking this technical repair verified and archiving it after the automated pass.
+
+**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
+
+**Report (Can, November 22, 2026):** installed production v3.12.1 shows Today and Noticed but no Sunday reading. Its saved aggregate audit is online with AI configured, no cached weekly reading and blocked-no-insight. soon-pullback is retired on October 25; week-shape is blocked as “already said 7 days ago on Sunday reflection”. Inspected live production policy bytes match the checkout. A one-miss line or retained one-miss kind verdict reproduces that exact gate; no provider request is made.
+
+**Repair:** keep the existing weekly fallback cooldown at seven days after one sentence-level miss. Preserve historical feedback, two-miss/persisted retirement, same-day/less-than-seven-day suppression, qualifying fresh weekly evidence and the six other outcome kinds’ feedback gates. Do not force generation or restore a retired topic.
+
+**Verification:** new pure-policy and actual About block checks cover a previous missed line and an older retained single-miss verdict, writer/cached-line delivery once, prior-text exclusion and feedback retention. Before the repair, two policy assertions and the mounted component eligibility assertion fail. Final scoped fresh check `fresh-SkAjwT` passes all five suites (invariants, observation pool, About, nudge and design) with zero flakes/failures in60.5s; payload, memory inventory and whitespace pass. Preserve those controls and the receipt under `.context/sunday-missing-20261122/`. Installed acceptance remains pending after publication.
+
+---
+
+## BUG-174 — Clicking the daily-task link in a habit row enters focus mode instead of opening the habit task editor
+
+**Verified — November 26, 2026:** The actual habits-component click regression opens the Daily task editor without entering Focus; the owning habits suite passes. Can accepts this reproduction-equivalent verification. Installed-app behavior was not separately checked. Can authorized marking this technical repair verified and archiving it after the automated pass.
+
+**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
+
+**Report:** Can noticed on desktop that clicking the "daily task" link in the habit edit panel caused the page to enter focus mode. A second click then revealed the habit task editor.
+
+**Root cause:** `assets/focus.js` has a document-level click handler (line ~1135) that fires focus mode when `e.target.closest('.habit[data-habit-id]')` matches. The handler has an explicit exclusion list (`.habit-edit-input`, `.habit-edit-delete`, etc.) but `.habit-daily-link` was absent. Because `.habit-daily-link` lives inside `.habit[data-habit-id]`, the outer `.closest()` match triggered focus mode before the `data-today-click="habits.daily-task"` handler could open the editor.
+
+**Fix** (commit 1bb7ab01): added `if (e.target.closest('.habit-daily-link')) return;` to the exclusion list in `focus.js`.
+
+**Test** (commit bed8cf21): `scripts/habits-test.mjs` now clicks `.habit-daily-link` in edit mode, waits for `habitsTitle` to become "Daily task" (confirming the editor opened), and asserts `document.body.classList.contains('focus-locked')` is false.
+
+**Verification needed:** confirm on the installed app that clicking the daily-task link in the habit panel opens the editor directly without triggering focus mode.
 
 ---
 
