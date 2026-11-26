@@ -36,6 +36,16 @@ function create(hooks) {
     (buttons.find(b => b.dataset.todayClick === action && !b.closest('[hidden]') && !b.disabled && (!concern || b.dataset.concern === concern))
       || buttons.find(b => b.dataset.todayClick === 'enrichment.wording'))?.focus({preventScroll:true});
   }
+  function callNumber(card, taskText) {
+    if (!/^\s*call\b/i.test(taskText) && !/\bcall\b/i.test(card.body || '') && !/^call$/i.test(card.cta?.label || '')) return '';
+    // Use only an explicit international number; never guess a local country code
+    // or turn hours/dates into a call. Optional trunk prefixes need clarification.
+    const match = (card.body || '').match(/\+[1-9][\d ()-]*\d/);
+    if (!match || /\(0\)/.test(match[0])) return '';
+    if (card.body.length >= 80 && match.index + match[0].length === card.body.length) return ''; // Possibly clipped by the card's body cap.
+    const number = match[0].replace(/[ ()-]/g,'');
+    return /^\+[1-9]\d{6,14}$/.test(number) ? number : '';
+  }
   function render(entry, view, immediateUndo = false) {
     if (!hooks.current(view)) return;
     const block = document.getElementById('focusAgentBlock');
@@ -55,8 +65,14 @@ function create(hooks) {
       if (card.body) text('focus-agent-body',card.body);
     }
     const actions = text('focus-agent-actions','');
+    const number = !hidden && callNumber(card,view.text);
+    if (number) {
+      const call = document.createElement('a');call.className='focus-agent-link focus-agent-call';
+      call.textContent='☎ Call';call.href='tel:'+number;call.setAttribute('aria-label','Call '+number);
+      call.dataset.todayClick='enrichment.call';call.dataset.cardId=hooks.identity(entry);actions.append(call);
+    }
     if (!hidden && card.cta) {
-      const link = document.createElement('a'); link.className = 'focus-agent-link'; link.textContent = card.cta.label + ' ↗';
+      const link = document.createElement('a'); link.className = 'focus-agent-link'; link.textContent = (number && /^call$/i.test(card.cta.label) ? 'Website' : card.cta.label) + ' ↗';
       link.href = card.cta.href; link.target = '_blank'; link.rel = 'noopener'; actions.append(link);
     }
     function button(parent,label,action,name) {
@@ -89,6 +105,9 @@ function create(hooks) {
     clear.hidden = !snapshot().concerns.length;
     block.hidden = false; _shortcut(hidden ? null : card.cta); window._focusExpandTimer?.();
   }
+  Today.ui.register('click','enrichment.call',(event,link) => {
+    if (!current(link) || hooks.get(hooks.view().id)?.state === 'hidden') stop(event);
+  });
   Today.ui.register('click','enrichment.feedback',(event,button) => {
     stop(event); const value = current(button); if (!value) return;
     const {view,entry} = value, hide = button.dataset.hide === 'true';

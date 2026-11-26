@@ -1,4 +1,5 @@
 import nodeAssert from 'node:assert/strict';
+import { waitForFonts } from './browser-fixture.mjs';
 import { runProbe, validResult, parseArgs, LOOKUP } from './task-enrich-live-test.mjs';
 // Client and Netlify task-enrichment regression tests. No live provider calls.
 import { createServer } from 'node:http';
@@ -571,6 +572,40 @@ try {
   });
   assert(Object.values(zoneRetention).every(Boolean),
     'unchanged owner keeps its exact-card hide through Soon/Past/return; true deletion clears it',zoneRetention);
+
+  // A cached phone card must be actionable without a new lookup or a real call.
+  await page.evaluate(()=>{
+    manualTasks=[];doneIds.clear();__agentSeed('manual_phone','Call fictional customer service Sweden');
+    window.__phoneLookups=0;window.fetch=async(url)=>{if(String(url).includes('/task-enrich'))__phoneLookups++;return{ok:true,status:200,json:async()=>({card:null,threads:[],content:'{"kind":"none","text":""}'})};};
+    window.__phoneCard=(body,cta=null)=>{localStorage.setItem('agent_enrichment_manual_phone',JSON.stringify({v:3,state:'success',taskText:'Call fictional customer service Sweden',boardId:'',fetchedAt:Date.now(),card:{headline:'Fictional customer service',body,cta}}));};
+    __phoneCard('Call +46 70 123 45 67 or 020-123 456 (Mon–Fri 07:00–19:00)');Today.use('connections').renderManual();
+  });
+  await page.click('[data-taskid="manual_phone"] .task-text');
+  await page.waitForFunction(()=>!document.getElementById('focusAgentBlock').hidden);
+  const phone=await page.$eval('[data-today-click="enrichment.call"]',a=>({href:a.getAttribute('href'),label:a.textContent,name:a.getAttribute('aria-label'),target:a.target}));
+  assert(phone.href==='tel:+46701234567'&&phone.label==='☎ Call'&&phone.name.includes('+46701234567')&&!phone.target,'cached international phone text gets a named native Call action',phone);
+  await page.evaluate(()=>{window.__phoneActivations=[];document.addEventListener('click',e=>{const a=e.target.closest('[data-today-click="enrichment.call"]');if(a){e.preventDefault();__phoneActivations.push(a.getAttribute('href'));}},true);});
+  await page.focus('[data-today-click="enrichment.call"]');await page.keyboard.press('Enter');
+  assert(await page.evaluate(()=>__phoneActivations[0]==='tel:+46701234567'&&__phoneLookups===0),'keyboard Call activates the phone URL without another lookup (native dialer intercepted)');
+  for(const body of ['Hours 07:00–19:00; booking 2026-11-26','Order +1234567890123456','Call 020-123 456','Call +46 (0)70 123 45 67','Call javascript:alert(1)','Call '+'x'.repeat(61)+' +46701234567890123']){
+    await page.evaluate(body=>{__phoneCard(body);_agentRenderFocusBlock('manual_phone','Call fictional customer service Sweden');},body);
+    assert(!await page.$('[data-today-click="enrichment.call"]'),'ambiguous/local/unsafe text does not invent a dial target: '+body);
+  }
+  await page.evaluate(()=>{__phoneCard('Call +46 70 123 45 67',{label:'Call',href:'https://example.com/contact'});_agentRenderFocusBlock('manual_phone','Call fictional customer service Sweden');});
+  assert(await page.$eval('#focusAgentBlock a[href^="https:"]',a=>a.textContent==='Website ↗'),'phone action retains the separate HTTPS source with a distinct label');
+  await page.setViewport({width:320,height:800});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  const fits=await page.$eval('[data-today-click="enrichment.call"]',a=>{const r=a.getBoundingClientRect();return r.height>=24&&r.left>=0&&r.right<=innerWidth&&document.documentElement.scrollWidth<=innerWidth;});assert(fits,'Call action retains a 24px target and fits at320px');
+  await page.addScriptTag({content:await readFile(join(ROOT,'scripts/node_modules/axe-core/axe.min.js'),'utf8')});
+  await waitForFonts(page);
+  await page.evaluate(async()=>{await Promise.allSettled(document.querySelector('.focus-timer').getAnimations({subtree:true})
+    .filter(a=>Number.isFinite(a.effect.getTiming().iterations)).map(a=>a.finished));});
+  const phoneA11y=await page.evaluate(async()=> (await axe.run(document.getElementById('focusAgentBlock'))).violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})));
+  assert(!phoneA11y.length,'phone card passes axe',phoneA11y);
+  await page.screenshot({path:join(ROOT,'.context/phase4-15e/call-action-320.png')});
+  await page.setViewport({width:1280,height:900});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await page.screenshot({path:join(ROOT,'.context/phase4-15e/call-action-desktop.png')});
+  await page.click('[data-today-click="enrichment.feedback"]');assert(!await page.$('[data-today-click="enrichment.call"]'),'hiding a phone card removes the call action');
+  await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.task.focused'));
 
   // Exercise the actual focus component, delegated controls and shortcut after hide.
   await page.evaluate(async () => {
