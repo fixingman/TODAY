@@ -2,6 +2,12 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Make phone context directly callable (app v3.16.3)
+
+The Focus web-context card can show a phone number while offering no calling action. Add a native, accessible “☎ Call” link for the first explicit, valid international number on a call-intended card, including existing cached cards. Keep any HTTPS source link, labelling it Website when it previously said Call. Only explicit activation opens the device's configured calling app; no automatic call, extra lookup, location inference, new retention or prompt change. Do not infer country codes from national numbers, parse hours/dates as phones, dial overlong numbers or optional-trunk notation, or use a possibly truncated number at the body cap. Existing hidden/current-card controls fence the action.
+
+The real-component task-enrichment regression fails before this repair and covers cached rendering, intercepted native keyboard activation (no real call), no extra lookup, invalid/ambiguous input, source-link preservation, hide, desktop/320px layout, 24px target and axe. Device-specific dialer handling and live source-number accuracy remain separate acceptance checks.
+
 ## Visible feedback when another email cannot be shown (BUG-179) (app v3.16.2)
 
 The Gmail context retry announced an unavailable replacement only through the screen-reader announcer, then returned to a disabled action with no visible explanation. Show a visit-local status beside the existing controls for empty/failed lookups, expose the pending busy state, and retain the original email's restoration action. Do not infer a no-match result from a transport failure, broaden the search or add retries/storage. The existing real-component empty/error/held-request regressions now cover visible feedback, accessibility, narrow layout, request bounds and restoration; the empty case fails before the repair.
