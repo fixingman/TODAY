@@ -42,6 +42,7 @@
 - Completion particles receive checkbox client coordinates; the celebration canvas converts them to its backing-buffer coordinates so mobile viewport sizing cannot offset the visible burst
 - Runtime ownership: `assets/task-actions.js` owns delegated copy/check/delete activation, copy feedback, mutations, aggregate task stats, and the progress favicon. Re-rendered manual/Trello rows require no per-row listener rebinding.
 - Exploration keeps task connections inside its own views; it never appends an inline CTA to a daily task row.
+- **Habit daily task reasons (v3.17):** deleting a habit's daily task, or letting it go in the evening review, offers **too hard / not useful / did it my way** in the existing reason row instead of the four task reasons (lowercase, 1–3 words). They stay with the habit: no task let-go outcome or reason count. *too hard* makes the next 2 days the smallest version; *not useful* keeps that angle from returning; *did it my way* checks the habit for the day (an explicit tap), and Undo removes only the check that tap made.
 - Inline AI helper: rendered as a full-width sibling, owned by `data-taskid`; reorder and full-list render paths reattach the existing helper immediately after its task so DOM position never becomes ownership.
 
 ### Task Aging

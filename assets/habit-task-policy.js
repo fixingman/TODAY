@@ -5,6 +5,10 @@
   const stamp = value => typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : '';
   const text = (value, limit) => typeof value === 'string' ? value.trim().slice(0, limit) : '';
   const key = (habitId, day) => habitId + '::' + day;
+  const LOADS = ['light', 'normal', 'heavy'], SIZES = ['practice', 'minimal', 'deepen', 'return'];
+  // Habit-task delete reasons: [key, label]. Lowercase, 1–3 words (Philosophy.md).
+  const REASON_LIST = [['too_hard', 'too hard'], ['not_useful', 'not useful'], ['my_way', 'did it my way']];
+  const REASONS = REASON_LIST.map(([k]) => k);
   const taskId = (habitId, day) => 'habit_task_' + key(habitId, day);
   function config(value) {
     if (!value || !stamp(value.updatedAt) || !Array.isArray(value.actions)) return null;
@@ -32,7 +36,11 @@
       if (!['active', 'dismissed', 'detached', 'expired'].includes(raw.state)) continue;
       result.occurrences[id] = { habitId: raw.habitId, day: raw.day, actionId: text(raw.actionId, 100),
         text: text(raw.text, 500), createdAt: raw.createdAt, updatedAt: stamp(raw.updatedAt) || raw.createdAt,
-        state: raw.state, edited: raw.edited === true, basis: text(raw.basis, 1200) };
+        state: raw.state, edited: raw.edited === true, basis: text(raw.basis, 1200),
+        ...(LOADS.includes(raw.load) ? { load: raw.load, loadSource: raw.loadSource === 'full' ? 'full' : 'partial' } : {}),
+        ...(SIZES.includes(raw.size) ? { size: raw.size } : {}),
+        ...(REASONS.includes(raw.dismissReason) ? { dismissReason: raw.dismissReason } : {}),
+        ...(stamp(raw.reasonCheckAt) ? { reasonCheckAt: raw.reasonCheckAt } : {}) };
     }
     return result;
   }
@@ -45,11 +53,23 @@
       if (!current) { result.occurrences[id] = incoming; continue; }
       // Automatic choices are first-write-wins; explicit changes are LWW.
       // A task the AI wrote beats an offline fallback for the same day.
-      const explicitA = current.edited || current.state !== 'active', explicitB = incoming.edited || incoming.state !== 'active';
+      // Expiry is automatic (a day passing), so it never outranks a change the person made.
+      const explicit = o => o.edited || ['dismissed', 'detached'].includes(o.state) || !!o.dismissReason;
+      const explicitA = explicit(current), explicitB = explicit(incoming);
       const wroteA = current.actionId === 'ai', wroteB = incoming.actionId === 'ai';
-      result.occurrences[id] = explicitA || explicitB
+      let winner = explicitA || explicitB
         ? explicitA && explicitB ? later(current, incoming) : explicitA ? current : incoming
         : wroteA !== wroteB ? (wroteA ? current : incoming) : current.createdAt < incoming.createdAt ? current : incoming.createdAt < current.createdAt ? incoming : later(current, incoming);
+      if (winner.state === 'active' && (current.state === 'expired' || incoming.state === 'expired'))
+        winner = { ...winner, state: 'expired', updatedAt: current.updatedAt > incoming.updatedAt ? current.updatedAt : incoming.updatedAt };
+      // The day's load is its own fact: a calendar-informed reading beats a partial one; otherwise first write wins.
+      const loaded = [current, incoming].filter(o => o.load);
+      const best = loaded.find(o => o.loadSource === 'full' && loaded.every(x => x.loadSource !== 'full' || x.createdAt >= o.createdAt))
+        || loaded.sort((x, y) => x.createdAt.localeCompare(y.createdAt))[0];
+      winner = { ...winner };
+      delete winner.load; delete winner.loadSource;
+      if (best) Object.assign(winner, { load: best.load, loadSource: best.loadSource });
+      result.occurrences[id] = winner;
     }
     return result;
   }
@@ -59,46 +79,94 @@
     const value = JSON.stringify([habit.name, c.updatedAt]);
     return value.length <= 1200 ? value : '';
   }
-  function stretchDay(habitId, date) {
-    let phase = 0; for (const char of habitId) phase = (phase + char.charCodeAt(0)) % 4;
-    const ordinal = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
-    return ordinal % 4 === phase;
+  // ── Signals: what the device already knows about a habit, no note required ──
+  //   habit events (check times) ─► usually / after (stack partner, checked just before)
+  //   AI-task days (shown, checked or not) ─► lately, avoid, ownWay
+  //   saved day loads + checks ─► heavyDays (holds / slips)
+  //   carry-over, calendar hours, yesterday's habits ─► load (light / normal / heavy)
+  //   ─► size: practice · minimal · deepen · return
+  const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function shift(day, n) { const d = new Date(day + 'T12:00:00'); d.setDate(d.getDate() + n); return dayKey(d); }
+  // A check made on its own calendar date between 06:00 and 23:00 is a doing time;
+  // checks after midnight (before the 3am close) are logging, not doing.
+  function daytimeHour(day, event) {
+    if (!event || event.type !== 'check' || !stamp(event.at)) return null;
+    const t = new Date(event.at);
+    if (dayKey(t) !== day) return null;
+    const h = t.getHours() + t.getMinutes() / 60;
+    return h >= 6 && h < 23 ? h : null;
   }
-  function progression(state, habit, day, completions = [], events = {}) {
-    const c = state.configs[habit.id];
-    const reference = text(c?.actions.find(a => a.id === c.defaultId)?.text, 120);
-    const result = { direction: 'baseline', reference, recentPractice: [], lastStretch: null };
-    if (habit.archived || !c?.enabled || c.mode !== 'fresh' || !c.note || !dayPattern.test(day)) return result;
-    const date = new Date(day + 'T12:00:00');
-    const localDay = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    if (!Number.isFinite(date.getTime()) || localDay(date) !== day) return result;
-    const source = basis(habit, c), completed = new Set(completions);
-    if (!source) return result;
-    let known = 0, checked = 0, recentChecked = 0, lastKnownDone = null, lastStretchDone = null;
-    for (let offset = 1; offset <= 14; offset++) {
-      const d = new Date(date); d.setDate(d.getDate() - offset);
-      const previousDay = localDay(d), id = key(habit.id, previousDay), o = state.occurrences[id];
-      if (!o || o.basis !== source) continue;
-      const slot = stretchDay(habit.id, d), event = events[id];
-      const done = event && stamp(event.at) && ['check', 'uncheck'].includes(event.type)
-        ? event.type === 'check' : completed.has(previousDay);
-      if (slot && lastStretchDone === null) lastStretchDone = done && !o.edited && ['active', 'expired'].includes(o.state);
-      if (o.actionId !== 'ai' || o.edited || !['active', 'expired'].includes(o.state)) continue;
-      if (lastKnownDone === null) lastKnownDone = done;
-      known++;
-      if (!done) continue;
-      checked++; if (offset <= 7) recentChecked++;
-      if (!slot && result.recentPractice.length < 3 && o.text) result.recentPractice.push(text(o.text, 120));
-      if (slot && result.lastStretch === null && o.text) result.lastStretch = text(o.text, 120);
+  const REDUCE = /\b(?:quit|stop|less|reduce|cut(?:ting)? (?:down|back)|fewer|no more|without)\b|^\s*no\s/i;
+  function median(values) {
+    const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+    return v.length ? (v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2) : null;
+  }
+  // Day load from aggregates only. Unknown inputs never make a day heavy.
+  function load({ carried = null, carriedHistory = [], calendarHours = null, keptYesterday = null, habitsYesterday = 0 }) {
+    const usual = median(carriedHistory);
+    const heavyCarry = Number.isFinite(carried) && usual !== null && carried >= usual * 1.5 && carried >= usual + 3;
+    const heavyCalendar = Number.isFinite(calendarHours) && calendarHours >= 5;
+    const rough = habitsYesterday >= 3 && Number.isFinite(keptYesterday) && keptYesterday / habitsYesterday < 0.34;
+    const source = Number.isFinite(calendarHours) ? 'full' : 'partial';
+    if (heavyCarry || heavyCalendar || rough) return { load: 'heavy', source };
+    const calmCarry = Number.isFinite(carried) && usual !== null && carried <= usual;
+    const calmCalendar = Number.isFinite(calendarHours) ? calendarHours < 2 : true;
+    const goodYesterday = habitsYesterday < 3 || !Number.isFinite(keptYesterday) || keptYesterday / habitsYesterday >= 0.67;
+    return { load: calmCarry && calmCalendar && goodYesterday ? 'light' : 'normal', source };
+  }
+  function signals({ habit, habits = [], day, completions = {}, events = {}, occurrences = {}, note = '', today = null }) {
+    const own = new Set(completions[habit.id] || []);
+    const window = Array.from({ length: 30 }, (_, i) => shift(day, -(i + 1)));
+    // usually: median daytime check hour, only when most checks are daytime.
+    const checks = window.map(d => ({ d, e: events[key(habit.id, d)] })).filter(x => x.e?.type === 'check');
+    const hours = checks.map(x => daytimeHour(x.d, x.e)).filter(h => h !== null);
+    let usually = null;
+    if (checks.length >= 8 && hours.length / checks.length >= 0.6) {
+      const m = median(hours);
+      usually = m < 11 ? 'morning' : m < 14 ? 'midday' : m < 18 ? 'afternoon' : 'evening';
     }
-    // Conservative product parameters, not formation/mastery claims. Unknown days
-    // never become misses. A single miss cannot erase a stored level: none exists.
-    if (known >= 5 && checked <= 2) result.direction = 'return';
-    else if (known >= 10 && checked >= 10 && recentChecked >= 4) {
-      result.direction = stretchDay(habit.id, date) && lastKnownDone !== false && lastStretchDone !== false ? 'deepen' : 'practice';
-    } else if (checked >= 1 && recentChecked === 0 && known >= 3) result.direction = 'return';
-    else if (checked >= 1) result.direction = 'practice';
-    return result;
+    // after: another habit checked in the daytime 0–20 min before this one on ≥ 10 of 30 days.
+    let after = null, best = 0;
+    for (const other of habits) {
+      if (!other || other.id === habit.id || other.archived) continue;
+      let n = 0;
+      for (const d of window) {
+        const mine = daytimeHour(d, events[key(habit.id, d)]), theirs = daytimeHour(d, events[key(other.id, d)]);
+        if (mine === null || theirs === null) continue;
+        const gap = (Date.parse(events[key(habit.id, d)].at) - Date.parse(events[key(other.id, d)].at)) / 60000;
+        if (gap > 0 && gap <= 20) n++;
+      }
+      if (n >= 10 && n > best) { best = n; after = text(other.name, 80); }
+    }
+    // AI-task days: the suggestion was written by AI and its day has closed.
+    const shown = window.map(d => ({ d, o: occurrences[key(habit.id, d)] }))
+      .filter(x => x.o && x.o.actionId === 'ai' && ['active', 'expired', 'dismissed'].includes(x.o.state));
+    const kept = x => own.has(x.d);
+    const recent = shown.filter(x => x.d >= shift(day, -7));
+    let slipping = 0;
+    for (const x of shown) { if (kept(x) || x.o.dismissReason === 'my_way') break; if (x.o.state === 'dismissed' && !x.o.dismissReason) continue; slipping++; }
+    const lately = shown.length < 3 ? 'unknown' : slipping >= 3 ? 'slipping'
+      : recent.length >= 5 && recent.filter(kept).length >= 5 ? 'steady' : 'mixed';
+    // A suggestion that went undone or was marked not useful is not repeated for 14 days.
+    const avoid = shown.filter(x => x.d >= shift(day, -14) && x.o.text && (x.o.dismissReason === 'not_useful' || (!kept(x) && x.o.state === 'expired')))
+      .map(x => text(x.o.text, 120)).slice(0, 14);
+    const ownWay = shown.slice(0, 10).filter(x => x.o.dismissReason === 'my_way').length >= 3;
+    const tooHard = [1, 2].some(n => occurrences[key(habit.id, shift(day, -n))]?.dismissReason === 'too_hard');
+    // heavyDays: does this habit hold on saved heavy days?
+    const rated = window.map(d => ({ d, o: occurrences[key(habit.id, d)] })).filter(x => x.o?.load);
+    const heavy = rated.filter(x => x.o.load === 'heavy'), other = rated.filter(x => x.o.load !== 'heavy');
+    const rate = list => list.length ? list.filter(x => own.has(x.d)).length / list.length : null;
+    const heavyDays = heavy.length < 4 ? 'unknown' : rate(heavy) >= (rate(other) ?? 0) - 0.15 ? 'holds' : 'slips';
+    // return: checked within 14 days but not in the last 3.
+    const last3 = [1, 2, 3].some(n => own.has(shift(day, -n))), last14 = window.slice(0, 14).some(d => own.has(d));
+    const deepenedLately = [1, 2].some(n => occurrences[key(habit.id, shift(day, -n))]?.size === 'deepen');
+    let size = 'practice';
+    if (!last3 && last14) size = 'return';
+    else if (tooHard || lately === 'slipping' || (today === 'heavy' && heavyDays === 'slips')) size = 'minimal';
+    else if (lately === 'steady' && today !== 'heavy' && !deepenedLately) size = 'deepen';
+    const recentPractice = shown.filter(kept).slice(0, 3).map(x => text(x.o.text, 120)).filter(Boolean);
+    return { size, usually, after, lately, heavyDays, today: today || 'normal', ownWay,
+      goal: REDUCE.test(habit.name + ' ' + note) ? 'reduce' : null, avoid, recentPractice };
   }
   // recent: action ids of earlier days, newest first; the set rotates through before repeating.
   function choose(c, day, snapshot, now = Date.now(), recent = []) {
@@ -128,5 +196,5 @@
     let hash = 0; for (const char of day) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
     return pool.length ? pool[hash % pool.length] : c.actions.find(a => a.id === c.defaultId) || c.actions[0];
   }
-  global.Today.define('habit-task-policy', { key, taskId, config, clean, merge, choose, basis, progression });
+  global.Today.define('habit-task-policy', { key, taskId, config, clean, merge, choose, basis, signals, load, REASON_LIST });
 })(window);

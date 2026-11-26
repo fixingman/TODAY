@@ -14,6 +14,9 @@ window._startTaskActions = (function() {
     let _undoTimeoutStart = 0;
     let _undoTimeoutRemaining = 5000;
     let _pendingDeleteText = '';
+    // The deleted task behind the reason row; habit daily tasks get habit reasons (R3).
+    let _pendingDeleteTask = null;
+    const _habitReasons = task => Today.has('habit-tasks') ? Today.use('habit-tasks').reasonsFor(task) : null;
     let _lastFaviconKey = null;
 
     // ── Functions ──
@@ -356,8 +359,10 @@ window._startTaskActions = (function() {
 
     function _recordDeleteReason(reason, btn) {
       if (_pendingDeleteText) {
-        _memoryOnTaskLetgo(_pendingDeleteText, reason);
-        _pendingDeleteText = '';
+        // Habit-task reasons stay with the habit; they are not task let-go statistics.
+        if (_habitReasons(_pendingDeleteTask)) Today.use('habit-tasks').recordReason(_pendingDeleteTask, reason);
+        else _memoryOnTaskLetgo(_pendingDeleteText, reason);
+        _pendingDeleteText = ''; _pendingDeleteTask = null;
       }
       const row = document.getElementById('undoReasonRow');
       if (row) {
@@ -368,7 +373,7 @@ window._startTaskActions = (function() {
       _undoTimeout = setTimeout(_hideUndoToast, 800);
     }
 
-    function _showUndoToast(text, stackSize, type = 'task') {
+    function _showUndoToast(text, stackSize, type = 'task', task = null) {
       const toast = document.getElementById('undoToast');
       const msg = document.getElementById('undoMsg');
       if (!toast || !msg) return;
@@ -380,8 +385,8 @@ window._startTaskActions = (function() {
         : `"${displayText}" removed${countText}`;
       const reasonRow = document.getElementById('undoReasonRow');
       if (type === 'task' && reasonRow) {
-        _pendingDeleteText = text;
-        const _reasons = [
+        _pendingDeleteText = text; _pendingDeleteTask = task;
+        const _reasons = _habitReasons(task) || [
           ['not_relevant', 'not relevant'], ['no_energy', 'no energy'],
           ['lost_interest', 'lost interest'], ['replaced', 'replaced'],
         ];
@@ -415,7 +420,7 @@ window._startTaskActions = (function() {
         toast.setAttribute('aria-hidden', 'true');
         _deletedStack = [];
         _archivedHabitStack = [];
-        if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
+        if (_pendingDeleteText && !_habitReasons(_pendingDeleteTask) && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
         _pendingDeleteText = '';
       }, 5000);
 
@@ -440,7 +445,7 @@ window._startTaskActions = (function() {
             toast.setAttribute('aria-hidden', 'true');
             _deletedStack = [];
             _archivedHabitStack = [];
-            if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
+            if (_pendingDeleteText && !_habitReasons(_pendingDeleteTask) && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
             _pendingDeleteText = '';
           }, Math.max(_undoTimeoutRemaining, 600));
         });
@@ -455,7 +460,7 @@ window._startTaskActions = (function() {
         toast.setAttribute('aria-hidden', 'true');
       }
       clearTimeout(_undoTimeout);
-      if (_pendingDeleteText && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
+      if (_pendingDeleteText && !_habitReasons(_pendingDeleteTask) && typeof _memoryOnTaskLetgo === 'function') _memoryOnTaskLetgo(_pendingDeleteText, '');
       _pendingDeleteText = '';
       const reasonRow = document.getElementById('undoReasonRow');
       if (reasonRow) { reasonRow.style.display = 'none'; reasonRow.innerHTML = ''; }
@@ -489,7 +494,7 @@ window._startTaskActions = (function() {
       // Update toast or hide if stack is empty
       if (_deletedStack.length > 0) {
         const lastTask = _deletedStack[_deletedStack.length - 1];
-        _showUndoToast(lastTask.text || 'Task', _deletedStack.length);
+        _showUndoToast(lastTask.text || 'Task', _deletedStack.length, 'task', lastTask);
       } else {
         _hideUndoToast();
       }
@@ -566,7 +571,7 @@ window._startTaskActions = (function() {
 
         // Show undo toast
         if (task) {
-          _showUndoToast(task.text || 'Task', _deletedStack.length);
+          _showUndoToast(task.text || 'Task', _deletedStack.length, 'task', task);
           if (window._a11yAnnounce) _a11yAnnounce(`${task.text || 'Task'} removed. Undo available.`);
         }
       });

@@ -295,6 +295,33 @@ try {
     await page.close();
   }
 
+  // A habit's daily task offers habit reasons in the evening review; the reason stays with the habit.
+  {
+    const { page, errors } = await openPage({ tasks: [TASK_A, { id: 'tx4', text: 'guard task', createdAt: '2026-08-10T10:00:00.000Z' }], hour: 21 });
+    const result = await page.evaluate(async () => {
+      if (!Today.has('habit-tasks')) { await import('/assets/habit-task-policy.js'); await import('/assets/habit-tasks.js'); }
+      const policy = Today.use('habit-task-policy'), day = _habitTodayISO(), at = new Date().toISOString();
+      habitsList.push({ id: 'habit_r', name: 'Stretch' });
+      const state = Today.use('habit-tasks').read();
+      state.configs.habit_r = policy.config({ enabled: true, mode: 'set', actions: [{ id: 'r1', text: 'Stretch 5 minutes' }], defaultId: 'r1', updatedAt: at });
+      state.occurrences[policy.key('habit_r', day)] = { habitId: 'habit_r', day, actionId: 'r1', text: 'Stretch 5 minutes', createdAt: at, updatedAt: at, state: 'active', edited: false, basis: '' };
+      localStorage.setItem('today_habit_tasks_v1', JSON.stringify(state));
+      const id = policy.taskId('habit_r', day);
+      manualTasks.push({ id, text: 'Stretch 5 minutes', createdAt: Date.now(), habitTask: { habitId: 'habit_r', day } });
+      appMemory.taskOutcomes = []; appMemory.patterns.letgoReasons = {};
+      Today.use('triage').triageExpand();
+      Today.use('triage').triageShowReason(id);
+      await new Promise(r => setTimeout(r, 200));
+      const row = [...document.querySelectorAll('#triageList .triage-task')].find(el => el.dataset.id === id);
+      const labels = [...(row?.querySelectorAll('[data-reason]') || [])].map(b => b.textContent.trim());
+      const plain = Today.use('habit-tasks').reasonsFor({ id: 'x', text: 'x' }) === null;
+      return { labels: JSON.stringify(labels) === JSON.stringify(['too hard', 'not useful', 'did it my way']), plainTasksUnchanged: plain };
+    });
+    await expectAll('habit reasons in evening review', { ...result, noErrors: errors.length === 0 });
+    ok('evening review offers too hard / not useful / did it my way for a habit task; other tasks keep their reasons');
+    await page.close();
+  }
+
   // triageShowReason commits letgo; triageSetReason captures the reason chip.
   {
     const { page, errors } = await openPage({ tasks: [TASK_A, TASK_C], hour: 21 });

@@ -280,6 +280,51 @@ try {
     ok('deleting generated task dismisses occurrence; undo restores both');
   }
 
+  // ── Habit-task reasons: habit labels, stay with the habit, "did it my way" and Undo ──
+  {
+    const { page } = await openPage();
+    await page.waitForFunction(id => manualTasks.some(t => t.id === id), { timeout: 5000 }, TASK_ID);
+    await page.evaluate(() => { appMemory.taskOutcomes = []; appMemory.patterns.letgoReasons = {}; });
+    const row = id => page.waitForFunction(id => !!document.querySelector('.task[data-taskid="' + CSS.escape(id) + '"]'), { timeout: 5000 }, id);
+    await row(TASK_ID);
+    await page.evaluate(id => Today.use('task-actions').deleteManual(id), TASK_ID);
+    await page.waitForSelector('#undoReasonRow [data-reason]');
+    const labels = await page.$$eval('#undoReasonRow [data-reason]', b => b.map(x => x.textContent));
+    await page.click('#undoReasonRow [data-reason="my_way"]');
+    const occKey = TASK_ID.replace('habit_task_', '');
+    const after = await page.evaluate((key, day) => ({ o: Today.use('habit-tasks').read().occurrences[key],
+      checked: (habitCompletions.habit_a || []).includes(day), outcomes: appMemory.taskOutcomes.length,
+      reasons: Object.keys(appMemory.patterns.letgoReasons || {}).length }), occKey, TODAY);
+    await page.evaluate(() => Today.use('task-actions')._undoDelete());
+    const undone = await page.evaluate((key, day) => ({ o: Today.use('habit-tasks').read().occurrences[key],
+      checked: (habitCompletions.habit_a || []).includes(day) }), occKey, TODAY);
+    await expectAll('habit reasons, my-way check and its undo', {
+      labels: JSON.stringify(labels) === JSON.stringify(['too hard', 'not useful', 'did it my way']),
+      reason: after.o?.dismissReason === 'my_way' && !!after.o.reasonCheckAt,
+      checked: after.checked,
+      noTaskStats: after.outcomes === 0 && after.reasons === 0,
+      undoClears: undone.o?.state === 'active' && !undone.o.dismissReason && !undone.o.reasonCheckAt,
+      undoUnchecks: !undone.checked,
+    });
+    // A check that already existed is never removed by Undo.
+    await page.evaluate(day => Today.use('habit-tasks').fromHabit('habit_a', day, true), TODAY);
+    await page.evaluate(() => Today.use('connections').renderManual());
+    await row(TASK_ID);
+    await page.evaluate(id => Today.use('task-actions').deleteManual(id), TASK_ID);
+    await page.waitForSelector('#undoReasonRow [data-reason="my_way"]');
+    await page.click('#undoReasonRow [data-reason="my_way"]');
+    await page.evaluate(() => Today.use('task-actions')._undoDelete());
+    await expectAll('undo keeps an independent check', await page.evaluate(day => ({
+      stillChecked: (habitCompletions.habit_a || []).includes(day) }), TODAY));
+    // Ordinary tasks keep their four reasons.
+    await page.evaluate(() => { manualTasks.push({ id: 'manual_plain', text: 'Plain task' }); Today.use('connections').renderManual(); });
+    await row('manual_plain');
+    await page.evaluate(() => Today.use('task-actions').deleteManual('manual_plain'));
+    await page.waitForFunction(() => document.querySelectorAll('#undoReasonRow [data-reason]').length === 4);
+    await page.close();
+    ok('habit tasks get too hard / not useful / did it my way; reasons stay out of task stats; "did it my way" checks the habit and Undo removes only its own check');
+  }
+
   // ── 8. Disabling config removes the unfinished task ────────────────────────
   {
     const { page } = await openPage();
@@ -449,9 +494,10 @@ try {
       notEdited: Today.use('habit-tasks').read().occurrences[key]?.edited === false,
     }), TASK_ID, TASK_ID.replace('habit_task_', '')));
     await expectAll('fresh request carries bounded guidance without raw history', {
-      keys: JSON.stringify(Object.keys(sent).sort()) === '["earlier","habit","note","progression"]',
+      keys: JSON.stringify(Object.keys(sent).sort()) === '["after","avoid","earlier","goal","habit","heavyDays","lately","note","ownWay","recentPractice","size","today","usually"]',
       habit: sent.habit === 'Morning read', note: sent.note === 'Evenings only',
-      sparseBaseline: sent.progression.direction === 'baseline' && sent.progression.recentPractice.length === 0,
+      sparse: sent.size === 'practice' && sent.lately === 'unknown' && sent.heavyDays === 'unknown' && sent.usually === null && sent.after === null && sent.recentPractice.length === 0,
+      loadStored: await page.evaluate(key => ['light', 'normal', 'heavy'].includes(Today.use('habit-tasks').read().occurrences[key]?.load), TASK_ID.replace('habit_task_', '')),
     });
     await page.close();
     ok('fresh mode replaces the fallback with an AI-written task; request adds only bounded same-habit guidance; sparse history stays baseline');
@@ -479,13 +525,12 @@ try {
       ai:body => (request=body,{text:'Recall an idea before opening the chapter'}) });
     await page.waitForFunction(id=>manualTasks.find(t=>t.id===id)?.text==='Recall an idea before opening the chapter',{timeout:8000},TASK_ID);
     const payload=JSON.parse(request.messages[0].content);
-    const expected=await page.evaluate(day=>{const api=Today.use('habit-tasks');return Today.use('habit-task-policy').progression(api.read(),habitsList[0],day,habitCompletions.habit_a,habitEvents);},TODAY);
     await expectAll('same-habit bounded evidence',{
-      projected:JSON.stringify(payload.progression)===JSON.stringify(expected),
-      familiar:payload.progression.recentPractice.length===3,
+      labelsOnly:['size','today','lately','heavyDays'].every(k=>typeof payload[k]==='string'),
+      familiar:payload.recentPractice.length===3,
       noRawHistory:!JSON.stringify(payload).includes('PRIVATE_DATE')&&!JSON.stringify(payload).includes('habit_a')&&!JSON.stringify(payload).includes(completions[0]),
       sourceStored:await page.evaluate(id=>!!Today.use('habit-tasks').read().occurrences[id].basis,'habit_a::'+TODAY),
-      repetition:request.systemPrompt.includes('Useful repetition and consolidation are allowed')&&!request.systemPrompt.includes('Differ in substance'),
+      principles:request.systemPrompt.includes('outranks every inferred field')&&request.systemPrompt.includes('never a quota')&&!request.systemPrompt.includes('Differ in substance'),
     });
     await page.close(); ok('fresh writer uses bounded same-habit evidence and permits consolidation; source binding survives persistence');
   }

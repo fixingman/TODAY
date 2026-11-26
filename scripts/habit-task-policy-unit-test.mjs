@@ -11,7 +11,7 @@ context.window.Today = {
 vm.runInNewContext(readFileSync(new URL('../assets/habit-task-policy.js', import.meta.url), 'utf8'), context);
 
 assert.equal(context.apiName, 'habit-task-policy');
-const { key, taskId, config, clean, merge, choose, basis, progression } = context.api;
+const { key, taskId, config, clean, merge, choose, basis, signals, load, REASON_LIST } = context.api;
 
 // ── key / taskId ────────────────────────────────────────────────────────────
 assert.equal(key('habit_abc', '2026-11-10'), 'habit_abc::2026-11-10');
@@ -163,80 +163,114 @@ assert.equal(merge(early, wrote).occurrences[k].actionId, 'ai');
 assert.equal(merge(wrote, early).occurrences[k].actionId, 'ai');
 console.log('  ✓ merge() keeps the AI-written task over a fallback');
 
-// ── bounded progression: evidence belongs to the current setup and closed habit days ──
-{
-const learner = { id: 'habit_learning', name: 'French practice' };
-const learning = config({ ...rawConfig, mode: 'fresh', note: 'Learn French, ten minutes after breakfast', updatedAt: '2026-09-01T10:00:00.000Z' });
-const local = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-function practiceFixture(day, count = 14) {
-  const state = { configs: { [learner.id]: learning }, occurrences: {} }, completions = [];
-  for (let offset = 1; offset <= count; offset++) {
-    const date = new Date(day + 'T12:00:00'); date.setDate(date.getDate() - offset);
-    const previous = local(date); completions.push(previous);
-    state.occurrences[key(learner.id, previous)] = { ...occurrence, habitId: learner.id, day: previous,
-      text: 'Recall one familiar phrase', actionId: 'ai', basis: basis(learner, learning), state: 'expired' };
+// ── signals: learned from behaviour, no note required ─────────────────────────
+const DAY = '2026-11-26';
+const back = n => { const d = new Date(DAY + 'T12:00:00'); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const at = (d, h, m = 0) => new Date(`${d}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`).toISOString();
+const coffee = { id: 'habit_coffee', name: 'Coffee' }, stretch = { id: 'habit_stretch', name: 'Stretch' };
+function world({ days = 20, hour = 9, partnerGap = 10, night = false, aiDays = 0, keptAi = true } = {}) {
+  const events = {}, completions = { habit_coffee: [], habit_stretch: [] }, occurrences = {};
+  for (let n = 1; n <= days; n++) {
+    const d = back(n);
+    const when = night ? at(back(n - 1), 1, 30) : at(d, hour, partnerGap);
+    events[key('habit_stretch', d)] = { type: 'check', at: when };
+    events[key('habit_coffee', d)] = { type: 'check', at: night ? at(back(n - 1), 1, 25) : at(d, hour, 0) };
+    completions.habit_stretch.push(d); completions.habit_coffee.push(d);
   }
-  return { state, completions };
-}
-const day = '2026-11-17', evidence = practiceFixture(day);
-const run = (value = evidence, h = learner, when = day, events = {}) => progression(value.state, h, when, value.completions, events);
-assert.equal(run().recentPractice.length, 3, 'only three checked-associated wordings leave the policy');
-assert.deepEqual(Object.keys(run()).sort(), ['direction', 'lastStretch', 'recentPractice', 'reference'], 'no raw dates, counts, identifiers or other habits are projected');
-const slots = ['2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'].map(d => run(practiceFixture(d), learner, d).direction);
-assert.equal(slots.filter(d => d === 'deepen').length, 1, 'one bounded stretch slot in four calendar days');
-assert.equal(slots.filter(d => d === 'practice').length, 3, 'practice days separate stretches');
-const stretchDate = ['2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'][slots.indexOf('deepen')];
-const lastMiss = practiceFixture(stretchDate); lastMiss.completions.shift();
-assert.equal(run(lastMiss, learner, stretchDate).direction, 'practice', 'a stretch immediately after an unchecked known day consolidates instead');
-const swappedStretch = practiceFixture(stretchDate);
-const lastSlot = new Date(stretchDate + 'T12:00:00'); lastSlot.setDate(lastSlot.getDate() - 4);
-swappedStretch.state.occurrences[key(learner.id,local(lastSlot))].edited = true;
-assert.equal(run(swappedStretch, learner, stretchDate).direction, 'practice', 'changing a stretch-slot task pauses the next stretch without calling it a habit miss');
-assert.ok(!run().recentPractice.some(t => t.includes('STRETCH_ONLY')));
-const stretchWords = practiceFixture(stretchDate);
-for (let offset=4; offset<=14; offset+=4) {
-  const d=new Date(stretchDate+'T12:00:00'); d.setDate(d.getDate()-offset);
-  stretchWords.state.occurrences[key(learner.id,local(d))].text='STRETCH_ONLY';
-}
-assert.ok(!run(stretchWords,learner,stretchDate).recentPractice.includes('STRETCH_ONLY'), 'stretch wording cannot silently become the next effort baseline');
-
-const isolatedMiss = structuredClone(evidence); isolatedMiss.completions.pop();
-assert.equal(run(isolatedMiss).direction, run().direction, 'one miss does not reset progress');
-const low = structuredClone(evidence); low.completions = low.completions.slice(0,2);
-assert.equal(run(low).direction, 'return', 'sustained known lower completion prefers a familiar return');
-assert.equal(run(practiceFixture(day, 2)).direction, 'practice', 'one or more completions in sparse history is enough for practice variety');
-const recentGap = structuredClone(evidence); recentGap.completions = recentGap.completions.slice(4);
-assert.notEqual(run(recentGap).direction, 'deepen', 'older completions cannot hide a recent gap');
-const none = practiceFixture(day, 0); none.completions = [...evidence.completions, day, '2099-12-31'];
-assert.equal(run(none).direction, 'baseline', 'habit streak alone/current/future completions do not prove suggestion practice');
-for (const field of ['basis', 'edited', 'state', 'actionId']) {
-  const unsupported = structuredClone(evidence);
-  for (const o of Object.values(unsupported.state.occurrences)) {
-    if (field === 'basis') delete o.basis;
-    if (field === 'edited') o.edited = true;
-    if (field === 'state') o.state = 'detached';
-    if (field === 'actionId') o.actionId = 'offline';
+  for (let n = 1; n <= aiDays; n++) {
+    const d = back(n);
+    occurrences[key('habit_stretch', d)] = { habitId: 'habit_stretch', day: d, actionId: 'ai', text: 'Stretch ' + n, state: 'expired', createdAt: at(d, 3), updatedAt: at(d, 3), edited: false, basis: '' };
+    if (!keptAi) completions.habit_stretch = completions.habit_stretch.filter(x => x !== d);
   }
-  assert.equal(run(unsupported).direction, 'baseline', field + ' cannot establish support');
+  return { habit: stretch, habits: [coffee, stretch], day: DAY, completions, events, occurrences };
 }
-const revised = structuredClone(evidence); revised.state.configs[learner.id].updatedAt = '2026-11-17T10:00:00.000Z';
-assert.equal(run(revised).direction, 'baseline', 'changed setup withdraws support');
-assert.equal(run(evidence, { ...learner, name: 'Different habit' }).direction, 'baseline', 'rename cannot inherit old-name practice');
-const eventCorrections = Object.fromEntries(evidence.completions.map(d => [key(learner.id,d), { type:'uncheck', at:'2026-11-17T10:00:00.000Z' }]));
-assert.equal(run(evidence, learner, day, eventCorrections).direction, 'return', 'effective unchecks override stale completion dates');
-const disabled = structuredClone(evidence); disabled.state.configs[learner.id].enabled = false;
-assert.equal(run(disabled).direction, 'baseline');
-assert.equal(run(evidence, { ...learner, archived:true }).direction, 'baseline', 'archived habits cannot gain progression support');
-assert.equal(run(evidence, learner, '2026-02-30').direction, 'baseline', 'invalid dates fail closed');
-for (const d of ['2026-03-30', '2026-10-26']) {
-  const rows = practiceFixture(d);
-  assert.equal(new Set(rows.completions).size, 14, 'local calendar iteration retains every DST habit day');
-  assert.equal(run(rows, learner, d).recentPractice.length, 3);
-}
-const boundOccurrence = { ...occurrence, basis: basis(learner,learning) };
-assert.equal(clean({ configs:{}, occurrences: { [key('habit_x',occurrence.day)]: boundOccurrence } }).occurrences[key('habit_x',occurrence.day)].basis, boundOccurrence.basis);
-assert.equal(merge({ configs:{}, occurrences: { [key('habit_x',occurrence.day)]: boundOccurrence } }, {}).occurrences[key('habit_x',occurrence.day)].basis, boundOccurrence.basis, 'merge preserves source binding');
-console.log('  ✓ bounded same-source practice, consolidation/stretch spacing, misses, unknowns, undo, renames, config edits, DST and source metadata');
+let sig = signals(world());
+assert.equal(sig.usually, 'morning', 'usual time from daytime checks, no note needed');
+assert.equal(sig.after, 'Coffee', 'a habit checked 0-20 min before on ≥10 days is the stack partner');
+assert.equal(signals(world({ partnerGap: 30 })).after, null, 'more than 20 minutes apart is not a stack');
+assert.equal(signals(world({ days: 9 })).after, null, 'fewer than 10 shared days is not a stack');
+const reversed = world(); for (const k of Object.keys(reversed.events)) if (k.startsWith('habit_coffee')) reversed.events[k] = { type: 'check', at: new Date(Date.parse(reversed.events[k].at) + 20 * 60000).toISOString() };
+assert.equal(signals(reversed).after, null, 'a partner checked after this habit is not "after"');
+sig = signals(world({ night: true }));
+assert.equal(sig.usually, null, 'night-ticked checks (after midnight) are logging, not doing time');
+assert.equal(sig.after, null, 'night-ticked pairs are not a stack');
+console.log('  ✓ signals: usual time and stack partner from daytime checks; night logging and reversed order ignored');
 
+// lately / size
+assert.equal(signals(world({ aiDays: 7, keptAi: true })).lately, 'steady');
+assert.equal(signals(world({ aiDays: 7, keptAi: true })).size, 'deepen', 'steady and not heavy → one step deeper');
+const slipping = world({ aiDays: 5, keptAi: false });
+assert.equal(signals(slipping).lately, 'slipping');
+assert.equal(signals(slipping).size, 'return', 'no checks for 3 days after a kept stretch → return');
+const slip2 = world({ aiDays: 5, keptAi: false }); slip2.completions.habit_stretch.push(back(1));
+assert.equal(signals(slip2).lately, 'mixed', 'a kept day breaks a missed run');
+const missedRun = world({ aiDays: 3, keptAi: false }); missedRun.completions.habit_stretch.push(back(2)); 
+assert.ok(['practice', 'minimal', 'return'].includes(signals(missedRun).size));
+const deepened = world({ aiDays: 7, keptAi: true }); deepened.occurrences[key('habit_stretch', back(1))].size = 'deepen';
+assert.equal(signals(deepened).size, 'practice', 'at most one deepen every 3 days');
+assert.equal(signals({ ...world({ aiDays: 7, keptAi: true }), today: 'heavy' }).size, 'practice', 'heavy day with unknown record: normal size, never shrink by default');
+console.log('  ✓ size: steady deepens (spaced), heavy day alone never shrinks, a gap returns');
+
+// heavy-day record (D3: keep consistency on hard days)
+function rated(holds) {
+  const w = world({ aiDays: 0 });
+  for (let n = 1; n <= 12; n++) {
+    const d = back(n), heavy = n % 3 === 0;
+    w.occurrences[key('habit_stretch', d)] = { habitId: 'habit_stretch', day: d, actionId: 'ai', text: 'S' + n, state: 'expired', createdAt: at(d, 3), updatedAt: at(d, 3), edited: false, basis: '', load: heavy ? 'heavy' : 'normal', loadSource: 'full' };
+    if (heavy && !holds) w.completions.habit_stretch = w.completions.habit_stretch.filter(x => x !== d);
+  }
+  return w;
 }
+assert.equal(signals(rated(true)).heavyDays, 'holds');
+assert.equal(signals({ ...rated(true), today: 'heavy' }).size === 'minimal', false, 'holds on heavy days → normal size on a heavy day');
+assert.equal(signals(rated(false)).heavyDays, 'slips');
+assert.equal(signals({ ...rated(false), today: 'heavy' }).size, 'minimal', 'slips on heavy days → smallest version on a heavy day');
+console.log('  ✓ heavy days: a habit that holds keeps its size; one that slips gets the smallest version');
+
+// reasons
+assert.equal(JSON.stringify(REASON_LIST.map(([, l]) => l)), JSON.stringify(['too hard', 'not useful', 'did it my way']));
+const hard = world({ aiDays: 3, keptAi: true }); hard.occurrences[key('habit_stretch', back(1))].dismissReason = 'too_hard';
+assert.equal(signals(hard).size, 'minimal', '"too hard" → the next 2 days are the smallest version');
+const notUseful = world({ aiDays: 3, keptAi: true }); notUseful.occurrences[key('habit_stretch', back(2))].dismissReason = 'not_useful';
+assert.ok(signals(notUseful).avoid.includes('Stretch 2'), '"not useful" text joins avoid');
+const missed = world({ aiDays: 3, keptAi: false });
+assert.ok(signals(missed).avoid.includes('Stretch 1'), 'an undone suggestion is not repeated');
+const mine = world({ aiDays: 6, keptAi: true }); for (const n of [1, 3, 5]) mine.occurrences[key('habit_stretch', back(n))].dismissReason = 'my_way';
+assert.equal(signals(mine).ownWay, true, '"did it my way" 3 of 10 → stay close to the usual routine');
+console.log('  ✓ reasons: too hard → smaller, not useful/undone → avoided, did it my way → own routine');
+
+// reduction goal, from the name or the note
+assert.equal(signals({ ...world(), habit: { id: 'habit_stretch', name: 'Less snus' } }).goal, 'reduce');
+assert.equal(signals({ ...world(), habit: { id: 'habit_stretch', name: 'No snus' } }).goal, 'reduce');
+assert.equal(signals({ ...world(), note: 'cut down slowly' }).goal, 'reduce');
+assert.equal(signals(world()).goal, null);
+console.log('  ✓ reduction goal from name or note');
+
+// load (aggregates only; unknown never heavy)
+assert.equal(load({ carried: 12, carriedHistory: [4, 5, 6, 5], calendarHours: 1 }).load, 'heavy', 'carry-over well above usual');
+assert.equal(load({ carried: 4, carriedHistory: [4, 5, 6, 5], calendarHours: 6 }).load, 'heavy', 'full calendar');
+assert.equal(load({ carried: 4, carriedHistory: [4, 5, 6, 5], keptYesterday: 0, habitsYesterday: 6 }).load, 'heavy', 'rough yesterday');
+assert.equal(JSON.stringify(load({ carried: 4, carriedHistory: [4, 5, 6, 5], calendarHours: 1, keptYesterday: 5, habitsYesterday: 6 })), JSON.stringify({ load: 'light', source: 'full' }));
+assert.equal(JSON.stringify(load({})), JSON.stringify({ load: 'normal', source: 'partial' }), 'nothing known → normal, partial');
+console.log('  ✓ load: heavy from carry-over, calendar or yesterday; unknown never heavy');
+
+// merge: expiry never erases explicit feedback; load merges on its own
+const mk = (o) => ({ habitId: 'habit_x', day: '2026-11-10', actionId: 'ai', text: 'Run', createdAt: at1, updatedAt: at1, state: 'active', edited: false, basis: '', ...o });
+const dismissed = mk({ state: 'dismissed', edited: true, dismissReason: 'too_hard', updatedAt: at1 });
+const expiredLater = mk({ state: 'expired', updatedAt: at2 });
+for (const [a, b] of [[dismissed, expiredLater], [expiredLater, dismissed]]) {
+  const m = merge({ configs: {}, occurrences: { 'habit_x::2026-11-10': a } }, { configs: {}, occurrences: { 'habit_x::2026-11-10': b } }).occurrences['habit_x::2026-11-10'];
+  assert.equal(m.dismissReason, 'too_hard', 'a later automatic expiry never erases a reason');
+}
+const activeA = mk({ load: 'normal', loadSource: 'partial' }), expiredB = mk({ state: 'expired', updatedAt: at2, createdAt: at2, load: 'heavy', loadSource: 'full' });
+const ml = merge({ configs: {}, occurrences: { 'habit_x::2026-11-10': activeA } }, { configs: {}, occurrences: { 'habit_x::2026-11-10': expiredB } }).occurrences['habit_x::2026-11-10'];
+assert.equal(ml.state, 'expired', 'a closed day stays closed after merge');
+assert.equal(ml.load, 'heavy', 'a calendar-informed load beats a partial one');
+const ml2 = merge({ configs: {}, occurrences: { 'habit_x::2026-11-10': mk({ load: 'light', loadSource: 'partial' }) } },
+  { configs: {}, occurrences: { 'habit_x::2026-11-10': mk({ createdAt: at2, load: 'heavy', loadSource: 'partial' }) } }).occurrences['habit_x::2026-11-10'];
+assert.equal(ml2.load, 'light', 'otherwise the first load written wins');
+const cleanedNew = clean({ occurrences: { 'habit_x::2026-11-10': mk({ load: 'bogus', size: 'huge', dismissReason: 'x', reasonCheckAt: 'no' }) } }).occurrences['habit_x::2026-11-10'];
+assert.ok(!('load' in cleanedNew) && !('size' in cleanedNew) && !('dismissReason' in cleanedNew) && !('reasonCheckAt' in cleanedNew), 'clean() drops invalid new fields');
+console.log('  ✓ merge: explicit feedback survives expiry; load merges separately; clean() validates new fields');
+
 console.log('\n✓ HABIT TASK POLICY UNIT TEST PASSED');

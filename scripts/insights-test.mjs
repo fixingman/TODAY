@@ -2,8 +2,7 @@
 //
 // Tests: fresh-state init, seeded-memory init, _stripTag, _memoryOnTaskComplete,
 //        _memoryOnFocusComplete, _memoryOnTaskLetgo, _memoryOnStreakUpdate,
-//        _memoryOnDaySummary, _memoryForAI (full + nudge), _getProactiveObservations,
-//        _pickObservationToMention (pick + cooldown), hemisphere-aware season
+//        _memoryOnDaySummary, _memoryForAI (full + nudge), hemisphere-aware season
 //        moments, static wiring.
 //
 // Run from repo root:
@@ -708,8 +707,7 @@ try {
     });
     const r = await page.evaluate(() => {
       const trait = /\b(you|they|the (user|person))\s+(always|never|are (a|an|someone))\b|\b(good instinct|overestimat|morning person|night owl|procrastinat)/i;
-      const texts = [window._memoryForAI('full'), window._memoryForAI('nudge'),
-        ...[8, 15].flatMap(hour => window._getProactiveObservations({ streak: 2, hour }).map(o => o.text))];
+      const texts = [window._memoryForAI('full'), window._memoryForAI('nudge')];
       const hits = texts.flatMap(t => t.split('\n')).filter(line => trait.test(line));
       return { checked: texts.length >= 2, noTraitLines: hits.length === 0, hits: hits.length ? hits : undefined,
         keepsFacts: texts[0].includes('pulled back from Soon') && texts[0].includes('after 2pm') && texts[0].includes('You tend to get most done') };
@@ -717,63 +715,6 @@ try {
     await expectAll('trait wording', { checked: r.checked, noTraitLines: r.noTraitLines, keepsFacts: r.keepsFacts, noErrors: !errors.length });
     await page.close();
     ok('Rules 35: AI context may state rhythms, never character judgements, identity labels, always/never or praise');
-  }
-
-  // 10. _getProactiveObservations — returns typed observation objects.
-  {
-    const { page, errors } = await openPage({
-      memory: baseMem({
-        totalTasksCompleted: 50,
-        totalDaysActive: 20,
-        // bestStreak=3 so streak=7 triggers streak_record (7>3 and 7>3)
-        patterns: {
-          completionsByHour: {}, taskKeywords: {}, focusMinutesTotal: 0, bestStreak: 3,
-          lateAdditions: [], taskLifespanSamples: [], letgoReasons: {},
-          triageUndos: 0, soonPulls: 0, reviveReasons: {},
-        },
-      }),
-      extraSeed: { stat_streak: '7' },
-    });
-    const r = await page.evaluate(() => {
-      // streak=7 > bestStreak=3 → streak_record (high)
-      // totalTasksCompleted=50, 50%25===0 → tasks_milestone (medium)
-      const obs = window._getProactiveObservations({ streak: 7 });
-      return {
-        isArray:      Array.isArray(obs),
-        nonEmpty:     obs.length > 0,
-        hasType:      obs.every(o => typeof o.type === 'string'),
-        hasPriority:  obs.every(o => ['high', 'medium', 'low'].includes(o.priority)),
-        hasText:      obs.every(o => typeof o.text === 'string' && o.text.length > 0),
-        hasStreakRec: obs.some(o => o.type === 'streak_record'),
-      };
-    });
-    await expectAll('_getProactiveObservations', { ...r, noErrors: !errors.length });
-    ok('_getProactiveObservations: returns typed observation array (type/priority/text), streak_record present');
-    await page.close();
-  }
-
-  // 11. _pickObservationToMention — picks high-priority obs; 24h cooldown gates repeat.
-  {
-    const { page, errors } = await openPage();
-    const r = await page.evaluate(() => {
-      const highObs = [{ type: 'peak_hour', priority: 'high', text: "It's 9am — your most productive hour." }];
-      const first = window._pickObservationToMention(highObs);
-      const cooldownSet     = localStorage.getItem('ai_last_observation') === 'peak_hour';
-      const cooldownTimeSet = parseInt(localStorage.getItem('ai_last_observation_time') || '0') > 0;
-      // Second call within 24h — same type filtered → null
-      const second = window._pickObservationToMention(highObs);
-      return {
-        firstReturned:  first !== null && first.type === 'peak_hour',
-        cooldownSet,
-        cooldownTimeSet,
-        secondNull:     second === null,
-        emptyInputNull: window._pickObservationToMention([]) === null,
-        nullInputNull:  window._pickObservationToMention(null) === null,
-      };
-    });
-    await expectAll('_pickObservationToMention', { ...r, noErrors: !errors.length });
-    ok('_pickObservationToMention: picks high-priority obs, writes cooldown, blocks repeat type within 24h');
-    await page.close();
   }
 
   // 12. Season moments — same date maps to the locally correct half-year term.
@@ -808,7 +749,6 @@ try {
       '_memoryOnTaskComplete', '_memoryOnTaskLetgo', '_memoryOnTriageUndo',
       '_memoryOnSoonPull', '_memoryOnRevive', '_memoryOnFocusComplete',
       '_memoryOnStreakUpdate', '_memoryOnDaySummary', '_memoryForAI',
-      '_getProactiveObservations', '_pickObservationToMention',
       '_noticedEligible', '_noticedStamp', '_seasonMomentForDate', '_noticedLines',
     ];
     const wiringResult = {};

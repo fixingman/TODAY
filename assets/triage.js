@@ -177,7 +177,7 @@
           const badgeClass = decision;
           const badgeText = decision === 'done' ? 'done' : decision === 'kept' ? 'kept' : decision === 'soon' ? '↩︎ soon' : 'let go';
           const needsReason = decision === 'letgo' && !triageDecisions[t.id + '_reason'];
-          const _rcs = [['not_relevant','not relevant'],['no_energy','no energy'],['lost_interest','lost interest'],['replaced','replaced']];
+          const _rcs = (Today.has('habit-tasks') && Today.use('habit-tasks').reasonsFor(t)) || [['not_relevant','not relevant'],['no_energy','no energy'],['lost_interest','lost interest'],['replaced','replaced']];
           return `
         <div class="triage-task decided" data-id="${t.id}">
           <div class="triage-task-row">
@@ -376,10 +376,13 @@
           soonTasks.unshift(t);
         } else if (decision === 'letgo') {
           letgoCount++;
-          _memoryOnTaskLetgo(t.text, _letgoReason);
+          // Habit-task reasons stay with the habit, not task let-go statistics (R3).
+          const habitTask = Today.has('habit-tasks') && Today.use('habit-tasks').reasonsFor(t);
+          if (!habitTask) _memoryOnTaskLetgo(t.text, _letgoReason);
           t.zone = 'past';
           t.status = 'let_go';
           if (Today.has('habit-tasks')) Today.use('habit-tasks').dismiss(t);
+          if (habitTask && _letgoReason) Today.use('habit-tasks').recordReason(t, _letgoReason);
           t.zoneChangedAt = new Date().toISOString();
           pastTasks.unshift(t);
         }
