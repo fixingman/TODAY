@@ -696,7 +696,7 @@
           'The contexts describe actions during the day; the feeling is the person’s evening report, not a feeling measured immediately after an action. ' +
           'Copy more_context and less_context verbatim, in that order, joined by "than". ' +
           'Do not narrate the numbers or mention any other feeling. ' +
-          'Forbidden: causal language, diagnosis, fixed traits or labels about who the person is, scores, streaks, advice, predictions, clinical interpretation. ' +
+          'Forbidden: causal language, diagnosis, identity labels or judgements of character, scores, streaks, advice, predictions, clinical interpretation. ' +
           'Do not make up specific dates or tasks. ' +
           'Reply only as valid JSON in the exact shape {"message":"your sentence"}.' + (guidance ? ' ' + guidance : '');
 

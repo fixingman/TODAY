@@ -841,7 +841,7 @@
               'Do NOT combine two timing stats into a same-day cause-effect claim — each is an independent aggregate. ' +
               'Ground it only in the data above, never invent. ' +
               'If nothing genuine stands out, reply with exactly: none.' }],
-            systemPrompt: 'One sentence only, under 22 words. No quotes. Second person — address the user as "you". Use numerals for all numbers (3 not three). Plain, observational — rhythm, timing, or a concrete task that reveals something real. Describe what happened and what changed, never who the person is: no fixed traits, labels or judgements of character.',
+            systemPrompt: 'One sentence only, under 22 words. No quotes. Second person — address the user as "you". Use numerals for all numbers (3 not three). Plain, observational — rhythm, timing, or a concrete task that reveals something real. Observed rhythms may be described ("you tend to…"), but never judge character, give a fixed identity label, say always or never about the person, or praise their character.',
           }),
         });
         if (!res.ok) return null;

@@ -207,7 +207,7 @@ Don't store behavior — store conclusions. Completion timestamps, focus session
 
 | Type | What it holds | Update rate |
 |---|---|---|
-| **Semantic** | Slow-changing patterns, always stated as what happened with its basis — "most tasks done before noon (90 days)," never a trait like "is a morning person" (Rules 35) | Slow — months |
+| **Semantic** | Stable rhythms across weeks — "tends to finish tasks before noon"; never a character judgement or identity label like "is a morning person" (Rules 35) | Slow — months |
 | **Episodic** | Specific recent state — "had three bad focus sessions last week" | Fast — days |
 | **Procedural** | Recurring ways of working, as observed — "projects split into ≤30-min tasks lately," "admin tasks mostly done before 3pm this month" | Medium — weeks |
 | **Meta** | System's own confidence and data coverage — "I only have 5 days of evening data" | Continuous |
@@ -219,7 +219,7 @@ Conflating types produces systems too cautious about small things or overconfide
 ### Three temporal scales, different inertia
 - **This week** — high plasticity, updates fast. Episodic state.
 - **This month** — medium inertia, rolling average. Procedural patterns.
-- **Slow patterns** — very slow, resists transient noise. Semantic patterns, still worded as observations, never as identity (Rules 35).
+- **Slow patterns** — very slow, resists transient noise. Semantic rhythms, never identity labels (Rules 35).
 
 If a week looks wildly different from the medium window, surface that as a signal rather than immediately updating the long-window model. Don't let a burned-out week erase 6 months of healthy patterns (catastrophic forgetting).
 

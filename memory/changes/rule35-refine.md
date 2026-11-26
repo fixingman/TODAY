@@ -1,0 +1,6 @@
+---
+bump: patch
+title: Rhythms like "you tend to get most done in the afternoon" are back; only judgements and labels stay out
+about: TODAY's AI can again say how your days tend to go. It still never judges you or labels who you are.
+---
+Can (2026-11-26): v3.16.0 went too far; describing observed rhythms is useful and not a habit issue. Rules 35 restated: rhythms may be personal ("you tend to…", "you usually…"); no character judgements, identity labels, always/never about the person, or praise of character. Restored the original rhythm lines in `_memoryForAI` and observation text (peak hour, late additions, task lifespan, morning planning without "Good instinct"); kept "N tasks have been pulled back from Soon so far" instead of "tends to overestimate future availability". Prompts (morning ×2, About, Explore, reflections, Memory patterns) carry the narrower principle; Memory patterns ask for "stable patterns across weeks" again. `_observationTextIsGrounded` now rejects always/never about the person, "overestimat", "procrastinat", "night owl", "morning person" and "good instinct", and allows "you tend/usually". Tests updated (`insights-test`, `observation-pool-test`); Personalization.md and AI.md follow.

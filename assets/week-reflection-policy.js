@@ -631,8 +631,8 @@
   function _observationTextIsGrounded(text, maxWords) {
     if (!text || /^none\.?$/i.test(text.trim())) return false;
     if (/\bwho you are\b|\bthat(?:'s| is) (?:just )?you\b|\byou(?:'re| are) (?:the kind|the type|someone who|a person who)\b/i.test(text)) return false;
-    // Rules 35: no fixed traits or praise of character.
-    if (/\byou (?:tend|usually|typically|always|never)\b|\bgood instinct\b/i.test(text)) return false;
+    // Rules 35: rhythms are fine; no always/never about the person, character judgements or praise.
+    if (/\byou (?:always|never)\b|\bgood instinct\b|\boverestimat|\bprocrastinat|\bnight owl\b|\bmorning person\b/i.test(text)) return false;
     if (/\b(?:caused|made you|because of)\b/i.test(text)) return false;
     if (/\b\d{2,4}\s+days? in\b/i.test(text)) return false;
     return text.trim().split(/\s+/).length <= (maxWords || 26);

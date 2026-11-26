@@ -1006,9 +1006,10 @@ console.log('\nobservation pool — habit return\n');
   test('two "not landing" votes retire habit-return like any other kind', () =>
     _observationNoveltyGate([habit], { spokenLines: [{ kind: 'habit-return', date: ago(30), reaction: 'missed' },
       { kind: 'habit-return', date: ago(40), reaction: 'missed' }], surface: 'nudge', todayISO: TODAY }).length === 0);
-  test('Rules 35: generated text with a trait opener or praise of character is rejected', () =>
-    !_weekReflectionTextIsGrounded('You tend to come back to Stretch after a gap', habit)
-    && !_weekReflectionTextIsGrounded('Good instinct returning to Stretch', habit));
+  test('Rules 35: always/never about the person or praise of character is rejected; a rhythm is not', () =>
+    !_weekReflectionTextIsGrounded('You always come back to Stretch after a gap', habit)
+    && !_weekReflectionTextIsGrounded('Good instinct returning to Stretch', habit)
+    && _weekReflectionTextIsGrounded('You tend to come back to Stretch after a gap', habit));
 }
 
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');
