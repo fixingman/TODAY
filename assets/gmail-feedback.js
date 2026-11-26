@@ -76,12 +76,15 @@ function controls(entry,view){
   const el=block(),f=record(entry),hidden=!!f?.context?.hidden;
   const context=el.querySelector('.focus-gmail-context');if(!context)return;
   const state=JSON.stringify([f,view.accepted?.id,view.contextUndo,!!view.wordingUndo,view.wordingOpen,
-    view.pendingContext,view.contextRetryUsed,view.pendingDraft,view.draftRetryUsed,rows().some(r=>r.feedback?.wording)]);
+    view.pendingContext,view.contextRetryUsed,view.contextRetryMessage,view.pendingDraft,view.draftRetryUsed,rows().some(r=>r.feedback?.wording)]);
   if(view.controlsStamp===state)return;view.controlsStamp=state;
   context.hidden=hidden;el.querySelector('.focus-gmail-open').hidden=hidden;
   const main=el.querySelector('.focus-gmail-draft-btn');if(main)main.hidden=hidden;
   el.querySelector('.focus-gmail-draft').hidden=hidden||!view.accepted;
   const actions=el.querySelector('.gmail-context-feedback');actions.replaceChildren();
+  actions.setAttribute('aria-busy',String(!!view.pendingContext));
+  const status=el.querySelector('.gmail-context-status');
+  status.textContent=view.contextRetryMessage||'';status.hidden=!hidden||!view.contextRetryMessage;
   const contextButton=button(actions,hidden?(view.contextUndo?'undo':'show email'):'not this thread','gmail.context',hidden?'Restore this email context for this task':'Not this thread for this task');
   contextButton.dataset.mode=hidden?'restore':'reject';
   if(hidden){const retry=button(actions,view.pendingContext?'looking…':'try other email','gmail.context-retry','Try another email for this task');retry.disabled=!!view.contextRetryUsed;}
@@ -176,6 +179,8 @@ function failSave(){announce('Could not save feedback on this device.');}
       context.append(...['.focus-gmail-meta','.focus-gmail-detail','.focus-gmail-snippet'].map(s=>thread.querySelector(s)).filter(Boolean));
       const feedback=document.createElement('span');feedback.className='gmail-context-feedback focus-gmail-actions';
       block.querySelector('.focus-gmail-actions').append(feedback);
+      const status=document.createElement('div');status.className='gmail-context-status focus-gmail-meta';
+      status.setAttribute('role','status');status.hidden=true;thread.append(status);
       const footer=document.createElement('div');footer.className='gmail-draft-feedback focus-gmail-actions';thread.append(footer);
       view.snippet=(typeof enrichment.replySnippet==='string'&&enrichment.replySnippet?enrichment.replySnippet:snippet).slice(0,200);
       view.canReply=canReply;view.controlsStamp=null;
@@ -286,15 +291,17 @@ function failSave(){announce('Could not save feedback on this device.');}
     });
     Today.ui.register('click','gmail.context-retry',(event,btn)=>{
       stop(event);const value=active(btn);if(!value||!record(value.entry)?.context?.hidden||value.view.contextRetryUsed)return;
-      const {view}=value;view.contextRetryUsed=true;view.pendingContext=true;controls(value.entry,view);
+      const {view}=value;view.contextRetryUsed=true;view.pendingContext=true;view.contextRetryMessage='';controls(value.entry,view);
+      // A null result also covers transport/credential failures, not just no match.
+      const unavailable=()=>{if(view===hooks.view()&&hooks.current(view))view.contextRetryMessage='Couldn’t show another email. Your previous email is still available.';};
       hooks.alternative(view).then(entry=>{
         if(view!==hooks.view())return;
         const selected=hooks.get(view.id);
         if(entry&&selected&&hooks.identity(selected,view.id)===hooks.identity(entry,view.id)){
           view.cache=localStorage.getItem(PREFIX+view.id);view.identity=hooks.identity(entry,view.id);view.expires=entry.fetchedAt+86400000;
           if(hooks.current(view)){view.accepted=null;view.contextUndo=null;_doRenderBlock(block(),view.text,entry);announce('Other email context shown.');}
-        }else if(hooks.current(view)){controls(hooks.get(view.id),view);announce('No other email to show. The previous email can still be restored.');}
-      }).catch(()=>{}).finally(()=>{if(view===hooks.view()&&hooks.current(view)){view.pendingContext=false;controls(hooks.get(view.id),view);focus('gmail.context');}});
+        }else unavailable();
+      }).catch(unavailable).finally(()=>{if(view===hooks.view()&&hooks.current(view)){view.pendingContext=false;controls(hooks.get(view.id),view);focus('gmail.context');}});
     });
     Today.ui.register('click','gmail.wording',(event,btn)=>{
       stop(event);const value=activeDraft(btn);if(!value)return;value.view.wordingOpen=!value.view.wordingOpen;

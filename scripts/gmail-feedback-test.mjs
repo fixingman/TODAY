@@ -127,7 +127,19 @@ try{
  {
   const{page,errors}=await fixture();await open(page);await page.evaluate(()=>__mailCandidates=['first']);await click(page,'gmail.context');await click(page,'gmail.context-retry');
   await page.waitForFunction(()=>document.querySelector('[data-today-click="gmail.context-retry"]')?.textContent==='try other email');
+  const message=await page.$eval('.gmail-context-status',e=>({text:e.textContent,visible:!e.hidden&&e.getBoundingClientRect().height>0,role:e.getAttribute('role')}));
+  assert.deepEqual(message,{text:'Couldn’t show another email. Your previous email is still available.',visible:true,role:'status'});
+  assert.equal(await page.$eval('[data-today-click="gmail.context-retry"]',b=>b.disabled),true);
+  const requests=await page.evaluate(()=>__mailRequests.length);
+  await page.$eval('[data-today-click="gmail.context-retry"]',b=>b.click());assert.equal(await page.evaluate(()=>__mailRequests.length),requests);
+  await page.setViewport({width:320,height:800});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  assert.equal(await page.$eval('.gmail-context-status',e=>{const r=e.getBoundingClientRect();return r.height>0&&r.left>=0&&r.right<=innerWidth&&document.documentElement.scrollWidth<=innerWidth;}),true);
+  await page.addScriptTag({path:join(ROOT,'scripts/node_modules/axe-core/axe.min.js')});assert.deepEqual((await page.evaluate(()=>axe.run(document.querySelector('#focusGmailBlock')))).violations,[]);
+  await page.screenshot({path:join(EVIDENCE,'gmail-alternative-unavailable-320.png'),fullPage:true});
+  await page.setViewport({width:1280,height:900});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  await page.screenshot({path:join(EVIDENCE,'gmail-alternative-unavailable-desktop.png'),fullPage:true});
   assert.equal((await read(page)).threadId,'first');assert.equal((await read(page)).feedback.context.hidden,true);await click(page,'gmail.context');assert.equal(await page.$eval('.focus-gmail-context',e=>e.hidden),false);
+  assert.equal(await page.$eval('.gmail-context-status',e=>e.hidden),true);assert.equal(await page.evaluate(()=>__mailRequests.length),requests);
   assert.deepEqual(errors,[]);ok('an empty alternative leaves the original hidden and recoverable; no invented difference or automatic extra lookup');await page.browserContext().close();
  }
  {
@@ -192,6 +204,9 @@ try{
   const{page}=await fixture();await open(page);await page.evaluate(()=>window.__mailError=true);await click(page,'gmail.context');await click(page,'gmail.context-retry');
   await page.waitForFunction(()=>document.querySelector('[data-today-click="gmail.context-retry"]')?.textContent==='try other email');
   assert.equal((await read(page)).feedback.context.hidden,true);assert.equal(await page.evaluate(()=>__mailRequests.length),1);
+  assert.equal(await page.$eval('.gmail-context-status',e=>!e.hidden&&e.textContent.includes('Couldn’t show another email.')),true);
+  await click(page,'gmail.context');assert.equal(await page.$eval('.gmail-context-status',e=>e.hidden),true);assert.equal(await page.$eval('.focus-gmail-context',e=>e.hidden),false);
+  assert.equal(await page.evaluate(()=>__mailRequests.length),1);
   ok('a failed alternative lookup preserves the hidden original without broadening search or retrying automatically');await page.browserContext().close();
  }
  for(const change of ['clear','feedback-revision','memory-clear','edit','delete','account','ai-key','expiry','source-cache']){
@@ -233,9 +248,12 @@ try{
  }
  {
   const{page}=await fixture();await open(page);await page.evaluate(()=>window.__holdMail=true);await click(page,'gmail.context');await click(page,'gmail.context-retry');await page.waitForFunction(()=>!!window.__heldMail);
+  assert.deepEqual(await page.$eval('[data-today-click="gmail.context-retry"]',b=>({text:b.textContent,disabled:b.disabled})),{text:'looking…',disabled:true});
+  assert.equal(await page.$eval('.gmail-context-feedback',e=>e.getAttribute('aria-busy')),'true');
   await click(page,'gmail.context');assert.equal(await page.evaluate(()=>__heldMail.signal.aborted),true);
   await page.evaluate(()=>__heldMail.release());await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   const entry=await read(page);assert.equal(entry.threadId,'first');assert.equal(entry.feedback?.context,undefined);assert.equal(await page.evaluate(()=>__mailRequests.length),1);
+  assert.equal(await page.$eval('.gmail-context-status',e=>e.hidden),true);assert.equal(await page.$eval('.gmail-context-feedback',e=>e.getAttribute('aria-busy')),'false');
   ok('restoring feedback during a held alternative aborts it and fences its late list body');await page.browserContext().close();
  }
  {
