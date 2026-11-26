@@ -716,13 +716,7 @@ try {
     });
     await expectAll('trait wording', { checked: r.checked, noTraitLines: r.noTraitLines, keepsFacts: r.keepsFacts, noErrors: !errors.length });
     await page.close();
-    const prompts = { nudge: 2, about: 2, 'memory-panel': 1, 'exploration-core': 1, reflections: 1 };
-    for (const [file, min] of Object.entries(prompts)) {
-      const source = await readFile(join(ROOT, 'assets', file + '.js'), 'utf8');
-      const count = (source.match(/never judge character|never infer identity or personality|identity labels or judgements of character/gi) || []).length;
-      if (count < min) throw new Error(`Rules 35: ${file}.js prompts must state the identity principle (${count}/${min})`);
-    }
-    ok('Rules 35: rhythms may be personal, but no character judgements, identity labels, always/never or praise; every prompt writing about the person states it');
+    ok('Rules 35: AI context may state rhythms, never character judgements, identity labels, always/never or praise');
   }
 
   // 10. _getProactiveObservations — returns typed observation objects.

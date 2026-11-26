@@ -998,7 +998,7 @@ console.log('\nobservation pool — habit return\n');
     && !_buildObservationCandidates({ outcomes: [], todayISO: TODAY }).some(c => c.kind === 'habit-return'));
   test('habit-return is eligible on the morning line, with no praise or trait in its evidence or insight', () =>
     _observationEligibleFor([habit], 'nudge', {}).length === 1
-    && !/great|well done|proud|good job|you tend|you always/i.test(habit.evidence + ' ' + habit.insight));
+    && !/great|well done|proud|good job|you always/i.test(habit.evidence + ' ' + habit.insight) && /never praise of the person/.test(habit.insight));
   test('habit-return waits 5 days before the same kind speaks again on the morning line', () => {
     const said = d => ({ spokenLines: [{ kind: 'habit-return', date: ago(d), surface: 'nudge' }], surface: 'nudge', todayISO: TODAY });
     return _observationNoveltyGate([habit], said(4)).length === 0 && _observationNoveltyGate([habit], said(5)).length === 1;
@@ -1009,7 +1009,9 @@ console.log('\nobservation pool — habit return\n');
   test('Rules 35: always/never about the person or praise of character is rejected; a rhythm is not', () =>
     !_weekReflectionTextIsGrounded('You always come back to Stretch after a gap', habit)
     && !_weekReflectionTextIsGrounded('Good instinct returning to Stretch', habit)
-    && _weekReflectionTextIsGrounded('You tend to come back to Stretch after a gap', habit));
+    && _weekReflectionTextIsGrounded('You tend to come back to Stretch after a gap', habit)
+    && require(join(ROOT, 'assets/week-reflection-policy.js'))._observationTextIsGrounded('Stretch is back after 4 days off, good to see', 26)
+    && !require(join(ROOT, 'assets/week-reflection-policy.js'))._observationTextIsGrounded('You always come back to Stretch', 26));
 }
 
 console.log('\n' + (failed === 0 ? '✓ ' : '✗ ') + passed + ' passed, ' + failed + ' failed\n');

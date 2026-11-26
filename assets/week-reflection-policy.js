@@ -438,7 +438,7 @@
       score: 90,
       signal: { name: best.name, missed: best.missed },
       evidence: `Yesterday "${best.name}" was checked again after ${best.missed} missed days.`,
-      insight: 'The habit came back after a gap instead of stopping there.',
+      insight: 'The habit came back after a gap instead of stopping there; a brief warm note about the comeback itself fits (glad it is back), never praise of the person.',
     }];
   }
 
