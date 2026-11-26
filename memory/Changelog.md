@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Full validation for the master promotion of v3.17.0 (engineering, app v3.17.0 unchanged)
+
+Can asked to push to master (2026-11-26). `release:preflight` found no reusable full proof for 66329482 (its dev run covered selected suites), so this engineering cut requests `CI-Validation: full` on the identical application code before the exact-SHA fast-forward.
+
 ## Habit daily tasks learn from what you do, not from notes (app v3.17.0)
 
 **Why (Can, 2026-11-26):** suggestions felt "a bit dummy … random"; 6 of 9 habits have no note, and the old progression only adapted habits with a note (`progression()` returned baseline without one) and reset after any settings edit; "harder" days came from a fixed every-4th-day timer (`stretchDay`). Design + eng review + Codex outside voice: `~/.gstack/projects/fixingman-TODAY/can-dev-design-20261126-habit-daily-tasks.md`.
