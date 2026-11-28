@@ -2,6 +2,10 @@
 
 > Entries older than ~20 application versions → `archive/Changelog-archive.md`
 
+## Declare desktop input in the focus-history lifecycle fixture (engineering, app v3.17.1 unchanged)
+
+Dev candidate c50b8324 (app v3.17.1) passed seven Mac checks, but Linux run46146719970 failed both day-lifecycle attempts waiting for the new restored Focus session to earn25minutes (line435). The fixture relied on native hover input; Focus intentionally returns before registering restoration on a no-hover device. Declare the same full desktop hover/pointer model used by the existing Focus suite before app startup. Keep real focus restoration, queued uploads, rollover, polling/reconnect, reload and stale-repair assertions unchanged; do not raise timeouts or change the app's mobile guard. A coarse-pointer negative control confirms Focus is not registered, no minutes are earned and the saved session remains; the desktop fixture separately requires registration. Owning suite plus invariants pass in fresh-UtWJNW (2/2, zero failures/flakes,24.9s). Preserve the failed Linux artifacts under .context/publish-lD33lm/failed-shard. This is a test-driver correction; application/SW version and bytes remain3.17.1. Installed incident cause, recovery and BUG-176 verification remain open.
+
 ## Retain past-day focus counters during delayed sync (BUG-176) (app v3.17.1)
 
 Reopened BUG-176 after Can reported Friday November 27 focus time disappearing after it had been visible. Reproduce an independent loss path with the actual component: a past-day dated remote live counter is ignored after local rollover when no equivalent history row exists. Fold that valid counter into history by existing per-field maximum in both sync and manual Restore, preserving date boundaries, richer rows, replay idempotence and the existing schema/retention. No live-account cause or recovery is claimed. Existing pre-fix reproduction fails on missing retained minutes; owning/adjacent tests cover sync, Restore, missing history, richer rows and invalid/current/future counters. Publication and installed acceptance remain separate.

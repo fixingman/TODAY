@@ -1,5 +1,0 @@
----
-bump: none
-title: Declare desktop input in the focus-history lifecycle fixture
----
-Dev candidate c50b8324 (app v3.17.1) passed seven Mac checks, but Linux run46146719970 failed both day-lifecycle attempts waiting for the new restored Focus session to earn25minutes (line435). The fixture relied on native hover input; Focus intentionally returns before registering restoration on a no-hover device. Declare the same full desktop hover/pointer model used by the existing Focus suite before app startup. Keep real focus restoration, queued uploads, rollover, polling/reconnect, reload and stale-repair assertions unchanged; do not raise timeouts or change the app's mobile guard. A coarse-pointer negative control confirms Focus is not registered, no minutes are earned and the saved session remains; the desktop fixture separately requires registration. Owning suite plus invariants pass in fresh-UtWJNW (2/2, zero failures/flakes,24.9s). Preserve the failed Linux artifacts under .context/publish-lD33lm/failed-shard. This is a test-driver correction; application/SW version and bytes remain3.17.1. Installed incident cause, recovery and BUG-176 verification remain open.
