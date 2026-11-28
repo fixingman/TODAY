@@ -358,7 +358,7 @@ try {
         });
         const outgoing=await working.page.evaluate(({stale,friday,fridayDs})=>{
           mergeRemoteData(stale);
-          const syncedZero=safeJSON('today_daily_history',[]).find(row=>row.date===friday)?.focusMins===0;
+          const syncedZero=stale.daily_history.find(row=>row.date===friday)?.focusMins===0;
           localStorage.setItem('stat_last_visit',fridayDs);applyNewDayCleanup();
           const history=safeJSON('today_daily_history',[]),row=history.find(row=>row.date===friday);
           return {syncedZero,retained:row?.focusMins===90,
@@ -384,6 +384,184 @@ try {
         }
         ok('Friday focus survives two-device sync, rollover and stale replay; both About grids show 1h 30m');
       }finally{for(const context of contexts)await context.close();}
+    }
+
+    // Shared fictional Dropbox, real focus-session restoration, upload, cold
+    // start, rollover, stale replay and reload. No seeded history after boot.
+    for (const writerRollsFirst of [false,true]) {
+      const contexts=[await browser.createBrowserContext(),await browser.createBrowserContext()];
+      let cloud=null,rev=0;
+      const friday=new Date(2026,10,27,18).getTime(),saturday=new Date(2026,10,28,12).getTime();
+      const pages=[],errors=[];
+      const boot=async(context,epoch,writer)=>{
+        const page=await context.newPage();pages.push(page);
+        page.on('pageerror',e=>errors.push(e.message));
+        await page.exposeFunction('__focusCloud',(url,body)=>{
+          if(url.endsWith('/2/files/upload')){cloud=JSON.parse(body);return {body:JSON.stringify({rev:'focus-'+ ++rev})};}
+          if(url.endsWith('/2/files/get_metadata'))return {body:JSON.stringify({rev:'focus-'+rev})};
+          if(url.endsWith('/2/files/download'))return cloud?{body:JSON.stringify(cloud),headers:{'Dropbox-API-Result':JSON.stringify({rev:'focus-'+rev})}}:{status:409,body:'{}'};
+          throw new Error('Unexpected fictional focus request');
+        });
+        await page.evaluateOnNewDocument(({epoch,writer})=>{
+          const NativeDate=Date;let origin=Number(localStorage.getItem('__focus_fixture_clock')||epoch)-performance.now();
+          class Clock extends NativeDate {
+            constructor(...args){super(...(args.length?args:[origin+performance.now()]));}
+            static now(){return Math.floor(origin+performance.now());}
+          }
+          window.Date=Clock;
+          window.__focusJump=next=>{origin=next-performance.now();localStorage.setItem('__focus_fixture_clock',String(next));};
+          if(!localStorage.getItem('__focus_fixture_seed')){
+            localStorage.setItem('__focus_fixture_seed','1');localStorage.setItem('__focus_fixture_clock',String(epoch));
+            localStorage.setItem('today_manual',JSON.stringify([{id:'manual_focus_fixture',text:'Read the fictional draft'}]));
+            localStorage.setItem('stat_last_visit',new Date().toDateString());
+            if(writer)localStorage.setItem('today_focus_session',JSON.stringify({taskId:'manual_focus_fixture',rem:1,savedAt:Date.now()-120000,paused:false}));
+            localStorage.setItem('dropbox_token','fictional-focus-fixture-token');
+          }
+          localStorage.setItem('splash_shown_at',String(Date.now()));
+          const nativeFetch=window.fetch;
+          window.fetch=async(input,options={})=>{
+            if(!String(input).includes('dropboxapi.com'))return nativeFetch(input,options);
+            const r=await window.__focusCloud(String(input),options.body);
+            if(String(input).endsWith('/2/files/upload'))window.__focusLastUpload=JSON.parse(options.body);
+            return new Response(r.body,{status:r.status||200,headers:r.headers});
+          };
+        },{epoch,writer});
+        await page.goto(URL_BASE,{waitUntil:'domcontentloaded',timeout:15000});
+        await waitForAppReady(page,{label:'Focus shared-backup fixture'});
+        return page;
+      };
+      try {
+        const writer=await boot(contexts[0],friday,true);
+        await writer.waitForFunction(()=>localStorage.getItem('stat_focus_mins_today')==='25');
+        await writer.waitForFunction(()=>window.__focusLastUpload?.stat_focus_mins_today==='25');
+        if(writerRollsFirst){
+          await writer.evaluate(now=>{__focusJump(now);applyNewDayCleanup();},saturday);
+          await writer.waitForFunction(()=>window.__focusLastUpload?.stat_focus_mins_today==='0');
+        }
+        if(!cloud||cloud.stat_focus_mins_today!==(writerRollsFirst?'0':'25'))await fail('actual focus backup did not reach cloud');
+        const reader=await boot(contexts[1],saturday,false);
+        if(!writerRollsFirst)await writer.evaluate(now=>{__focusJump(now);applyNewDayCleanup();},saturday);
+        // Reload uses each device's real persisted state; fixture seeding is once only.
+        for(const page of [writer,reader]){
+          await page.reload({waitUntil:'domcontentloaded'});await waitForAppReady(page,{label:'Focus reload'});
+          const result=await page.evaluate(()=>{
+            Today.use('sidebar').open('about');
+            const rows=safeJSON('today_daily_history',[]).filter(r=>r.date==='2026-11-27');
+            return {retained:rows.length===1&&rows[0].focusMins===25,
+              todayZero:localStorage.getItem('stat_focus_mins_today')==='0',
+              visible:document.getElementById('weekGrid').textContent.includes('25m'),
+              once:manualTasks.find(t=>t.id==='manual_focus_fixture')?.focusSessions===1};
+          });
+          await expectAll('focus upload/rollover/reload '+writerRollsFirst,{...result,noErrors:errors.length===0});
+        }
+        // Replay through the transport, then publish the actual retained state.
+        cloud=JSON.parse(JSON.stringify(cloud));
+        cloud.daily_history=[{date:'2026-11-27',focusMins:0}];
+        cloud.stat_focus_mins_today='0';cloud.stat_focus_mins_date=new Date(saturday).toDateString();rev++;
+        await reader.evaluate(reconnect=>{
+          window.__focusLastUpload=null;
+          if(reconnect)window.dispatchEvent(new Event('online'));
+          else _dbxSyncNow();
+        },writerRollsFirst);
+        try {
+          await reader.waitForFunction(()=>window.__focusLastUpload?.daily_history.some(r=>r.date==='2026-11-27'&&r.focusMins===25),{timeout:5000,polling:50});
+        } catch {
+          await fail('stale focus backup must be automatically healed',{cloudFocus:cloud.daily_history,local:await reader.evaluate(()=>safeJSON('today_daily_history',[]))});
+        }
+        await reader.reload({waitUntil:'domcontentloaded'});await waitForAppReady(reader,{label:'Focus stale replay reload'});
+        const replay=await reader.evaluate(()=>({history:safeJSON('today_daily_history',[]).filter(r=>r.date==='2026-11-27'),today:localStorage.getItem('stat_focus_mins_today')}));
+        await expectAll('shared backup preserves focus after stale transport replay',{
+          oneDay:replay.history.length===1,minutes:replay.history[0]?.focusMins===25,todayZero:replay.today==='0',
+          cloudHistory:cloud.daily_history.some(r=>r.date==='2026-11-27'&&r.focusMins===25),noErrors:errors.length===0});
+        const quiet=await reader.evaluate(data=>mergeRemoteData(data)===false,cloud);
+        if(!quiet)await fail('converged focus merge must not request write-back');
+        const poorer=JSON.parse(JSON.stringify(cloud));
+        poorer.daily_history.find(r=>r.date==='2026-11-27').focusMins=0;
+        const repair=await reader.evaluate(data=>mergeRemoteData(data)===true,poorer);
+        if(!repair)await fail('write-back detector must reject a poorer snapshot');
+        ok('Actual focus restore/upload survives '+(writerRollsFirst?'writer-first reconnect':'receiver-first polling')+' rollover, both reloads and stale transport replay; converged pulls stay quiet');
+      } finally {for(const context of contexts)await context.close();}
+    }
+
+    // Numbers from different dates cannot compete for one "maximum".
+    for (const mode of ['sync','restore']) for (const minutes of [25,90,120]) {
+      const {page,errors}=await openPage({extraSeed:{
+        stat_focus_mins_date:YESTERDAY_DS,stat_focus_mins_today:'90',
+      }});
+      const result=await page.evaluate(async({day,date,today,minutes,mode})=>{
+        const remote={stat_focus_mins_date:today,stat_focus_mins_today:String(minutes)};
+        if(mode==='sync')mergeRemoteData(remote);
+        else {
+          const nativeFetch=window.fetch;
+          localStorage.setItem('dropbox_token','fictional-dated-focus-token');
+          window.fetch=async()=>new Response(JSON.stringify(remote),{headers:{'Dropbox-API-Result':'{"rev":"fictional-dated-focus"}'}});
+          try {await dropboxRestore(false);} finally {window.fetch=nativeFetch;localStorage.removeItem('dropbox_token');}
+        }
+        localStorage.setItem('stat_last_visit',day);applyNewDayCleanup();
+        return {todayRetained:localStorage.getItem('stat_focus_mins_today')===String(minutes),
+          todayDated:localStorage.getItem('stat_focus_mins_date')===today,
+          yesterdayRetained:safeJSON('today_daily_history',[]).find(r=>r.date===date)?.focusMins===90};
+      },{day:YESTERDAY_DS,date:YESTERDAY_ISO,today:TODAY_DS,minutes,mode});
+      await expectAll('different-date counters '+mode+' with remote '+minutes,{...result,noErrors:!errors.length});
+      await page.close();
+    }
+
+    // A sleeping device's backup can still hold yesterday's live counter, not a
+    // history row. Receiving it after local rollover must bank it, not drop it.
+    for (const mode of ['sync', 'restore']) {
+      const {page,errors}=await openPage({extraSeed:{
+        stat_focus_mins_date:TODAY_DS,stat_focus_mins_today:'25',
+        today_daily_history:JSON.stringify([{date:YESTERDAY_ISO,focusMins:0,tasksDone:2}]),
+      }});
+      const result=await page.evaluate(async({mode,day,date})=>{
+        const remote={stat_focus_mins_date:day,stat_focus_mins_today:'90',daily_history:[]};
+        if(mode==='sync') {
+          mergeRemoteData(remote);mergeRemoteData(remote);
+        } else {
+          const original=window.fetch;
+          localStorage.setItem('dropbox_token','fictional-focus-history-token');
+          window.fetch=async url=>{
+            if(!String(url).includes('dropboxapi.com'))throw new Error('Unexpected fixture destination');
+            return new Response(JSON.stringify(remote),{status:200,headers:{'Dropbox-API-Result':'{"rev":"fictional-focus-history"}'}});
+          };
+          try {await dropboxRestore(false);} finally {window.fetch=original;localStorage.removeItem('dropbox_token');}
+        }
+        const rows=safeJSON('today_daily_history',[]),row=rows.find(r=>r.date===date);
+        return {retained:row?.focusMins===90,oneRow:rows.filter(r=>r.date===date).length===1,
+          tasksRetained:row?.tasksDone===2,
+          noTodayLeak:localStorage.getItem('stat_focus_mins_today')===(mode==='sync'?'25':'0')};
+      },{mode,day:YESTERDAY_DS,date:YESTERDAY_ISO});
+      await expectAll('unbanked remote yesterday counter: '+mode,{...result,noErrors:!errors.length});
+      ok('Unbanked remote focus survives '+mode+' after local rollover, without duplication or today carryover');
+      await page.close();
+    }
+
+    {
+      const {page,errors}=await openPage();
+      const result=await page.evaluate(({day,date,today})=>{
+        const reset=history=>{
+          localStorage.setItem('today_daily_history',JSON.stringify(history));
+          localStorage.setItem('stat_focus_mins_date',today);
+          localStorage.setItem('stat_focus_mins_today','25');
+        };
+        reset([]);
+        mergeRemoteData({stat_focus_mins_date:day,stat_focus_mins_today:'90'});
+        const absentHistory=safeJSON('today_daily_history',[]).find(r=>r.date===date)?.focusMins===90;
+        reset([{date,focusMins:120,tasksDone:4}]);
+        mergeRemoteData({daily_history:[{date,focusMins:30}],stat_focus_mins_date:day,stat_focus_mins_today:'90'});
+        const richerRow=safeJSON('today_daily_history',[]).find(r=>r.date===date);
+        let invalidIgnored=true;
+        const future=new Date();future.setDate(future.getDate()+1);
+        for(const [stamp,minutes] of [['','90'],['not a date','90'],[future.toDateString(),'90'],
+          [day,'bad'],[day,'-10'],[day,'Infinity'],[day,0.5],[day,true],[day,[90]],[today,'90']]){
+          reset([]);mergeRemoteData({stat_focus_mins_date:stamp,stat_focus_mins_today:minutes});
+          invalidIgnored=invalidIgnored&&safeJSON('today_daily_history',[]).length===0;
+        }
+        return {absentHistory,richerPreserved:richerRow.focusMins===120&&richerRow.tasksDone===4,invalidIgnored};
+      },{day:YESTERDAY_DS,date:YESTERDAY_ISO,today:TODAY_DS});
+      await expectAll('historical counter max and date/value boundaries',{...result,noErrors:!errors.length});
+      ok('Historical remote focus handles absent history, richer rows and invalid/current/future counters');
+      await page.close();
     }
 
     // A second device may already have saved an incomplete row for yesterday.

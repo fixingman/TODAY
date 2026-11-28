@@ -337,9 +337,9 @@ A surface that fails W3 gets iterated or removed — removal is a valid outcome 
 
 | # | Scenario | Expected |
 |---|----------|----------|
-| 5.1 | Focus minutes — same day, two devices | Max wins (higher of the two) |
-| 5.2 | Focus minutes — after midnight reset | Remote yesterday's total NOT restored (date guard via `stat_focus_mins_date`) |
-| 5.3 | Focus minutes — manual Restore button | Only restored if backup date matches today |
+| 5.1 | Focus minutes — two devices | Max wins only for the same date. Adopting today’s remote value/date must preserve a dated local past-day counter even when today’s number is smaller or equal. |
+| 5.2 | Focus minutes — after midnight reset | Yesterday’s remote counter never enters today, but its valid dated minutes survive in history even without a banked row. |
+| 5.3 | Focus minutes — manual Restore button | Replace today’s counter only under the date guard, stamp value/date together, and bank valid local/remote past-day minutes into history before overwriting live state. |
 | 5.4 | Streak | Max wins; `stat_streak_date` guards against double-increment on multi-device (BUG-020) |
 | 5.5 | Tasks done today | Max wins |
 | 5.6 | Memory totalTasksCompleted | Max wins |
@@ -877,3 +877,11 @@ W1: a rejected sentence does not make a later fresh week inaccessible. W2: exist
 ## Focus history with an existing daily row — local November 23
 
 `day-lifecycle-test` seeds an existing zero-minute outgoing-day row and90 unbanked local focus minutes. Cleanup must merge before resetting, keep one dated row and show1h30m in the actual About week grid. A richer120-minute stored row must survive a90-minute local snapshot without addition; retain tasks/habits and corrected `tasksAddedFixed` values. An existing row plus BUG-063’s45-minute midnight snapshot must bank45 while retaining today’s90-minute counter. Repeating cleanup is idempotent. The existing sync-merge and Dropbox suites cover the shared per-field merge and both storage paths. A Friday November20/Saturday November21 case uses two isolated browser contexts and the actual `mergeRemoteData`/cleanup/About paths: the second device banks0, the working device pulls that row before banking90, both converge to90, and a stale0 replay cannot erase it or create a duplicate/next-day carryover. Both grids must show Friday1h30m. The same new test fails against unchanged old runtime specifically at `retained:false`, then passes with the repair. It runs in the existing CI-owned day-lifecycle suite. Preserve both original failing controls; do not reconstruct account data from estimated hours.
+
+## Focus sync integrity — local November 28
+
+BUG-176 stays reopened. `day-lifecycle-test` adds smaller/equal/larger incoming today counters against an unbanked local yesterday counter (25/90/120 versus90), on automatic merge and explicit Restore. A valid past remote counter contributes to its own history date, never today; missing/partial history, richer rows, repeated merge and invalid/current/future dates and values are checked. The original midnight snapshot and partial-row regressions remain.
+
+Two isolated browser stores share fictional Dropbox transport. A persisted focus session completes through actual restoration and queues a real backup upload. Cover an unbanked Friday November27 upload received on Saturday November28, and the writer banking Friday before upload. Both stores reload, retain a single25-minute Friday row, show25m in About and preserve a zero Saturday total; cumulative session count stays1. Replay a Saturday backup with a zero Friday row through the actual polling handler (receiver-first) and online-reconnect handler (writer-first): the existing save queue must repair shared history automatically, survive another reload and then queue no save on a converged pull. No explicit backup is used to manufacture replay recovery. Existing Dropbox tests cover failed-download revision retry and wake/poll for tasks; this does not claim every network/OS/date schedule or independent offline sum is verified.
+
+For future data-loss fixes, keep the narrow red reproduction and exercise recording→queued upload→incoming merge→cleanup→render→reload/replay for the affected state, in both device orders. Passing only an intermediate merge is not a complete lifecycle check. Local synthetic evidence is separate from installed symptom/cause and recovery.

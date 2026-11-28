@@ -13,7 +13,7 @@
 > (needs a fresh-device Sunday/habit badge check) and BUG-062/069 are 🚫 Rejected.
 > BUG-138 closed/archived October 30 after Can disabled Netlify RUM and all four public HTML checks confirmed removal. BUG-136/134/131/128/127 were independently verified and archived the same day at Can’s request; their unrelated real-use/account verdicts remain separate.
 > BUG-137/139–143/148–150/153/155–157/160/161/163/164 archived 2026-11-14: each record names its verification (reproduction-equivalent automated checks or hosted gate 43026453419).
-> BUG-174–179 archived 2026-11-26 after Can accepted the current reproduction-equivalent automated verification; remaining live/account/history/hosting limits are preserved in each detail.
+> BUG-174–179 archived 2026-11-26 after accepted automated verification; BUG-176 reopened 2026-11-28 after a recurrence. Other records retain their verification scope and limits.
 > Newest first, matching the ordering rule above. Not every row has a detail section —
 > the earliest fixes were summarised only.
 
@@ -22,7 +22,6 @@
 | 179 | Show a visible status when Gmail cannot supply another email, while retaining the previous email. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.16.2); scope and limits below |
 | 178 | The hosting skip rule compares only the final commit pair, missing app changes awaiting production deployment. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.15.1 engineering); scope and limits below |
 | 177 | Distinct enrichment failures all return a generic502, leaving the console unable to distinguish the cause. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.15.1); scope and limits below |
-| 176 | Cleanup skips unbanked focus minutes when another history row already exists, then resets the counter. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.14.1); scope and limits below |
 | 175 | A single weekly-reading miss adds a second quiet week even when fresh weekly evidence qualifies. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.13.1); scope and limits below |
 | 174 | .habit-daily-link inside .habit[data-habit-id] was missing from the focus.js document click handler exclusion list. | ✅ Reproduction-equivalent automated checks; 2026-11-26 (v3.13.0); scope and limits below |
 | 173 | Post-add suggestions hidden behind the input bar but counted as ignored. | ✅ Can verified, 2026-11-22 (v3.11.6); separate evening-review overlap remains unverified |
@@ -251,24 +250,6 @@ The repair displays a visit-local accessible status on an unavailable result, pr
 **Tests:** actual handler cases for request failure, malformed/unexpected provider response, empty answer, invalid card JSON/shape, output cap, malformed/unsupported tool stop, exhausted turns, deadline and upstream HTTP status. Browser checks reject private/unknown fields, do not cache failures and withhold diagnostics after task rename while an error body is held. The pre-repair test fails on the absent reason code. Preserve raw evidence in `.context/enrichment-failure-diagnostics-20261123/`.
 
 **Local verification:** `fresh-IZV8u7` passes invariants and task-enrich with0 failures/flakes in9.6s, including actual-handler cases and browser privacy/staleness checks. Payload, memory inventory and whitespace pass. The original reason-code assertion fails before the change. Installed reason-code verification awaits publication; no live provider call or credential use.
-
----
-
-## BUG-176 — Daily-history row can swallow unbanked focus minutes at rollover
-
-**Verified — November 26, 2026:** The two-context Friday/Saturday regression passes: both devices converge on 90 minutes and About shows 1h 30m, resisting stale-zero replay, duplicate rows and next-day carryover. About, merge and Dropbox fixture suites also pass. This verifies the rollover defect; Can’s historical loss cause, recovery and installed acceptance remain unverified. Can authorized marking this technical repair verified and archiving it after the automated pass.
-
-**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
-
-**Report (Can, November23):** Friday November20 focus minutes disappeared from About after previously showing approximately1–2h. Exact minutes, device sequence and when the disappearance occurred are unknown. Related repairs BUG-063 and BUG-066 cover midnight snapshot ordering and adopting synced counters with their dates; those fixes remain in place.
-
-**Reproduction:** seed a fictional outgoing-day history row with focus0 and a correctly dated local live counter of90. `applyNewDayCleanup()` finds the existing row, skips the snapshot and resets the counter to0; About cannot show those minutes. The actual-component regression fails before repair with `minutesRetained:false`, other row/count/reset checks true and no app error. This establishes an independent defect, not the confirmed cause of Can’s historical data.
-
-**Repair:** merge the outgoing-day snapshot before reset through existing `sync-merge.mergeDailyHistory` and `_sanitizeDailyTasksAdded`, preserving per-field maxima, fixed-count precedence, one row/date and30-row retention. Never add totals. Preserve richer rows and the BUG-063 distinction between yesterday’s snapshot and today’s minutes. No live history or backup was read/rewritten and no estimated minutes were restored.
-
-**Verification:** retain failing control and final scoped evidence in `.context/friday-focus-history-20261123/`. Tests cover About’s visible1h30m, a richer120-minute row against90, corrected task/habit values, midnight45 versus today90 and repeated cleanup. Final fresh check `fresh-kCZ0Bs` passes all5 suites (invariants, day lifecycle, About, sync-merge unit and Dropbox) with0 failures/flakes in27.3s; payload, memory inventory and whitespace also pass. Actual Friday cause, recovery and installed acceptance remain unverified after publication.
-
-**Stronger regression (November23):** the existing CI-owned day-lifecycle suite now runs Friday November20/Saturday November21 in two isolated browser contexts. One device banks0; the other merges that row before banking90. Both must converge on90 and display Friday1h30m; stale-zero replay, duplicate rows and next-day carryover are rejected. An isolated original-runtime control fails specifically with `syncedPartial:true`, `retained:false`, `todayReset:true`. The fixed same-test owning-suite run `fresh-FgosJa` passes both checks with0 flakes/failures in12.1s. The earlier five-suite pass remains recorded separately.
 
 ---
 

@@ -8,6 +8,7 @@
 |---|---|
 | ✅ Verified | Reported defect verified fixed by Can, deployed checks, or an authorized reproduction-equivalent automated check; separate account/usefulness acceptance is not implied |
 | ⏳ Verify | Fix pushed; reported behavior still requires verification |
+| 🔍 Open | Reported defect remains under investigation; a reproduced repair does not establish the live cause |
 | 🔧 Local | Fix implemented locally; not pushed |
 | ↪ Merged | Tracked under the bug shown in the Reference column |
 | ⚠️ Stale | Old, unverified report that needs a fresh reproduction |
@@ -15,12 +16,13 @@
 
 ## Status Summary
 
-Current publication/CI evidence is maintained once in the [release contract](../docs/ci-release-evidence.md#recorded-full-release-proof). Historical local and failed-run receipts below remain history; they do not supersede that result. Installed/account/usefulness verdicts remain separate. BUG-174–179 were verified by accepted reproduction-equivalent automated checks on November 26, 2026 and archived with their remaining limits; BUG-091/105/117/145/158 remain open.
+Current publication/CI evidence is maintained once in the [release contract](../docs/ci-release-evidence.md#recorded-full-release-proof). Historical local and failed-run receipts below remain history; they do not supersede that result. Installed/account/usefulness verdicts remain separate. BUG-174–179 received accepted automated verification on November 26, 2026; BUG-176 reopened on November 28 after the focus-history symptom recurred. BUG-091/105/117/145/158 remain open.
 
 > Descriptions state the symptom; status and release/reference have separate columns. Local versions are unreleased candidates.
 
 | # | Status | Description | Reference |
 |---|---|---|---|
+| 176 | 🔍 Open | Yesterday’s focus time disappeared again after being visible in About; prior rollover fix is insufficient to close the symptom. | Reopened; v3.14.1 repair history below |
 | 166 | 🚫 Rejected | After an overnight resume from the background, the morning shows no splash poem until the app fully restarts. | — |
 | 158 | ⏳ Verify | Suggest something reports a provider token cutoff. | v3.7.11 |
 | 145 | ⏳ Verify | Living note hides unchanged interpretations when source records leave display windows, and puts a generic status under “A possibility”. | v3.5.0 |
@@ -31,7 +33,37 @@ Current publication/CI evidence is maintained once in the [release contract](../
 
 ---
 
-*BUG-001–087 (all), verified BUG-088–119, 121–143, 148–150, 153, 155–157, 160, 161, 163, 164, 168, 170–179 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+*BUG-001–087 (all), verified BUG-088–119, 121–143, 148–150, 153, 155–157, 160, 161, 163, 164, 168, 170–175, 177–179 → `archive/Bugs-archive.md` (summary rows + detail). Below: open, awaiting-verification, rejected, and merge pointers only.*
+
+---
+
+## BUG-176 — Daily-history row can swallow unbanked focus minutes at rollover
+
+**Reopened — November 28, 2026:** Can reports that Friday November 27 focus time disappeared again after it had been visible in About. Device, installed version, exact minutes and loss timing are not yet established. The November 26 automated verification below covers a narrower rollover defect; it does not close this recurring symptom. No personal history has been changed or estimated minutes restored.
+
+**November 28 local investigation:** A new actual-component regression fails on the current runtime: after local rollover, an incoming backup can contain yesterday’s valid dated live counter (90 minutes) but no banked history row. Sync date-gates the counter out of today, then ignores it for yesterday too; an existing zero history row stays zero. Control `.context/fresh-uwfKct/receipt.json` fails `retained:false` while the date boundary, row uniqueness, task count and error checks pass. This is a separate reproduced defect, not the confirmed cause of Can’s November 27 loss.
+
+**Local repair (unpublished):** Both automatic merge and manual Restore fold a valid past-day remote counter into existing daily history by per-field maximum before discarding it as a current-day counter. No new backup fields, requests, estimated totals or addition across devices. Current/future/invalid dates and invalid/non-positive minute values do not create historical rows. Preserve richer history and existing retention. The first five-suite pass is `.context/fresh-Qi2eU8/receipt.json`; final `.context/fresh-6IBBsE/receipt.json` passes all five suites (invariants, day lifecycle, Dropbox, sync-merge unit and About), with zero failures/flakes in28.7s. It includes absent/partial history, richer rows, replay and invalid/current/future date/value boundaries. Investigation report: `.context/focus-history-recurrence-20261128/report.md`. Exact installed symptom, old data recovery and deployment remain open.
+
+**November 28 engineering audit (local, unpublished):** Read the existing value/date-unit contract (BUG-066), snapshot ordering (BUG-063), per-day maximum (BUG-036/176), mutation saves (BUG-124) and consumed-revision rules (BUG-130). Further red controls expose smaller/equal remote today totals losing to a stale local yesterday number (`fresh-dY00ug`), explicit Restore losing that dated pair (`fresh-5mN35W`), and a retained local history failing to heal a stale shared snapshot (`fresh-nJ0XtU`, repair-upload wait timed out). Bank dated past-day local evidence before adopting today’s pair regardless of numeric ordering, stamp Restore’s adopted/reset date, and queue normal focus-only repair when the incoming snapshot is poorer. No new accounting schema, summation, transport, polling, zone, tombstone, auth or model policy.
+
+**Final scoped evidence:** all six affected suites pass in `.context/fresh-wfDqs7/receipt.json` (85.2s; zero failures/flakes): invariants, day lifecycle, Dropbox, sync-merge unit, About and Focus. Final lifecycle/invariant run `.context/fresh-lFnl8n/receipt.json` also passes (24.8s), adding actual polling/reconnect repair and quiet converged-pull checks; runtime/other-suite fingerprints are unchanged. The two isolated stores use actual restored focus completion and queued upload, writer/receiver-first rollover, rendered About, both reloads and stale shared-backup replay. Audit and limits: `.context/focus-sync-integrity-20261128/engineering-review.md`. This still does not identify Can’s actual Friday loss, recover data or establish deployed/installed acceptance.
+
+**Pre-publication review — November 28:** Native specialist review found the earlier quiet-save spy watched a global property rather than Restore’s closure-local save function; that assertion was not valid proof. Replace it with the actual merge result: a converged shared snapshot must return false, while a negative control changing only Friday’s focus to0 must return true. Actual queued-upload, polling/reconnect and reload checks remain. Corrected lifecycle/invariant run `.context/fresh-ypJERl/receipt.json` passes with zero failures/flakes in22.5s. Runtime code is unchanged from the six-suite pass above. The review found no introduced runtime defect; installed cause and recovery remain open.
+
+**Verified — November 26, 2026:** The two-context Friday/Saturday regression passes: both devices converge on 90 minutes and About shows 1h 30m, resisting stale-zero replay, duplicate rows and next-day carryover. About, merge and Dropbox fixture suites also pass. This verifies the rollover defect; Can’s historical loss cause, recovery and installed acceptance remain unverified. Can authorized marking this technical repair verified and archiving it after the automated pass.
+
+**Current evidence:** revision `c761b6215ca5e8fe1dfaed04a21a79037703f8a0`; `.context/fresh-LxQ1m7/receipt.json` records all 14 selected suites passing, with 0 failures/flakes (142.8s). Full scope and command: `.context/bug-verification-20261126/report.md`. These local receipts are not hosted release or installed/account proof.
+
+**Report (Can, November23):** Friday November20 focus minutes disappeared from About after previously showing approximately1–2h. Exact minutes, device sequence and when the disappearance occurred are unknown. Related repairs BUG-063 and BUG-066 cover midnight snapshot ordering and adopting synced counters with their dates; those fixes remain in place.
+
+**Reproduction:** seed a fictional outgoing-day history row with focus0 and a correctly dated local live counter of90. `applyNewDayCleanup()` finds the existing row, skips the snapshot and resets the counter to0; About cannot show those minutes. The actual-component regression fails before repair with `minutesRetained:false`, other row/count/reset checks true and no app error. This establishes an independent defect, not the confirmed cause of Can’s historical data.
+
+**Repair:** merge the outgoing-day snapshot before reset through existing `sync-merge.mergeDailyHistory` and `_sanitizeDailyTasksAdded`, preserving per-field maxima, fixed-count precedence, one row/date and30-row retention. Never add totals. Preserve richer rows and the BUG-063 distinction between yesterday’s snapshot and today’s minutes. No live history or backup was read/rewritten and no estimated minutes were restored.
+
+**Verification:** retain failing control and final scoped evidence in `.context/friday-focus-history-20261123/`. Tests cover About’s visible1h30m, a richer120-minute row against90, corrected task/habit values, midnight45 versus today90 and repeated cleanup. Final fresh check `fresh-kCZ0Bs` passes all5 suites (invariants, day lifecycle, About, sync-merge unit and Dropbox) with0 failures/flakes in27.3s; payload, memory inventory and whitespace also pass. Actual Friday cause, recovery and installed acceptance remain unverified after publication.
+
+**Stronger regression (November23):** the existing CI-owned day-lifecycle suite now runs Friday November20/Saturday November21 in two isolated browser contexts. One device banks0; the other merges that row before banking90. Both must converge on90 and display Friday1h30m; stale-zero replay, duplicate rows and next-day carryover are rejected. An isolated original-runtime control fails specifically with `syncedPartial:true`, `retained:false`, `todayReset:true`. The fixed same-test owning-suite run `fresh-FgosJa` passes both checks with0 flakes/failures in12.1s. The earlier five-suite pass remains recorded separately.
 
 ---
 

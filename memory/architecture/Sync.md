@@ -32,6 +32,8 @@ All paths are relative to TODAY's Dropbox app access; `{env}` is empty on produc
 | Backup snapshot (one JSON, overwritten) | `/today-backup{env}.json` |
 | DreamBank dream files (one Markdown per dream, not part of the backup) | `/Dreams{env}/{day|undated}_{id}.md` — see `Data.md` → DreamBank keys |
 
+**Historical focus counters (November 28 repair):** An incoming backup’s valid past-day `stat_focus_mins_date` / `stat_focus_mins_today` pair also contributes to that date’s daily-history maximum, even when `daily_history` is absent or partial. Apply this in automatic merge and manual Restore; never carry that counter into today or sum it with another device. Invalid/current/future dates and invalid/non-positive minute values create no historical row. Existing schema and 30-row cap stay unchanged. BUG-176 remains reopened; the reproduced path does not establish the cause or recovery of Can’s historical loss.
+
 ### Sync Flow
 
 ```
@@ -121,7 +123,7 @@ merged = [...local, ...remote].reduce((acc, item) => {
   habit_tasks_v1: {configs: {habitId: HabitTaskConfig}, occurrences: {'habitId::YYYY-MM-DD': HabitOccurrence}},  // absent until opted-in; additive, no schema bump
   // Stats
   stat_focus_mins_today: '0',
-  stat_focus_mins_date: 'YYYY-MM-DD',  // date guard — yesterday's total never restores (BUG-024)
+  stat_focus_mins_date: 'Date.toDateString()',  // stored local focus day; past minutes never become today's (BUG-024)
   stat_streak: '1',
   stat_streak_date: 'YYYY-MM-DD',      // prevents double-increment across devices (BUG-020)
   // Memory — appMemory; Noticed bookkeeping travels inside but only noticedDates is merged
@@ -180,7 +182,7 @@ Additive keys do not bump the version; `Rules.md` #12 records which keys arrived
 
 ### Stats
 
-- **Focus minutes** — `stat_focus_mins_date` is written whenever minutes are earned or reset; the backup uses that stored date (never `_getAppDay()` — BUG-024) with `''` as fallback, which fails the guard. Merge: `remoteFocusDate === _getAppDay() ? remoteFocusMins : 0`, then max.
+- **Focus minutes** — `stat_focus_mins_date` is written whenever minutes are earned or reset; the backup uses that stored date (never `_getAppDay()` — BUG-024) with `''` as fallback, which fails the guard. Merge compares totals only within the same date. When adopting today’s remote pair over a local past-day pair, bank the old dated minutes first and adopt both value and date even when the incoming number is smaller or equal. Local repairs to focus history/current-day totals schedule the existing merged save when the incoming backup is poorer, including when local bytes did not change; converged pulls stay quiet. Explicit Restore retains its current-day replacement semantics but banks past-day local evidence and stamps the adopted date. No summation or accounting-schema change.
 - **Streak** — `stat_streak_date` is set to `_localISO()` on increment. Merge: `remoteStreakDate >= localStreakDate ? Math.max(local, remote) : local`, so a device that already rolled to today is not re-inflated by a stale remote. `applyNewDayCleanup()` skips only the *increment* when `streakDate === today`; it must not return early, because focus reset and the rest of cleanup still run (BUG-024).
 - **Done-today count — derived, not stored.** `_doneTodayCount(dayISO?)` counts `checked_ids` on that local day whose check is the winning op (no later `unchecked_ids` entry) — the same rule as `mergedDoneIds`. The retired `stat_tasks_done_today` counter only ever increased and merged by max, so re-checks and two devices inflated it without bound (BUG-045's date guard could not fix that). No backup field, merge or restore branch, or daily reset: the day boundary comes from the date filter plus the `checked_ids` clear in `applyNewDayCleanup()`. Readers: the evening triage summary, the `applyNewDayCleanup()` daily-history snapshot (passes `yesterdayISO`), `_getWeeklyStats`. Gotcha: the unchecked map is built as `.map(u => [u.id, u.at])`, so its value *is* the timestamp string — compare `c.at > uAt`, not `c.at > u.at`.
 

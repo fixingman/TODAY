@@ -695,10 +695,22 @@
     // days at midnight and the week view diverged across devices. Union by date; on duplicate
     // dates merge per-field with Math.max so neither device's data is silently discarded.
     // Cap 30 days.
-    function _mergeDailyHistory(localArr, remoteArr) {
+    function _mergeDailyHistory(localArr, remoteArr, remoteStats) {
+      let history = Array.isArray(remoteArr) ? remoteArr : [];
+      // A suspended device has not necessarily banked its dated live counter.
+      // Keep that evidence in its own day's history before today's date guard
+      // ignores it. Max-merge makes repeated sync/Restore idempotent.
+      const stamp = remoteStats?.stat_focus_mins_date;
+      const date = typeof stamp === 'string' && stamp ? new Date(stamp) : null;
+      const rawMinutes = remoteStats?.stat_focus_mins_today;
+      const minutes = typeof rawMinutes === 'string' || typeof rawMinutes === 'number' ? Number(rawMinutes) : NaN;
+      if (date && Number.isFinite(date.getTime()) && date.toDateString() === stamp
+          && _localISO(date) < _localISO() && Number.isSafeInteger(minutes) && minutes > 0) {
+        history = [...history, {date: _localISO(date), focusMins: minutes}];
+      }
       return Today.use('sync-merge').mergeDailyHistory(
         localArr,
-        remoteArr,
+        history,
         _sanitizeDailyTasksAdded,
       );
     }
@@ -1464,6 +1476,7 @@
       // Stats: take max of each counter (both devices may have added focus time)
       // Flow rate is calculated live from visible tasks, not stored
       const localFocusMins  = parseInt(localStorage.getItem('stat_focus_mins_today')  || '0');
+      const localFocusDate = localStorage.getItem('stat_focus_mins_date') || '';
       const localStreak     = parseInt(localStorage.getItem('stat_streak')            || '1');
       const localStreakDate  = localStorage.getItem('stat_streak_date') || '';
 
@@ -1477,7 +1490,13 @@
       const remoteFocusDate = data.stat_focus_mins_date || '';
       const remoteFocusMinsToday = remoteFocusDate === _getAppDay() ? remoteFocusMins : 0;
 
-      const mergedFocusMins = Math.max(localFocusMins, remoteFocusMinsToday);
+      // Compare only same-day values. Yesterday's larger (or equal) local
+      // counter must not hide a smaller total actually earned today remotely.
+      const adoptingToday = remoteFocusDate === _getAppDay() && localFocusDate !== _getAppDay();
+      const mergedFocusMins = adoptingToday
+        ? remoteFocusMinsToday
+        : Math.max(localFocusMins, remoteFocusMinsToday);
+      if (localFocusDate === _getAppDay() && localFocusMins > remoteFocusMinsToday) _changed = true;
       const mergedStreakDate = remoteStreakDate > localStreakDate ? remoteStreakDate : localStreakDate;
       // Streak count: only adopt remote's count when remote's date is at least as recent
       // as local's. If remote is older (stale device), its count may reflect a streak the
@@ -1490,19 +1509,14 @@
       // Done count is NOT merged here — it derives from checked_ids, which merge by timestamp
       // union below. Math.max on a monotonic counter was what inflated it (retired v2.18.21).
 
-      if (mergedFocusMins !== localFocusMins) {
-        // Stamp the date guard alongside the value (BUG-066). mergedFocusMins only differs
-        // from local when remote's date-gated today-value won, so the merged number IS
-        // today's. Without the stamp, applyNewDayCleanup — which by design runs AFTER the
-        // Dropbox restore (see init(), "clean the freshest data") — reads a stale date,
-        // banks the other device's minutes into YESTERDAY's history and zeroes the counter.
-        // Symptom: work a focus session on desktop, open mobile later the same day, see 0.
-        const localFocusDate = localStorage.getItem('stat_focus_mins_date') || '';
+      if (mergedFocusMins !== localFocusMins || adoptingToday) {
+        // Value/date adoption is one operation, even when the number is equal.
+        // Bank the previous dated counter before replacing either field.
         if (localFocusDate && localFocusDate !== _getAppDay() && localFocusMins > 0) {
-          // Local counter was still on yesterday and cleanup hadn't banked it yet. Hand it
-          // to the snapshot cleanup consumes — same channel BUG-063 established — so
-          // stamping today's date below doesn't cost yesterday its history entry.
-          localStorage.setItem('stat_focus_mins_yesterday_snapshot', String(localFocusMins));
+          localStorage.setItem('today_daily_history', JSON.stringify(_mergeDailyHistory(
+            safeJSON('today_daily_history', []), [],
+            {stat_focus_mins_date:localFocusDate,stat_focus_mins_today:localFocusMins},
+          )));
         }
         localStorage.setItem('stat_focus_mins_today', String(mergedFocusMins));
         localStorage.setItem('stat_focus_mins_date', _getAppDay());
@@ -1529,9 +1543,15 @@
       }
 
       // Daily history: union merge by date (week grid cross-device, BUG-036)
-      if (Array.isArray(data.daily_history)) {
+      if (Array.isArray(data.daily_history) || data.stat_focus_mins_date) {
         const localDaily  = safeJSON('today_daily_history', []);
-        const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history);
+        const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history, data);
+        // A stale upload can lower the shared backup without changing this
+        // device's richer local row. Repair that backup too, through the normal
+        // queued save; otherwise the next fresh device still receives zero.
+        const incomingFocus = new Map(_mergeDailyHistory([], data.daily_history, data)
+          .map(row => [row.date, row.focusMins || 0]));
+        if (mergedDaily.some(row => (row.focusMins || 0) > (incomingFocus.get(row.date) || 0))) _changed = true;
         if (JSON.stringify(mergedDaily) !== JSON.stringify(localDaily)) {
           localStorage.setItem('today_daily_history', JSON.stringify(mergedDaily));
           _changed = true;
@@ -1844,13 +1864,25 @@
             localStorage.setItem('today_trello_focus_total', JSON.stringify(data.today_trello_focus_total));
           }
           // Stats (flow_rate is calculated live from visible tasks, not stored)
+          // Explicit Restore may replace today's counter, but must first bank
+          // a past-day local counter and keep an adopted value/date together.
+          const beforeRestoreHistory = safeJSON('today_daily_history', []);
+          const bankedRestoreHistory = _mergeDailyHistory(beforeRestoreHistory, [], {
+            stat_focus_mins_date:localStorage.getItem('stat_focus_mins_date') || '',
+            stat_focus_mins_today:localStorage.getItem('stat_focus_mins_today') || '0',
+          });
+          if (JSON.stringify(bankedRestoreHistory) !== JSON.stringify(beforeRestoreHistory)) {
+            localStorage.setItem('today_daily_history', JSON.stringify(bankedRestoreHistory));
+          }
           // Date guard: only restore focus mins if the backup is from today,
           // same as mergeRemoteData — prevents yesterday's total restoring after midnight
           const _restoreFocusDate = data.stat_focus_mins_date || '';
           if (data.stat_focus_mins_today && _restoreFocusDate === _getAppDay()) {
             localStorage.setItem('stat_focus_mins_today', data.stat_focus_mins_today);
+            localStorage.setItem('stat_focus_mins_date', _getAppDay());
           } else if (_restoreFocusDate !== _getAppDay()) {
             localStorage.setItem('stat_focus_mins_today', '0');
+            localStorage.setItem('stat_focus_mins_date', _getAppDay());
           }
           if (data.stat_streak)            localStorage.setItem('stat_streak',            data.stat_streak);
           if (data.stat_streak_date)       localStorage.setItem('stat_streak_date',       data.stat_streak_date);
@@ -1890,9 +1922,9 @@
             }
           }
           // Restore daily history (union by date — week grid cross-device, BUG-036)
-          if (Array.isArray(data.daily_history)) {
+          if (Array.isArray(data.daily_history) || data.stat_focus_mins_date) {
             const localDaily  = safeJSON('today_daily_history', []);
-            const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history);
+            const mergedDaily = _mergeDailyHistory(localDaily, data.daily_history, data);
             localStorage.setItem('today_daily_history', JSON.stringify(mergedDaily));
           }
           // Restore memory (merge with local) — delegates to _mergeAppMemory() which
