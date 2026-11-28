@@ -393,7 +393,7 @@ try {
       let cloud=null,rev=0;
       const friday=new Date(2026,10,27,18).getTime(),saturday=new Date(2026,10,28,12).getTime();
       const pages=[],errors=[];
-      const boot=async(context,epoch,writer)=>{
+      const boot=async(context,epoch,writer,desktop=true)=>{
         const page=await context.newPage();pages.push(page);
         page.on('pageerror',e=>errors.push(e.message));
         await page.exposeFunction('__focusCloud',(url,body)=>{
@@ -402,7 +402,18 @@ try {
           if(url.endsWith('/2/files/download'))return cloud?{body:JSON.stringify(cloud),headers:{'Dropbox-API-Result':JSON.stringify({rev:'focus-'+rev})}}:{status:409,body:'{}'};
           throw new Error('Unexpected fictional focus request');
         });
-        await page.evaluateOnNewDocument(({epoch,writer})=>{
+        await page.evaluateOnNewDocument(({epoch,writer,desktop})=>{
+          // Focus is desktop-only. Native headless input differs across hosts;
+          // declare the same complete hardware model as focus-test.mjs.
+          const nativeMatchMedia=window.matchMedia.bind(window);
+          window.__focusNativeHover=nativeMatchMedia('(hover: hover)').matches;
+          window.matchMedia=query=>{
+            const hardware={'(hover: hover)':desktop,'(hover: none)':!desktop,
+              '(pointer: fine)':desktop,'(pointer: coarse)':!desktop,'(pointer: none)':false};
+            const media=nativeMatchMedia(query);
+            if(Object.hasOwn(hardware,query))Object.defineProperty(media,'matches',{value:hardware[query]});
+            return media;
+          };
           const NativeDate=Date;let origin=Number(localStorage.getItem('__focus_fixture_clock')||epoch)-performance.now();
           class Clock extends NativeDate {
             constructor(...args){super(...(args.length?args:[origin+performance.now()]));}
@@ -425,13 +436,27 @@ try {
             if(String(input).endsWith('/2/files/upload'))window.__focusLastUpload=JSON.parse(options.body);
             return new Response(r.body,{status:r.status||200,headers:r.headers});
           };
-        },{epoch,writer});
+        },{epoch,writer,desktop});
         await page.goto(URL_BASE,{waitUntil:'domcontentloaded',timeout:15000});
         await waitForAppReady(page,{label:'Focus shared-backup fixture'});
         return page;
       };
       try {
+        if(!writerRollsFirst){
+          const coarse=await browser.createBrowserContext();
+          try {
+            const page=await boot(coarse,friday,true,false);
+            const control=await page.evaluate(()=>({guarded:typeof window._tryRestoreFocusSession!=='function',
+              notEarned:localStorage.getItem('stat_focus_mins_today')!=='25',
+              retained:!!localStorage.getItem('today_focus_session')}));
+            await expectAll('coarse input cannot satisfy the desktop focus fixture',control);
+          } finally {await coarse.close();}
+          cloud=null;rev=0;
+          ok('Coarse-pointer control withholds desktop Focus; lifecycle fixture explicitly supplies desktop input');
+        }
         const writer=await boot(contexts[0],friday,true);
+        await expectAll('desktop Focus is registered',await writer.evaluate(()=>({
+          hover:matchMedia('(hover: hover)').matches,registered:typeof window._tryRestoreFocusSession==='function'})));
         await writer.waitForFunction(()=>localStorage.getItem('stat_focus_mins_today')==='25');
         await writer.waitForFunction(()=>window.__focusLastUpload?.stat_focus_mins_today==='25');
         if(writerRollsFirst){
